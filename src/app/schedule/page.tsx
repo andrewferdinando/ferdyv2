@@ -10,8 +10,8 @@ const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
-const ClockIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const ClockIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
@@ -147,56 +147,53 @@ export default function SchedulePage() {
         {activeTab === 'scheduled' && (
           <div className="space-y-4">
             {scheduledPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                 <div className="flex items-start space-x-4">
                   {/* Post Image */}
-                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
                     <span className="text-gray-400 text-xs">IMG</span>
                   </div>
 
                   {/* Post Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">{post.title}</h3>
-                        <p className="text-gray-700 text-sm mb-2 line-clamp-2">{post.copy}</p>
-                        
-                        {/* Hashtags */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {post.hashtags.map((tag, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-0.5 bg-[#EEF2FF] text-[#6366F1] text-xs rounded-full font-medium">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                    <p className="text-gray-700 text-sm mb-3 line-clamp-2 leading-relaxed">{post.copy}</p>
+                    
+                    {/* Hashtags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {post.hashtags.map((tag, index) => (
+                        <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
 
-                        {/* Post Details */}
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <ClockIcon />
-                            <span>{post.scheduledTime}</span>
-                          </div>
-                          
-                          {/* Platform Icons */}
-                          <div className="flex items-center space-x-1">
-                            {post.platforms.map((platform) => {
-                              const IconComponent = platformIcons[platform as keyof typeof platformIcons];
-                              return <IconComponent key={platform} />;
-                            })}
-                          </div>
+                    {/* Post Details */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <ClockIcon className="w-4 h-4" />
+                          <span>{post.scheduledTime}</span>
+                        </div>
+                        
+                        {/* Platform Icons */}
+                        <div className="flex items-center space-x-1">
+                          {post.platforms.map((platform) => {
+                            const IconComponent = platformIcons[platform as keyof typeof platformIcons];
+                            return <IconComponent key={platform} />;
+                          })}
                         </div>
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center space-x-2 ml-4">
-                        <span className="px-2.5 py-1 bg-[#EEF2FF] text-[#6366F1] text-xs font-semibold rounded-md">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-3 py-1 bg-[#EEF2FF] text-[#6366F1] text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
-                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
-                          <EditIcon className="w-5 h-5" />
+                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
+                          <EditIcon className="w-4 h-4" />
                         </button>
-                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
-                          <TrashIcon className="w-5 h-5" />
+                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
+                          <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </div>

@@ -76,13 +76,13 @@ export default function Sidebar({ className = '' }: SidebarProps) {
   return (
     <div className={`w-[280px] bg-white border-r border-gray-200 flex flex-col h-full ${className}`}>
       {/* Brand Dropdown */}
-      <div className="p-5 border-b border-gray-200">
+      <div className="p-6 border-b border-gray-200">
         <div className="relative">
           <button
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-            className="w-full flex items-center justify-between p-3 text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
+            className="w-full flex items-center justify-between p-4 text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
           >
-            <span className="font-medium text-gray-900 text-sm">Game Over Queenstown</span>
+            <span className="font-medium text-gray-900 text-xs">Game Over Queenstown</span>
             <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           
@@ -102,14 +102,14 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-5">
-        <ul className="space-y-1">
+      <nav className="flex-1 p-6">
+        <ul className="space-y-2">
           {navigationItems.map((item) => (
             <li key={item.name}>
               {item.href ? (
                 <Link
                   href={item.href}
-                  className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     item.active
                       ? 'bg-[#EEF2FF] text-[#6366F1]'
                       : 'text-gray-700 hover:bg-gray-100'
@@ -121,7 +121,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
               ) : (
                 <button
                   onClick={item.onToggle}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
                     item.isOpen
                       ? 'bg-gray-100 text-gray-700'
                       : 'text-gray-700 hover:bg-gray-100'
