@@ -176,7 +176,7 @@ export default function SchedulePage() {
                         </div>
                         
                         {/* Platform Icons */}
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-2">
                           {post.platforms.map((platform) => {
                             const IconComponent = platformIcons[platform as keyof typeof platformIcons];
                             return <IconComponent key={platform} />;

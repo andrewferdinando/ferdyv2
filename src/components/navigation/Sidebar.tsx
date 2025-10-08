@@ -98,7 +98,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
               {item.href ? (
                 <Link
                   href={item.href}
-                  className={`flex items-center space-x-4 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center space-x-5 px-4 py-3 rounded-lg transition-all duration-200 ${
                     item.active
                       ? 'bg-[#EEF2FF] text-[#6366F1]'
                       : 'text-gray-700 hover:bg-gray-100'
@@ -116,7 +116,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-5">
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium text-sm">{item.name}</span>
                   </div>
