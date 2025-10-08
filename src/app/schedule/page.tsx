@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import AppLayout from '@/components/layout/AppLayout';
 
 // Icons
@@ -71,7 +72,8 @@ export default function SchedulePage() {
       hashtags: ['#HighScore', '#ArcadeChampion'],
       scheduledTime: 'Oct 8 • 5:02 PM',
       platforms: ['facebook', 'linkedin', 'instagram'],
-      status: 'Scheduled'
+      status: 'Scheduled',
+      image: '/placeholders/cropped_gameover_may_142.png'
     },
     {
       id: 2,
@@ -79,7 +81,8 @@ export default function SchedulePage() {
       hashtags: ['#TeamBuilding', '#CorporateEvents'],
       scheduledTime: 'Oct 9 • 2:30 PM',
       platforms: ['facebook', 'linkedin'],
-      status: 'Scheduled'
+      status: 'Scheduled',
+      image: '/placeholders/cropped_gameover_may_143.png'
     },
     {
       id: 3,
@@ -87,7 +90,8 @@ export default function SchedulePage() {
       hashtags: ['#Fun', '#Entertainment'],
       scheduledTime: 'Oct 10 • 7:15 PM',
       platforms: ['facebook', 'instagram'],
-      status: 'Scheduled'
+      status: 'Scheduled',
+      image: '/placeholders/cropped_gameover_may_140.png'
     },
     {
       id: 4,
@@ -95,7 +99,8 @@ export default function SchedulePage() {
       hashtags: ['#BirthdayParty', '#Celebration'],
       scheduledTime: 'Oct 11 • 6:45 PM',
       platforms: ['facebook', 'linkedin', 'instagram'],
-      status: 'Scheduled'
+      status: 'Scheduled',
+      image: '/placeholders/cropped_gameover_may_124.png'
     }
   ];
 
@@ -141,8 +146,14 @@ export default function SchedulePage() {
               <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                 <div className="flex items-start space-x-4">
                   {/* Post Image */}
-                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
-                    <span className="text-gray-400 text-xs">IMG</span>
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                    <Image
+                      src={post.image}
+                      alt={`Post ${post.id} image`}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
                   </div>
 
                   {/* Post Content */}
