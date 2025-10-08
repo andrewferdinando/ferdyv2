@@ -38,6 +38,10 @@ The primary color is used for interactive elements, active states, and calls-to-
 - **Primary Light**: `#EEF2FF` (Indigo 50)
   - Usage: Backgrounds for active/selected items, subtle highlights
 
+- **Primary Gradient**: `linear-gradient(90deg, #6366F1 0%, #4F46E5 100%)`
+  - Usage: Primary buttons, important call-to-action elements
+
+
 ### Semantic Colors
 
 Semantic colors provide instant visual feedback for user actions and system states.
