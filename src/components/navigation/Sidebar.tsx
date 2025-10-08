@@ -71,17 +71,17 @@ export default function Sidebar({ className = '' }: SidebarProps) {
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
             className="w-full flex items-center justify-between p-4 text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
           >
-            <span className="font-medium text-gray-900">Game Over Queenstown</span>
+            <span className="font-medium text-gray-900 text-xs">Game Over Queenstown</span>
             <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           
           {isBrandDropdownOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
               <div className="p-2">
-                <div className="p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-xs">
                   Game Over Queenstown
                 </div>
-                <div className="p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-xs">
                   Another Brand
                 </div>
               </div>
