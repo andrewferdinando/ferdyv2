@@ -1,79 +1,51 @@
-// Design tokens extracted from mockups
+// Ferdy Design System Theme Configuration
 export const theme = {
   colors: {
-    // Primary colors from mockups
+    // Primary colors (Indigo-based)
     primary: {
-      50: '#f8fafc',
-      100: '#f1f5f9',
-      200: '#e2e8f0',
-      300: '#cbd5e1',
-      400: '#94a3b8',
-      500: '#64748b',
-      600: '#475569',
-      700: '#334155',
-      800: '#1e293b',
-      900: '#0f172a',
+      50: '#EEF2FF', // Primary Light
+      500: '#6366F1', // Primary
+      600: '#4F46E5', // Primary Hover
     },
-    // Purple accent color (from active states and buttons)
-    purple: {
-      50: '#faf5ff',
-      100: '#f3e8ff',
-      200: '#e9d5ff',
-      300: '#d8b4fe',
-      400: '#c084fc',
-      500: '#a855f7',
-      600: '#9333ea',
-      700: '#7c3aed',
-      800: '#6b21a8',
-      900: '#581c87',
+    // Semantic colors
+    semantic: {
+      error: '#EF4444', // Red 500
+      errorBg: '#FEF2F2', // Red 50
+      success: '#10B981', // Emerald 500
+      successBg: '#ECFDF5', // Emerald 50
     },
-    // Pink accent color (from icons)
-    pink: {
-      50: '#fdf2f8',
-      100: '#fce7f3',
-      200: '#fbcfe8',
-      300: '#f9a8d4',
-      400: '#f472b6',
-      500: '#ec4899',
-      600: '#db2777',
-      700: '#be185d',
-      800: '#9d174d',
-      900: '#831843',
-    },
-    // Neutral colors
+    // Neutral scale
     gray: {
-      50: '#f9fafb',
-      100: '#f3f4f6',
-      200: '#e5e7eb',
-      300: '#d1d5db',
-      400: '#9ca3af',
-      500: '#6b7280',
-      600: '#4b5563',
-      700: '#374151',
-      800: '#1f2937',
-      900: '#111827',
+      50: '#FAFAFA', // Page background
+      100: '#F3F4F6', // Subtle backgrounds, hover states
+      200: '#E5E7EB', // Card borders
+      300: '#D1D5DB', // Input borders, dividers
+      400: '#9CA3AF', // Tertiary text
+      500: '#6B7280', // Secondary text, icons
+      700: '#374151', // Body text
+      950: '#0A0A0A', // Primary headings
     },
-    // Status colors
-    success: '#10b981',
-    warning: '#f59e0b',
-    error: '#ef4444',
-    info: '#3b82f6',
+    // Social platform colors
+    social: {
+      facebook: '#1877F2',
+      instagram: '#E4405F',
+      linkedin: '#0A66C2',
+      twitter: '#000000',
+    },
   },
   
   // Typography
   typography: {
     fontFamily: {
-      sans: ['Inter', 'system-ui', 'sans-serif'],
+      sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
     },
     fontSize: {
-      xs: '0.75rem',
-      sm: '0.875rem',
-      base: '1rem',
-      lg: '1.125rem',
-      xl: '1.25rem',
-      '2xl': '1.5rem',
-      '3xl': '1.875rem',
-      '4xl': '2.25rem',
+      h1: '32px',
+      h2: '24px', 
+      h3: '20px',
+      bodyLarge: '16px',
+      body: '14px',
+      caption: '12px',
     },
     fontWeight: {
       normal: '400',
@@ -81,39 +53,64 @@ export const theme = {
       semibold: '600',
       bold: '700',
     },
+    lineHeight: {
+      h1: '1.2',
+      h2: '1.3',
+      h3: '1.4',
+      body: '1.5',
+      caption: '1.4',
+    },
   },
   
-  // Spacing
+  // Spacing system (4px base unit)
   spacing: {
-    xs: '0.25rem',
-    sm: '0.5rem',
-    md: '1rem',
-    lg: '1.5rem',
-    xl: '2rem',
-    '2xl': '3rem',
-    '3xl': '4rem',
+    1: '4px',   // Tight spacing within components
+    2: '8px',   // Small gaps between related elements
+    3: '12px',  // Medium gaps within components
+    4: '16px',  // Standard padding, gaps between elements
+    5: '20px',  // Card padding, component internal spacing
+    6: '24px',  // Gaps between sections
+    8: '32px',  // Large section spacing
+    10: '40px', // Extra-large spacing
   },
   
   // Border radius
   borderRadius: {
-    sm: '0.25rem',
-    md: '0.5rem',
-    lg: '0.75rem',
-    xl: '1rem',
-    full: '9999px',
+    small: '6px',     // Badges, small buttons
+    medium: '8px',    // Input fields, icon buttons
+    large: '12px',    // Cards, large buttons
+    xlarge: '16px',   // Modals, large containers
+    full: '9999px',   // Pills, circular elements
   },
   
-  // Shadows
+  // Shadows & Elevation
   shadows: {
-    sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-    md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-    lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+    sm: '0 1px 2px rgba(0,0,0,0.05)',
+    md: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+    lg: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+    xl: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+  },
+  
+  // Transitions
+  transitions: {
+    fast: '150ms',
+    standard: '200ms',
+    slow: '300ms',
+    easing: {
+      ease: 'ease',
+      easeOut: 'ease-out',
+      easeIn: 'ease-in',
+    },
   },
   
   // Layout
   layout: {
     sidebarWidth: '280px',
     headerHeight: '64px',
+    breakpoints: {
+      mobile: '768px',
+      tablet: '1024px',
+    },
   },
 } as const;
 

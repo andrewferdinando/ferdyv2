@@ -1,95 +1,88 @@
-/* Design tokens based on mockups */
+/* Ferdy Design System CSS Variables */
 
 :root {
-  /* Colors */
-  --color-primary-50: #f8fafc;
-  --color-primary-100: #f1f5f9;
-  --color-primary-200: #e2e8f0;
-  --color-primary-300: #cbd5e1;
-  --color-primary-400: #94a3b8;
-  --color-primary-500: #64748b;
-  --color-primary-600: #475569;
-  --color-primary-700: #334155;
-  --color-primary-800: #1e293b;
-  --color-primary-900: #0f172a;
+  /* Primary Colors (Indigo-based) */
+  --primary: #6366F1;
+  --primary-hover: #4F46E5;
+  --primary-light: #EEF2FF;
 
-  --color-purple-50: #faf5ff;
-  --color-purple-100: #f3e8ff;
-  --color-purple-200: #e9d5ff;
-  --color-purple-300: #d8b4fe;
-  --color-purple-400: #c084fc;
-  --color-purple-500: #a855f7;
-  --color-purple-600: #9333ea;
-  --color-purple-700: #7c3aed;
-  --color-purple-800: #6b21a8;
-  --color-purple-900: #581c87;
+  /* Semantic Colors */
+  --error: #EF4444;
+  --error-bg: #FEF2F2;
+  --success: #10B981;
+  --success-bg: #ECFDF5;
 
-  --color-pink-50: #fdf2f8;
-  --color-pink-100: #fce7f3;
-  --color-pink-200: #fbcfe8;
-  --color-pink-300: #f9a8d4;
-  --color-pink-400: #f472b6;
-  --color-pink-500: #ec4899;
-  --color-pink-600: #db2777;
-  --color-pink-700: #be185d;
-  --color-pink-800: #9d174d;
-  --color-pink-900: #831843;
+  /* Neutral Scale */
+  --gray-50: #FAFAFA;   /* Page background */
+  --gray-100: #F3F4F6;  /* Subtle backgrounds, hover states */
+  --gray-200: #E5E7EB;  /* Card borders */
+  --gray-300: #D1D5DB;  /* Input borders, dividers */
+  --gray-400: #9CA3AF;  /* Tertiary text */
+  --gray-500: #6B7280;  /* Secondary text, icons */
+  --gray-700: #374151;  /* Body text */
+  --gray-950: #0A0A0A;  /* Primary headings */
 
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;
-
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
+  /* Social Platform Colors */
+  --facebook: #1877F2;
+  --instagram: #E4405F;
+  --linkedin: #0A66C2;
+  --twitter: #000000;
 
   /* Typography */
-  --font-family-sans: 'Inter', system-ui, sans-serif;
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 1.875rem;
-  --font-size-4xl: 2.25rem;
+  --font-size-h1: 32px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
+  --font-size-body-large: 16px;
+  --font-size-body: 14px;
+  --font-size-caption: 12px;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
-  --spacing-3xl: 4rem;
+  --line-height-h1: 1.2;
+  --line-height-h2: 1.3;
+  --line-height-h3: 1.4;
+  --line-height-body: 1.5;
+  --line-height-caption: 1.4;
 
-  /* Border radius */
-  --border-radius-sm: 0.25rem;
-  --border-radius-md: 0.5rem;
-  --border-radius-lg: 0.75rem;
-  --border-radius-xl: 1rem;
-  --border-radius-full: 9999px;
+  /* Spacing System (4px base unit) */
+  --spacing-1: 4px;   /* Tight spacing within components */
+  --spacing-2: 8px;   /* Small gaps between related elements */
+  --spacing-3: 12px;  /* Medium gaps within components */
+  --spacing-4: 16px;  /* Standard padding, gaps between elements */
+  --spacing-5: 20px;  /* Card padding, component internal spacing */
+  --spacing-6: 24px;  /* Gaps between sections */
+  --spacing-8: 32px;  /* Large section spacing */
+  --spacing-10: 40px; /* Extra-large spacing */
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  /* Border Radius */
+  --border-radius-small: 6px;     /* Badges, small buttons */
+  --border-radius-medium: 8px;    /* Input fields, icon buttons */
+  --border-radius-large: 12px;    /* Cards, large buttons */
+  --border-radius-xlarge: 16px;   /* Modals, large containers */
+  --border-radius-full: 9999px;   /* Pills, circular elements */
+
+  /* Shadows & Elevation */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+
+  /* Transitions */
+  --transition-fast: 150ms;
+  --transition-standard: 200ms;
+  --transition-slow: 300ms;
+  --transition-ease: ease;
+  --transition-ease-out: ease-out;
+  --transition-ease-in: ease-in;
 
   /* Layout */
   --sidebar-width: 280px;
   --header-height: 64px;
+  --breakpoint-mobile: 768px;
+  --breakpoint-tablet: 1024px;
 }
