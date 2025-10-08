@@ -60,9 +60,9 @@ export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState('scheduled');
 
   const tabs = [
-    { id: 'drafts', label: 'Drafts', count: 0 },
+    { id: 'drafts', label: 'Drafts', count: 3 },
     { id: 'scheduled', label: 'Scheduled', count: 4 },
-    { id: 'published', label: 'Published', count: 0 },
+    { id: 'published', label: 'Published', count: 2 },
   ];
 
   const scheduledPosts = [
@@ -101,6 +101,57 @@ export default function SchedulePage() {
       platforms: ['facebook', 'linkedin', 'instagram'],
       status: 'Scheduled',
       image: '/placeholders/cropped_gameover_may_124.png'
+    }
+  ];
+
+  const draftPosts = [
+    {
+      id: 5,
+      copy: "Working on some exciting new arcade games! 🕹️ Can't wait to share what we've been developing behind the scenes. Stay tuned!",
+      hashtags: ['#NewGames', '#Development', '#ComingSoon'],
+      scheduledTime: 'Draft • Not scheduled',
+      platforms: ['facebook', 'instagram'],
+      status: 'Draft',
+      image: '/placeholders/cropped_gameover_may_107 (1).png'
+    },
+    {
+      id: 6,
+      copy: "The energy at Game Over Queenstown is absolutely electric tonight! ⚡ Everyone's having a blast and setting new records!",
+      hashtags: ['#FridayNight', '#ArcadeFun', '#Queenstown'],
+      scheduledTime: 'Draft • Not scheduled',
+      platforms: ['facebook', 'linkedin', 'instagram'],
+      status: 'Draft',
+      image: '/placeholders/cropped_gameover_may_119 - Copy.png'
+    },
+    {
+      id: 7,
+      copy: "Thank you to everyone who joined us for the tournament last weekend! 🏆 The competition was fierce and the fun was endless!",
+      hashtags: ['#Tournament', '#ThankYou', '#Competition'],
+      scheduledTime: 'Draft • Not scheduled',
+      platforms: ['facebook', 'linkedin'],
+      status: 'Draft',
+      image: '/placeholders/cropped_gameover_may_142 - Copy.png'
+    }
+  ];
+
+  const publishedPosts = [
+    {
+      id: 8,
+      copy: "Welcome to Game Over Queenstown! 🎮 We're your ultimate destination for arcade gaming, VR experiences, and unforgettable fun!",
+      hashtags: ['#Welcome', '#GameOver', '#Queenstown'],
+      scheduledTime: 'Published • Oct 5 • 10:00 AM',
+      platforms: ['facebook', 'linkedin', 'instagram'],
+      status: 'Published',
+      image: '/placeholders/cropped_gameover_may_90.png'
+    },
+    {
+      id: 9,
+      copy: "Come experience the thrill of our latest VR racing game! 🏁 Feel the speed, hear the engines, and race to victory!",
+      hashtags: ['#VRRacing', '#NewExperience', '#Gaming'],
+      scheduledTime: 'Published • Oct 6 • 2:30 PM',
+      platforms: ['facebook', 'instagram'],
+      status: 'Published',
+      image: '/placeholders/cropped_gameover_may_76 (1).png'
     }
   ];
 
@@ -205,14 +256,118 @@ export default function SchedulePage() {
         )}
 
         {activeTab === 'drafts' && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No drafts yet</p>
+          <div className="space-y-4">
+            {draftPosts.map((post) => (
+              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <div className="flex items-start space-x-4">
+                  {/* Post Image */}
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                    <img
+                      src={post.image}
+                      alt={`Post ${post.id} image`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Post Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-700 text-sm mb-3 line-clamp-2 leading-relaxed">{post.copy}</p>
+                    
+                    {/* Hashtags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {post.hashtags.map((tag, index) => (
+                        <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Post Details */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <ClockIcon className="w-4 h-4" />
+                          <span>{post.scheduledTime}</span>
+                        </div>
+                        
+                        {/* Platform Icons */}
+                        <div className="flex items-center space-x-2">
+                          {post.platforms.map((platform) => {
+                            const IconComponent = platformIcons[platform as keyof typeof platformIcons];
+                            return <IconComponent key={platform} />;
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Status Only - No Actions */}
+                      <div className="flex items-center space-x-2">
+                        <span className="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-md">
+                          {post.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {activeTab === 'published' && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No published posts yet</p>
+          <div className="space-y-4">
+            {publishedPosts.map((post) => (
+              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <div className="flex items-start space-x-4">
+                  {/* Post Image */}
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                    <img
+                      src={post.image}
+                      alt={`Post ${post.id} image`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Post Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-700 text-sm mb-3 line-clamp-2 leading-relaxed">{post.copy}</p>
+                    
+                    {/* Hashtags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {post.hashtags.map((tag, index) => (
+                        <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Post Details */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <ClockIcon className="w-4 h-4" />
+                          <span>{post.scheduledTime}</span>
+                        </div>
+                        
+                        {/* Platform Icons */}
+                        <div className="flex items-center space-x-2">
+                          {post.platforms.map((platform) => {
+                            const IconComponent = platformIcons[platform as keyof typeof platformIcons];
+                            return <IconComponent key={platform} />;
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Status Only - No Actions */}
+                      <div className="flex items-center space-x-2">
+                        <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-md">
+                          {post.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
