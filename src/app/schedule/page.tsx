@@ -49,50 +49,6 @@ const InstagramIcon = () => (
   </div>
 );
 
-// Mock data for scheduled posts
-const scheduledPosts = [
-  {
-    id: 1,
-    image: '/placeholder-arcade.jpg',
-    title: 'Arcade Gaming',
-    copy: 'BOOM! 💥 Another high score shattered at Game Over! Our arcade legends are absolutely crushing it today. Think you\'ve got what it takes to join the leaderboard? 🎯',
-    hashtags: ['#HighScore', '#ArcadeChampion', '#Challenge'],
-    scheduledTime: 'Oct 8 • 5:02 PM',
-    platforms: ['facebook', 'linkedin', 'instagram'],
-    status: 'Scheduled',
-  },
-  {
-    id: 2,
-    image: '/placeholder-team.jpg',
-    title: 'Team Building',
-    copy: 'Looking for the perfect team building experience this holiday season? Our laser tag packages are perfect for corporate parties and group events!',
-    hashtags: ['#TeamBuilding', '#HolidayParty', '#CorporateEvents'],
-    scheduledTime: 'Oct 14 • 2:30 PM',
-    platforms: ['facebook', 'instagram'],
-    status: 'Scheduled',
-  },
-  {
-    id: 3,
-    image: '/placeholder-meeting.jpg',
-    title: 'Corporate Meeting',
-    copy: 'Transform your next team meeting with our premium event spaces and activities. Book now for end-of-year celebrations!',
-    hashtags: ['#CorporateEvents', '#MeetingSpace', '#YearEnd'],
-    scheduledTime: 'Oct 20 • 11:15 AM',
-    platforms: ['linkedin', 'instagram'],
-    status: 'Scheduled',
-  },
-  {
-    id: 4,
-    image: '/placeholder-celebration.jpg',
-    title: 'Year End Celebration',
-    copy: 'Celebrate the end of another amazing year with us! Perfect venue for corporate holiday parties and team celebrations.',
-    hashtags: ['#YearEnd', '#HolidayParty', '#Celebration'],
-    scheduledTime: 'Oct 25 • 3:45 PM',
-    platforms: ['facebook', 'linkedin', 'instagram'],
-    status: 'Scheduled',
-  },
-];
-
 const platformIcons = {
   facebook: FacebookIcon,
   linkedin: LinkedInIcon,
@@ -106,6 +62,41 @@ export default function SchedulePage() {
     { id: 'drafts', label: 'Drafts', count: 0 },
     { id: 'scheduled', label: 'Scheduled', count: 4 },
     { id: 'published', label: 'Published', count: 0 },
+  ];
+
+  const scheduledPosts = [
+    {
+      id: 1,
+      copy: "BOOM! Another high score shattered at Game Over! 🎮 Who's ready to challenge the leaderboard? #HighScore #ArcadeChampion",
+      hashtags: ['#HighScore', '#ArcadeChampion'],
+      scheduledTime: 'Oct 8 • 5:02 PM',
+      platforms: ['facebook', 'linkedin', 'instagram'],
+      status: 'Scheduled'
+    },
+    {
+      id: 2,
+      copy: "Just had the most incredible team building session! Nothing brings people together like a little friendly competition. 🏆",
+      hashtags: ['#TeamBuilding', '#CorporateEvents'],
+      scheduledTime: 'Oct 9 • 2:30 PM',
+      platforms: ['facebook', 'linkedin'],
+      status: 'Scheduled'
+    },
+    {
+      id: 3,
+      copy: "The energy in here is absolutely electric! 🎯 From first-timers to pros, everyone's having a blast. Come join the fun!",
+      hashtags: ['#Fun', '#Entertainment'],
+      scheduledTime: 'Oct 10 • 7:15 PM',
+      platforms: ['facebook', 'instagram'],
+      status: 'Scheduled'
+    },
+    {
+      id: 4,
+      copy: "Birthday celebrations at Game Over are next level! 🎂🎉 Nothing beats the joy on everyone's faces when they hit that jackpot!",
+      hashtags: ['#BirthdayParty', '#Celebration'],
+      scheduledTime: 'Oct 11 • 6:45 PM',
+      platforms: ['facebook', 'linkedin', 'instagram'],
+      status: 'Scheduled'
+    }
   ];
 
   return (
@@ -206,25 +197,13 @@ export default function SchedulePage() {
 
         {activeTab === 'drafts' && (
           <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No drafts yet</h3>
-            <p className="text-gray-500">Create your first post to get started</p>
+            <p className="text-gray-500">No drafts yet</p>
           </div>
         )}
 
         {activeTab === 'published' && (
           <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No published posts</h3>
-            <p className="text-gray-500">Your published posts will appear here</p>
+            <p className="text-gray-500">No published posts yet</p>
           </div>
         )}
       </div>
@@ -232,5 +211,3 @@ export default function SchedulePage() {
     </AppLayout>
   );
 }
-/ /   F o r c e   d e p l o y m e n t   1 0 / 0 8 / 2 0 2 5   1 7 : 2 7 : 1 5  
- 
