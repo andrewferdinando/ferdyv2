@@ -116,7 +116,7 @@ export default function ContentLibraryPage() {
         {/* Content */}
         <div className="p-10">
           {/* Search and Upload Section */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-8">
             {/* Search Bar */}
             <div className="relative flex-1 max-w-md">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -139,7 +139,7 @@ export default function ContentLibraryPage() {
           </div>
 
           {/* Tag Filters */}
-          <div className="flex flex-wrap gap-2 mb-8">
+          <div className="flex flex-wrap gap-3 mb-10">
             {filters.map((filter) => (
               <button
                 key={filter.id}
@@ -156,7 +156,7 @@ export default function ContentLibraryPage() {
           </div>
 
           {/* Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {contentItems.map((item) => (
               <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                 {/* Image */}
@@ -169,11 +169,11 @@ export default function ContentLibraryPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-5">
-                  <h3 className="font-semibold text-gray-900 text-lg mb-3">{item.title}</h3>
+                <div className="p-6">
+                  <h3 className="font-semibold text-gray-900 text-lg mb-4">{item.title}</h3>
                   
                   {/* Tags */}
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-5">
                     {item.tags.map((tag, index) => (
                       <span key={index} className={`px-2 py-1 text-xs font-medium rounded-full ${tag.color}`}>
                         {tag.label}
@@ -183,7 +183,7 @@ export default function ContentLibraryPage() {
 
                   {/* Actions and Metadata */}
                   <div className="flex items-center justify-between text-sm">
-                    <button className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 transition-colors duration-200">
+                    <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors duration-200">
                       <TagIcon className="w-4 h-4" />
                       <span>Manage Tags</span>
                     </button>

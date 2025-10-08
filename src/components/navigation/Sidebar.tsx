@@ -54,12 +54,6 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       active: pathname === '/schedule',
     },
     {
-      name: 'Content Library',
-      href: '/content-library',
-      icon: LibraryIcon,
-      active: pathname === '/content-library',
-    },
-    {
       name: 'Settings',
       href: '/settings',
       icon: SettingsIcon,
