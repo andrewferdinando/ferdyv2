@@ -38,15 +38,15 @@ export default function DesignSystemPage() {
     <AppLayout>
       <div className="flex-1 overflow-auto">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="bg-white border-b border-gray-200 px-10 py-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Design System</h1>
-            <p className="text-gray-600 mt-1">Ferdy design system showcase and component library</p>
+            <h1 className="text-[32px] font-bold text-gray-950 leading-[1.2]">Design System</h1>
+            <p className="text-gray-600 mt-1 text-sm">Ferdy design system showcase and component library</p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-8">
+        <div className="p-10 space-y-8">
           
           {/* Color Palette */}
           <section>

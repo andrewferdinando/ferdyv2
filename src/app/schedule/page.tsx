@@ -4,8 +4,8 @@ import { useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
 // Icons
-const PlusIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
   </svg>
 );
@@ -112,14 +112,14 @@ export default function SchedulePage() {
     <AppLayout>
       <div className="flex-1 overflow-auto">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-10 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
-            <p className="text-gray-600 mt-1">Manage your social media posts</p>
+            <h1 className="text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
+            <p className="text-gray-600 mt-1 text-sm">Manage your social media posts</p>
           </div>
-          <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-6 py-3 rounded-[10px] flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm">
-            <PlusIcon />
+          <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-6 py-3 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm">
+            <PlusIcon className="w-4 h-4" />
             <span>New Post</span>
           </button>
         </div>
@@ -130,7 +130,7 @@ export default function SchedulePage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 border-b-2 font-medium transition-all duration-200 ${
+              className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
                 activeTab === tab.id
                   ? 'border-[#6366F1] text-[#6366F1]'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -143,7 +143,7 @@ export default function SchedulePage() {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-10">
         {activeTab === 'scheduled' && (
           <div className="space-y-4">
             {scheduledPosts.map((post) => (
@@ -162,9 +162,9 @@ export default function SchedulePage() {
                         <p className="text-gray-700 text-sm mb-2 line-clamp-2">{post.copy}</p>
                         
                         {/* Hashtags */}
-                        <div className="flex flex-wrap gap-1 mb-3">
+                        <div className="flex flex-wrap gap-2 mb-3">
                           {post.hashtags.map((tag, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            <span key={index} className="inline-flex items-center px-2 py-0.5 bg-[#EEF2FF] text-[#6366F1] text-xs rounded-full font-medium">
                               {tag}
                             </span>
                           ))}

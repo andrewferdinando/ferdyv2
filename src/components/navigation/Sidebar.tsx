@@ -5,33 +5,33 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 // Icons (using simple SVG icons for now)
-const CalendarIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const CalendarIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
 );
 
-const SettingsIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const SettingsIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
   </svg>
 );
 
-const PaletteIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const PaletteIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM7 3H5a2 2 0 00-2 2v12a4 4 0 004 4h2a2 2 0 002-2V5a2 2 0 00-2-2z" />
   </svg>
 );
 
-const PlusIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
   </svg>
 );
 
-const ChevronDownIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
@@ -76,14 +76,14 @@ export default function Sidebar({ className = '' }: SidebarProps) {
   return (
     <div className={`w-[280px] bg-white border-r border-gray-200 flex flex-col h-full ${className}`}>
       {/* Brand Dropdown */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-5 border-b border-gray-200">
         <div className="relative">
           <button
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
             className="w-full flex items-center justify-between p-3 text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
           >
-            <span className="font-medium text-gray-900">Game Over Queenstown</span>
-            <ChevronDownIcon />
+            <span className="font-medium text-gray-900 text-sm">Game Over Queenstown</span>
+            <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           
           {isBrandDropdownOpen && (
@@ -102,37 +102,37 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+      <nav className="flex-1 p-5">
+        <ul className="space-y-1">
           {navigationItems.map((item) => (
             <li key={item.name}>
               {item.href ? (
                 <Link
                   href={item.href}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     item.active
                       ? 'bg-[#EEF2FF] text-[#6366F1]'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <item.icon />
-                  <span className="font-medium">{item.name}</span>
+                  <item.icon className="w-5 h-5" />
+                  <span className="font-medium text-sm">{item.name}</span>
                 </Link>
               ) : (
                 <button
                   onClick={item.onToggle}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     item.isOpen
                       ? 'bg-gray-100 text-gray-700'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <item.icon />
-                    <span className="font-medium">{item.name}</span>
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium text-sm">{item.name}</span>
                   </div>
                   {item.hasDropdown && (
-                    <ChevronDownIcon />
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                   )}
                 </button>
               )}
