@@ -109,7 +109,7 @@ export default function SchedulePage() {
       id: 5,
       copy: "Working on some exciting new arcade games! 🕹️ Can't wait to share what we've been developing behind the scenes. Stay tuned!",
       hashtags: ['#NewGames', '#Development', '#ComingSoon'],
-      scheduledTime: 'Draft • Not scheduled',
+      scheduledTime: 'Oct 12 • 11:00 AM',
       platforms: ['facebook', 'instagram'],
       status: 'Draft',
       image: '/placeholders/cropped_gameover_may_107 (1).png'
@@ -118,7 +118,7 @@ export default function SchedulePage() {
       id: 6,
       copy: "The energy at Game Over Queenstown is absolutely electric tonight! ⚡ Everyone's having a blast and setting new records!",
       hashtags: ['#FridayNight', '#ArcadeFun', '#Queenstown'],
-      scheduledTime: 'Draft • Not scheduled',
+      scheduledTime: 'Oct 13 • 8:30 PM',
       platforms: ['facebook', 'linkedin', 'instagram'],
       status: 'Draft',
       image: '/placeholders/cropped_gameover_may_119 - Copy.png'
@@ -127,7 +127,7 @@ export default function SchedulePage() {
       id: 7,
       copy: "Thank you to everyone who joined us for the tournament last weekend! 🏆 The competition was fierce and the fun was endless!",
       hashtags: ['#Tournament', '#ThankYou', '#Competition'],
-      scheduledTime: 'Draft • Not scheduled',
+      scheduledTime: 'Oct 14 • 3:15 PM',
       platforms: ['facebook', 'linkedin'],
       status: 'Draft',
       image: '/placeholders/cropped_gameover_may_142 - Copy.png'
@@ -299,11 +299,20 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {/* Status Only - No Actions */}
+                      {/* Actions */}
                       <div className="flex items-center space-x-2">
                         <span className="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
+                        <button className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-md hover:bg-green-100 transition-all duration-200">
+                          Approve
+                        </button>
+                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
+                          <EditIcon className="w-4 h-4" />
+                        </button>
+                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>
