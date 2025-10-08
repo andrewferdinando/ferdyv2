@@ -14,20 +14,20 @@ export default function SettingsPage() {
     <AppLayout>
       <div className="flex-1 overflow-auto">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-10 py-6">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
         <div>
-          <h1 className="text-[32px] font-bold text-gray-950 leading-[1.2]">Settings</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Settings</h1>
           <p className="text-gray-600 mt-1 text-sm">Configure your workspace and integrations</p>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="p-4 sm:p-6 lg:p-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Content Library Card */}
           <div 
             onClick={handleContentLibraryClick}
-            className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-start space-x-4">
               <div className="w-14 h-14 bg-[#EEF2FF] rounded-lg flex items-center justify-center flex-shrink-0">

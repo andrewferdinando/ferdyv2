@@ -39,9 +39,10 @@ const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 interface SidebarProps {
   className?: string;
+  onMobileClose?: () => void;
 }
 
-export default function Sidebar({ className = '' }: SidebarProps) {
+export default function Sidebar({ className = '', onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [isMonthlyPostsOpen, setIsMonthlyPostsOpen] = useState(false);
@@ -68,8 +69,14 @@ export default function Sidebar({ className = '' }: SidebarProps) {
     },
   ];
 
+  const handleNavigationClick = () => {
+    if (onMobileClose) {
+      onMobileClose();
+    }
+  };
+
   return (
-    <div className={`w-[280px] bg-white border-r border-gray-200 flex flex-col h-full ${className}`}>
+    <div className={`w-[280px] lg:w-[280px] bg-white border-r border-gray-200 flex flex-col h-full ${className}`}>
       {/* Brand Dropdown */}
       <div className="p-6 border-b border-gray-200">
         <div className="relative">
@@ -104,6 +111,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
               {item.href ? (
                 <Link
                   href={item.href}
+                  onClick={handleNavigationClick}
                   className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
                     item.active
                       ? 'bg-[#EEF2FF] text-[#6366F1]'

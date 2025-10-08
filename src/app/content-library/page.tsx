@@ -106,17 +106,17 @@ export default function ContentLibraryPage() {
     <AppLayout>
       <div className="flex-1 overflow-auto">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-10 py-6">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
           <div>
-            <h1 className="text-[32px] font-bold text-gray-950 leading-[1.2]">Content Library</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Content Library</h1>
             <p className="text-gray-600 mt-1 text-sm">Manage your media assets, templates, and reusable content</p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-10">
+        <div className="p-4 sm:p-6 lg:p-10">
           {/* Search and Upload Section */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
             {/* Search Bar */}
             <div className="relative flex-1 max-w-md">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -132,7 +132,7 @@ export default function ContentLibraryPage() {
             </div>
 
             {/* Upload Button */}
-            <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-6 py-3 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm ml-4">
+            <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto">
               <UploadIcon className="w-4 h-4" />
               <span>Upload Images</span>
             </button>
@@ -156,7 +156,7 @@ export default function ContentLibraryPage() {
           </div>
 
           {/* Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {contentItems.map((item) => (
               <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                 {/* Image */}

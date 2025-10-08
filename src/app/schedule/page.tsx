@@ -159,20 +159,20 @@ export default function SchedulePage() {
     <AppLayout>
       <div className="flex-1 overflow-auto">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-10 py-6">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
             <p className="text-gray-600 mt-1 text-sm">Manage your social media posts</p>
           </div>
-          <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-6 py-3 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm">
+          <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto">
             <PlusIcon className="w-4 h-4" />
             <span>New Post</span>
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-8 mt-6">
+        <div className="flex flex-wrap gap-4 sm:gap-8 mt-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -190,14 +190,14 @@ export default function SchedulePage() {
       </div>
 
       {/* Content */}
-      <div className="p-10">
+      <div className="p-4 sm:p-6 lg:p-10">
         {activeTab === 'scheduled' && (
           <div className="space-y-4">
             {scheduledPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                <div className="flex items-start space-x-4">
+              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
-                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                  <div className="w-full sm:w-20 h-40 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
                     <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
@@ -235,8 +235,8 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center space-x-2">
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-2 sm:gap-0">
                         <span className="px-3 py-1 bg-[#EEF2FF] text-[#6366F1] text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
@@ -255,13 +255,13 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {activeTab === 'drafts' && (
-          <div className="space-y-4">
-            {draftPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                <div className="flex items-start space-x-4">
+    {activeTab === 'drafts' && (
+      <div className="space-y-4">
+        {draftPosts.map((post) => (
+          <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
-                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                  <div className="w-full sm:w-20 h-40 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
                     <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
@@ -299,8 +299,8 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center space-x-2">
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-2 sm:gap-0">
                         <button className="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
                           Approve
                         </button>
@@ -322,13 +322,13 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {activeTab === 'published' && (
-          <div className="space-y-4">
-            {publishedPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                <div className="flex items-start space-x-4">
+    {activeTab === 'published' && (
+      <div className="space-y-4">
+        {publishedPosts.map((post) => (
+          <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
-                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                  <div className="w-full sm:w-20 h-40 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
                     <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
