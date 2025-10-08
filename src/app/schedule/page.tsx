@@ -221,7 +221,7 @@ export default function SchedulePage() {
                     {/* Post Details */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center !space-x-2">
                           <ClockIcon className="w-4 h-4" />
                           <span>{post.scheduledTime}</span>
                         </div>
@@ -285,7 +285,7 @@ export default function SchedulePage() {
                     {/* Post Details */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center !space-x-2">
                           <ClockIcon className="w-4 h-4" />
                           <span>{post.scheduledTime}</span>
                         </div>
@@ -352,7 +352,7 @@ export default function SchedulePage() {
                     {/* Post Details */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center !space-x-2">
                           <ClockIcon className="w-4 h-4" />
                           <span>{post.scheduledTime}</span>
                         </div>
