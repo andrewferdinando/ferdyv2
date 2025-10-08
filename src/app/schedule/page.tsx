@@ -301,7 +301,7 @@ export default function SchedulePage() {
 
                       {/* Actions */}
                       <div className="flex items-center space-x-2">
-                        <button className="px-2 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-md hover:bg-green-100 transition-all duration-200">
+                        <button className="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
                           Approve
                         </button>
                         <span className="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-md">
