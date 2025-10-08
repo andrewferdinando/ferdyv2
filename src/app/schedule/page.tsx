@@ -1,0 +1,237 @@
+'use client';
+
+import { useState } from 'react';
+import AppLayout from '@/components/layout/AppLayout';
+
+// Icons
+const PlusIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+// Social media platform icons
+const FacebookIcon = () => (
+  <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+    <span className="text-white text-xs font-bold">f</span>
+  </div>
+);
+
+const LinkedInIcon = () => (
+  <div className="w-6 h-6 bg-blue-700 rounded flex items-center justify-center">
+    <span className="text-white text-xs font-bold">in</span>
+  </div>
+);
+
+const InstagramIcon = () => (
+  <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded flex items-center justify-center">
+    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  </div>
+);
+
+// Mock data for scheduled posts
+const scheduledPosts = [
+  {
+    id: 1,
+    image: '/placeholder-arcade.jpg',
+    title: 'Arcade Gaming',
+    copy: 'BOOM! 💥 Another high score shattered at Game Over! Our arcade legends are absolutely crushing it today. Think you\'ve got what it takes to join the leaderboard? 🎯',
+    hashtags: ['#HighScore', '#ArcadeChampion', '#Challenge'],
+    scheduledTime: 'Oct 8 • 5:02 PM',
+    platforms: ['facebook', 'linkedin', 'instagram'],
+    status: 'Scheduled',
+  },
+  {
+    id: 2,
+    image: '/placeholder-team.jpg',
+    title: 'Team Building',
+    copy: 'Looking for the perfect team building experience this holiday season? Our laser tag packages are perfect for corporate parties and group events!',
+    hashtags: ['#TeamBuilding', '#HolidayParty', '#CorporateEvents'],
+    scheduledTime: 'Oct 14 • 2:30 PM',
+    platforms: ['facebook', 'instagram'],
+    status: 'Scheduled',
+  },
+  {
+    id: 3,
+    image: '/placeholder-meeting.jpg',
+    title: 'Corporate Meeting',
+    copy: 'Transform your next team meeting with our premium event spaces and activities. Book now for end-of-year celebrations!',
+    hashtags: ['#CorporateEvents', '#MeetingSpace', '#YearEnd'],
+    scheduledTime: 'Oct 20 • 11:15 AM',
+    platforms: ['linkedin', 'instagram'],
+    status: 'Scheduled',
+  },
+  {
+    id: 4,
+    image: '/placeholder-celebration.jpg',
+    title: 'Year End Celebration',
+    copy: 'Celebrate the end of another amazing year with us! Perfect venue for corporate holiday parties and team celebrations.',
+    hashtags: ['#YearEnd', '#HolidayParty', '#Celebration'],
+    scheduledTime: 'Oct 25 • 3:45 PM',
+    platforms: ['facebook', 'linkedin', 'instagram'],
+    status: 'Scheduled',
+  },
+];
+
+const platformIcons = {
+  facebook: FacebookIcon,
+  linkedin: LinkedInIcon,
+  instagram: InstagramIcon,
+};
+
+export default function SchedulePage() {
+  const [activeTab, setActiveTab] = useState('scheduled');
+
+  const tabs = [
+    { id: 'drafts', label: 'Drafts', count: 0 },
+    { id: 'scheduled', label: 'Scheduled', count: 4 },
+    { id: 'published', label: 'Published', count: 0 },
+  ];
+
+  return (
+    <AppLayout>
+      <div className="flex-1 overflow-auto">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
+            <p className="text-gray-600 mt-1">Manage your social media posts</p>
+          </div>
+          <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+            <PlusIcon />
+            <span>New Post</span>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-8 mt-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`pb-2 border-b-2 font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label} {tab.count}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        {activeTab === 'scheduled' && (
+          <div className="space-y-4">
+            {scheduledPosts.map((post) => (
+              <div key={post.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start space-x-4">
+                  {/* Post Image */}
+                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
+                    <span className="text-gray-400 text-xs">IMG</span>
+                  </div>
+
+                  {/* Post Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">{post.title}</h3>
+                        <p className="text-gray-700 text-sm mb-2 line-clamp-2">{post.copy}</p>
+                        
+                        {/* Hashtags */}
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {post.hashtags.map((tag, index) => (
+                            <span key={index} className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Post Details */}
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <ClockIcon />
+                            <span>{post.scheduledTime}</span>
+                          </div>
+                          
+                          {/* Platform Icons */}
+                          <div className="flex items-center space-x-1">
+                            {post.platforms.map((platform) => {
+                              const IconComponent = platformIcons[platform as keyof typeof platformIcons];
+                              return <IconComponent key={platform} />;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center space-x-2 ml-4">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                          {post.status}
+                        </span>
+                        <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                          <EditIcon />
+                        </button>
+                        <button className="p-1 text-gray-400 hover:text-red-600 transition-colors">
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'drafts' && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No drafts yet</h3>
+            <p className="text-gray-500">Create your first post to get started</p>
+          </div>
+        )}
+
+        {activeTab === 'published' && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No published posts</h3>
+            <p className="text-gray-500">Your published posts will appear here</p>
+          </div>
+        )}
+      </div>
+    </div>
+    </AppLayout>
+  );
+}
