@@ -197,7 +197,7 @@ export default function SchedulePage() {
               <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                 <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
-                  <div className="w-full sm:w-20 h-40 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                  <div className="w-full sm:w-20 h-48 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
                     <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
@@ -219,10 +219,10 @@ export default function SchedulePage() {
                     </div>
 
                     {/* Post Details */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-xs text-gray-500">
                         <div className="flex items-center !space-x-2">
-                          <ClockIcon className="w-4 h-4" />
+                          <ClockIcon className="w-4 h-4 flex-shrink-0" />
                           <span>{post.scheduledTime}</span>
                         </div>
                         
@@ -235,15 +235,15 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-2 sm:gap-0">
+                      {/* Actions */}
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="px-3 py-1 bg-[#EEF2FF] text-[#6366F1] text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
-                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
+                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
                           <EditIcon className="w-4 h-4" />
                         </button>
-                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
+                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
@@ -261,7 +261,7 @@ export default function SchedulePage() {
           <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
-                  <div className="w-full sm:w-20 h-40 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                  <div className="w-full sm:w-20 h-48 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
                     <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
@@ -283,10 +283,10 @@ export default function SchedulePage() {
                     </div>
 
                     {/* Post Details */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-xs text-gray-500">
                         <div className="flex items-center !space-x-2">
-                          <ClockIcon className="w-4 h-4" />
+                          <ClockIcon className="w-4 h-4 flex-shrink-0" />
                           <span>{post.scheduledTime}</span>
                         </div>
                         
@@ -299,18 +299,18 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-2 sm:gap-0">
+                      {/* Actions */}
+                      <div className="flex flex-wrap items-center gap-2">
                         <button className="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
                           Approve
                         </button>
                         <span className="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
-                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
+                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
                           <EditIcon className="w-4 h-4" />
                         </button>
-                        <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
+                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
@@ -328,7 +328,7 @@ export default function SchedulePage() {
           <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
             <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
-                  <div className="w-full sm:w-20 h-40 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
+                  <div className="w-full sm:w-20 h-48 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
                     <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
@@ -350,10 +350,10 @@ export default function SchedulePage() {
                     </div>
 
                     {/* Post Details */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-xs text-gray-500">
                         <div className="flex items-center !space-x-2">
-                          <ClockIcon className="w-4 h-4" />
+                          <ClockIcon className="w-4 h-4 flex-shrink-0" />
                           <span>{post.scheduledTime}</span>
                         </div>
                         

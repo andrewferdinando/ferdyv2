@@ -22,7 +22,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-all duration-200"
+        className="lg:hidden fixed top-6 left-4 z-50 p-2 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50 transition-all duration-200"
       >
         <MenuIcon className="w-6 h-6 text-gray-700" />
       </button>
@@ -46,7 +46,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </div>
       
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden lg:ml-0">
+      <main className="flex-1 flex flex-col overflow-hidden lg:ml-0 pt-16 lg:pt-0">
         {children}
       </main>
     </div>
