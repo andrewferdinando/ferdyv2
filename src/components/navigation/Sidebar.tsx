@@ -71,7 +71,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
             className="w-full flex items-center justify-between p-4 text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
           >
-            <span className="font-medium text-gray-900 text-xs">Game Over Queenstown</span>
+            <span className="font-medium text-gray-900">Game Over Queenstown</span>
             <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           
