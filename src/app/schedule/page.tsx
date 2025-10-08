@@ -147,12 +147,10 @@ export default function SchedulePage() {
                 <div className="flex items-start space-x-4">
                   {/* Post Image */}
                   <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
-                    <Image
+                    <img
                       src={post.image}
                       alt={`Post ${post.id} image`}
-                      fill
-                      className="object-cover"
-                      sizes="80px"
+                      className="w-full h-full object-cover"
                     />
                   </div>
 
