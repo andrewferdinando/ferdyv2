@@ -301,12 +301,14 @@ export default function SchedulePage() {
 
                       {/* Actions */}
                       <div className="flex items-center space-x-2">
+                        <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-200" title="Approve">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
                         <span className="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
-                        <button className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-md hover:bg-green-100 transition-all duration-200">
-                          Approve
-                        </button>
                         <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
                           <EditIcon className="w-4 h-4" />
                         </button>
