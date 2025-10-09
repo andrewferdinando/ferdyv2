@@ -192,15 +192,13 @@ const ImageCropper = ({
   const [newTag, setNewTag] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [imageScale, setImageScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const handleFormatChange = (format: string) => {
     setSelectedFormat(format);
-    // Reset position and scale for new format
+    // Reset position for new format
     setImagePosition({ x: 0, y: 0 });
-    setImageScale(1);
     
     // Calculate crop settings based on format
     const settings: CropSettings = {
@@ -235,8 +233,8 @@ const ImageCropper = ({
         aspectRatio: selectedFormat,
         x: newPosition.x,
         y: newPosition.y,
-        width: 100 * imageScale,
-        height: (selectedFormat === "square" ? 100 : selectedFormat === "portrait" ? 125 : selectedFormat === "landscape" ? 80 : 100) * imageScale
+        width: 100,
+        height: selectedFormat === "square" ? 100 : selectedFormat === "portrait" ? 125 : selectedFormat === "landscape" ? 80 : 100
       };
       onCropChange(settings);
     }
@@ -302,12 +300,15 @@ const ImageCropper = ({
                 <img
                   src={src}
                   alt="Crop preview"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-100"
+                  className="absolute inset-0 transition-transform duration-100"
                   style={{
-                    transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
-                    transformOrigin: 'center center',
-                    minWidth: '100%',
-                    minHeight: '100%'
+                    width: '120%',
+                    height: '120%',
+                    left: '-10%',
+                    top: '-10%',
+                    objectFit: 'cover',
+                    transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                    transformOrigin: 'center center'
                   }}
                   draggable={false}
                 />
