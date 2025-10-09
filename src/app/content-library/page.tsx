@@ -164,7 +164,7 @@ const Toast = ({ message, isVisible, onClose }: { message: string; isVisible: bo
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+    <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 flex items-center space-x-2">
         <span className="text-green-500 text-sm">✅</span>
         <span className="text-gray-900 text-sm font-medium">{message}</span>
@@ -179,13 +179,13 @@ const ImageCropper = ({
   onCropChange, 
   cropSettings,
   onSave,
-  onNext
+  itemId
 }: { 
   src: string; 
   onCropChange: (settings: CropSettings) => void; 
   cropSettings?: CropSettings;
-  onSave: () => void;
-  onNext: () => void;
+  onSave: (itemId: number) => void;
+  itemId: number;
 }) => {
   const [selectedFormat, setSelectedFormat] = useState("square");
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -322,15 +322,15 @@ const ImageCropper = ({
           {/* Available Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+            <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
               {AVAILABLE_TAGS.map((tag, index) => (
                 <button
                   key={index}
                   onClick={() => handleTagToggle(tag.label)}
                   className={`px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-[#6366F1] ring-1 ring-[#6366F1] ring-opacity-60 shadow-sm scale-105`
-                      : `${tag.color} hover:opacity-80 hover:scale-105`
+                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-30 shadow-md transform scale-105`
+                      : `${tag.color} hover:opacity-80 hover:scale-102`
                   }`}
                 >
                   {tag.label}
@@ -370,12 +370,7 @@ const ImageCropper = ({
           {/* Actions */}
           <div className="flex gap-2">
             <button 
-              onClick={() => {
-                onSave();
-                setTimeout(() => {
-                  onNext();
-                }, 500); // Small delay for toast animation
-              }}
+              onClick={() => onSave(itemId)}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
               Save & Move to Ready
@@ -395,12 +390,12 @@ const VideoContent = ({
   src, 
   title,
   onSave,
-  onNext
+  itemId
 }: { 
   src: string; 
   title: string;
-  onSave: () => void;
-  onNext: () => void;
+  onSave: (itemId: number) => void;
+  itemId: number;
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -445,15 +440,15 @@ const VideoContent = ({
           {/* Available Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+            <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
               {AVAILABLE_TAGS.map((tag, index) => (
                 <button
                   key={index}
                   onClick={() => handleTagToggle(tag.label)}
                   className={`px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-[#6366F1] ring-1 ring-[#6366F1] ring-opacity-60 shadow-sm scale-105`
-                      : `${tag.color} hover:opacity-80 hover:scale-105`
+                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-30 shadow-md transform scale-105`
+                      : `${tag.color} hover:opacity-80 hover:scale-102`
                   }`}
                 >
                   {tag.label}
@@ -493,12 +488,7 @@ const VideoContent = ({
           {/* Actions */}
           <div className="flex gap-2">
             <button 
-              onClick={() => {
-                onSave();
-                setTimeout(() => {
-                  onNext();
-                }, 500); // Small delay for toast animation
-              }}
+              onClick={() => onSave(itemId)}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
               Save & Move to Ready
@@ -521,7 +511,6 @@ export default function ContentLibraryPage() {
   const [needsAttentionContent, setNeedsAttentionContent] = useState<ContentItem[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
-  const [currentContentIndex, setCurrentContentIndex] = useState(0);
 
   const tabs = [
     { id: 'ready-to-use', label: 'Ready to Use', count: 6 },
@@ -547,19 +536,14 @@ export default function ContentLibraryPage() {
       
       setNeedsAttentionContent(prev => [...prev, ...newContent]);
       setActiveTab('needs-attention'); // Switch to needs attention tab
-      setCurrentContentIndex(0); // Start with first item
     }
   };
 
-  const handleSave = () => {
+  const handleSave = (itemId: number) => {
+    // Remove the saved item from needs attention
+    setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
     setToastMessage('✅ Image saved — moved to Ready tab');
     setShowToast(true);
-  };
-
-  const handleNext = () => {
-    if (currentContentIndex < needsAttentionContent.length - 1) {
-      setCurrentContentIndex(prev => prev + 1);
-    }
   };
 
   const handleToastClose = () => {
@@ -763,7 +747,7 @@ export default function ContentLibraryPage() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No content needs attention</h3>
                   <p className="text-gray-600">Upload some images or videos to get started with tagging and cropping.</p>
                 </div>
-              ) : currentContentIndex >= needsAttentionContent.length ? (
+              ) : needsAttentionContent.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-green-500 mb-4">
                     <UploadIcon className="w-16 h-16 mx-auto" />
@@ -772,38 +756,35 @@ export default function ContentLibraryPage() {
                   <p className="text-gray-600">You&apos;ve successfully tagged all your content. Ready for the next batch!</p>
                 </div>
               ) : (
-                <div className="animate-in fade-in duration-500">
-                  {(() => {
-                    const item = needsAttentionContent[currentContentIndex];
-                    return (
-                      <div key={item.id}>
-                        {item.file?.type.startsWith('video/') ? (
-                          <VideoContent 
-                            src={item.image} 
-                            title={item.title}
-                            onSave={handleSave}
-                            onNext={handleNext}
-                          />
-                        ) : (
-                          <ImageCropper 
-                            src={item.image} 
-                            onCropChange={(settings) => {
-                              setNeedsAttentionContent(prev => 
-                                prev.map(content => 
-                                  content.id === item.id 
-                                    ? { ...content, cropSettings: settings }
-                                    : content
-                                )
-                              );
-                            }}
-                            cropSettings={item.cropSettings}
-                            onSave={handleSave}
-                            onNext={handleNext}
-                          />
-                        )}
-                      </div>
-                    );
-                  })()}
+                <div className="space-y-6">
+                  {needsAttentionContent.map((item) => (
+                    <div key={item.id} className="animate-in fade-in duration-300">
+                      {item.file?.type.startsWith('video/') ? (
+                        <VideoContent 
+                          src={item.image} 
+                          title={item.title}
+                          onSave={handleSave}
+                          itemId={item.id}
+                        />
+                      ) : (
+                        <ImageCropper 
+                          src={item.image} 
+                          onCropChange={(settings) => {
+                            setNeedsAttentionContent(prev => 
+                              prev.map(content => 
+                                content.id === item.id 
+                                  ? { ...content, cropSettings: settings }
+                                  : content
+                              )
+                            );
+                          }}
+                          cropSettings={item.cropSettings}
+                          onSave={handleSave}
+                          itemId={item.id}
+                        />
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
