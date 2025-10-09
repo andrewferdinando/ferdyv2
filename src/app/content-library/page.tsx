@@ -29,8 +29,8 @@ export default function ContentLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const tabs = [
-    { id: 'ready-to-use', label: 'Ready to Use' },
-    { id: 'needs-attention', label: 'Needs Attention' },
+    { id: 'ready-to-use', label: 'Ready to Use', count: 6 },
+    { id: 'needs-attention', label: 'Needs Attention', count: 2 },
   ];
 
   const contentItems = [
@@ -142,18 +142,18 @@ export default function ContentLibraryPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-1 mb-10 bg-gray-100 p-1 rounded-lg w-fit">
+          <div className="flex flex-wrap gap-4 sm:gap-8 mb-10 border-b border-gray-200">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
                   activeTab === tab.id
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'border-[#6366F1] text-[#6366F1]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab.label}
+                {tab.label} {tab.count}
               </button>
             ))}
           </div>
