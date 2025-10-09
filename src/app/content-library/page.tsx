@@ -23,6 +23,12 @@ const TagIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const InfoIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
 interface Tag {
   label: string;
   color: string;
@@ -74,6 +80,75 @@ const AVAILABLE_TAGS = [
   { label: "Birthday Parties", color: "bg-purple-100 text-purple-800", category: "seasonal" },
   { label: "New Year Event", color: "bg-purple-100 text-purple-800", category: "seasonal" }
 ];
+
+// Crop Info Component
+const CropInfo = () => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={() => setShowPopup(true)}
+        className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 rounded-full hover:bg-gray-100"
+        aria-label="About crop sizes"
+      >
+        <InfoIcon className="w-4 h-4" />
+      </button>
+
+      {/* Tooltip */}
+      {showTooltip && !showPopup && (
+        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap z-10 animate-in fade-in duration-150">
+          About crop sizes
+          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+        </div>
+      )}
+
+      {/* Popup */}
+      {showPopup && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 animate-in fade-in duration-200"
+          onClick={() => setShowPopup(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md mx-4 p-6 animate-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">About crop sizes</h3>
+              <button
+                onClick={() => setShowPopup(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="text-gray-700 text-sm leading-relaxed space-y-3 mb-6">
+              <p>You can crop in three formats only: Square (1:1), Portrait (5:4), and Wide (1.91:1).</p>
+              <p>If your uploaded image doesn&apos;t fit one of these, it&apos;s automatically adjusted within these frames.</p>
+              <p>You can reposition and zoom to get the composition you want — your original file remains unchanged.</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowPopup(false)}
+                className="px-4 py-2 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#4F46E5] transition-colors duration-200"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Toast Notification Component
 const Toast = ({ message, isVisible, onClose }: { message: string; isVisible: boolean; onClose: () => void }) => {
@@ -187,7 +262,10 @@ const ImageCropper = ({
         {/* Image and Cropping */}
         <div className="flex-1">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Image Cropping</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Image Cropping</h3>
+              <CropInfo />
+            </div>
             
             {/* Format Selection */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
