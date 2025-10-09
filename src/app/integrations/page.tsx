@@ -136,25 +136,6 @@ export default function IntegrationsPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
-          {/* Connected Status Summary */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-[#EEF2FF] to-[#F0F9FF] rounded-xl p-6 border border-[#6366F1]/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Integration Status</h3>
-                  <p className="text-gray-600 text-sm">
-                    {integrations.filter(i => i.connected).length} of {integrations.length} platforms connected
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-[#6366F1]">
-                    {Math.round((integrations.filter(i => i.connected).length / integrations.length) * 100)}%
-                  </div>
-                  <div className="text-xs text-gray-500">Connected</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Integration Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
