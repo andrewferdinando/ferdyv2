@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 
@@ -785,6 +785,165 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
   );
 };
 
+// Edit Modal Components
+const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; isOpen: boolean; onClose: () => void; onSave: (deal: Deal) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    detail: '',
+    hashtags: '',
+    url: '',
+    cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
+    timesPerWeek: 1,
+    daysOfWeek: [] as string[],
+    daysOfMonth: '',
+    time: '09:00'
+  });
+
+  useEffect(() => {
+    if (deal) {
+      setFormData({
+        name: deal.name,
+        detail: deal.detail,
+        hashtags: deal.hashtags.join(', '),
+        url: deal.url,
+        cadence: deal.frequency.cadence,
+        timesPerWeek: deal.frequency.timesPerWeek || 1,
+        daysOfWeek: deal.frequency.daysOfWeek || [],
+        daysOfMonth: deal.frequency.daysOfMonth ? deal.frequency.daysOfMonth.join(', ') : '',
+        time: deal.frequency.time
+      });
+    }
+  }, [deal]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !deal) return;
+    
+    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
+    const frequency: { cadence: 'daily' | 'weekly' | 'monthly'; timesPerWeek?: number; daysOfWeek?: string[]; daysOfMonth?: number[]; time: string } = {
+      cadence: formData.cadence,
+      time: formData.time
+    };
+
+    if (formData.cadence === 'weekly') {
+      frequency.timesPerWeek = formData.timesPerWeek;
+      frequency.daysOfWeek = formData.daysOfWeek;
+    } else if (formData.cadence === 'monthly') {
+      frequency.daysOfMonth = formData.daysOfMonth.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+    }
+    
+    onSave({
+      ...deal,
+      name: formData.name,
+      detail: formData.detail,
+      hashtags: hashtagsArray,
+      url: formData.url,
+      frequency
+    });
+    onClose();
+  };
+
+  if (!isOpen || !deal) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Edit Deal</h2>
+          <p className="text-gray-600 text-sm mt-1">Update deal information</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter deal name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
+            <textarea
+              value={formData.detail}
+              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe the deal"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+            <input
+              type="text"
+              value={formData.hashtags}
+              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter hashtags separated by commas (e.g., #deal, #sale, #offer)"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+            <input
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="https://example.com/deal-page"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+            <select
+              value={formData.cadence}
+              onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+            <input
+              type="time"
+              value={formData.time}
+              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+            >
+              Update Deal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export default function CategoriesPage() {
   const router = useRouter();
   
@@ -792,6 +951,11 @@ export default function CategoriesPage() {
   const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
   const [isNewOfferingModalOpen, setIsNewOfferingModalOpen] = useState(false);
   const [isNewSeasonalModalOpen, setIsNewSeasonalModalOpen] = useState(false);
+  
+  // Edit modal states
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [editingOffering, setEditingOffering] = useState<Offering | null>(null);
+  const [editingSeasonalEvent, setEditingSeasonalEvent] = useState<SeasonalEvent | null>(null);
   
   // Data states
   const [deals, setDeals] = useState<Deal[]>([
@@ -830,6 +994,34 @@ export default function CategoriesPage() {
 
   // Sub-category states
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Edit handlers
+  const handleEditDeal = (deal: Deal) => {
+    setEditingDeal(deal);
+  };
+
+  const handleEditOffering = (offering: Offering) => {
+    setEditingOffering(offering);
+  };
+
+  const handleEditSeasonalEvent = (event: SeasonalEvent) => {
+    setEditingSeasonalEvent(event);
+  };
+
+  const handleUpdateDeal = (updatedDeal: Deal) => {
+    setDeals(prev => prev.map(deal => deal.id === updatedDeal.id ? updatedDeal : deal));
+    setEditingDeal(null);
+  };
+
+  const handleUpdateOffering = (updatedOffering: Offering) => {
+    setOfferings(prev => prev.map(offering => offering.id === updatedOffering.id ? updatedOffering : offering));
+    setEditingOffering(null);
+  };
+
+  const handleUpdateSeasonalEvent = (updatedEvent: SeasonalEvent) => {
+    setSeasonalEvents(prev => prev.map(event => event.id === updatedEvent.id ? updatedEvent : event));
+    setEditingSeasonalEvent(null);
+  };
 
 
   const handleNewDeal = (deal: Omit<Deal, 'id'>) => {
@@ -928,8 +1120,6 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Detail</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hashtags</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -960,37 +1150,15 @@ export default function CategoriesPage() {
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 max-w-xs truncate">{deal.detail}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {deal.hashtags.map((tag, index) => (
-                              <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {deal.url ? (
-                              <a 
-                                href={deal.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                {deal.url}
-                              </a>
-                            ) : (
-                              <span className="text-gray-400">No URL</span>
-                            )}
-                          </div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            <button className="text-gray-400 hover:text-gray-600">
+                            <button 
+                              onClick={() => handleEditDeal(deal)}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
                               <EditIcon className="w-4 h-4" />
                             </button>
                             <button className="text-gray-400 hover:text-red-600">
@@ -1001,7 +1169,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(deal.id) && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {deal.subCategories.map((sub) => (
@@ -1060,8 +1228,6 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Detail</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hashtags</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1092,37 +1258,15 @@ export default function CategoriesPage() {
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 max-w-xs truncate">{offering.detail}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {offering.hashtags.map((tag, index) => (
-                              <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {offering.url ? (
-                              <a 
-                                href={offering.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                {offering.url}
-                              </a>
-                            ) : (
-                              <span className="text-gray-400">No URL</span>
-                            )}
-                          </div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            <button className="text-gray-400 hover:text-gray-600">
+                            <button 
+                              onClick={() => handleEditOffering(offering)}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
                               <EditIcon className="w-4 h-4" />
                             </button>
                             <button className="text-gray-400 hover:text-red-600">
@@ -1133,7 +1277,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(offering.id) && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {offering.subCategories.map((sub) => (
@@ -1192,8 +1336,6 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Detail</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hashtags</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Schedule Plan</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1224,37 +1366,15 @@ export default function CategoriesPage() {
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 max-w-xs truncate">{event.detail}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {event.hashtags.map((tag, index) => (
-                              <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {event.url ? (
-                              <a 
-                                href={event.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                {event.url}
-                              </a>
-                            ) : (
-                              <span className="text-gray-400">No URL</span>
-                            )}
-                          </div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatPostPlan(event.postPlan)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            <button className="text-gray-400 hover:text-gray-600">
+                            <button 
+                              onClick={() => handleEditSeasonalEvent(event)}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
                               <EditIcon className="w-4 h-4" />
                             </button>
                             <button className="text-gray-400 hover:text-red-600">
@@ -1265,7 +1385,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(event.id) && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-events</div>
                               {event.subCategories.map((sub) => (
@@ -1316,6 +1436,14 @@ export default function CategoriesPage() {
           isOpen={isNewSeasonalModalOpen} 
           onClose={() => setIsNewSeasonalModalOpen(false)} 
           onSave={handleNewSeasonalEvent} 
+        />
+        
+        {/* Edit Modals */}
+        <EditDealModal 
+          deal={editingDeal}
+          isOpen={!!editingDeal} 
+          onClose={() => setEditingDeal(null)} 
+          onSave={handleUpdateDeal} 
         />
       </div>
     </AppLayout>
