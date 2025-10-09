@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 
 // Icons
@@ -57,7 +58,20 @@ const platformIcons = {
 };
 
 export default function SchedulePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('scheduled');
+
+  const handleEditPost = (e: React.MouseEvent, postId: number) => {
+    e.stopPropagation(); // Prevent card click when clicking edit button
+    router.push('/edit-post');
+  };
+
+  const handlePostClick = (postId: number) => {
+    // Only allow editing for drafts and scheduled posts
+    if (activeTab === 'drafts' || activeTab === 'scheduled') {
+      router.push('/edit-post');
+    }
+  };
 
   const tabs = [
     { id: 'drafts', label: 'Drafts', count: 3 },
@@ -194,7 +208,11 @@ export default function SchedulePage() {
         {activeTab === 'scheduled' && (
           <div className="space-y-4">
             {scheduledPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+              <div 
+                key={post.id} 
+                onClick={() => handlePostClick(post.id)}
+                className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+              >
                 <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
                   <div className="w-full sm:w-20 h-48 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
@@ -240,7 +258,10 @@ export default function SchedulePage() {
                         <span className="px-3 py-1 bg-[#EEF2FF] text-[#6366F1] text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
-                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
+                        <button 
+                          onClick={(e) => handleEditPost(e, post.id)}
+                          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600"
+                        >
                           <EditIcon className="w-4 h-4" />
                         </button>
                         <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
@@ -258,7 +279,11 @@ export default function SchedulePage() {
     {activeTab === 'drafts' && (
       <div className="space-y-4">
         {draftPosts.map((post) => (
-          <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div 
+            key={post.id} 
+            onClick={() => handlePostClick(post.id)}
+            className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Post Image */}
                   <div className="w-full sm:w-20 h-48 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden relative">
@@ -307,7 +332,10 @@ export default function SchedulePage() {
                         <span className="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-md">
                           {post.status}
                         </span>
-                        <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600">
+                        <button 
+                          onClick={(e) => handleEditPost(e, post.id)}
+                          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-gray-600"
+                        >
                           <EditIcon className="w-4 h-4" />
                         </button>
                         <button className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200 text-gray-400 hover:text-red-600">
