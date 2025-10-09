@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 
@@ -75,15 +75,42 @@ const AVAILABLE_TAGS = [
   { label: "New Year Event", color: "bg-purple-100 text-purple-800", category: "seasonal" }
 ];
 
+// Toast Notification Component
+const Toast = ({ message, isVisible, onClose }: { message: string; isVisible: boolean; onClose: () => void }) => {
+  React.useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, onClose]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 flex items-center space-x-2">
+        <span className="text-green-500 text-sm">✅</span>
+        <span className="text-gray-900 text-sm font-medium">{message}</span>
+      </div>
+    </div>
+  );
+};
+
 // Image Cropping Component
 const ImageCropper = ({ 
   src, 
   onCropChange, 
-  cropSettings 
+  cropSettings,
+  onSave,
+  onNext
 }: { 
   src: string; 
   onCropChange: (settings: CropSettings) => void; 
   cropSettings?: CropSettings;
+  onSave: () => void;
+  onNext: () => void;
 }) => {
   const [selectedFormat, setSelectedFormat] = useState("square");
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -217,15 +244,15 @@ const ImageCropper = ({
           {/* Available Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
               {AVAILABLE_TAGS.map((tag, index) => (
                 <button
                   key={index}
                   onClick={() => handleTagToggle(tag.label)}
-                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
+                  className={`px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-current ring-2 ring-[#6366F1] ring-opacity-50`
-                      : `${tag.color} hover:opacity-80`
+                      ? `${tag.color} border-[#6366F1] ring-1 ring-[#6366F1] ring-opacity-60 shadow-sm scale-105`
+                      : `${tag.color} hover:opacity-80 hover:scale-105`
                   }`}
                 >
                   {tag.label}
@@ -264,7 +291,15 @@ const ImageCropper = ({
 
           {/* Actions */}
           <div className="flex gap-2">
-            <button className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors">
+            <button 
+              onClick={() => {
+                onSave();
+                setTimeout(() => {
+                  onNext();
+                }, 500); // Small delay for toast animation
+              }}
+              className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
+            >
               Save & Move to Ready
             </button>
             <button className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors">
@@ -280,10 +315,14 @@ const ImageCropper = ({
 // Video Content Component
 const VideoContent = ({ 
   src, 
-  title 
+  title,
+  onSave,
+  onNext
 }: { 
   src: string; 
-  title: string; 
+  title: string;
+  onSave: () => void;
+  onNext: () => void;
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -328,15 +367,15 @@ const VideoContent = ({
           {/* Available Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
               {AVAILABLE_TAGS.map((tag, index) => (
                 <button
                   key={index}
                   onClick={() => handleTagToggle(tag.label)}
-                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
+                  className={`px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-current ring-2 ring-[#6366F1] ring-opacity-50`
-                      : `${tag.color} hover:opacity-80`
+                      ? `${tag.color} border-[#6366F1] ring-1 ring-[#6366F1] ring-opacity-60 shadow-sm scale-105`
+                      : `${tag.color} hover:opacity-80 hover:scale-105`
                   }`}
                 >
                   {tag.label}
@@ -375,7 +414,15 @@ const VideoContent = ({
 
           {/* Actions */}
           <div className="flex gap-2">
-            <button className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors">
+            <button 
+              onClick={() => {
+                onSave();
+                setTimeout(() => {
+                  onNext();
+                }, 500); // Small delay for toast animation
+              }}
+              className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
+            >
               Save & Move to Ready
             </button>
             <button className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors">
@@ -394,6 +441,9 @@ export default function ContentLibraryPage() {
   const [activeTab, setActiveTab] = useState('ready-to-use');
   const [searchQuery, setSearchQuery] = useState('');
   const [needsAttentionContent, setNeedsAttentionContent] = useState<ContentItem[]>([]);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [currentContentIndex, setCurrentContentIndex] = useState(0);
 
   const tabs = [
     { id: 'ready-to-use', label: 'Ready to Use', count: 6 },
@@ -419,7 +469,23 @@ export default function ContentLibraryPage() {
       
       setNeedsAttentionContent(prev => [...prev, ...newContent]);
       setActiveTab('needs-attention'); // Switch to needs attention tab
+      setCurrentContentIndex(0); // Start with first item
     }
+  };
+
+  const handleSave = () => {
+    setToastMessage('✅ Image saved — moved to Ready tab');
+    setShowToast(true);
+  };
+
+  const handleNext = () => {
+    if (currentContentIndex < needsAttentionContent.length - 1) {
+      setCurrentContentIndex(prev => prev + 1);
+    }
+  };
+
+  const handleToastClose = () => {
+    setShowToast(false);
   };
 
   const contentItems: ContentItem[] = [
@@ -619,36 +685,60 @@ export default function ContentLibraryPage() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No content needs attention</h3>
                   <p className="text-gray-600">Upload some images or videos to get started with tagging and cropping.</p>
                 </div>
-              ) : (
-                needsAttentionContent.map((item) => (
-                  <div key={item.id}>
-                    {item.file?.type.startsWith('video/') ? (
-                      <VideoContent 
-                        src={item.image} 
-                        title={item.title}
-                      />
-                    ) : (
-                      <ImageCropper 
-                        src={item.image} 
-                        onCropChange={(settings) => {
-                          setNeedsAttentionContent(prev => 
-                            prev.map(content => 
-                              content.id === item.id 
-                                ? { ...content, cropSettings: settings }
-                                : content
-                            )
-                          );
-                        }}
-                        cropSettings={item.cropSettings}
-                      />
-                    )}
+              ) : currentContentIndex >= needsAttentionContent.length ? (
+                <div className="text-center py-12">
+                  <div className="text-green-500 mb-4">
+                    <UploadIcon className="w-16 h-16 mx-auto" />
                   </div>
-                ))
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">All images are tagged — great job!</h3>
+                  <p className="text-gray-600">You&apos;ve successfully tagged all your content. Ready for the next batch!</p>
+                </div>
+              ) : (
+                <div className="animate-in fade-in duration-500">
+                  {(() => {
+                    const item = needsAttentionContent[currentContentIndex];
+                    return (
+                      <div key={item.id}>
+                        {item.file?.type.startsWith('video/') ? (
+                          <VideoContent 
+                            src={item.image} 
+                            title={item.title}
+                            onSave={handleSave}
+                            onNext={handleNext}
+                          />
+                        ) : (
+                          <ImageCropper 
+                            src={item.image} 
+                            onCropChange={(settings) => {
+                              setNeedsAttentionContent(prev => 
+                                prev.map(content => 
+                                  content.id === item.id 
+                                    ? { ...content, cropSettings: settings }
+                                    : content
+                                )
+                              );
+                            }}
+                            cropSettings={item.cropSettings}
+                            onSave={handleSave}
+                            onNext={handleNext}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
+      
+      {/* Toast Notification */}
+      <Toast 
+        message={toastMessage} 
+        isVisible={showToast} 
+        onClose={handleToastClose} 
+      />
     </AppLayout>
   );
 }
