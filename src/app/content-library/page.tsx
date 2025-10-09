@@ -23,12 +23,27 @@ const TagIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+interface Tag {
+  label: string;
+  color: string;
+}
+
+interface ContentItem {
+  id: number;
+  title: string;
+  image: string;
+  tags: Tag[];
+  uploadedDate: string;
+  file?: File;
+  status?: string;
+}
+
 export default function ContentLibraryPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('ready-to-use');
   const [searchQuery, setSearchQuery] = useState('');
-  const [needsAttentionContent, setNeedsAttentionContent] = useState<any[]>([]);
+  const [needsAttentionContent, setNeedsAttentionContent] = useState<ContentItem[]>([]);
 
   const tabs = [
     { id: 'ready-to-use', label: 'Ready to Use', count: 6 },
@@ -57,7 +72,7 @@ export default function ContentLibraryPage() {
     }
   };
 
-  const contentItems = [
+  const contentItems: ContentItem[] = [
     {
       id: 1,
       title: "Arcade Gaming",
