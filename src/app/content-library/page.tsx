@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 
@@ -25,13 +25,37 @@ const TagIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 export default function ContentLibraryPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('ready-to-use');
   const [searchQuery, setSearchQuery] = useState('');
+  const [needsAttentionContent, setNeedsAttentionContent] = useState<any[]>([]);
 
   const tabs = [
     { id: 'ready-to-use', label: 'Ready to Use', count: 6 },
-    { id: 'needs-attention', label: 'Needs Attention', count: 2 },
+    { id: 'needs-attention', label: 'Needs Attention', count: needsAttentionContent.length },
   ];
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const newContent = Array.from(files).map((file, index) => ({
+        id: Date.now() + index,
+        title: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+        file: file,
+        image: URL.createObjectURL(file),
+        tags: [],
+        uploadedDate: `Uploaded ${new Date().toLocaleDateString()}`,
+        status: 'needs-attention'
+      }));
+      
+      setNeedsAttentionContent(prev => [...prev, ...newContent]);
+      setActiveTab('needs-attention'); // Switch to needs attention tab
+    }
+  };
 
   const contentItems = [
     {
@@ -118,6 +142,16 @@ export default function ContentLibraryPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
           {/* Search and Upload Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
             {/* Search Bar */}
@@ -135,9 +169,12 @@ export default function ContentLibraryPage() {
             </div>
 
             {/* Upload Button */}
-            <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto">
+            <button 
+              onClick={handleUploadClick}
+              className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto"
+            >
               <UploadIcon className="w-4 h-4" />
-              <span>Upload Images</span>
+              <span>Upload Content</span>
             </button>
           </div>
 
@@ -160,15 +197,23 @@ export default function ContentLibraryPage() {
 
           {/* Content Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {contentItems.map((item) => (
+            {(activeTab === 'ready-to-use' ? contentItems : needsAttentionContent).map((item) => (
               <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                {/* Image */}
+                {/* Image/Video */}
                 <div className="aspect-video bg-gray-200 overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
+                  {item.file?.type.startsWith('video/') ? (
+                    <video
+                      src={item.image}
+                      className="w-full h-full object-cover"
+                      controls
+                    />
+                  ) : (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </div>
 
                 {/* Content */}
@@ -182,6 +227,11 @@ export default function ContentLibraryPage() {
                         {tag.label}
                       </span>
                     ))}
+                    {activeTab === 'needs-attention' && (
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                        Needs Tags
+                      </span>
+                    )}
                   </div>
 
                   {/* Actions and Metadata */}
