@@ -114,13 +114,11 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
     cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
     timesPerWeek: 1,
     daysOfWeek: [] as string[],
-    timesPerMonth: 1,
     daysOfMonth: [] as number[],
     time: '09:00'
   });
 
   const daysOfWeekOptions = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const daysOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
 
   const handleDaysOfWeekChange = (day: string, checked: boolean) => {
     if (checked) {
@@ -130,13 +128,6 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
     }
   };
 
-  const handleDaysOfMonthChange = (day: number, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-    } else {
-      setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,7 +149,6 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
       frequency.timesPerWeek = formData.timesPerWeek;
       frequency.daysOfWeek = formData.daysOfWeek;
     } else if (formData.cadence === 'monthly') {
-      frequency.timesPerMonth = formData.timesPerMonth;
       frequency.daysOfMonth = formData.daysOfMonth;
     }
     
@@ -173,7 +163,6 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
       cadence: 'weekly', 
       timesPerWeek: 1, 
       daysOfWeek: [], 
-      timesPerMonth: 1, 
       daysOfMonth: [], 
       time: '09:00' 
     });
@@ -240,47 +229,35 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
                     <input
                       type="checkbox"
                       checked={formData.daysOfWeek.includes(day)}
+                      disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
                       onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <span className="text-sm text-gray-700">{day}</span>
                   </label>
                 ))}
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
+              </p>
             </div>
           )}
           
+          
           {formData.cadence === 'monthly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Month</label>
-              <select
-                value={formData.timesPerMonth}
-                onChange={(e) => setFormData({ ...formData, timesPerMonth: parseInt(e.target.value) })}
+              <label className="block text-sm font-medium text-gray-700 mb-2">On the following days</label>
+              <input
+                type="text"
+                value={formData.daysOfMonth.map(d => d.toString()).join(', ')}
+                onChange={(e) => {
+                  const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+                  setFormData({ ...formData, daysOfMonth: days });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(num => (
-                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per month</option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          {formData.cadence === 'monthly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto">
-                {daysOfMonthOptions.map(day => (
-                  <label key={day} className="flex items-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfMonth.includes(day)}
-                      onChange={(e) => handleDaysOfMonthChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-xs text-gray-700">{day}</span>
-                  </label>
-                ))}
-              </div>
+                placeholder="1, 5, 10, 15"
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter day numbers separated by commas (e.g., 1, 5, 10, 15 for 1st, 5th, 10th, 15th of month)</p>
             </div>
           )}
           
@@ -321,13 +298,11 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
     cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
     timesPerWeek: 1,
     daysOfWeek: [] as string[],
-    timesPerMonth: 1,
     daysOfMonth: [] as number[],
     time: '09:00'
   });
 
   const daysOfWeekOptions = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const daysOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
 
   const handleDaysOfWeekChange = (day: string, checked: boolean) => {
     if (checked) {
@@ -337,13 +312,6 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
     }
   };
 
-  const handleDaysOfMonthChange = (day: number, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-    } else {
-      setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,7 +333,6 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
       frequency.timesPerWeek = formData.timesPerWeek;
       frequency.daysOfWeek = formData.daysOfWeek;
     } else if (formData.cadence === 'monthly') {
-      frequency.timesPerMonth = formData.timesPerMonth;
       frequency.daysOfMonth = formData.daysOfMonth;
     }
     
@@ -380,7 +347,6 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
       cadence: 'weekly', 
       timesPerWeek: 1, 
       daysOfWeek: [], 
-      timesPerMonth: 1, 
       daysOfMonth: [], 
       time: '09:00' 
     });
@@ -447,47 +413,35 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
                     <input
                       type="checkbox"
                       checked={formData.daysOfWeek.includes(day)}
+                      disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
                       onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <span className="text-sm text-gray-700">{day}</span>
                   </label>
                 ))}
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
+              </p>
             </div>
           )}
           
+          
           {formData.cadence === 'monthly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Month</label>
-              <select
-                value={formData.timesPerMonth}
-                onChange={(e) => setFormData({ ...formData, timesPerMonth: parseInt(e.target.value) })}
+              <label className="block text-sm font-medium text-gray-700 mb-2">On the following days</label>
+              <input
+                type="text"
+                value={formData.daysOfMonth.map(d => d.toString()).join(', ')}
+                onChange={(e) => {
+                  const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+                  setFormData({ ...formData, daysOfMonth: days });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(num => (
-                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per month</option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          {formData.cadence === 'monthly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto">
-                {daysOfMonthOptions.map(day => (
-                  <label key={day} className="flex items-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfMonth.includes(day)}
-                      onChange={(e) => handleDaysOfMonthChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-xs text-gray-700">{day}</span>
-                  </label>
-                ))}
-              </div>
+                placeholder="1, 5, 10, 15"
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter day numbers separated by commas (e.g., 1, 5, 10, 15 for 1st, 5th, 10th, 15th of month)</p>
             </div>
           )}
           
@@ -525,13 +479,11 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
 const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (event: Omit<SeasonalEvent, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
-    detail: '',
     dateType: 'single' as 'single' | 'range',
     eventDate: '',
     startDate: '',
     endDate: '',
     postDays: '1, 3, 5',
-    numberOfPosts: 3,
     offsets: '10, 5, 2'
   });
 
@@ -544,9 +496,9 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     
     const eventData: Omit<SeasonalEvent, 'id'> = {
       name: formData.name,
-      detail: formData.detail,
+      detail: '',
       postPlan: {
-        numberOfPosts: formData.numberOfPosts,
+        numberOfPosts: offsets.length,
         offsets
       },
       subCategories: []
@@ -566,13 +518,11 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     
     setFormData({ 
       name: '', 
-      detail: '', 
       dateType: 'single',
       eventDate: '',
       startDate: '',
       endDate: '',
       postDays: '1, 3, 5',
-      numberOfPosts: 3, 
       offsets: '10, 5, 2' 
     });
     onClose();
@@ -601,16 +551,6 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
             />
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Event Detail</label>
-            <textarea
-              value={formData.detail}
-              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Describe the seasonal event"
-            />
-          </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Event Date Type</label>
@@ -672,17 +612,6 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
             </>
           )}
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Pre-Event Posts</label>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={formData.numberOfPosts}
-              onChange={(e) => setFormData({ ...formData, numberOfPosts: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            />
-          </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Days Before Event</label>
