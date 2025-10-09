@@ -751,13 +751,6 @@ export default function CategoriesPage() {
               >
                 ← Back to Settings
               </button>
-              <button
-                onClick={() => {/* TODO: Implement custom categories */}}
-                className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto"
-              >
-                <PlusIcon className="w-4 h-4" />
-                <span>New Category</span>
-              </button>
             </div>
           </div>
         </div>
@@ -774,7 +767,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsNewDealModalOpen(true)}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Deal</span>
@@ -875,7 +868,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsNewOfferingModalOpen(true)}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Offering</span>
@@ -976,7 +969,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsNewSeasonalModalOpen(true)}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Seasonal Event</span>
