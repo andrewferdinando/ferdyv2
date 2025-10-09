@@ -88,18 +88,63 @@ const ImageCropper = ({
   const [selectedFormat, setSelectedFormat] = useState("square");
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const handleFormatChange = (format: string) => {
     setSelectedFormat(format);
     // Calculate crop settings based on format
     const settings: CropSettings = {
       aspectRatio: format,
-      x: 0,
-      y: 0,
+      x: imagePosition.x,
+      y: imagePosition.y,
       width: 100,
       height: format === "square" ? 100 : format === "portrait" ? 125 : format === "landscape" ? 80 : 100
     };
     onCropChange(settings);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (selectedFormat !== "original") {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - imagePosition.x,
+        y: e.clientY - imagePosition.y
+      });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && selectedFormat !== "original") {
+      const newPosition = {
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      };
+      setImagePosition(newPosition);
+      
+      const settings: CropSettings = {
+        aspectRatio: selectedFormat,
+        x: newPosition.x,
+        y: newPosition.y,
+        width: 100,
+        height: selectedFormat === "square" ? 100 : selectedFormat === "portrait" ? 125 : selectedFormat === "landscape" ? 80 : 100
+      };
+      onCropChange(settings);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTagToggle = (tagLabel: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagLabel) 
+        ? prev.filter(tag => tag !== tagLabel)
+        : [...prev, tagLabel]
+    );
   };
 
   const addCustomTag = () => {
@@ -135,15 +180,32 @@ const ImageCropper = ({
             </div>
 
             {/* Image Preview */}
-            <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: selectedFormat === "square" ? "1/1" : selectedFormat === "portrait" ? "4/5" : selectedFormat === "landscape" ? "1.91/1" : "auto" }}>
+            <div 
+              className="relative bg-gray-100 rounded-lg overflow-hidden cursor-move select-none" 
+              style={{ aspectRatio: selectedFormat === "square" ? "1/1" : selectedFormat === "portrait" ? "4/5" : selectedFormat === "landscape" ? "1.91/1" : "auto" }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
               <img
                 src={src}
                 alt="Crop preview"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-100"
+                style={{
+                  transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                  transformOrigin: 'center center'
+                }}
+                draggable={false}
               />
               <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 Aspect ratio: {CROP_FORMATS.find(f => f.value === selectedFormat)?.ratio}
               </div>
+              {selectedFormat !== "original" && (
+                <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                  Click and drag to reposition
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -155,11 +217,16 @@ const ImageCropper = ({
           {/* Available Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
               {AVAILABLE_TAGS.map((tag, index) => (
                 <button
                   key={index}
-                  className={`w-full text-left px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${tag.color} hover:opacity-80`}
+                  onClick={() => handleTagToggle(tag.label)}
+                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
+                    selectedTags.includes(tag.label)
+                      ? `${tag.color} border-current ring-2 ring-[#6366F1] ring-opacity-50`
+                      : `${tag.color} hover:opacity-80`
+                  }`}
                 >
                   {tag.label}
                 </button>
@@ -220,6 +287,15 @@ const VideoContent = ({
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const handleTagToggle = (tagLabel: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagLabel) 
+        ? prev.filter(tag => tag !== tagLabel)
+        : [...prev, tagLabel]
+    );
+  };
 
   const addCustomTag = () => {
     if (newTag.trim() && !customTags.includes(newTag.trim())) {
@@ -252,11 +328,16 @@ const VideoContent = ({
           {/* Available Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
               {AVAILABLE_TAGS.map((tag, index) => (
                 <button
                   key={index}
-                  className={`w-full text-left px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${tag.color} hover:opacity-80`}
+                  onClick={() => handleTagToggle(tag.label)}
+                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
+                    selectedTags.includes(tag.label)
+                      ? `${tag.color} border-current ring-2 ring-[#6366F1] ring-opacity-50`
+                      : `${tag.color} hover:opacity-80`
+                  }`}
                 >
                   {tag.label}
                 </button>
