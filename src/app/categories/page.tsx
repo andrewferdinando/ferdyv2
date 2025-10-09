@@ -1,0 +1,891 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import AppLayout from '@/components/layout/AppLayout';
+
+// Icons
+const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+  </svg>
+);
+
+const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+
+const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
+const ChevronRightIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+// Types
+interface SubCategory {
+  id: string;
+  name: string;
+  detail: string;
+  frequency?: {
+    cadence: 'daily' | 'weekly' | 'monthly';
+    dayOfWeek?: string;
+    time: string;
+  };
+  postPlan?: {
+    numberOfPosts: number;
+    offsets: number[];
+  };
+}
+
+interface Category {
+  id: string;
+  name: string;
+  type: 'deals' | 'offerings' | 'seasonal' | 'custom';
+  description?: string;
+  template?: 'deals-like' | 'offerings-like' | 'seasonal-like';
+}
+
+interface Deal {
+  id: string;
+  name: string;
+  detail: string;
+  frequency: {
+    cadence: 'daily' | 'weekly' | 'monthly';
+    dayOfWeek?: string;
+    time: string;
+  };
+  subCategories: SubCategory[];
+}
+
+interface Offering {
+  id: string;
+  name: string;
+  detail: string;
+  frequency: {
+    cadence: 'daily' | 'weekly' | 'monthly';
+    dayOfWeek?: string;
+    time: string;
+  };
+  subCategories: SubCategory[];
+}
+
+interface SeasonalEvent {
+  id: string;
+  name: string;
+  detail: string;
+  postPlan: {
+    numberOfPosts: number;
+    offsets: number[];
+  };
+  subCategories: SubCategory[];
+}
+
+// Modal Components
+const NewCategoryModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (category: Category) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'custom' as 'deals' | 'offerings' | 'seasonal' | 'custom',
+    description: '',
+    template: 'deals-like' as 'deals-like' | 'offerings-like' | 'seasonal-like'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    onSave({
+      id: Date.now().toString(),
+      name: formData.name,
+      type: formData.type,
+      description: formData.description || undefined,
+      template: formData.type === 'custom' ? formData.template : undefined
+    });
+    
+    setFormData({ name: '', type: 'custom', description: '', template: 'deals-like' });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">New Category</h2>
+          <p className="text-gray-600 text-sm mt-1">Create a new category for organizing your content</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter category name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category Type</label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            >
+              <option value="deals">Deals</option>
+              <option value="offerings">Offerings</option>
+              <option value="seasonal">Seasonal Event</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          
+          {formData.type === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Template</label>
+              <select
+                value={formData.template}
+                onChange={(e) => setFormData({ ...formData, template: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              >
+                <option value="deals-like">Deals-like</option>
+                <option value="offerings-like">Offerings-like</option>
+                <option value="seasonal-like">Seasonal-like</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.template === 'deals-like' && 'Includes frequency settings for regular posting'}
+                {formData.template === 'offerings-like' && 'Includes frequency settings for service promotion'}
+                {formData.template === 'seasonal-like' && 'Includes post scheduling for event-based content'}
+              </p>
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe this category"
+            />
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+            >
+              Create Category
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (deal: Omit<Deal, 'id'>) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    detail: '',
+    cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
+    dayOfWeek: 'Monday',
+    time: '09:00'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    onSave({
+      name: formData.name,
+      detail: formData.detail,
+      frequency: {
+        cadence: formData.cadence,
+        dayOfWeek: formData.cadence === 'weekly' ? formData.dayOfWeek : undefined,
+        time: formData.time
+      },
+      subCategories: []
+    });
+    
+    setFormData({ name: '', detail: '', cadence: 'weekly', dayOfWeek: 'Monday', time: '09:00' });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">New Deal</h2>
+          <p className="text-gray-600 text-sm mt-1">Create a new deal with posting schedule</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter deal name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
+            <textarea
+              value={formData.detail}
+              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe the deal"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+              <select
+                value={formData.cadence}
+                onChange={(e) => setFormData({ ...formData, cadence: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            
+            {formData.cadence === 'weekly' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Day of Week</label>
+                <select
+                  value={formData.dayOfWeek}
+                  onChange={(e) => setFormData({ ...formData, dayOfWeek: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                >
+                  <option value="Monday">Monday</option>
+                  <option value="Tuesday">Tuesday</option>
+                  <option value="Wednesday">Wednesday</option>
+                  <option value="Thursday">Thursday</option>
+                  <option value="Friday">Friday</option>
+                  <option value="Saturday">Saturday</option>
+                  <option value="Sunday">Sunday</option>
+                </select>
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+            <input
+              type="time"
+              value={formData.time}
+              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+            >
+              Create Deal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (event: Omit<SeasonalEvent, 'id'>) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    detail: '',
+    numberOfPosts: 3,
+    offsets: '10, 5, 2'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    const offsets = formData.offsets.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    
+    onSave({
+      name: formData.name,
+      detail: formData.detail,
+      postPlan: {
+        numberOfPosts: formData.numberOfPosts,
+        offsets
+      },
+      subCategories: []
+    });
+    
+    setFormData({ name: '', detail: '', numberOfPosts: 3, offsets: '10, 5, 2' });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">New Seasonal Event</h2>
+          <p className="text-gray-600 text-sm mt-1">Create a seasonal event with post scheduling</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Event Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="e.g., Black Friday"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Event Detail</label>
+            <textarea
+              value={formData.detail}
+              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe the seasonal event"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Posts</label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={formData.numberOfPosts}
+              onChange={(e) => setFormData({ ...formData, numberOfPosts: parseInt(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Days Before Event</label>
+            <input
+              type="text"
+              value={formData.offsets}
+              onChange={(e) => setFormData({ ...formData, offsets: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="10, 5, 2"
+            />
+            <p className="text-xs text-gray-500 mt-1">Comma-separated days before the event (e.g., 10, 5, 2)</p>
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+            >
+              Create Event
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default function CategoriesPage() {
+  const router = useRouter();
+  
+  // Modal states
+  const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false);
+  const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
+  const [isNewSeasonalModalOpen, setIsNewSeasonalModalOpen] = useState(false);
+  
+  // Data states
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([
+    {
+      id: '1',
+      name: 'Happy Hour Special',
+      detail: '50% off all drinks from 4-6 PM',
+      frequency: { cadence: 'weekly', dayOfWeek: 'Friday', time: '15:00' },
+      subCategories: []
+    }
+  ]);
+  const [offerings, setOfferings] = useState<Offering[]>([
+    {
+      id: '1',
+      name: 'VR Experience Packages',
+      detail: 'Premium VR gaming experiences for groups',
+      frequency: { cadence: 'weekly', dayOfWeek: 'Wednesday', time: '14:00' },
+      subCategories: []
+    }
+  ]);
+  const [seasonalEvents, setSeasonalEvents] = useState<SeasonalEvent[]>([
+    {
+      id: '1',
+      name: 'Summer Gaming Tournament',
+      detail: 'Annual summer arcade tournament with prizes',
+      postPlan: { numberOfPosts: 4, offsets: [14, 7, 3, 1] },
+      subCategories: []
+    }
+  ]);
+
+  // Sub-category states
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [editingSubCategory, setEditingSubCategory] = useState<{parentId: string; parentType: string} | null>(null);
+
+  const handleNewCategory = (category: Category) => {
+    setCustomCategories(prev => [...prev, category]);
+  };
+
+  const handleNewDeal = (deal: Omit<Deal, 'id'>) => {
+    setDeals(prev => [...prev, { ...deal, id: Date.now().toString() }]);
+  };
+
+  const handleNewSeasonalEvent = (event: Omit<SeasonalEvent, 'id'>) => {
+    setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
+  };
+
+  const toggleRowExpansion = (id: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const formatFrequency = (frequency: { cadence: string; dayOfWeek?: string; time: string }) => {
+    const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    if (frequency.cadence === 'weekly' && frequency.dayOfWeek) {
+      return `${frequency.cadence.charAt(0).toUpperCase() + frequency.cadence.slice(1)}, ${frequency.dayOfWeek}, ${time}`;
+    }
+    return `${frequency.cadence.charAt(0).toUpperCase() + frequency.cadence.slice(1)}, ${time}`;
+  };
+
+  const formatPostPlan = (postPlan: { numberOfPosts: number; offsets: number[] }) => {
+    const offsets = postPlan.offsets.map(o => `${o}d`).join(', ');
+    return `${postPlan.numberOfPosts} posts: ${offsets} before`;
+  };
+
+  return (
+    <AppLayout>
+      <div className="flex-1 overflow-auto">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Framework</h1>
+              <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and posting schedules</p>
+            </div>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => router.back()}
+                className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 px-4 py-2 w-full sm:w-auto"
+              >
+                ← Back to Settings
+              </button>
+              <button
+                onClick={() => setIsNewCategoryModalOpen(true)}
+                className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto"
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span>New Category</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 sm:p-6 lg:p-10 space-y-8">
+          {/* Deals Section */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Deals</h2>
+                  <p className="text-gray-600 text-sm mt-1">Manage promotional deals and special offers</p>
+                </div>
+                <button
+                  onClick={() => setIsNewDealModalOpen(true)}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Add Deal</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Detail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {deals.map((deal) => (
+                    <React.Fragment key={deal.id}>
+                      <tr className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => toggleRowExpansion(deal.id)}
+                              className="mr-2 text-gray-400 hover:text-gray-600"
+                            >
+                              {expandedRows.has(deal.id) ? 
+                                <ChevronDownIcon className="w-4 h-4" /> : 
+                                <ChevronRightIcon className="w-4 h-4" />
+                              }
+                            </button>
+                            <div className="text-sm font-medium text-gray-900">{deal.name}</div>
+                            {deal.subCategories.length > 0 && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {deal.subCategories.length}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{deal.detail}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <EditIcon className="w-4 h-4" />
+                            </button>
+                            <button className="text-gray-400 hover:text-red-600">
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRows.has(deal.id) && (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                            <div className="space-y-3">
+                              <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
+                              {deal.subCategories.map((sub) => (
+                                <div key={sub.id} className="ml-6 p-3 bg-white rounded-lg border border-gray-200">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-900">{sub.name}</div>
+                                      <div className="text-sm text-gray-600">{sub.detail}</div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <button className="text-gray-400 hover:text-gray-600">
+                                        <EditIcon className="w-4 h-4" />
+                                      </button>
+                                      <button className="text-gray-400 hover:text-red-600">
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              <button className="ml-6 text-sm text-[#6366F1] hover:text-[#4F46E5] font-medium">
+                                + Add sub-category
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Offerings Section */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Offerings</h2>
+                  <p className="text-gray-600 text-sm mt-1">Manage service offerings and packages</p>
+                </div>
+                <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm">
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Add Offering</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Detail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {offerings.map((offering) => (
+                    <React.Fragment key={offering.id}>
+                      <tr className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => toggleRowExpansion(offering.id)}
+                              className="mr-2 text-gray-400 hover:text-gray-600"
+                            >
+                              {expandedRows.has(offering.id) ? 
+                                <ChevronDownIcon className="w-4 h-4" /> : 
+                                <ChevronRightIcon className="w-4 h-4" />
+                              }
+                            </button>
+                            <div className="text-sm font-medium text-gray-900">{offering.name}</div>
+                            {offering.subCategories.length > 0 && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {offering.subCategories.length}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{offering.detail}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <EditIcon className="w-4 h-4" />
+                            </button>
+                            <button className="text-gray-400 hover:text-red-600">
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRows.has(offering.id) && (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                            <div className="space-y-3">
+                              <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
+                              {offering.subCategories.map((sub) => (
+                                <div key={sub.id} className="ml-6 p-3 bg-white rounded-lg border border-gray-200">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-900">{sub.name}</div>
+                                      <div className="text-sm text-gray-600">{sub.detail}</div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <button className="text-gray-400 hover:text-gray-600">
+                                        <EditIcon className="w-4 h-4" />
+                                      </button>
+                                      <button className="text-gray-400 hover:text-red-600">
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              <button className="ml-6 text-sm text-[#6366F1] hover:text-[#4F46E5] font-medium">
+                                + Add sub-category
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Seasonal Events Section */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Seasonal Events</h2>
+                  <p className="text-gray-600 text-sm mt-1">Manage seasonal campaigns and event-based content</p>
+                </div>
+                <button
+                  onClick={() => setIsNewSeasonalModalOpen(true)}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Add Seasonal Event</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Detail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Schedule Plan</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {seasonalEvents.map((event) => (
+                    <React.Fragment key={event.id}>
+                      <tr className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => toggleRowExpansion(event.id)}
+                              className="mr-2 text-gray-400 hover:text-gray-600"
+                            >
+                              {expandedRows.has(event.id) ? 
+                                <ChevronDownIcon className="w-4 h-4" /> : 
+                                <ChevronRightIcon className="w-4 h-4" />
+                              }
+                            </button>
+                            <div className="text-sm font-medium text-gray-900">{event.name}</div>
+                            {event.subCategories.length > 0 && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {event.subCategories.length}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{event.detail}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{formatPostPlan(event.postPlan)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <EditIcon className="w-4 h-4" />
+                            </button>
+                            <button className="text-gray-400 hover:text-red-600">
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRows.has(event.id) && (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                            <div className="space-y-3">
+                              <div className="text-sm font-medium text-gray-700 mb-2">Sub-events</div>
+                              {event.subCategories.map((sub) => (
+                                <div key={sub.id} className="ml-6 p-3 bg-white rounded-lg border border-gray-200">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-900">{sub.name}</div>
+                                      <div className="text-sm text-gray-600">{sub.detail}</div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <button className="text-gray-400 hover:text-gray-600">
+                                        <EditIcon className="w-4 h-4" />
+                                      </button>
+                                      <button className="text-gray-400 hover:text-red-600">
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              <button className="ml-6 text-sm text-[#6366F1] hover:text-[#4F46E5] font-medium">
+                                + Add sub-event
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Modals */}
+        <NewCategoryModal 
+          isOpen={isNewCategoryModalOpen} 
+          onClose={() => setIsNewCategoryModalOpen(false)} 
+          onSave={handleNewCategory} 
+        />
+        <NewDealModal 
+          isOpen={isNewDealModalOpen} 
+          onClose={() => setIsNewDealModalOpen(false)} 
+          onSave={handleNewDeal} 
+        />
+        <NewSeasonalEventModal 
+          isOpen={isNewSeasonalModalOpen} 
+          onClose={() => setIsNewSeasonalModalOpen(false)} 
+          onSave={handleNewSeasonalEvent} 
+        />
+      </div>
+    </AppLayout>
+  );
+}
