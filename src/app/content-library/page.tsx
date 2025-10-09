@@ -262,7 +262,7 @@ const ImageCropper = ({
         {/* Image and Cropping */}
         <div className="flex-1">
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 mb-3">
               <h3 className="text-lg font-semibold text-gray-900">Image Cropping</h3>
               <CropInfo />
             </div>
@@ -296,7 +296,7 @@ const ImageCropper = ({
               <img
                 src={src}
                 alt="Crop preview"
-                className="w-full h-full object-cover transition-transform duration-100"
+                className="absolute inset-0 w-auto h-auto min-w-full min-h-full object-cover transition-transform duration-100"
                 style={{
                   transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                   transformOrigin: 'center center'
@@ -329,7 +329,7 @@ const ImageCropper = ({
                   onClick={() => handleTagToggle(tag.label)}
                   className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
+                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
                       : `${tag.color} hover:opacity-80 hover:scale-105`
                   }`}
                 >
@@ -447,7 +447,7 @@ const VideoContent = ({
                   onClick={() => handleTagToggle(tag.label)}
                   className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
+                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
                       : `${tag.color} hover:opacity-80 hover:scale-105`
                   }`}
                 >
