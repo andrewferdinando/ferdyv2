@@ -53,7 +53,6 @@ interface Integration {
   id: string;
   name: string;
   icon: React.ReactNode;
-  description: string;
   connected: boolean;
   accountName?: string;
 }
@@ -65,7 +64,6 @@ export default function IntegrationsPage() {
       id: 'facebook',
       name: 'Facebook',
       icon: <FacebookIcon />,
-      description: 'Connect your Facebook page to schedule and publish posts',
       connected: true,
       accountName: 'Game Over Queenstown'
     },
@@ -73,7 +71,6 @@ export default function IntegrationsPage() {
       id: 'instagram',
       name: 'Instagram',
       icon: <InstagramIcon />,
-      description: 'Link your Instagram business account for content sharing',
       connected: true,
       accountName: '@gameoverqueenstown'
     },
@@ -81,21 +78,18 @@ export default function IntegrationsPage() {
       id: 'tiktok',
       name: 'TikTok',
       icon: <TikTokIcon />,
-      description: 'Connect TikTok for Business to share engaging video content',
       connected: false
     },
     {
       id: 'youtube',
       name: 'YouTube',
       icon: <YouTubeIcon />,
-      description: 'Link your YouTube channel for video content management',
       connected: false
     },
     {
       id: 'linkedin',
       name: 'LinkedIn',
       icon: <LinkedInIcon />,
-      description: 'Connect your LinkedIn company page for professional content',
       connected: true,
       accountName: 'Game Over Queenstown'
     }
@@ -174,7 +168,7 @@ export default function IntegrationsPage() {
 
                   {/* Platform Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-900 text-base">{integration.name}</h3>
                       {integration.connected && (
                         <div className="flex items-center space-x-1 text-green-600">
@@ -183,10 +177,6 @@ export default function IntegrationsPage() {
                         </div>
                       )}
                     </div>
-                    
-                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                      {integration.description}
-                    </p>
 
                     {integration.connected && integration.accountName && (
                       <div className="mb-4">

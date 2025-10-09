@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 
 // Icons
@@ -23,6 +24,7 @@ const TagIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 );
 
 export default function ContentLibraryPage() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -107,9 +109,17 @@ export default function ContentLibraryPage() {
       <div className="flex-1 overflow-auto">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Content Library</h1>
-            <p className="text-gray-600 mt-1 text-sm">Manage your media assets, templates, and reusable content</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Content Library</h1>
+              <p className="text-gray-600 mt-1 text-sm">Manage your media assets, templates, and reusable content</p>
+            </div>
+            <button 
+              onClick={() => router.back()}
+              className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 px-4 py-2 w-full sm:w-auto"
+            >
+              ← Back to Settings
+            </button>
           </div>
         </div>
 
