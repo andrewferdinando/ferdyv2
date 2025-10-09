@@ -327,10 +327,10 @@ const ImageCropper = ({
                 <button
                   key={index}
                   onClick={() => handleTagToggle(tag.label)}
-                  className={`px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
+                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-30 shadow-md transform scale-105`
-                      : `${tag.color} hover:opacity-80 hover:scale-102`
+                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
+                      : `${tag.color} hover:opacity-80 hover:scale-105`
                   }`}
                 >
                   {tag.label}
@@ -445,10 +445,10 @@ const VideoContent = ({
                 <button
                   key={index}
                   onClick={() => handleTagToggle(tag.label)}
-                  className={`px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 ${
+                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
-                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-30 shadow-md transform scale-105`
-                      : `${tag.color} hover:opacity-80 hover:scale-102`
+                      ? `${tag.color} border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
+                      : `${tag.color} hover:opacity-80 hover:scale-105`
                   }`}
                 >
                   {tag.label}
@@ -509,11 +509,12 @@ export default function ContentLibraryPage() {
   const [activeTab, setActiveTab] = useState('ready-to-use');
   const [searchQuery, setSearchQuery] = useState('');
   const [needsAttentionContent, setNeedsAttentionContent] = useState<ContentItem[]>([]);
+  const [readyContent, setReadyContent] = useState<ContentItem[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
   const tabs = [
-    { id: 'ready-to-use', label: 'Ready to Use', count: 6 },
+    { id: 'ready-to-use', label: 'Ready to Use', count: readyContent.length },
     { id: 'needs-attention', label: 'Needs Attention', count: needsAttentionContent.length },
   ];
 
@@ -540,10 +541,16 @@ export default function ContentLibraryPage() {
   };
 
   const handleSave = (itemId: number) => {
-    // Remove the saved item from needs attention
-    setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
-    setToastMessage('✅ Image saved — moved to Ready tab');
-    setShowToast(true);
+    // Find the item to move
+    const itemToMove = needsAttentionContent.find(item => item.id === itemId);
+    if (itemToMove) {
+      // Add to ready content
+      setReadyContent(prev => [...prev, { ...itemToMove, status: 'ready' }]);
+      // Remove from needs attention
+      setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
+      setToastMessage('✅ Image saved — moved to Ready tab');
+      setShowToast(true);
+    }
   };
 
   const handleToastClose = () => {
@@ -692,7 +699,16 @@ export default function ContentLibraryPage() {
           {activeTab === 'ready-to-use' ? (
             /* Grid Layout for Ready to Use */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-              {contentItems.map((item) => (
+              {readyContent.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <div className="text-gray-400 mb-4">
+                    <UploadIcon className="w-16 h-16 mx-auto" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No ready content yet</h3>
+                  <p className="text-gray-600">Upload and tag some images to see them here.</p>
+                </div>
+              ) : (
+                readyContent.map((item) => (
                 <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                   {/* Image/Video */}
                   <div className="aspect-video bg-gray-200 overflow-hidden">
@@ -734,7 +750,8 @@ export default function ContentLibraryPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           ) : (
             /* List Layout for Needs Attention */
