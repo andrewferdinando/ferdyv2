@@ -13,7 +13,7 @@ export default function EditPostPage() {
   const [scheduleDate, setScheduleDate] = useState('2025-08-10');
   const [scheduleTime, setScheduleTime] = useState('08:22');
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState('/src/assets/placeholders/cropped_gameover_may_142.png');
+  const [selectedMedia, setSelectedMedia] = useState('/assets/placeholders/cropped_gameover_may_142.png');
 
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
@@ -395,27 +395,18 @@ export default function EditPostPage() {
               </div>
 
               {/* Modal Content */}
-              <div className="p-6 space-y-6">
-                {/* Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer">
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-lg font-medium text-gray-900 mb-2">Click to upload or drag and drop</p>
-                  <p className="text-sm text-gray-500">PNG, JPG, GIF, MP4 up to 10MB</p>
-                </div>
-
+              <div className="p-6">
                 {/* Your Media Section */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">YOUR MEDIA</h3>
                   <div className="grid grid-cols-3 gap-4">
                     {/* Media Item 1 - Gaming Setup */}
                     <div 
-                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_142.png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_142.png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/src/assets/placeholders/cropped_gameover_may_142.png"
+                        src="/assets/placeholders/cropped_gameover_may_142.png"
                         alt="Gaming setup"
                         className="w-full h-24 object-cover"
                       />
@@ -427,11 +418,11 @@ export default function EditPostPage() {
 
                     {/* Media Item 2 - Gym */}
                     <div 
-                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_143.png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_143.png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/src/assets/placeholders/cropped_gameover_may_143.png"
+                        src="/assets/placeholders/cropped_gameover_may_143.png"
                         alt="Gym interior"
                         className="w-full h-24 object-cover"
                       />
@@ -443,11 +434,11 @@ export default function EditPostPage() {
 
                     {/* Media Item 3 - Controller */}
                     <div 
-                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_90.png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_90.png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/src/assets/placeholders/cropped_gameover_may_90.png"
+                        src="/assets/placeholders/cropped_gameover_may_90.png"
                         alt="Gaming controller"
                         className="w-full h-24 object-cover"
                       />
@@ -459,11 +450,11 @@ export default function EditPostPage() {
 
                     {/* Media Item 4 - Soccer */}
                     <div 
-                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_76 (1).png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_76 (1).png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/src/assets/placeholders/cropped_gameover_may_76 (1).png"
+                        src="/assets/placeholders/cropped_gameover_may_76 (1).png"
                         alt="Soccer ball"
                         className="w-full h-24 object-cover"
                       />
@@ -475,11 +466,11 @@ export default function EditPostPage() {
 
                     {/* Media Item 5 - Retro Setup */}
                     <div 
-                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_124.png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_124.png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/src/assets/placeholders/cropped_gameover_may_124.png"
+                        src="/assets/placeholders/cropped_gameover_may_124.png"
                         alt="Retro computer setup"
                         className="w-full h-24 object-cover"
                       />
@@ -491,11 +482,11 @@ export default function EditPostPage() {
 
                     {/* Media Item 6 - Event */}
                     <div 
-                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_140.png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_140.png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/src/assets/placeholders/cropped_gameover_may_140.png"
+                        src="/assets/placeholders/cropped_gameover_may_140.png"
                         alt="Event crowd"
                         className="w-full h-24 object-cover"
                       />
