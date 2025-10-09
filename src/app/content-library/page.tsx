@@ -25,19 +25,12 @@ const TagIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 export default function ContentLibraryPage() {
   const router = useRouter();
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('ready-to-use');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filters = [
-    { id: 'all', label: 'All' },
-    { id: 'deal-1', label: 'deal-1' },
-    { id: 'deal-2', label: 'deal-2' },
-    { id: 'custom-1', label: 'custom-1' },
-    { id: 'offering-1', label: 'offering-1' },
-    { id: 'custom-2', label: 'custom-2' },
-    { id: 'custom-3', label: 'custom-3' },
-    { id: 'seasonal-1', label: 'seasonal-1' },
-    { id: 'custom-4', label: 'custom-4' },
+  const tabs = [
+    { id: 'ready-to-use', label: 'Ready to Use' },
+    { id: 'needs-attention', label: 'Needs Attention' },
   ];
 
   const contentItems = [
@@ -148,19 +141,19 @@ export default function ContentLibraryPage() {
             </button>
           </div>
 
-          {/* Tag Filters */}
-          <div className="flex flex-wrap gap-3 mb-10">
-            {filters.map((filter) => (
+          {/* Tabs */}
+          <div className="flex space-x-1 mb-10 bg-gray-100 p-1 rounded-lg w-fit">
+            {tabs.map((tab) => (
               <button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  activeFilter === filter.id
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  activeTab === tab.id
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {filter.label}
+                {tab.label}
               </button>
             ))}
           </div>

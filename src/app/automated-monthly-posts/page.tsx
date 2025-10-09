@@ -56,8 +56,7 @@ export default function AutomatedMonthlyPostsPage() {
               <div className="mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Draft Creation Schedule</h2>
                 <p className="text-gray-600 text-sm leading-relaxed">
-                  Choose how many days before each month you want your draft posts created for review and approval. 
-                  This avoids confusion with months that have different numbers of days (28, 30, or 31).
+                  Choose how many days before each month you want your draft posts created for review and approval.
                 </p>
               </div>
 
