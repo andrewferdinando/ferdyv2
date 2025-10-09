@@ -142,7 +142,7 @@ export default function ContentLibraryPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex flex-wrap gap-4 sm:gap-8 mb-10 border-b border-gray-200">
+          <div className="flex flex-wrap gap-4 sm:gap-8 mb-10">
             {tabs.map((tab) => (
               <button
                 key={tab.id}

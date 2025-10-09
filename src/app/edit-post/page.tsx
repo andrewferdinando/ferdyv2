@@ -398,7 +398,6 @@ export default function EditPostPage() {
               <div className="p-6">
                 {/* Your Media Section */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">YOUR MEDIA</h3>
                   <div className="grid grid-cols-3 gap-4">
                     {/* Media Item 1 - Gaming Setup */}
                     <div 
@@ -450,11 +449,11 @@ export default function EditPostPage() {
 
                     {/* Media Item 4 - Soccer */}
                     <div 
-                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_76 (1).png')}
+                      onClick={() => handleMediaSelect('/assets/placeholders/cropped_gameover_may_76%20(1).png')}
                       className="relative group cursor-pointer rounded-lg overflow-hidden"
                     >
                       <img
-                        src="/assets/placeholders/cropped_gameover_may_76 (1).png"
+                        src="/assets/placeholders/cropped_gameover_may_76%20(1).png"
                         alt="Soccer ball"
                         className="w-full h-24 object-cover"
                       />
