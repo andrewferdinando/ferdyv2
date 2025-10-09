@@ -10,6 +10,10 @@ export default function SettingsPage() {
     router.push('/content-library');
   };
 
+  const handleIntegrationsClick = () => {
+    router.push('/integrations');
+  };
+
   return (
     <AppLayout>
       <div className="flex-1 overflow-auto">
@@ -68,7 +72,10 @@ export default function SettingsPage() {
           </div>
 
           {/* Integrations Card */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div 
+            onClick={handleIntegrationsClick}
+            className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex items-start space-x-4">
               <div className="w-14 h-14 bg-[#EEF2FF] rounded-lg flex items-center justify-center flex-shrink-0">
                 <svg className="w-7 h-7 text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,9 +87,9 @@ export default function SettingsPage() {
                 <p className="text-gray-600 text-sm mb-4 leading-[1.5]">
                   Connect social media accounts and third-party services.
                 </p>
-                <button className="text-[#6366F1] hover:text-[#4F46E5] font-medium text-sm flex items-center transition-colors duration-200">
+                <span className="text-[#6366F1] font-medium text-sm flex items-center transition-colors duration-200">
                   Open →
-                </button>
+                </span>
               </div>
             </div>
           </div>
