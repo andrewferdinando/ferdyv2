@@ -39,10 +39,13 @@ const ChevronRightIcon = ({ className = "w-4 h-4" }: { className?: string }) => 
 interface SubCategory {
   id: string;
   name: string;
-  detail: string;
+  detail?: string;
   frequency?: {
     cadence: 'daily' | 'weekly' | 'monthly';
-    dayOfWeek?: string;
+    timesPerWeek?: number;
+    daysOfWeek?: string[];
+    timesPerMonth?: number;
+    daysOfMonth?: number[];
     time: string;
   };
   postPlan?: {
@@ -51,21 +54,23 @@ interface SubCategory {
   };
 }
 
-interface Category {
-  id: string;
-  name: string;
-  type: 'deals' | 'offerings' | 'seasonal' | 'custom';
-  description?: string;
-  template?: 'deals-like' | 'offerings-like' | 'seasonal-like';
-}
+// interface Category {
+//   id: string;
+//   name: string;
+//   type: 'deals' | 'offerings' | 'seasonal' | 'custom';
+//   description?: string;
+//   template?: 'deals-like' | 'offerings-like' | 'seasonal-like';
+// }
 
 interface Deal {
   id: string;
   name: string;
-  detail: string;
   frequency: {
     cadence: 'daily' | 'weekly' | 'monthly';
-    dayOfWeek?: string;
+    timesPerWeek?: number;
+    daysOfWeek?: string[];
+    timesPerMonth?: number;
+    daysOfMonth?: number[];
     time: string;
   };
   subCategories: SubCategory[];
@@ -74,10 +79,12 @@ interface Deal {
 interface Offering {
   id: string;
   name: string;
-  detail: string;
   frequency: {
     cadence: 'daily' | 'weekly' | 'monthly';
-    dayOfWeek?: string;
+    timesPerWeek?: number;
+    daysOfWeek?: string[];
+    timesPerMonth?: number;
+    daysOfMonth?: number[];
     time: string;
   };
   subCategories: SubCategory[];
@@ -87,6 +94,12 @@ interface SeasonalEvent {
   id: string;
   name: string;
   detail: string;
+  eventDate?: string; // Single date
+  eventDateRange?: {
+    startDate: string;
+    endDate: string;
+    postDays: number[]; // Days within the range to post (e.g., [1, 3, 5])
+  };
   postPlan: {
     numberOfPosts: number;
     offsets: number[];
@@ -98,28 +111,72 @@ interface SeasonalEvent {
 const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (deal: Omit<Deal, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
-    detail: '',
     cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
-    dayOfWeek: 'Monday',
+    timesPerWeek: 1,
+    daysOfWeek: [] as string[],
+    timesPerMonth: 1,
+    daysOfMonth: [] as number[],
     time: '09:00'
   });
+
+  const daysOfWeekOptions = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const daysOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  const handleDaysOfWeekChange = (day: string, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, day] }));
+    } else {
+      setFormData(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== day) }));
+    }
+  };
+
+  const handleDaysOfMonthChange = (day: number, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+    } else {
+      setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
     
+    const frequency: {
+      cadence: 'daily' | 'weekly' | 'monthly';
+      timesPerWeek?: number;
+      daysOfWeek?: string[];
+      timesPerMonth?: number;
+      daysOfMonth?: number[];
+      time: string;
+    } = {
+      cadence: formData.cadence,
+      time: formData.time
+    };
+
+    if (formData.cadence === 'weekly') {
+      frequency.timesPerWeek = formData.timesPerWeek;
+      frequency.daysOfWeek = formData.daysOfWeek;
+    } else if (formData.cadence === 'monthly') {
+      frequency.timesPerMonth = formData.timesPerMonth;
+      frequency.daysOfMonth = formData.daysOfMonth;
+    }
+    
     onSave({
       name: formData.name,
-      detail: formData.detail,
-      frequency: {
-        cadence: formData.cadence,
-        dayOfWeek: formData.cadence === 'weekly' ? formData.dayOfWeek : undefined,
-        time: formData.time
-      },
+      frequency,
       subCategories: []
     });
     
-    setFormData({ name: '', detail: '', cadence: 'weekly', dayOfWeek: 'Monday', time: '09:00' });
+    setFormData({ 
+      name: '', 
+      cadence: 'weekly', 
+      timesPerWeek: 1, 
+      daysOfWeek: [], 
+      timesPerMonth: 1, 
+      daysOfMonth: [], 
+      time: '09:00' 
+    });
     onClose();
   };
 
@@ -147,49 +204,85 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
-            <textarea
-              value={formData.detail}
-              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-              rows={3}
+            <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+            <select
+              value={formData.cadence}
+              onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Describe the deal"
-            />
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          {formData.cadence === 'weekly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
               <select
-                value={formData.cadence}
-                onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+                value={formData.timesPerWeek}
+                onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
+                {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
+                ))}
               </select>
             </div>
-            
-            {formData.cadence === 'weekly' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Day of Week</label>
-                <select
-                  value={formData.dayOfWeek}
-                  onChange={(e) => setFormData({ ...formData, dayOfWeek: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                >
-                  <option value="Monday">Monday</option>
-                  <option value="Tuesday">Tuesday</option>
-                  <option value="Wednesday">Wednesday</option>
-                  <option value="Thursday">Thursday</option>
-                  <option value="Friday">Friday</option>
-                  <option value="Saturday">Saturday</option>
-                  <option value="Sunday">Sunday</option>
-                </select>
+          )}
+          
+          {formData.cadence === 'weekly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+              <div className="grid grid-cols-2 gap-2">
+                {daysOfWeekOptions.map(day => (
+                  <label key={day} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfWeek.includes(day)}
+                      onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-sm text-gray-700">{day}</span>
+                  </label>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          
+          {formData.cadence === 'monthly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Month</label>
+              <select
+                value={formData.timesPerMonth}
+                onChange={(e) => setFormData({ ...formData, timesPerMonth: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per month</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {formData.cadence === 'monthly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
+              <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto">
+                {daysOfMonthOptions.map(day => (
+                  <label key={day} className="flex items-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfMonth.includes(day)}
+                      onChange={(e) => handleDaysOfMonthChange(day, e.target.checked)}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-xs text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
@@ -222,10 +315,222 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
   );
 };
 
+const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (offering: Omit<Offering, 'id'>) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
+    timesPerWeek: 1,
+    daysOfWeek: [] as string[],
+    timesPerMonth: 1,
+    daysOfMonth: [] as number[],
+    time: '09:00'
+  });
+
+  const daysOfWeekOptions = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const daysOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  const handleDaysOfWeekChange = (day: string, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, day] }));
+    } else {
+      setFormData(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== day) }));
+    }
+  };
+
+  const handleDaysOfMonthChange = (day: number, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+    } else {
+      setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    const frequency: {
+      cadence: 'daily' | 'weekly' | 'monthly';
+      timesPerWeek?: number;
+      daysOfWeek?: string[];
+      timesPerMonth?: number;
+      daysOfMonth?: number[];
+      time: string;
+    } = {
+      cadence: formData.cadence,
+      time: formData.time
+    };
+
+    if (formData.cadence === 'weekly') {
+      frequency.timesPerWeek = formData.timesPerWeek;
+      frequency.daysOfWeek = formData.daysOfWeek;
+    } else if (formData.cadence === 'monthly') {
+      frequency.timesPerMonth = formData.timesPerMonth;
+      frequency.daysOfMonth = formData.daysOfMonth;
+    }
+    
+    onSave({
+      name: formData.name,
+      frequency,
+      subCategories: []
+    });
+    
+    setFormData({ 
+      name: '', 
+      cadence: 'weekly', 
+      timesPerWeek: 1, 
+      daysOfWeek: [], 
+      timesPerMonth: 1, 
+      daysOfMonth: [], 
+      time: '09:00' 
+    });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">New Offering</h2>
+          <p className="text-gray-600 text-sm mt-1">Create a new offering with posting schedule</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Offering Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter offering name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+            <select
+              value={formData.cadence}
+              onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          
+          {formData.cadence === 'weekly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
+              <select
+                value={formData.timesPerWeek}
+                onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {formData.cadence === 'weekly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+              <div className="grid grid-cols-2 gap-2">
+                {daysOfWeekOptions.map(day => (
+                  <label key={day} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfWeek.includes(day)}
+                      onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-sm text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {formData.cadence === 'monthly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Month</label>
+              <select
+                value={formData.timesPerMonth}
+                onChange={(e) => setFormData({ ...formData, timesPerMonth: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per month</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {formData.cadence === 'monthly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
+              <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto">
+                {daysOfMonthOptions.map(day => (
+                  <label key={day} className="flex items-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfMonth.includes(day)}
+                      onChange={(e) => handleDaysOfMonthChange(day, e.target.checked)}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-xs text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+            <input
+              type="time"
+              value={formData.time}
+              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+            >
+              Create Offering
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (event: Omit<SeasonalEvent, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
     detail: '',
+    dateType: 'single' as 'single' | 'range',
+    eventDate: '',
+    startDate: '',
+    endDate: '',
+    postDays: '1, 3, 5',
     numberOfPosts: 3,
     offsets: '10, 5, 2'
   });
@@ -235,8 +540,9 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     if (!formData.name.trim()) return;
     
     const offsets = formData.offsets.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    const postDays = formData.postDays.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
     
-    onSave({
+    const eventData: Omit<SeasonalEvent, 'id'> = {
       name: formData.name,
       detail: formData.detail,
       postPlan: {
@@ -244,9 +550,31 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
         offsets
       },
       subCategories: []
-    });
+    };
+
+    if (formData.dateType === 'single') {
+      eventData.eventDate = formData.eventDate;
+    } else {
+      eventData.eventDateRange = {
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        postDays
+      };
+    }
     
-    setFormData({ name: '', detail: '', numberOfPosts: 3, offsets: '10, 5, 2' });
+    onSave(eventData);
+    
+    setFormData({ 
+      name: '', 
+      detail: '', 
+      dateType: 'single',
+      eventDate: '',
+      startDate: '',
+      endDate: '',
+      postDays: '1, 3, 5',
+      numberOfPosts: 3, 
+      offsets: '10, 5, 2' 
+    });
     onClose();
   };
 
@@ -285,7 +613,67 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Posts</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Event Date Type</label>
+            <select
+              value={formData.dateType}
+              onChange={(e) => setFormData({ ...formData, dateType: e.target.value as 'single' | 'range' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            >
+              <option value="single">Single Date</option>
+              <option value="range">Date Range</option>
+            </select>
+          </div>
+          
+          {formData.dateType === 'single' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Event Date</label>
+              <input
+                type="date"
+                value={formData.eventDate}
+                onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              />
+            </div>
+          )}
+          
+          {formData.dateType === 'range' && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Days Within Range to Post</label>
+                <input
+                  type="text"
+                  value={formData.postDays}
+                  onChange={(e) => setFormData({ ...formData, postDays: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  placeholder="1, 3, 5"
+                />
+                <p className="text-xs text-gray-500 mt-1">Days from start of range (e.g., 1, 3, 5 = 1st, 3rd, 5th day of range)</p>
+              </div>
+            </>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Pre-Event Posts</label>
             <input
               type="number"
               min="1"
@@ -334,6 +722,7 @@ export default function CategoriesPage() {
   
   // Modal states
   const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
+  const [isNewOfferingModalOpen, setIsNewOfferingModalOpen] = useState(false);
   const [isNewSeasonalModalOpen, setIsNewSeasonalModalOpen] = useState(false);
   
   // Data states
@@ -341,17 +730,15 @@ export default function CategoriesPage() {
     {
       id: '1',
       name: 'Happy Hour Special',
-      detail: '50% off all drinks from 4-6 PM',
-      frequency: { cadence: 'weekly', dayOfWeek: 'Friday', time: '15:00' },
+      frequency: { cadence: 'weekly', timesPerWeek: 1, daysOfWeek: ['Friday'], time: '15:00' },
       subCategories: []
     }
   ]);
-  const [offerings] = useState<Offering[]>([
+  const [offerings, setOfferings] = useState<Offering[]>([
     {
       id: '1',
       name: 'VR Experience Packages',
-      detail: 'Premium VR gaming experiences for groups',
-      frequency: { cadence: 'weekly', dayOfWeek: 'Wednesday', time: '14:00' },
+      frequency: { cadence: 'weekly', timesPerWeek: 1, daysOfWeek: ['Wednesday'], time: '14:00' },
       subCategories: []
     }
   ]);
@@ -373,6 +760,10 @@ export default function CategoriesPage() {
     setDeals(prev => [...prev, { ...deal, id: Date.now().toString() }]);
   };
 
+  const handleNewOffering = (offering: Omit<Offering, 'id'>) => {
+    setOfferings(prev => [...prev, { ...offering, id: Date.now().toString() }]);
+  };
+
   const handleNewSeasonalEvent = (event: Omit<SeasonalEvent, 'id'>) => {
     setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
   };
@@ -389,16 +780,23 @@ export default function CategoriesPage() {
     });
   };
 
-  const formatFrequency = (frequency: { cadence: string; dayOfWeek?: string; time: string }) => {
+  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; time: string }) => {
     const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
       hour12: true 
     });
     
-    if (frequency.cadence === 'weekly' && frequency.dayOfWeek) {
-      return `${frequency.cadence.charAt(0).toUpperCase() + frequency.cadence.slice(1)}, ${frequency.dayOfWeek}, ${time}`;
+    if (frequency.cadence === 'weekly' && frequency.daysOfWeek && frequency.daysOfWeek.length > 0) {
+      const days = frequency.daysOfWeek.join(', ');
+      return `Weekly, ${days}, ${time}`;
     }
+    
+    if (frequency.cadence === 'monthly' && frequency.daysOfMonth && frequency.daysOfMonth.length > 0) {
+      const days = frequency.daysOfMonth.join(', ');
+      return `Monthly, days ${days}, ${time}`;
+    }
+    
     return `${frequency.cadence.charAt(0).toUpperCase() + frequency.cadence.slice(1)}, ${time}`;
   };
 
@@ -460,7 +858,6 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Detail</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -488,9 +885,6 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{deal.detail}</div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
                         </td>
@@ -507,7 +901,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(deal.id) && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {deal.subCategories.map((sub) => (
@@ -550,7 +944,10 @@ export default function CategoriesPage() {
                   <h2 className="text-xl font-semibold text-gray-900">Offerings</h2>
                   <p className="text-gray-600 text-sm mt-1">Manage service offerings and packages</p>
                 </div>
-                <button className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm">
+                <button
+                  onClick={() => setIsNewOfferingModalOpen(true)}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+                >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Offering</span>
                 </button>
@@ -562,7 +959,6 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Detail</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -590,9 +986,6 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{offering.detail}</div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
                         </td>
@@ -609,7 +1002,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(offering.id) && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {offering.subCategories.map((sub) => (
@@ -755,6 +1148,11 @@ export default function CategoriesPage() {
           isOpen={isNewDealModalOpen} 
           onClose={() => setIsNewDealModalOpen(false)} 
           onSave={handleNewDeal} 
+        />
+        <NewOfferingModal 
+          isOpen={isNewOfferingModalOpen} 
+          onClose={() => setIsNewOfferingModalOpen(false)} 
+          onSave={handleNewOffering} 
         />
         <NewSeasonalEventModal 
           isOpen={isNewSeasonalModalOpen} 
