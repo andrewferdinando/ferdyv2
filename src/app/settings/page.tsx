@@ -18,6 +18,10 @@ export default function SettingsPage() {
     router.push('/categories');
   };
 
+  const handleMonthlyPostsClick = () => {
+    router.push('/automated-monthly-posts');
+  };
+
   return (
     <AppLayout>
       <div className="flex-1 overflow-auto">
@@ -102,7 +106,10 @@ export default function SettingsPage() {
           </div>
 
           {/* Automated Monthly Posts Card */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+          <div 
+            onClick={handleMonthlyPostsClick}
+            className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
             <div className="flex items-start space-x-4">
               <div className="w-14 h-14 bg-[#EEF2FF] rounded-lg flex items-center justify-center flex-shrink-0">
                 <svg className="w-7 h-7 text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,14 +119,11 @@ export default function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 mb-3 text-base">Automated Monthly Posts</h3>
                 <p className="text-gray-600 text-sm mb-4 leading-[1.5]">
-                  Configure automatic posting schedules for monthly content.
+                  Configure when draft posts are created for monthly content approval.
                 </p>
-                <div className="flex items-center space-x-2">
-                  <label className="inline-flex items-center">
-                    <input type="checkbox" className="form-checkbox h-4 w-4 text-[#6366F1] rounded focus:ring-[#6366F1] border-gray-300" />
-                    <span className="ml-2 text-sm text-gray-700">Enable automated monthly posts</span>
-                  </label>
-                </div>
+                <span className="text-[#6366F1] font-medium text-sm flex items-center transition-colors duration-200">
+                  Configure →
+                </span>
               </div>
             </div>
           </div>
