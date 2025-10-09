@@ -164,9 +164,9 @@ const Toast = ({ message, isVisible, onClose }: { message: string; isVisible: bo
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-20 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+    <div className="fixed top-32 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 flex items-center space-x-2">
-        <span className="text-green-500 text-sm">✅</span>
+        <span className="text-green-500 text-sm">✓</span>
         <span className="text-gray-900 text-sm font-medium">{message}</span>
       </div>
     </div>
@@ -254,7 +254,9 @@ const ImageCropper = ({
 
   const addCustomTag = () => {
     if (newTag.trim() && !customTags.includes(newTag.trim())) {
-      setCustomTags([...customTags, newTag.trim()]);
+      const tagToAdd = newTag.trim();
+      setCustomTags([...customTags, tagToAdd]);
+      setSelectedTags(prev => [...prev, tagToAdd]); // Auto-highlight the new tag
       setNewTag("");
     }
   };
@@ -300,12 +302,12 @@ const ImageCropper = ({
                 <img
                   src={src}
                   alt="Crop preview"
-                  className="absolute inset-0 transition-transform duration-100"
+                  className="absolute transition-transform duration-100"
                   style={{
-                    width: '120%',
-                    height: '120%',
-                    left: '-10%',
-                    top: '-10%',
+                    width: '150%',
+                    height: '150%',
+                    left: '-25%',
+                    top: '-25%',
                     objectFit: 'cover',
                     transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                     transformOrigin: 'center center'
@@ -352,7 +354,22 @@ const ImageCropper = ({
           {/* Custom Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Tags</h4>
-            <div className="flex gap-2 mb-2">
+            <div className="flex flex-wrap gap-1 mb-2">
+              {customTags.map((tag, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleTagToggle(tag)}
+                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
+                    selectedTags.includes(tag)
+                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
+                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={newTag}
@@ -367,13 +384,6 @@ const ImageCropper = ({
               >
                 Add
               </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {customTags.map((tag, index) => (
-                <span key={index} className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                  {tag}
-                </span>
-              ))}
             </div>
           </div>
 
@@ -421,7 +431,9 @@ const VideoContent = ({
 
   const addCustomTag = () => {
     if (newTag.trim() && !customTags.includes(newTag.trim())) {
-      setCustomTags([...customTags, newTag.trim()]);
+      const tagToAdd = newTag.trim();
+      setCustomTags([...customTags, tagToAdd]);
+      setSelectedTags(prev => [...prev, tagToAdd]); // Auto-highlight the new tag
       setNewTag("");
     }
   };
@@ -470,7 +482,22 @@ const VideoContent = ({
           {/* Custom Tags */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Tags</h4>
-            <div className="flex gap-2 mb-2">
+            <div className="flex flex-wrap gap-1 mb-2">
+              {customTags.map((tag, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleTagToggle(tag)}
+                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
+                    selectedTags.includes(tag)
+                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
+                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={newTag}
@@ -485,13 +512,6 @@ const VideoContent = ({
               >
                 Add
               </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {customTags.map((tag, index) => (
-                <span key={index} className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                  {tag}
-                </span>
-              ))}
             </div>
           </div>
 
