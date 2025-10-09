@@ -65,6 +65,9 @@ interface SubCategory {
 interface Deal {
   id: string;
   name: string;
+  detail: string;
+  hashtags: string[];
+  url: string;
   frequency: {
     cadence: 'daily' | 'weekly' | 'monthly';
     timesPerWeek?: number;
@@ -79,6 +82,9 @@ interface Deal {
 interface Offering {
   id: string;
   name: string;
+  detail: string;
+  hashtags: string[];
+  url: string;
   frequency: {
     cadence: 'daily' | 'weekly' | 'monthly';
     timesPerWeek?: number;
@@ -94,6 +100,8 @@ interface SeasonalEvent {
   id: string;
   name: string;
   detail: string;
+  hashtags: string[];
+  url: string;
   eventDate?: string; // Single date
   eventDateRange?: {
     startDate: string;
@@ -111,6 +119,9 @@ interface SeasonalEvent {
 const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (deal: Omit<Deal, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
+    detail: '',
+    hashtags: '',
+    url: '',
     cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
     timesPerWeek: 1,
     daysOfWeek: [] as string[],
@@ -152,14 +163,22 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
       frequency.daysOfMonth = formData.daysOfMonth;
     }
     
+    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
     onSave({
       name: formData.name,
+      detail: formData.detail,
+      hashtags: hashtagsArray,
+      url: formData.url,
       frequency,
       subCategories: []
     });
     
     setFormData({ 
       name: '', 
+      detail: '',
+      hashtags: '',
+      url: '',
       cadence: 'weekly', 
       timesPerWeek: 1, 
       daysOfWeek: [], 
@@ -189,6 +208,39 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               placeholder="Enter deal name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
+            <textarea
+              value={formData.detail}
+              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe the deal"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+            <input
+              type="text"
+              value={formData.hashtags}
+              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter hashtags separated by commas (e.g., #deal, #sale, #offer)"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+            <input
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="https://example.com/deal-page"
             />
           </div>
           
@@ -295,6 +347,9 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
 const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (offering: Omit<Offering, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
+    detail: '',
+    hashtags: '',
+    url: '',
     cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
     timesPerWeek: 1,
     daysOfWeek: [] as string[],
@@ -336,14 +391,22 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
       frequency.daysOfMonth = formData.daysOfMonth;
     }
     
+    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
     onSave({
       name: formData.name,
+      detail: formData.detail,
+      hashtags: hashtagsArray,
+      url: formData.url,
       frequency,
       subCategories: []
     });
     
     setFormData({ 
       name: '', 
+      detail: '',
+      hashtags: '',
+      url: '',
       cadence: 'weekly', 
       timesPerWeek: 1, 
       daysOfWeek: [], 
@@ -373,6 +436,39 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               placeholder="Enter offering name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Offering Detail</label>
+            <textarea
+              value={formData.detail}
+              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe the offering"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+            <input
+              type="text"
+              value={formData.hashtags}
+              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter hashtags separated by commas (e.g., #service, #offering, #package)"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+            <input
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="https://example.com/offering-page"
             />
           </div>
           
@@ -479,6 +575,9 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
 const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (event: Omit<SeasonalEvent, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
+    detail: '',
+    hashtags: '',
+    url: '',
     dateType: 'single' as 'single' | 'range',
     eventDate: '',
     startDate: '',
@@ -494,9 +593,13 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     const offsets = formData.offsets.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
     const postDays = formData.postDays.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
     
+    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
     const eventData: Omit<SeasonalEvent, 'id'> = {
       name: formData.name,
-      detail: '',
+      detail: formData.detail,
+      hashtags: hashtagsArray,
+      url: formData.url,
       postPlan: {
         numberOfPosts: offsets.length,
         offsets
@@ -518,6 +621,9 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     
     setFormData({ 
       name: '', 
+      detail: '',
+      hashtags: '',
+      url: '',
       dateType: 'single',
       eventDate: '',
       startDate: '',
@@ -548,6 +654,39 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               placeholder="e.g., Black Friday"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Event Detail</label>
+            <textarea
+              value={formData.detail}
+              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Describe the seasonal event"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+            <input
+              type="text"
+              value={formData.hashtags}
+              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="Enter hashtags separated by commas (e.g., #event, #seasonal, #special)"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+            <input
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="https://example.com/event-page"
             />
           </div>
           
@@ -659,6 +798,9 @@ export default function CategoriesPage() {
     {
       id: '1',
       name: 'Happy Hour Special',
+      detail: '50% off all drinks from 4-6 PM every Friday',
+      hashtags: ['#happyhour', '#drinks', '#friday'],
+      url: 'https://gameover.co.nz/happy-hour',
       frequency: { cadence: 'weekly', timesPerWeek: 1, daysOfWeek: ['Friday'], time: '15:00' },
       subCategories: []
     }
@@ -667,6 +809,9 @@ export default function CategoriesPage() {
     {
       id: '1',
       name: 'VR Experience Packages',
+      detail: 'Premium VR gaming experiences for groups of 4-8 people',
+      hashtags: ['#vr', '#gaming', '#groups'],
+      url: 'https://gameover.co.nz/vr-packages',
       frequency: { cadence: 'weekly', timesPerWeek: 1, daysOfWeek: ['Wednesday'], time: '14:00' },
       subCategories: []
     }
@@ -675,7 +820,9 @@ export default function CategoriesPage() {
     {
       id: '1',
       name: 'Summer Gaming Tournament',
-      detail: 'Annual summer arcade tournament with prizes',
+      detail: 'Annual summer arcade tournament with prizes for winners',
+      hashtags: ['#tournament', '#summer', '#gaming', '#prizes'],
+      url: 'https://gameover.co.nz/tournament',
       postPlan: { numberOfPosts: 4, offsets: [14, 7, 3, 1] },
       subCategories: []
     }
@@ -780,6 +927,9 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Detail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hashtags</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -807,6 +957,34 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">{deal.detail}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {deal.hashtags.map((tag, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">
+                            {deal.url ? (
+                              <a 
+                                href={deal.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {deal.url}
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">No URL</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
                         </td>
@@ -823,7 +1001,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(deal.id) && (
                         <tr>
-                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={6} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {deal.subCategories.map((sub) => (
@@ -881,6 +1059,9 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Detail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hashtags</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -908,6 +1089,34 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">{offering.detail}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {offering.hashtags.map((tag, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">
+                            {offering.url ? (
+                              <a 
+                                href={offering.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {offering.url}
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">No URL</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
                         </td>
@@ -924,7 +1133,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(offering.id) && (
                         <tr>
-                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={6} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {offering.subCategories.map((sub) => (
@@ -983,6 +1192,8 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Detail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hashtags</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Schedule Plan</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1011,7 +1222,32 @@ export default function CategoriesPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{event.detail}</div>
+                          <div className="text-sm text-gray-900 max-w-xs truncate">{event.detail}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {event.hashtags.map((tag, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full font-semibold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">
+                            {event.url ? (
+                              <a 
+                                href={event.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {event.url}
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">No URL</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatPostPlan(event.postPlan)}</div>
@@ -1029,7 +1265,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(event.id) && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={6} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-events</div>
                               {event.subCategories.map((sub) => (
