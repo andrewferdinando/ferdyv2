@@ -12,6 +12,8 @@ export default function EditPostPage() {
   const [selectedChannels, setSelectedChannels] = useState(['instagram', 'tiktok']);
   const [scheduleDate, setScheduleDate] = useState('2025-08-10');
   const [scheduleTime, setScheduleTime] = useState('08:22');
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState('/src/assets/placeholders/cropped_gameover_may_142.png');
 
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
@@ -55,6 +57,11 @@ export default function EditPostPage() {
     return `${displayHour.toString().padStart(2, '0')}:${minutes} ${ampm}`;
   };
 
+  const handleMediaSelect = (mediaUrl: string) => {
+    setSelectedMedia(mediaUrl);
+    setIsMediaModalOpen(false);
+  };
+
   return (
     <AppLayout>
       <div className="flex-1 overflow-auto bg-gray-50">
@@ -81,7 +88,7 @@ export default function EditPostPage() {
               >
                 Back to Post
               </button>
-              <button className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center space-x-2">
+              <button className="bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-200 transition-all duration-200 flex items-center space-x-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
@@ -103,6 +110,39 @@ export default function EditPostPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Left Section - Post Details */}
               <div className="space-y-6">
+                {/* Media */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Existing Image */}
+                    <div className="relative">
+                      <img
+                        src={selectedMedia}
+                        alt="Selected media"
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {/* Add Media Placeholder */}
+                    <div 
+                      onClick={() => setIsMediaModalOpen(true)}
+                      className="border-2 border-dashed border-gray-300 rounded-lg h-32 flex items-center justify-center hover:border-gray-400 transition-colors cursor-pointer"
+                    >
+                      <div className="text-center">
+                        <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <p className="text-sm text-gray-500">Add Media</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Post Copy */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Post Copy</h3>
@@ -156,36 +196,6 @@ export default function EditPostPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* Media */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Existing Image */}
-                    <div className="relative">
-                      <img
-                        src="/src/assets/placeholders/cropped_gameover_may_107 (1).png"
-                        alt="Arcade interior"
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                      <button className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                    
-                    {/* Add Media Placeholder */}
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg h-32 flex items-center justify-center hover:border-gray-400 transition-colors cursor-pointer">
-                      <div className="text-center">
-                        <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        <p className="text-sm text-gray-500">Add Media</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Right Section - Scheduling & Channels */}
@@ -207,7 +217,6 @@ export default function EditPostPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{formatDate(scheduleDate)}</p>
                     </div>
                     
                     <div>
@@ -223,7 +232,6 @@ export default function EditPostPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{formatTime(scheduleTime)}</p>
                     </div>
                   </div>
                 </div>
@@ -357,6 +365,153 @@ export default function EditPostPage() {
             </div>
           </div>
         </div>
+
+        {/* Select Media Modal */}
+        {isMediaModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Select Media</h2>
+                  <p className="text-gray-600 text-sm mt-1">Choose from your media library or upload new files</p>
+                </div>
+                <button
+                  onClick={() => setIsMediaModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Upload Area */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer">
+                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="text-lg font-medium text-gray-900 mb-2">Click to upload or drag and drop</p>
+                  <p className="text-sm text-gray-500">PNG, JPG, GIF, MP4 up to 10MB</p>
+                </div>
+
+                {/* Your Media Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">YOUR MEDIA</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* Media Item 1 - Gaming Setup */}
+                    <div 
+                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_142.png')}
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                    >
+                      <img
+                        src="/src/assets/placeholders/cropped_gameover_may_142.png"
+                        alt="Gaming setup"
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        IMG
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                    </div>
+
+                    {/* Media Item 2 - Gym */}
+                    <div 
+                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_143.png')}
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                    >
+                      <img
+                        src="/src/assets/placeholders/cropped_gameover_may_143.png"
+                        alt="Gym interior"
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        IMG
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                    </div>
+
+                    {/* Media Item 3 - Controller */}
+                    <div 
+                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_90.png')}
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                    >
+                      <img
+                        src="/src/assets/placeholders/cropped_gameover_may_90.png"
+                        alt="Gaming controller"
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        VIDEO
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                    </div>
+
+                    {/* Media Item 4 - Soccer */}
+                    <div 
+                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_76 (1).png')}
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                    >
+                      <img
+                        src="/src/assets/placeholders/cropped_gameover_may_76 (1).png"
+                        alt="Soccer ball"
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        IMG
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                    </div>
+
+                    {/* Media Item 5 - Retro Setup */}
+                    <div 
+                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_124.png')}
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                    >
+                      <img
+                        src="/src/assets/placeholders/cropped_gameover_may_124.png"
+                        alt="Retro computer setup"
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        VIDEO
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                    </div>
+
+                    {/* Media Item 6 - Event */}
+                    <div 
+                      onClick={() => handleMediaSelect('/src/assets/placeholders/cropped_gameover_may_140.png')}
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                    >
+                      <img
+                        src="/src/assets/placeholders/cropped_gameover_may_140.png"
+                        alt="Event crowd"
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        IMG
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-end p-6 border-t border-gray-200">
+                <button
+                  onClick={() => setIsMediaModalOpen(false)}
+                  className="px-6 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
