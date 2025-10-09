@@ -1127,11 +1127,11 @@ export default function CategoriesPage() {
                   {deals.map((deal) => (
                     <React.Fragment key={deal.id}>
                       <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             <button
                               onClick={() => toggleRowExpansion(deal.id)}
-                              className="mr-2 text-gray-400 hover:text-gray-600"
+                              className="mr-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
                             >
                               {expandedRows.has(deal.id) ? 
                                 <ChevronDownIcon className="w-4 h-4" /> : 
@@ -1231,11 +1231,11 @@ export default function CategoriesPage() {
                   {offerings.map((offering) => (
                     <React.Fragment key={offering.id}>
                       <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             <button
                               onClick={() => toggleRowExpansion(offering.id)}
-                              className="mr-2 text-gray-400 hover:text-gray-600"
+                              className="mr-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
                             >
                               {expandedRows.has(offering.id) ? 
                                 <ChevronDownIcon className="w-4 h-4" /> : 
@@ -1335,11 +1335,11 @@ export default function CategoriesPage() {
                   {seasonalEvents.map((event) => (
                     <React.Fragment key={event.id}>
                       <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             <button
                               onClick={() => toggleRowExpansion(event.id)}
-                              className="mr-2 text-gray-400 hover:text-gray-600"
+                              className="mr-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
                             >
                               {expandedRows.has(event.id) ? 
                                 <ChevronDownIcon className="w-4 h-4" /> : 
