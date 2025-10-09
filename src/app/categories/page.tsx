@@ -1080,7 +1080,7 @@ export default function CategoriesPage() {
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Framework</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
               <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and posting schedules</p>
             </div>
             <div className="flex space-x-3">
@@ -1119,7 +1119,6 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Detail</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1147,9 +1146,6 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">{deal.detail}</div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
                         </td>
@@ -1169,7 +1165,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(deal.id) && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {deal.subCategories.map((sub) => (
@@ -1227,7 +1223,6 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Detail</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1255,9 +1250,6 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">{offering.detail}</div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
                         </td>
@@ -1277,7 +1269,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(offering.id) && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
                               {offering.subCategories.map((sub) => (
@@ -1335,7 +1327,6 @@ export default function CategoriesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Detail</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Schedule Plan</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1363,9 +1354,6 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">{event.detail}</div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{formatPostPlan(event.postPlan)}</div>
                         </td>
@@ -1385,7 +1373,7 @@ export default function CategoriesPage() {
                       </tr>
                       {expandedRows.has(event.id) && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
                             <div className="space-y-3">
                               <div className="text-sm font-medium text-gray-700 mb-2">Sub-events</div>
                               {event.subCategories.map((sub) => (

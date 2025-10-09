@@ -19,18 +19,6 @@ const SettingsIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 );
 
 
-const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-  </svg>
-);
-
-const LibraryIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-  </svg>
-);
-
 const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -45,7 +33,6 @@ interface SidebarProps {
 export default function Sidebar({ className = '', onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
-  const [isMonthlyPostsOpen, setIsMonthlyPostsOpen] = useState(false);
 
   const navigationItems = [
     {
@@ -59,13 +46,6 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       href: '/settings',
       icon: SettingsIcon,
       active: pathname === '/settings',
-    },
-    {
-      name: 'Monthly Posts',
-      icon: PlusIcon,
-      hasDropdown: true,
-      isOpen: isMonthlyPostsOpen,
-      onToggle: () => setIsMonthlyPostsOpen(!isMonthlyPostsOpen),
     },
   ];
 
@@ -108,37 +88,18 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
         <ul className="space-y-2">
           {navigationItems.map((item) => (
             <li key={item.name}>
-              {item.href ? (
-                <Link
-                  href={item.href}
-                  onClick={handleNavigationClick}
-                  className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    item.active
-                      ? 'bg-[#EEF2FF] text-[#6366F1]'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium text-sm">{item.name}</span>
-                </Link>
-              ) : (
-                <button
-                  onClick={item.onToggle}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
-                    item.isOpen
-                      ? 'bg-gray-100 text-gray-700'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <div className="flex items-center !space-x-6">
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium text-sm">{item.name}</span>
-                  </div>
-                  {item.hasDropdown && (
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                  )}
-                </button>
-              )}
+              <Link
+                href={item.href}
+                onClick={handleNavigationClick}
+                className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  item.active
+                    ? 'bg-[#EEF2FF] text-[#6366F1]'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="font-medium text-sm">{item.name}</span>
+              </Link>
             </li>
           ))}
         </ul>
