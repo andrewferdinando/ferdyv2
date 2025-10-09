@@ -192,16 +192,21 @@ const ImageCropper = ({
   const [newTag, setNewTag] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [imageScale, setImageScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const handleFormatChange = (format: string) => {
     setSelectedFormat(format);
+    // Reset position and scale for new format
+    setImagePosition({ x: 0, y: 0 });
+    setImageScale(1);
+    
     // Calculate crop settings based on format
     const settings: CropSettings = {
       aspectRatio: format,
-      x: imagePosition.x,
-      y: imagePosition.y,
+      x: 0,
+      y: 0,
       width: 100,
       height: format === "square" ? 100 : format === "portrait" ? 125 : format === "landscape" ? 80 : 100
     };
@@ -230,8 +235,8 @@ const ImageCropper = ({
         aspectRatio: selectedFormat,
         x: newPosition.x,
         y: newPosition.y,
-        width: 100,
-        height: selectedFormat === "square" ? 100 : selectedFormat === "portrait" ? 125 : selectedFormat === "landscape" ? 80 : 100
+        width: 100 * imageScale,
+        height: (selectedFormat === "square" ? 100 : selectedFormat === "portrait" ? 125 : selectedFormat === "landscape" ? 80 : 100) * imageScale
       };
       onCropChange(settings);
     }
@@ -293,16 +298,20 @@ const ImageCropper = ({
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <img
-                src={src}
-                alt="Crop preview"
-                className="absolute inset-0 w-auto h-auto min-w-full min-h-full object-cover transition-transform duration-100"
-                style={{
-                  transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
-                  transformOrigin: 'center center'
-                }}
-                draggable={false}
-              />
+              <div className="absolute inset-0 overflow-hidden">
+                <img
+                  src={src}
+                  alt="Crop preview"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-100"
+                  style={{
+                    transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
+                    transformOrigin: 'center center',
+                    minWidth: '100%',
+                    minHeight: '100%'
+                  }}
+                  draggable={false}
+                />
+              </div>
               <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 Aspect ratio: {CROP_FORMATS.find(f => f.value === selectedFormat)?.ratio}
               </div>
@@ -330,7 +339,7 @@ const ImageCropper = ({
                   className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
                       ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
-                      : `${tag.color} hover:opacity-80 hover:scale-105`
+                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
                   }`}
                 >
                   {tag.label}
@@ -448,7 +457,7 @@ const VideoContent = ({
                   className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
                     selectedTags.includes(tag.label)
                       ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
-                      : `${tag.color} hover:opacity-80 hover:scale-105`
+                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
                   }`}
                 >
                   {tag.label}
