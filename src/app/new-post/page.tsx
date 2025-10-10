@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import Modal from '@/components/ui/Modal';
 
 export default function NewPostPage() {
   const router = useRouter();
@@ -304,26 +305,13 @@ export default function NewPostPage() {
         </div>
 
         {/* Media Selection Modal */}
-        {isMediaModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">Choose Media</h2>
-                  <button
-                    onClick={() => setIsMediaModalOpen(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div>
-                  <div className="grid grid-cols-3 gap-4">
+        <Modal
+          isOpen={isMediaModalOpen}
+          onClose={() => setIsMediaModalOpen(false)}
+          title="Choose Media"
+          maxWidth="4xl"
+        >
+          <div className="grid grid-cols-3 gap-4">
                     {/* Media Item 1 - Gaming Setup */}
                     <div 
                       onClick={() => handleMediaSelect('/assets/placeholders/image1.png')}
@@ -420,10 +408,8 @@ export default function NewPostPage() {
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Modal Footer */}
+          {/* Modal Footer */}
               <div className="flex justify-end p-6 border-t border-gray-200">
                 <button
                   onClick={() => setIsMediaModalOpen(false)}
@@ -432,9 +418,7 @@ export default function NewPostPage() {
                   Cancel
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+        </Modal>
       </div>
     </AppLayout>
   );

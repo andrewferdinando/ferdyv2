@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import Modal from '@/components/ui/Modal';
+import { Form, FormField, FormActions } from '@/components/ui/Form';
+import { Input } from '@/components/ui/Input';
 
 // Icons
 const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -191,25 +194,23 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">New Deal</h2>
-          <p className="text-gray-600 text-sm mt-1">Create a new deal with posting schedule</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Name *</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter deal name"
-            />
-          </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="New Deal"
+      subtitle="Create a new deal with posting schedule"
+      maxWidth="md"
+    >
+      <Form onSubmit={handleSubmit}>
+        <FormField label="Deal Name" required>
+          <Input
+            type="text"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Enter deal name"
+          />
+        </FormField>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
@@ -323,24 +324,12 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
             />
           </div>
           
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
-            >
-              Create Deal
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <FormActions
+          onCancel={onClose}
+          submitText="Create Deal"
+        />
+        </Form>
+    </Modal>
   );
 };
 

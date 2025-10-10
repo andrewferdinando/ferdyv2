@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import Modal from '@/components/ui/Modal';
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -375,24 +376,13 @@ export default function EditPostPage() {
         </div>
 
         {/* Select Media Modal */}
-        {isMediaModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Select Media</h2>
-                  <p className="text-gray-600 text-sm mt-1">Choose from your media library or upload new files</p>
-                </div>
-                <button
-                  onClick={() => setIsMediaModalOpen(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+        <Modal
+          isOpen={isMediaModalOpen}
+          onClose={() => setIsMediaModalOpen(false)}
+          title="Select Media"
+          subtitle="Choose from your media library or upload new files"
+          maxWidth="4xl"
+        >
 
               {/* Modal Content */}
               <div className="p-6">
@@ -507,9 +497,7 @@ export default function EditPostPage() {
                   Cancel
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+        </Modal>
       </div>
     </AppLayout>
   );
