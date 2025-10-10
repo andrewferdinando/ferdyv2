@@ -187,7 +187,7 @@ const ImageCropper = ({
   src: string; 
   onCropChange: (settings: CropSettings) => void; 
   cropSettings?: CropSettings;
-  onSave: (itemId: number) => void;
+  onSave: (itemId: number, tags?: Tag[]) => void;
   onDelete: (itemId: number) => void;
   itemId: number;
   movingItemId: number | null;
@@ -413,7 +413,11 @@ const ImageCropper = ({
           {/* Actions */}
           <div className="flex gap-2">
             <button 
-              onClick={() => onSave(itemId)}
+              onClick={() => {
+                // Create tags array from selected tags
+                const tags = [...selectedTags.map(tag => ({ label: tag, color: "bg-gray-100 text-gray-800" }))];
+                onSave(itemId, tags);
+              }}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
               Save & Move to Ready
@@ -444,7 +448,7 @@ const VideoContent = ({
 }: { 
   src: string; 
   title: string;
-  onSave: (itemId: number) => void;
+  onSave: (itemId: number, tags?: Tag[]) => void;
   onDelete: (itemId: number) => void;
   itemId: number;
   movingItemId: number | null;
@@ -566,7 +570,11 @@ const VideoContent = ({
           {/* Actions */}
           <div className="flex gap-2">
             <button 
-              onClick={() => onSave(itemId)}
+              onClick={() => {
+                // Create tags array from selected tags
+                const tags = [...selectedTags.map(tag => ({ label: tag, color: "bg-gray-100 text-gray-800" }))];
+                onSave(itemId, tags);
+              }}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
               Save & Move to Ready
@@ -624,7 +632,7 @@ export default function ContentLibraryPage() {
     }
   };
 
-  const handleSave = (itemId: number) => {
+  const handleSave = (itemId: number, tags?: Tag[]) => {
     // Find the item to move
     const itemToMove = needsAttentionContent.find(item => item.id === itemId);
     if (itemToMove) {
@@ -641,8 +649,13 @@ export default function ContentLibraryPage() {
           
           // Complete the transition
           setTimeout(() => {
-            // Move the item to ready content
-            setReadyContent(prev => [...prev, { ...itemToMove, status: 'ready' }]);
+            // Move the item to ready content with updated tags
+            const updatedItem = { 
+              ...itemToMove, 
+              status: 'ready',
+              tags: tags || itemToMove.tags
+            };
+            setReadyContent(prev => [...prev, updatedItem]);
             setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
             
             // Reset all animations
@@ -862,8 +875,8 @@ export default function ContentLibraryPage() {
                       ))}
                     </div>
 
-                    {/* Actions and Metadata */}
-                    <div className="flex items-center justify-between text-sm">
+                    {/* Actions */}
+                    <div className="flex items-center justify-end text-sm">
                       <button 
                         onClick={() => handleEdit(item.id)}
                         className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200"
@@ -873,7 +886,6 @@ export default function ContentLibraryPage() {
                         </svg>
                         <span>Edit</span>
                       </button>
-                      <span className="text-gray-500">{item.uploadedDate}</span>
                     </div>
                   </div>
                 </div>
