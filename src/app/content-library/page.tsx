@@ -53,7 +53,9 @@ const ImageCropper = ({
   itemId,
   onNext,
   isEditing = false,
-  initialTags = []
+  initialTags = [],
+  currentImageIndex = 0,
+  totalImages = 1
 }: { 
   src: string; 
   onSave: (itemId: number, tags?: Tag[]) => void;
@@ -62,6 +64,8 @@ const ImageCropper = ({
   itemId: number;
   isEditing?: boolean;
   initialTags?: Tag[];
+  currentImageIndex?: number;
+  totalImages?: number;
 }) => {
   const [selectedFormat, setSelectedFormat] = useState("square");
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -71,6 +75,16 @@ const ImageCropper = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showTagInput, setShowTagInput] = useState(false);
   const [newTagValue, setNewTagValue] = useState('');
+
+  // Reset component state when itemId changes
+  React.useEffect(() => {
+    setSelectedFormat("square");
+    setCustomTags([]);
+    setSelectedTags(initialTags.map(tag => tag.label));
+    setImagePosition({ x: 0, y: 0 });
+    setShowTagInput(false);
+    setNewTagValue('');
+  }, [itemId, initialTags]);
 
   const handleFormatChange = (format: string) => {
     setSelectedFormat(format);
@@ -143,9 +157,6 @@ const ImageCropper = ({
         {/* Image and Cropping */}
         <div className="flex-1">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              {isEditing ? 'Edit Image' : 'Image Cropping'}
-            </h3>
             
             {/* Format Selection - only show if not editing or if editing */}
             {(isEditing || !isEditing) && (
@@ -202,13 +213,17 @@ const ImageCropper = ({
               <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 Click and drag to reposition
               </div>
+              {!isEditing && (
+                <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                  {currentImageIndex + 1} of {totalImages}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Tags Section */}
         <div className="w-full lg:w-80">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
           
           {/* Available Tags */}
           <div className="mb-4">
@@ -300,7 +315,9 @@ const VideoContent = ({
   itemId,
   onNext,
   isEditing = false,
-  initialTags = []
+  initialTags = [],
+  currentImageIndex = 0,
+  totalImages = 1
 }: { 
   src: string; 
   onSave: (itemId: number, tags?: Tag[]) => void;
@@ -309,11 +326,21 @@ const VideoContent = ({
   itemId: number;
   isEditing?: boolean;
   initialTags?: Tag[];
+  currentImageIndex?: number;
+  totalImages?: number;
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags.map(tag => tag.label));
   const [showTagInput, setShowTagInput] = useState(false);
   const [newTagValue, setNewTagValue] = useState('');
+
+  // Reset component state when itemId changes
+  React.useEffect(() => {
+    setCustomTags([]);
+    setSelectedTags(initialTags.map(tag => tag.label));
+    setShowTagInput(false);
+    setNewTagValue('');
+  }, [itemId, initialTags]);
 
   const handleTagToggle = (tagLabel: string) => {
     setSelectedTags(prev => 
@@ -358,22 +385,23 @@ const VideoContent = ({
         {/* Video Preview */}
         <div className="flex-1">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              {isEditing ? 'Edit Video' : 'Video Content'}
-            </h3>
             <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-video">
               <video
                 src={src}
                 className="w-full h-full object-cover"
                 controls
               />
+              {!isEditing && (
+                <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                  {currentImageIndex + 1} of {totalImages}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Tags Section */}
         <div className="w-full lg:w-80">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
           
           {/* Available Tags */}
           <div className="mb-4">
@@ -569,6 +597,13 @@ export default function ContentLibraryPage() {
     }
   };
 
+  // Reset current image index when needsAttentionContent changes
+  React.useEffect(() => {
+    if (currentImageIndex >= needsAttentionContent.length && needsAttentionContent.length > 0) {
+      setCurrentImageIndex(0);
+    }
+  }, [needsAttentionContent.length, currentImageIndex]);
+
   const filteredReadyContent = readyContent.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.tags.some(tag => tag.label.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -716,36 +751,34 @@ export default function ContentLibraryPage() {
                     </span>
                   </div>
                   {editingItem.file?.type.startsWith('video/') ? (
-                    <VideoContent 
-                      src={editingItem.image} 
-                      onSave={handleSaveEdit}
-                      onDelete={() => setEditingItem(null)}
-                      onNext={() => setEditingItem(null)}
-                      itemId={editingItem.id}
-                      isEditing={true}
-                      initialTags={editingItem.tags}
-                    />
+                        <VideoContent 
+                          src={editingItem.image} 
+                          onSave={handleSaveEdit}
+                          onDelete={() => setEditingItem(null)}
+                          onNext={() => setEditingItem(null)}
+                          itemId={editingItem.id}
+                          isEditing={true}
+                          initialTags={editingItem.tags}
+                          currentImageIndex={0}
+                          totalImages={1}
+                        />
                   ) : (
-                    <ImageCropper 
-                      src={editingItem.image} 
-                      onSave={handleSaveEdit}
-                      onDelete={() => setEditingItem(null)}
-                      onNext={() => setEditingItem(null)}
-                      itemId={editingItem.id}
-                      isEditing={true}
-                      initialTags={editingItem.tags}
-                    />
+                        <ImageCropper 
+                          src={editingItem.image} 
+                          onSave={handleSaveEdit}
+                          onDelete={() => setEditingItem(null)}
+                          onNext={() => setEditingItem(null)}
+                          itemId={editingItem.id}
+                          isEditing={true}
+                          initialTags={editingItem.tags}
+                          currentImageIndex={0}
+                          totalImages={1}
+                        />
                   )}
                 </div>
               ) : needsAttentionContent.length > 0 ? (
                 /* Normal Mode - Show Needs Attention items one by one */
                 <div>
-                  {/* Current Image Counter */}
-                  <div className="mb-4 text-center">
-                    <span className="text-sm text-gray-600">
-                      Image {currentImageIndex + 1} of {needsAttentionContent.length}
-                    </span>
-                  </div>
                   
                   {/* Current Image */}
                   {needsAttentionContent[currentImageIndex] && (
@@ -759,6 +792,8 @@ export default function ContentLibraryPage() {
                           itemId={needsAttentionContent[currentImageIndex].id}
                           isEditing={false}
                           initialTags={needsAttentionContent[currentImageIndex].tags}
+                          currentImageIndex={currentImageIndex}
+                          totalImages={needsAttentionContent.length}
                         />
                       ) : (
                         <ImageCropper 
@@ -769,6 +804,8 @@ export default function ContentLibraryPage() {
                           itemId={needsAttentionContent[currentImageIndex].id}
                           isEditing={false}
                           initialTags={needsAttentionContent[currentImageIndex].tags}
+                          currentImageIndex={currentImageIndex}
+                          totalImages={needsAttentionContent.length}
                         />
                       )}
                     </div>
