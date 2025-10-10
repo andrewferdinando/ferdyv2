@@ -213,11 +213,6 @@ const ImageCropper = ({
               <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 Click and drag to reposition
               </div>
-              {!isEditing && (
-                <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                  {currentImageIndex + 1} of {totalImages}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -303,6 +298,15 @@ const ImageCropper = ({
           </div>
         </div>
       </div>
+      
+      {/* Image Counter */}
+      {!isEditing && (
+        <div className="text-center mt-3">
+          <span className="text-sm text-gray-600">
+            {currentImageIndex + 1} of {totalImages}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -391,11 +395,6 @@ const VideoContent = ({
                 className="w-full h-full object-cover"
                 controls
               />
-              {!isEditing && (
-                <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                  {currentImageIndex + 1} of {totalImages}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -481,8 +480,17 @@ const VideoContent = ({
           </div>
         </div>
       </div>
+      
+      {/* Image Counter */}
+      {!isEditing && (
+        <div className="text-center mt-3">
+          <span className="text-sm text-gray-600">
+            {currentImageIndex + 1} of {totalImages}
+          </span>
+        </div>
+      )}
     </div>
-);
+  );
 };
 
 export default function ContentLibraryPage() {
@@ -575,6 +583,10 @@ export default function ContentLibraryPage() {
       setEditingItem(itemToEdit);
       setActiveTab('needs-attention');
     }
+  };
+
+  const handleDeleteReady = (itemId: number) => {
+    setReadyContent(prev => prev.filter(item => item.id !== itemId));
   };
 
   const handleSaveEdit = (itemId: number, tags?: Tag[]) => {
@@ -709,18 +721,27 @@ export default function ContentLibraryPage() {
                     ))}
                   </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center justify-end text-sm">
-                        <button 
-                          onClick={() => handleEdit(item.id)}
-                          className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          <span>Edit</span>
-                    </button>
-                  </div>
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-4 text-sm">
+                      <button 
+                        onClick={() => handleEdit(item.id)}
+                        className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span>Edit</span>
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteReady(item.id)}
+                        className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Delete</span>
+                      </button>
+                    </div>
                 </div>
               </div>
                 ))
