@@ -179,7 +179,9 @@ const ImageCropper = ({
   cropSettings,
   onSave,
   onDelete,
-  itemId
+  itemId,
+  movingItemId,
+  showSuccessAnimation
 }: { 
   src: string; 
   onCropChange: (settings: CropSettings) => void; 
@@ -187,6 +189,8 @@ const ImageCropper = ({
   onSave: (itemId: number) => void;
   onDelete: (itemId: number) => void;
   itemId: number;
+  movingItemId: number | null;
+  showSuccessAnimation: boolean;
 }) => {
   const [selectedFormat, setSelectedFormat] = useState("square");
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -263,7 +267,19 @@ const ImageCropper = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-500 relative ${
+      movingItemId === itemId 
+        ? 'opacity-50 scale-95 transform translate-y-2' 
+        : 'opacity-100 scale-100 transform translate-y-0'
+    }`}>
+      {showSuccessAnimation && movingItemId === itemId && (
+        <div className="absolute inset-0 bg-green-100 bg-opacity-90 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-300">
+          <div className="text-center">
+            <div className="text-4xl mb-2 animate-in zoom-in duration-300">✅</div>
+            <div className="text-lg font-semibold text-green-800">Moving to Ready!</div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Image and Cropping */}
         <div className="flex-1">
@@ -417,13 +433,17 @@ const VideoContent = ({
   title,
   onSave,
   onDelete,
-  itemId
+  itemId,
+  movingItemId,
+  showSuccessAnimation
 }: { 
   src: string; 
   title: string;
   onSave: (itemId: number) => void;
   onDelete: (itemId: number) => void;
   itemId: number;
+  movingItemId: number | null;
+  showSuccessAnimation: boolean;
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -447,7 +467,19 @@ const VideoContent = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-500 relative ${
+      movingItemId === itemId 
+        ? 'opacity-50 scale-95 transform translate-y-2' 
+        : 'opacity-100 scale-100 transform translate-y-0'
+    }`}>
+      {showSuccessAnimation && movingItemId === itemId && (
+        <div className="absolute inset-0 bg-green-100 bg-opacity-90 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-300">
+          <div className="text-center">
+            <div className="text-4xl mb-2 animate-in zoom-in duration-300">✅</div>
+            <div className="text-lg font-semibold text-green-800">Moving to Ready!</div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Video Preview */}
         <div className="flex-1">
@@ -553,6 +585,8 @@ export default function ContentLibraryPage() {
   const [readyContent, setReadyContent] = useState<ContentItem[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [movingItemId, setMovingItemId] = useState<number | null>(null);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const tabs = [
     { id: 'ready-to-use', label: 'Ready to Use', count: readyContent.length },
@@ -585,12 +619,25 @@ export default function ContentLibraryPage() {
     // Find the item to move
     const itemToMove = needsAttentionContent.find(item => item.id === itemId);
     if (itemToMove) {
-      // Add to ready content
-      setReadyContent(prev => [...prev, { ...itemToMove, status: 'ready' }]);
-      // Remove from needs attention
-      setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
-      setToastMessage('✅ Image saved — moved to Ready tab');
-      setShowToast(true);
+      // Show moving animation
+      setMovingItemId(itemId);
+      
+      // Show success animation
+      setTimeout(() => {
+        setShowSuccessAnimation(true);
+        
+        // Move the item after animation
+        setTimeout(() => {
+          setReadyContent(prev => [...prev, { ...itemToMove, status: 'ready' }]);
+          setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
+          setToastMessage('✅ Image saved — moved to Ready tab');
+          setShowToast(true);
+          
+          // Reset animations
+          setMovingItemId(null);
+          setShowSuccessAnimation(false);
+        }, 800);
+      }, 300);
     }
   };
 
@@ -849,6 +896,8 @@ export default function ContentLibraryPage() {
                           onSave={handleSave}
                           onDelete={handleDelete}
                           itemId={item.id}
+                          movingItemId={movingItemId}
+                          showSuccessAnimation={showSuccessAnimation}
                         />
                       ) : (
                         <ImageCropper 
@@ -866,6 +915,8 @@ export default function ContentLibraryPage() {
                           onSave={handleSave}
                           onDelete={handleDelete}
                           itemId={item.id}
+                          movingItemId={movingItemId}
+                          showSuccessAnimation={showSuccessAnimation}
                         />
                       )}
                     </div>
