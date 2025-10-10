@@ -285,7 +285,7 @@ const ImageCropper = ({
               onClick={handleNext}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
-              {isEditing ? 'Save' : 'Next Image'}
+              {isEditing ? 'Save' : `Next Image ${currentImageIndex + 1}/${totalImages}`}
             </button>
             <button 
               onClick={() => onDelete(itemId)}
@@ -298,15 +298,6 @@ const ImageCropper = ({
           </div>
         </div>
       </div>
-      
-      {/* Image Counter */}
-      {!isEditing && (
-        <div className="text-center mt-3">
-          <span className="text-sm text-gray-600">
-            {currentImageIndex + 1} of {totalImages}
-          </span>
-        </div>
-      )}
     </div>
   );
 };
@@ -467,7 +458,7 @@ const VideoContent = ({
               onClick={handleNext}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
-              {isEditing ? 'Save' : 'Next Image'}
+              {isEditing ? 'Save' : `Next Image ${currentImageIndex + 1}/${totalImages}`}
             </button>
             <button 
               onClick={() => onDelete(itemId)}
@@ -480,17 +471,8 @@ const VideoContent = ({
           </div>
         </div>
       </div>
-      
-      {/* Image Counter */}
-      {!isEditing && (
-        <div className="text-center mt-3">
-          <span className="text-sm text-gray-600">
-            {currentImageIndex + 1} of {totalImages}
-          </span>
-        </div>
-      )}
     </div>
-  );
+);
 };
 
 export default function ContentLibraryPage() {
@@ -722,26 +704,26 @@ export default function ContentLibraryPage() {
                   </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-end gap-4 text-sm">
+                    <div className="flex items-center justify-end gap-3">
                       <button 
                         onClick={() => handleEdit(item.id)}
-                        className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200"
+                        className="p-2 text-[#6366F1] hover:text-[#4F46E5] hover:bg-[#EEF2FF] rounded-lg transition-colors duration-200"
+                        title="Edit"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        <span>Edit</span>
                       </button>
                       <button 
                         onClick={() => handleDeleteReady(item.id)}
-                        className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors duration-200"
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                        title="Delete"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        <span>Delete</span>
-                      </button>
-                    </div>
+                    </button>
+                  </div>
                 </div>
               </div>
                 ))
