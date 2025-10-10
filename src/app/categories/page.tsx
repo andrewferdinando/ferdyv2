@@ -1106,7 +1106,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsNewDealModalOpen(true)}
-                  className="bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-all duration-200"
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Deal</span>
@@ -1210,7 +1210,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsNewOfferingModalOpen(true)}
-                  className="bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-all duration-200"
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Offering</span>
@@ -1314,7 +1314,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsNewSeasonalModalOpen(true)}
-                  className="bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-all duration-200"
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Add Seasonal Event</span>

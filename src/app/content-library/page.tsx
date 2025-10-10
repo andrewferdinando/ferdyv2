@@ -540,23 +540,39 @@ export default function ContentLibraryPage() {
         tags: tags || itemToMove.tags
       };
       setReadyContent(prev => [...prev, updatedItem]);
+      
+      // Get the current index of the item being moved
+      const currentItemIndex = needsAttentionContent.findIndex(item => item.id === itemId);
+      
       setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
       
-      // If we're in single-image view and there are more images, stay on the same index
-      // If this was the last image, go back to the previous one
-      if (currentImageIndex >= needsAttentionContent.length - 1) {
-        setCurrentImageIndex(Math.max(0, currentImageIndex - 1));
+      // Adjust the current image index based on the item being removed
+      if (currentItemIndex === needsAttentionContent.length - 1) {
+        // If this was the last item, go to the previous one
+        setCurrentImageIndex(Math.max(0, currentItemIndex - 1));
+      } else if (currentItemIndex < currentImageIndex) {
+        // If the removed item was before the current index, decrease the current index
+        setCurrentImageIndex(currentImageIndex - 1);
       }
+      // If the removed item was after the current index, keep the same index
     }
   };
 
   const handleDelete = (itemId: number) => {
+    // Get the current index of the item being deleted
+    const currentItemIndex = needsAttentionContent.findIndex(item => item.id === itemId);
+    
     setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
     
-    // Adjust current index if needed
-    if (currentImageIndex >= needsAttentionContent.length - 1) {
-      setCurrentImageIndex(Math.max(0, currentImageIndex - 1));
+    // Adjust the current image index based on the item being removed
+    if (currentItemIndex === needsAttentionContent.length - 1) {
+      // If this was the last item, go to the previous one
+      setCurrentImageIndex(Math.max(0, currentItemIndex - 1));
+    } else if (currentItemIndex < currentImageIndex) {
+      // If the removed item was before the current index, decrease the current index
+      setCurrentImageIndex(currentImageIndex - 1);
     }
+    // If the removed item was after the current index, keep the same index
   };
 
   const handleEdit = (itemId: number) => {
