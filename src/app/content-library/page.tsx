@@ -181,7 +181,8 @@ const ImageCropper = ({
   onDelete,
   itemId,
   movingItemId,
-  showSuccessAnimation
+  showSuccessAnimation,
+  slidingOutItemId
 }: { 
   src: string; 
   onCropChange: (settings: CropSettings) => void; 
@@ -191,6 +192,7 @@ const ImageCropper = ({
   itemId: number;
   movingItemId: number | null;
   showSuccessAnimation: boolean;
+  slidingOutItemId: number | null;
 }) => {
   const [selectedFormat, setSelectedFormat] = useState("square");
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -267,16 +269,18 @@ const ImageCropper = ({
   };
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-500 relative ${
-      movingItemId === itemId 
-        ? 'opacity-50 scale-95 transform translate-y-2' 
-        : 'opacity-100 scale-100 transform translate-y-0'
+    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 relative ${
+      slidingOutItemId === itemId 
+        ? 'transform -translate-x-full opacity-0 scale-95' 
+        : movingItemId === itemId 
+          ? 'transform translate-y-1 scale-[0.98]' 
+          : 'transform translate-x-0 opacity-100 scale-100'
     }`}>
-      {showSuccessAnimation && movingItemId === itemId && (
-        <div className="absolute inset-0 bg-green-100 bg-opacity-90 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-300">
+      {showSuccessAnimation && movingItemId === itemId && !slidingOutItemId && (
+        <div className="absolute inset-0 bg-green-50 bg-opacity-95 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-200">
           <div className="text-center">
-            <div className="text-4xl mb-2 animate-in zoom-in duration-300">✅</div>
-            <div className="text-lg font-semibold text-green-800">Moving to Ready!</div>
+            <div className="text-2xl mb-1 animate-in zoom-in duration-200">✅</div>
+            <div className="text-sm font-medium text-green-700">Moved to Ready</div>
           </div>
         </div>
       )}
@@ -435,7 +439,8 @@ const VideoContent = ({
   onDelete,
   itemId,
   movingItemId,
-  showSuccessAnimation
+  showSuccessAnimation,
+  slidingOutItemId
 }: { 
   src: string; 
   title: string;
@@ -444,6 +449,7 @@ const VideoContent = ({
   itemId: number;
   movingItemId: number | null;
   showSuccessAnimation: boolean;
+  slidingOutItemId: number | null;
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -467,16 +473,18 @@ const VideoContent = ({
   };
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-500 relative ${
-      movingItemId === itemId 
-        ? 'opacity-50 scale-95 transform translate-y-2' 
-        : 'opacity-100 scale-100 transform translate-y-0'
+    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 relative ${
+      slidingOutItemId === itemId 
+        ? 'transform -translate-x-full opacity-0 scale-95' 
+        : movingItemId === itemId 
+          ? 'transform translate-y-1 scale-[0.98]' 
+          : 'transform translate-x-0 opacity-100 scale-100'
     }`}>
-      {showSuccessAnimation && movingItemId === itemId && (
-        <div className="absolute inset-0 bg-green-100 bg-opacity-90 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-300">
+      {showSuccessAnimation && movingItemId === itemId && !slidingOutItemId && (
+        <div className="absolute inset-0 bg-green-50 bg-opacity-95 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-200">
           <div className="text-center">
-            <div className="text-4xl mb-2 animate-in zoom-in duration-300">✅</div>
-            <div className="text-lg font-semibold text-green-800">Moving to Ready!</div>
+            <div className="text-2xl mb-1 animate-in zoom-in duration-200">✅</div>
+            <div className="text-sm font-medium text-green-700">Moved to Ready</div>
           </div>
         </div>
       )}
@@ -587,6 +595,7 @@ export default function ContentLibraryPage() {
   const [showToast, setShowToast] = useState(false);
   const [movingItemId, setMovingItemId] = useState<number | null>(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [slidingOutItemId, setSlidingOutItemId] = useState<number | null>(null);
 
   const tabs = [
     { id: 'ready-to-use', label: 'Ready to Use', count: readyContent.length },
@@ -619,33 +628,40 @@ export default function ContentLibraryPage() {
     // Find the item to move
     const itemToMove = needsAttentionContent.find(item => item.id === itemId);
     if (itemToMove) {
-      // Show moving animation
+      // Start micro transition sequence
       setMovingItemId(itemId);
       
-      // Show success animation
+      // Show success overlay
       setTimeout(() => {
         setShowSuccessAnimation(true);
         
-        // Move the item after animation
+        // Start slide out animation
         setTimeout(() => {
-          setReadyContent(prev => [...prev, { ...itemToMove, status: 'ready' }]);
-          setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
-          setToastMessage('✅ Image saved — moved to Ready tab');
-          setShowToast(true);
+          setSlidingOutItemId(itemId);
           
-          // Reset animations
-          setMovingItemId(null);
-          setShowSuccessAnimation(false);
-        }, 800);
-      }, 300);
+          // Complete the transition
+          setTimeout(() => {
+            // Move the item to ready content
+            setReadyContent(prev => [...prev, { ...itemToMove, status: 'ready' }]);
+            setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
+            
+            // Reset all animations
+            setMovingItemId(null);
+            setShowSuccessAnimation(false);
+            setSlidingOutItemId(null);
+          }, 400); // Slide out duration
+        }, 600); // Success overlay duration
+      }, 200); // Initial delay
     }
   };
 
   const handleDelete = (itemId: number) => {
-    // Remove from needs attention
-    setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
-    setToastMessage('🗑️ Image deleted');
-    setShowToast(true);
+    // Remove from needs attention with slide out animation
+    setSlidingOutItemId(itemId);
+    setTimeout(() => {
+      setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
+      setSlidingOutItemId(null);
+    }, 400);
   };
 
   const handleEdit = (itemId: number) => {
@@ -658,8 +674,6 @@ export default function ContentLibraryPage() {
       setReadyContent(prev => prev.filter(item => item.id !== itemId));
       // Switch to needs attention tab
       setActiveTab('needs-attention');
-      setToastMessage('✏️ Image moved to Needs Attention for editing');
-      setShowToast(true);
     }
   };
 
@@ -888,7 +902,11 @@ export default function ContentLibraryPage() {
               ) : (
                 <div className="space-y-6">
                   {needsAttentionContent.map((item) => (
-                    <div key={item.id} className="animate-in fade-in duration-300">
+                    <div key={item.id} className={`transition-all duration-300 ${
+                      slidingOutItemId === item.id 
+                        ? 'animate-out fade-out slide-out-to-left duration-300' 
+                        : 'animate-in fade-in slide-in-from-bottom duration-300'
+                    }`}>
                       {item.file?.type.startsWith('video/') ? (
                         <VideoContent 
                           src={item.image} 
@@ -898,6 +916,7 @@ export default function ContentLibraryPage() {
                           itemId={item.id}
                           movingItemId={movingItemId}
                           showSuccessAnimation={showSuccessAnimation}
+                          slidingOutItemId={slidingOutItemId}
                         />
                       ) : (
                         <ImageCropper 
@@ -917,6 +936,7 @@ export default function ContentLibraryPage() {
                           itemId={item.id}
                           movingItemId={movingItemId}
                           showSuccessAnimation={showSuccessAnimation}
+                          slidingOutItemId={slidingOutItemId}
                         />
                       )}
                     </div>
@@ -928,12 +948,6 @@ export default function ContentLibraryPage() {
         </div>
       </div>
       
-      {/* Toast Notification */}
-      <Toast 
-        message={toastMessage} 
-        isVisible={showToast} 
-        onClose={handleToastClose} 
-      />
     </AppLayout>
   );
 }
