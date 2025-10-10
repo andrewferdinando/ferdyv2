@@ -178,12 +178,14 @@ const ImageCropper = ({
   onCropChange, 
   cropSettings,
   onSave,
+  onDelete,
   itemId
 }: { 
   src: string; 
   onCropChange: (settings: CropSettings) => void; 
   cropSettings?: CropSettings;
   onSave: (itemId: number) => void;
+  onDelete: (itemId: number) => void;
   itemId: number;
 }) => {
   const [selectedFormat, setSelectedFormat] = useState("square");
@@ -396,7 +398,10 @@ const ImageCropper = ({
             >
               Save & Move to Ready
             </button>
-            <button className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => onDelete(itemId)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+            >
               Delete
             </button>
           </div>
@@ -411,11 +416,13 @@ const VideoContent = ({
   src, 
   title,
   onSave,
+  onDelete,
   itemId
 }: { 
   src: string; 
   title: string;
   onSave: (itemId: number) => void;
+  onDelete: (itemId: number) => void;
   itemId: number;
 }) => {
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -524,7 +531,10 @@ const VideoContent = ({
             >
               Save & Move to Ready
             </button>
-            <button className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => onDelete(itemId)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+            >
               Delete
             </button>
           </div>
@@ -580,6 +590,28 @@ export default function ContentLibraryPage() {
       // Remove from needs attention
       setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
       setToastMessage('✅ Image saved — moved to Ready tab');
+      setShowToast(true);
+    }
+  };
+
+  const handleDelete = (itemId: number) => {
+    // Remove from needs attention
+    setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
+    setToastMessage('🗑️ Image deleted');
+    setShowToast(true);
+  };
+
+  const handleEdit = (itemId: number) => {
+    // Find the item to edit
+    const itemToEdit = readyContent.find(item => item.id === itemId);
+    if (itemToEdit) {
+      // Move back to needs attention
+      setNeedsAttentionContent(prev => [...prev, { ...itemToEdit, status: 'needs-attention' }]);
+      // Remove from ready content
+      setReadyContent(prev => prev.filter(item => item.id !== itemId));
+      // Switch to needs attention tab
+      setActiveTab('needs-attention');
+      setToastMessage('✏️ Image moved to Needs Attention for editing');
       setShowToast(true);
     }
   };
@@ -771,7 +803,10 @@ export default function ContentLibraryPage() {
 
                     {/* Actions and Metadata */}
                     <div className="flex items-center justify-between text-sm">
-                      <button className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200">
+                      <button 
+                        onClick={() => handleEdit(item.id)}
+                        className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200"
+                      >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
@@ -812,6 +847,7 @@ export default function ContentLibraryPage() {
                           src={item.image} 
                           title={item.title}
                           onSave={handleSave}
+                          onDelete={handleDelete}
                           itemId={item.id}
                         />
                       ) : (
@@ -828,6 +864,7 @@ export default function ContentLibraryPage() {
                           }}
                           cropSettings={item.cropSettings}
                           onSave={handleSave}
+                          onDelete={handleDelete}
                           itemId={item.id}
                         />
                       )}

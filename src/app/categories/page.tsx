@@ -1120,14 +1120,14 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {deals.map((deal) => (
                     <React.Fragment key={deal.id}>
                       <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-left">
                           <div className="flex items-center">
                             <button
                               onClick={() => toggleRowExpansion(deal.id)}
@@ -1146,11 +1146,11 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
                           <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center space-x-2">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                          <div className="flex items-center justify-end space-x-2">
                             <button 
                               onClick={() => handleEditDeal(deal)}
                               className="text-gray-400 hover:text-gray-600"
@@ -1224,14 +1224,14 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {offerings.map((offering) => (
                     <React.Fragment key={offering.id}>
                       <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-left">
                           <div className="flex items-center">
                             <button
                               onClick={() => toggleRowExpansion(offering.id)}
@@ -1250,11 +1250,11 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
                           <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center space-x-2">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                          <div className="flex items-center justify-end space-x-2">
                             <button 
                               onClick={() => handleEditOffering(offering)}
                               className="text-gray-400 hover:text-gray-600"
@@ -1328,14 +1328,14 @@ export default function CategoriesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Schedule Plan</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {seasonalEvents.map((event) => (
                     <React.Fragment key={event.id}>
                       <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-left">
                           <div className="flex items-center">
                             <button
                               onClick={() => toggleRowExpansion(event.id)}
@@ -1354,11 +1354,11 @@ export default function CategoriesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
                           <div className="text-sm text-gray-900">{formatPostPlan(event.postPlan)}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center space-x-2">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                          <div className="flex items-center justify-end space-x-2">
                             <button 
                               onClick={() => handleEditSeasonalEvent(event)}
                               className="text-gray-400 hover:text-gray-600"
