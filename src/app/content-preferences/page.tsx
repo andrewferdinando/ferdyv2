@@ -65,16 +65,20 @@ export default function ContentPreferencesPage() {
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Content Preferences</h1>
-            <p className="text-gray-600 mt-1 text-sm">
-              Images in Ferdy use three formats: Square (1:1), Portrait (4:5), and Wide (1.91:1). 
-              When you upload, we&apos;ll adapt your image to fit these frames as needed.
-            </p>
           </div>
         </div>
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
           <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Subtitle */}
+            <div className="text-center">
+              <p className="text-gray-600 text-sm max-w-2xl mx-auto">
+                Images in Ferdy use three formats: Square (1:1), Portrait (4:5), and Wide (1.91:1). 
+                When you upload, we&apos;ll adapt your image to fit these frames as needed.
+              </p>
+            </div>
             
             {/* Default Format Selector */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -90,37 +94,37 @@ export default function ContentPreferencesPage() {
                 )}
               </div>
               
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {FORMAT_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handleFormatChange(option.value)}
-                    className={`w-full p-4 border-2 rounded-lg text-left transition-all duration-200 ${
+                    className={`p-3 border-2 rounded-lg text-left transition-all duration-200 ${
                       selectedFormat === option.value
                         ? 'border-[#6366F1] bg-[#EEF2FF]'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900">{option.label}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-medium text-gray-900 text-sm">{option.label}</span>
                           {option.recommended && (
-                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
                               Recommended
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{option.description}</p>
+                        <p className="text-xs text-gray-600">{option.description}</p>
                       </div>
-                      <div className={`w-4 h-4 rounded-full border-2 ${
+                      <div className={`w-3 h-3 rounded-full border-2 ml-2 flex-shrink-0 ${
                         selectedFormat === option.value
                           ? 'border-[#6366F1] bg-[#6366F1]'
                           : 'border-gray-300'
                       }`}>
                         {selectedFormat === option.value && (
                           <div className="w-full h-full flex items-center justify-center">
-                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-1.5 h-1.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           </div>
