@@ -73,9 +73,9 @@ export default function ContentPreferencesPage() {
           <div className="max-w-4xl mx-auto space-y-6">
             
             {/* Subtitle */}
-            <div className="text-center">
-              <p className="text-gray-600 text-sm max-w-2xl mx-auto">
-                Images in Ferdy use three formats: Square (1:1), Portrait (4:5), and Wide (1.91:1). 
+            <div>
+              <p className="text-gray-600 text-sm">
+                Images must adhere to social channel requirements. Square (1:1), Portrait (4:5), and Wide (1.91:1). 
                 When you upload, we&apos;ll adapt your image to fit these frames as needed.
               </p>
             </div>
