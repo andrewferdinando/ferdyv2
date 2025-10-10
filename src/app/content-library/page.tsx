@@ -285,7 +285,7 @@ const ImageCropper = ({
               onClick={handleNext}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
-              {isEditing ? 'Save' : `Next Image ${currentImageIndex + 1}/${totalImages}`}
+              {isEditing ? 'Save' : 'Next Image'}
             </button>
             <button 
               onClick={() => onDelete(itemId)}
@@ -458,7 +458,7 @@ const VideoContent = ({
               onClick={handleNext}
               className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
             >
-              {isEditing ? 'Save' : `Next Image ${currentImageIndex + 1}/${totalImages}`}
+              {isEditing ? 'Save' : 'Next Image'}
             </button>
             <button 
               onClick={() => onDelete(itemId)}
