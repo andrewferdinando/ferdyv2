@@ -1,247 +1,199 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 
-// Icons
-const CheckIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
-
-const ImageIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-  </svg>
-);
-
-interface ImageFormat {
-  id: string;
-  name: string;
-  ratio: string;
+interface FormatOption {
+  label: string;
+  value: string;
+  aspectRatio: string;
   description: string;
-  icon: string;
+  recommended?: boolean;
 }
 
-const IMAGE_FORMATS: ImageFormat[] = [
+const FORMAT_OPTIONS: FormatOption[] = [
   {
-    id: 'square',
-    name: 'Square (1:1)',
-    ratio: '1:1',
-    description: 'Perfect for Instagram posts and profile pictures',
-    icon: '⬜'
+    label: "Square (1:1)",
+    value: "square",
+    aspectRatio: "1 / 1",
+    description: "Recommended for most channels",
+    recommended: true,
   },
   {
-    id: 'portrait',
-    name: 'Portrait (4:5)',
-    ratio: '4:5',
-    description: 'Ideal for Instagram stories and mobile-first content',
-    icon: '📱'
+    label: "Portrait (4:5)",
+    value: "portrait",
+    aspectRatio: "4 / 5",
+    description: "Taller format, great for feeds",
   },
   {
-    id: 'landscape',
-    name: 'Landscape (16:9)',
-    ratio: '16:9',
-    description: 'Great for YouTube thumbnails and Facebook covers',
-    icon: '🖥️'
+    label: "Wide (1.91:1)",
+    value: "wide",
+    aspectRatio: "1.91 / 1",
+    description: "Landscape for link previews/banners",
   },
-  {
-    id: 'wide',
-    name: 'Wide (1.91:1)',
-    ratio: '1.91:1',
-    description: 'Perfect for Facebook and LinkedIn posts',
-    icon: '📊'
-  }
 ];
 
 export default function ContentPreferencesPage() {
-  const [preferredFormats, setPreferredFormats] = useState<string[]>(['square', 'portrait']);
-  const [defaultFormat, setDefaultFormat] = useState<string>('square');
-  const [autoCrop, setAutoCrop] = useState<boolean>(true);
-  const [watermarkEnabled, setWatermarkEnabled] = useState<boolean>(false);
-  const [watermarkText, setWatermarkText] = useState<string>('');
+  const router = useRouter();
+  const [selectedFormat, setSelectedFormat] = useState<string>('square');
+  const [saveMessage, setSaveMessage] = useState<string>('');
 
-  const handleFormatToggle = (formatId: string) => {
-    setPreferredFormats(prev => 
-      prev.includes(formatId) 
-        ? prev.filter(id => id !== formatId)
-        : [...prev, formatId]
-    );
+  useEffect(() => {
+    // Load preferences from localStorage
+    const savedFormat = localStorage.getItem('preferredImageFormat');
+    if (savedFormat) {
+      setSelectedFormat(savedFormat);
+    }
+  }, []);
+
+  const handleFormatChange = (format: string) => {
+    setSelectedFormat(format);
+    localStorage.setItem('preferredImageFormat', format);
+    setSaveMessage('Preferences saved');
+    setTimeout(() => setSaveMessage(''), 2000);
   };
 
-  const handleSave = () => {
-    // Here you would typically save to localStorage or send to an API
-    const preferences = {
-      preferredFormats,
-      defaultFormat,
-      autoCrop,
-      watermarkEnabled,
-      watermarkText
-    };
-    
-    localStorage.setItem('contentPreferences', JSON.stringify(preferences));
-    
-    // Show success message (you could add a toast here)
-    alert('Preferences saved successfully!');
+  const handleOpenContentLibrary = () => {
+    router.push('/content-library');
   };
 
   return (
     <AppLayout>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-          <div className="flex items-center space-x-3">
-            <ImageIcon className="w-8 h-8 text-[#6366F1]" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Content Preferences</h1>
-              <p className="text-gray-600 mt-1">Configure your default image formats and settings</p>
-            </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Content Preferences</h1>
+            <p className="text-gray-600 mt-1 text-sm">
+              Images in Ferdy use three formats: Square (1:1), Portrait (4:5), and Wide (1.91:1). 
+              When you upload, we&apos;ll adapt your image to fit these frames as needed.
+            </p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-6 lg:p-10 max-w-4xl">
-          {/* Preferred Image Formats */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Preferred Image Formats</h2>
-            <p className="text-gray-600 mb-6">
-              Select which image formats you want to use when uploading content. 
-              These will be available as cropping options in the Content Library.
-            </p>
+        <div className="p-4 sm:p-6 lg:p-10">
+          <div className="max-w-4xl mx-auto space-y-6">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {IMAGE_FORMATS.map((format) => (
-                <div
-                  key={format.id}
-                  className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                    preferredFormats.includes(format.id)
-                      ? 'border-[#6366F1] bg-[#EEF2FF]'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleFormatToggle(format.id)}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className="text-2xl">{format.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{format.name}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{format.description}</p>
-                      <div className="mt-2">
-                        <span className="inline-block px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
-                          {format.ratio}
-                        </span>
+            {/* Default Format Selector */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Default image format</h2>
+                {saveMessage && (
+                  <div className="flex items-center space-x-2 text-green-600 text-sm">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span>{saveMessage}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-3">
+                {FORMAT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleFormatChange(option.value)}
+                    className={`w-full p-4 border-2 rounded-lg text-left transition-all duration-200 ${
+                      selectedFormat === option.value
+                        ? 'border-[#6366F1] bg-[#EEF2FF]'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-gray-900">{option.label}</span>
+                          {option.recommended && (
+                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                              Recommended
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{option.description}</p>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        selectedFormat === option.value
+                          ? 'border-[#6366F1] bg-[#6366F1]'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedFormat === option.value && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {preferredFormats.includes(format.id) && (
-                      <div className="absolute top-3 right-3">
-                        <CheckIcon className="w-5 h-5 text-[#6366F1]" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Default Format */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Default Format</h2>
-            <p className="text-gray-600 mb-4">
-              Choose the default format that will be pre-selected when cropping images.
-            </p>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {IMAGE_FORMATS.filter(format => preferredFormats.includes(format.id)).map((format) => (
-                <button
-                  key={format.id}
-                  onClick={() => setDefaultFormat(format.id)}
-                  className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                    defaultFormat === format.id
-                      ? 'border-[#6366F1] bg-[#EEF2FF] text-[#6366F1]'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-lg mb-1">{format.icon}</div>
-                    <div className="text-sm font-medium">{format.ratio}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Additional Settings */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Additional Settings</h2>
-            
-            <div className="space-y-6">
-              {/* Auto Crop */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">Auto Crop</h3>
-                  <p className="text-sm text-gray-600">Automatically suggest the best crop for uploaded images</p>
-                </div>
-                <button
-                  onClick={() => setAutoCrop(!autoCrop)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    autoCrop ? 'bg-[#6366F1]' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      autoCrop ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                  </button>
+                ))}
               </div>
-
-              {/* Watermark */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">Watermark</h3>
-                  <p className="text-sm text-gray-600">Add a watermark to your images</p>
-                </div>
-                <button
-                  onClick={() => setWatermarkEnabled(!watermarkEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    watermarkEnabled ? 'bg-[#6366F1]' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      watermarkEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Watermark Text */}
-              {watermarkEnabled && (
-                <div>
-                  <label htmlFor="watermark-text" className="block text-sm font-medium text-gray-700 mb-2">
-                    Watermark Text
-                  </label>
-                  <input
-                    type="text"
-                    id="watermark-text"
-                    value={watermarkText}
-                    onChange={(e) => setWatermarkText(e.target.value)}
-                    placeholder="Enter watermark text..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                  />
-                </div>
-              )}
+              
+              <p className="text-sm text-gray-500 mt-4">
+                You can change the format per post or per image later.
+              </p>
             </div>
-          </div>
 
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors font-medium"
-            >
-              Save Preferences
-            </button>
+            {/* How it works */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">How it works</h2>
+              <p className="text-gray-600 text-sm mb-4">
+                If your upload doesn&apos;t match a format, we&apos;ll fit it into the frame. 
+                You can reposition and crop later without affecting the original.
+              </p>
+              
+              {/* Visual examples */}
+              <div className="grid grid-cols-3 gap-4">
+                {/* Square */}
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-2 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-200">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-sm"></div>
+                  </div>
+                  <p className="text-xs text-gray-600">Square (1:1)</p>
+                </div>
+                
+                {/* Portrait */}
+                <div className="text-center">
+                  <div className="w-12 h-16 mx-auto mb-2 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-200">
+                    <div className="w-8 h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-sm"></div>
+                  </div>
+                  <p className="text-xs text-gray-600">Portrait (4:5)</p>
+                </div>
+                
+                {/* Wide */}
+                <div className="text-center">
+                  <div className="w-20 h-12 mx-auto mb-2 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-200">
+                    <div className="w-16 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded-sm"></div>
+                  </div>
+                  <p className="text-xs text-gray-600">Wide (1.91:1)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Editing later callout */}
+            <div className="bg-[#EEF2FF] rounded-xl border border-[#C7D2FE] p-6">
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-[#6366F1] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-gray-900 mb-2">Need a different crop for a specific post?</h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Edit the image anytime in the Content Library.
+                  </p>
+                  <button
+                    onClick={handleOpenContentLibrary}
+                    className="px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
+                  >
+                    Open Content Library
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
