@@ -23,11 +23,6 @@ const FolderIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
-const TagIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-  </svg>
-);
 
 const InfoIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,291 +177,7 @@ const CropInfo = () => {
   );
 };
 
-// Toast Notification Component
-const Toast = ({ message, isVisible, onClose }: { message: string; isVisible: boolean; onClose: () => void }) => {
-  React.useEffect(() => {
-    if (isVisible) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isVisible, onClose]);
 
-  if (!isVisible) return null;
-
-  return (
-    <div className="fixed top-32 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 flex items-center space-x-2">
-        <span className="text-green-500 text-sm">✓</span>
-        <span className="text-gray-900 text-sm font-medium">{message}</span>
-      </div>
-    </div>
-  );
-};
-
-// Image Cropping Component
-const ImageCropper = ({ 
-  src, 
-  onCropChange, 
-  cropSettings,
-  onSave,
-  onDelete,
-  itemId,
-  movingItemId,
-  showSuccessAnimation,
-  slidingOutItemId
-}: { 
-  src: string; 
-  onCropChange: (settings: CropSettings) => void; 
-  cropSettings?: CropSettings;
-  onSave: (itemId: number, tags?: Tag[]) => void;
-  onDelete: (itemId: number) => void;
-  itemId: number;
-  movingItemId: number | null;
-  showSuccessAnimation: boolean;
-  slidingOutItemId: number | null;
-}) => {
-  const [selectedFormat, setSelectedFormat] = useState("square");
-  const [customTags, setCustomTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const handleFormatChange = (format: string) => {
-    setSelectedFormat(format);
-    // Reset position for new format
-    setImagePosition({ x: 0, y: 0 });
-    
-    // Calculate crop settings based on format
-    const settings: CropSettings = {
-      aspectRatio: format,
-      x: 0,
-      y: 0,
-      width: 100,
-      height: format === "square" ? 100 : format === "portrait" ? 125 : format === "landscape" ? 80 : 100
-    };
-    onCropChange(settings);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (selectedFormat !== "original") {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - imagePosition.x,
-        y: e.clientY - imagePosition.y
-      });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && selectedFormat !== "original") {
-      const newPosition = {
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      };
-      setImagePosition(newPosition);
-      
-      const settings: CropSettings = {
-        aspectRatio: selectedFormat,
-        x: newPosition.x,
-        y: newPosition.y,
-        width: 100,
-        height: selectedFormat === "square" ? 100 : selectedFormat === "portrait" ? 125 : selectedFormat === "landscape" ? 80 : 100
-      };
-      onCropChange(settings);
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleTagToggle = (tagLabel: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tagLabel) 
-        ? prev.filter(tag => tag !== tagLabel)
-        : [...prev, tagLabel]
-    );
-  };
-
-  const addCustomTag = () => {
-    if (newTag.trim() && !customTags.includes(newTag.trim())) {
-      const tagToAdd = newTag.trim();
-      setCustomTags([...customTags, tagToAdd]);
-      setSelectedTags(prev => [...prev, tagToAdd]); // Auto-highlight the new tag
-      setNewTag("");
-    }
-  };
-
-  return (
-    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 relative ${
-      slidingOutItemId === itemId 
-        ? 'transform -translate-x-full opacity-0 scale-95' 
-        : movingItemId === itemId 
-          ? 'transform translate-y-1 scale-[0.98]' 
-          : 'transform translate-x-0 opacity-100 scale-100'
-    }`}>
-      {showSuccessAnimation && movingItemId === itemId && !slidingOutItemId && (
-        <div className="absolute inset-0 bg-green-50 bg-opacity-95 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-200">
-          <div className="text-center">
-            <div className="text-2xl mb-1 animate-in zoom-in duration-200">✅</div>
-            <div className="text-sm font-medium text-green-700">Moved to Ready</div>
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Image and Cropping */}
-        <div className="flex-1">
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Image Cropping</h3>
-              <CropInfo />
-            </div>
-            
-            {/* Format Selection */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
-              {CROP_FORMATS.map((format) => (
-                <button
-                  key={format.value}
-                  onClick={() => handleFormatChange(format.value)}
-                  className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-200 ${
-                    selectedFormat === format.value
-                      ? 'border-[#6366F1] bg-[#EEF2FF] text-[#6366F1]'
-                      : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                  }`}
-                >
-                  {format.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Image Preview */}
-            <div 
-              className="relative bg-gray-100 rounded-lg overflow-hidden cursor-move select-none" 
-              style={{ aspectRatio: selectedFormat === "square" ? "1/1" : selectedFormat === "portrait" ? "4/5" : selectedFormat === "landscape" ? "1.91/1" : "auto" }}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            >
-              <div className="absolute inset-0 overflow-hidden">
-                <img
-                  src={src}
-                  alt="Crop preview"
-                  className="absolute transition-transform duration-100"
-                  style={{
-                    minWidth: '100%',
-                    minHeight: '100%',
-                    width: 'auto',
-                    height: 'auto',
-                    maxWidth: '200%',
-                    maxHeight: '200%',
-                    left: '50%',
-                    top: '50%',
-                    objectFit: 'cover',
-                    transform: `translate(calc(-50% + ${imagePosition.x}px), calc(-50% + ${imagePosition.y}px))`,
-                    transformOrigin: 'center center'
-                  }}
-                  draggable={false}
-                />
-              </div>
-              <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                Aspect ratio: {CROP_FORMATS.find(f => f.value === selectedFormat)?.ratio}
-              </div>
-              <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                Click and drag to reposition
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tags Section */}
-        <div className="w-full lg:w-80">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
-          
-          {/* Available Tags */}
-          <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
-              {AVAILABLE_TAGS.map((tag, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleTagToggle(tag.label)}
-                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
-                    selectedTags.includes(tag.label)
-                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
-                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
-                  }`}
-                >
-                  {tag.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Tags */}
-          <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Tags</h4>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {customTags.map((tag, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
-                    selectedTags.includes(tag)
-                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
-                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Add custom tag"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                onKeyPress={(e) => e.key === 'Enter' && addCustomTag()}
-              />
-              <button
-                onClick={addCustomTag}
-                className="px-3 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                // Create tags array from selected tags
-                const tags = [...selectedTags.map(tag => ({ label: tag, color: "bg-gray-100 text-gray-800" }))];
-                onSave(itemId, tags);
-              }}
-              className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
-            >
-              Save & Move to Ready
-            </button>
-            <button 
-              onClick={() => onDelete(itemId)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Simple Needs Attention Item Component
 const NeedsAttentionItem = ({ 
@@ -533,162 +244,6 @@ const NeedsAttentionItem = ({
   );
 };
 
-// Video Content Component
-const VideoContent = ({ 
-  src, 
-  title,
-  onSave,
-  onDelete,
-  itemId,
-  movingItemId,
-  showSuccessAnimation,
-  slidingOutItemId
-}: { 
-  src: string; 
-  title: string;
-  onSave: (itemId: number, tags?: Tag[]) => void;
-  onDelete: (itemId: number) => void;
-  itemId: number;
-  movingItemId: number | null;
-  showSuccessAnimation: boolean;
-  slidingOutItemId: number | null;
-}) => {
-  const [customTags, setCustomTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-
-  const handleTagToggle = (tagLabel: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tagLabel) 
-        ? prev.filter(tag => tag !== tagLabel)
-        : [...prev, tagLabel]
-    );
-  };
-
-  const addCustomTag = () => {
-    if (newTag.trim() && !customTags.includes(newTag.trim())) {
-      const tagToAdd = newTag.trim();
-      setCustomTags([...customTags, tagToAdd]);
-      setSelectedTags(prev => [...prev, tagToAdd]); // Auto-highlight the new tag
-      setNewTag("");
-    }
-  };
-
-  return (
-    <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 relative ${
-      slidingOutItemId === itemId 
-        ? 'transform -translate-x-full opacity-0 scale-95' 
-        : movingItemId === itemId 
-          ? 'transform translate-y-1 scale-[0.98]' 
-          : 'transform translate-x-0 opacity-100 scale-100'
-    }`}>
-      {showSuccessAnimation && movingItemId === itemId && !slidingOutItemId && (
-        <div className="absolute inset-0 bg-green-50 bg-opacity-95 rounded-xl flex items-center justify-center z-10 animate-in fade-in duration-200">
-          <div className="text-center">
-            <div className="text-2xl mb-1 animate-in zoom-in duration-200">✅</div>
-            <div className="text-sm font-medium text-green-700">Moved to Ready</div>
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Video Preview */}
-        <div className="flex-1">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Video Content</h3>
-            <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-video">
-              <video
-                src={src}
-                className="w-full h-full object-cover"
-                controls
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Tags Section */}
-        <div className="w-full lg:w-80">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
-          
-          {/* Available Tags */}
-          <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Available Tags</h4>
-            <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
-              {AVAILABLE_TAGS.map((tag, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleTagToggle(tag.label)}
-                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
-                    selectedTags.includes(tag.label)
-                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
-                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
-                  }`}
-                >
-                  {tag.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Tags */}
-          <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Tags</h4>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {customTags.map((tag, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-1.5 py-0.5 text-xs font-medium rounded-full border transition-all duration-200 ${
-                    selectedTags.includes(tag)
-                      ? `bg-[#6366F1] text-white border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-50 shadow-lg transform scale-110`
-                      : `bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 hover:scale-105`
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Add custom tag"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                onKeyPress={(e) => e.key === 'Enter' && addCustomTag()}
-              />
-              <button
-                onClick={addCustomTag}
-                className="px-3 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                // Create tags array from selected tags
-                const tags = [...selectedTags.map(tag => ({ label: tag, color: "bg-gray-100 text-gray-800" }))];
-                onSave(itemId, tags);
-              }}
-              className="flex-1 px-4 py-2 bg-[#6366F1] text-white text-sm rounded-lg hover:bg-[#4F46E5] transition-colors"
-            >
-              Save & Move to Ready
-            </button>
-            <button 
-              onClick={() => onDelete(itemId)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function ContentLibraryPage() {
   const router = useRouter();
@@ -697,10 +252,6 @@ export default function ContentLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [needsAttentionContent, setNeedsAttentionContent] = useState<ContentItem[]>([]);
   const [readyContent, setReadyContent] = useState<ContentItem[]>([]);
-  const [toastMessage, setToastMessage] = useState('');
-  const [showToast, setShowToast] = useState(false);
-  const [movingItemId, setMovingItemId] = useState<number | null>(null);
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [slidingOutItemId, setSlidingOutItemId] = useState<number | null>(null);
   const [preferredFormat, setPreferredFormat] = useState("square");
   const [isDragOver, setIsDragOver] = useState(false);
@@ -733,7 +284,7 @@ export default function ContentLibraryPage() {
     const filesByDirectory = new Map<string, File[]>();
     
     Array.from(files).forEach(file => {
-      const path = (file as any).webkitRelativePath || '';
+      const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
       const directory = path.split('/')[0] || 'root';
       
       if (!filesByDirectory.has(directory)) {
@@ -813,63 +364,7 @@ export default function ContentLibraryPage() {
     }
   };
 
-  const handleSave = (itemId: number, tags?: Tag[]) => {
-    // Find the item to move
-    const itemToMove = needsAttentionContent.find(item => item.id === itemId);
-    if (itemToMove) {
-      // Start micro transition sequence
-      setMovingItemId(itemId);
-      
-      // Show success overlay
-      setTimeout(() => {
-        setShowSuccessAnimation(true);
-        
-        // Start slide out animation
-        setTimeout(() => {
-          setSlidingOutItemId(itemId);
-          
-          // Complete the transition
-          setTimeout(() => {
-            // Move the item to ready content with updated tags
-            const updatedItem = { 
-              ...itemToMove, 
-              status: 'ready',
-              tags: tags || itemToMove.tags
-            };
-            setReadyContent(prev => [...prev, updatedItem]);
-            setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
-            
-            // Reset all animations
-            setMovingItemId(null);
-            setShowSuccessAnimation(false);
-            setSlidingOutItemId(null);
-          }, 400); // Slide out duration
-        }, 600); // Success overlay duration
-      }, 200); // Initial delay
-    }
-  };
 
-  const handleDelete = (itemId: number) => {
-    // Remove from needs attention with slide out animation
-    setSlidingOutItemId(itemId);
-    setTimeout(() => {
-      setNeedsAttentionContent(prev => prev.filter(item => item.id !== itemId));
-      setSlidingOutItemId(null);
-    }, 400);
-  };
-
-  const handleEdit = (itemId: number) => {
-    // Find the item to edit
-    const itemToEdit = readyContent.find(item => item.id === itemId);
-    if (itemToEdit) {
-      // Move back to needs attention
-      setNeedsAttentionContent(prev => [...prev, { ...itemToEdit, status: 'needs-attention' }]);
-      // Remove from ready content
-      setReadyContent(prev => prev.filter(item => item.id !== itemId));
-      // Switch to needs attention tab
-      setActiveTab('needs-attention');
-    }
-  };
 
   const handleAssignSubCategory = (itemId: number, subCategory: string) => {
     // Find the item in needs attention
@@ -892,73 +387,7 @@ export default function ContentLibraryPage() {
     }
   };
 
-  const handleToastClose = () => {
-    setShowToast(false);
-  };
 
-  const contentItems: ContentItem[] = [
-    {
-      id: 1,
-      title: "Arcade Gaming",
-      image: "/placeholders/cropped_gameover_may_142.png",
-      tags: [
-        { label: "Student Discount", color: "bg-blue-100 text-blue-800" },
-        { label: "Happy Hour Special", color: "bg-blue-100 text-blue-800" },
-        { label: "custom-1", color: "bg-blue-100 text-blue-800" }
-      ],
-      uploadedDate: "Uploaded 1/15/2024"
-    },
-    {
-      id: 2,
-      title: "Laser Tag Arena",
-      image: "/placeholders/cropped_gameover_may_143.png",
-      tags: [
-        { label: "Corporate Team Building", color: "bg-green-100 text-green-800" },
-        { label: "Student Discount", color: "bg-green-100 text-green-800" }
-      ],
-      uploadedDate: "Uploaded 1/14/2024"
-    },
-    {
-      id: 3,
-      title: "VR Experience",
-      image: "/placeholders/cropped_gameover_may_140.png",
-      tags: [
-        { label: "custom-2", color: "bg-purple-100 text-purple-800" },
-        { label: "seasonal-1", color: "bg-purple-100 text-purple-800" }
-      ],
-      uploadedDate: "Uploaded 1/13/2024"
-    },
-    {
-      id: 4,
-      title: "Sports Zone",
-      image: "/placeholders/cropped_gameover_may_124.png",
-      tags: [
-        { label: "custom-3", color: "bg-orange-100 text-orange-800" },
-        { label: "offering-1", color: "bg-orange-100 text-orange-800" }
-      ],
-      uploadedDate: "Uploaded 1/12/2024"
-    },
-    {
-      id: 5,
-      title: "Party Room",
-      image: "/placeholders/cropped_gameover_may_107 (1).png",
-      tags: [
-        { label: "custom-4", color: "bg-pink-100 text-pink-800" },
-        { label: "deal-1", color: "bg-pink-100 text-pink-800" }
-      ],
-      uploadedDate: "Uploaded 1/11/2024"
-    },
-    {
-      id: 6,
-      title: "Gaming Lounge",
-      image: "/placeholders/cropped_gameover_may_119 - Copy.png",
-      tags: [
-        { label: "deal-2", color: "bg-indigo-100 text-indigo-800" },
-        { label: "custom-1", color: "bg-indigo-100 text-indigo-800" }
-      ],
-      uploadedDate: "Uploaded 1/10/2024"
-    }
-  ];
 
   return (
     <AppLayout>
@@ -987,7 +416,7 @@ export default function ContentLibraryPage() {
             type="file"
             accept="image/*"
             multiple
-            webkitdirectory=""
+            {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -1073,7 +502,7 @@ export default function ContentLibraryPage() {
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Drag and drop sub-category folders</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Drop folders like "GoKarts", "VR Experience Packages", etc. Images will be automatically organized.
+                  Drop folders like &quot;GoKarts&quot;, &quot;VR Experience Packages&quot;, etc. Images will be automatically organized.
                 </p>
               </div>
               <button 
@@ -1156,18 +585,6 @@ export default function ContentLibraryPage() {
                       </div>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex items-center justify-end text-sm">
-                      <button 
-                        onClick={() => handleEdit(item.id)}
-                        className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        <span>Edit</span>
-                      </button>
-                    </div>
                   </div>
                 </div>
                 ))
@@ -1203,7 +620,13 @@ export default function ContentLibraryPage() {
                       <NeedsAttentionItem 
                         item={item}
                         onAssignSubCategory={handleAssignSubCategory}
-                        onDelete={handleDelete}
+                        onDelete={() => {
+                          setSlidingOutItemId(item.id);
+                          setTimeout(() => {
+                            setNeedsAttentionContent(prev => prev.filter(contentItem => contentItem.id !== item.id));
+                            setSlidingOutItemId(null);
+                          }, 400);
+                        }}
                       />
                     </div>
                   ))}
