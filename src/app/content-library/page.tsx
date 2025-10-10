@@ -56,8 +56,7 @@ interface CropSettings {
 const CROP_FORMATS = [
   { label: "1.91:1 Landscape", ratio: "1.91:1", value: "landscape" },
   { label: "4:5 Portrait", ratio: "4:5", value: "portrait" },
-  { label: "1:1 Square", ratio: "1:1", value: "square" },
-  { label: "Original No Crop", ratio: "original", value: "original" }
+  { label: "1:1 Square", ratio: "1:1", value: "square" }
 ];
 
 // Available tags from categories
@@ -130,7 +129,7 @@ const CropInfo = () => {
             </div>
             
             <div className="text-gray-700 text-sm leading-relaxed space-y-3 mb-6">
-              <p>You can crop in three formats only: Square (1:1), Portrait (5:4), and Wide (1.91:1).</p>
+              <p>You can crop in three formats: Square (1:1), Portrait (4:5), and Landscape (1.91:1).</p>
               <p>If your uploaded image doesn&apos;t fit one of these, it&apos;s automatically adjusted within these frames.</p>
               <p>You can reposition and zoom to get the composition you want — your original file remains unchanged.</p>
             </div>
@@ -304,12 +303,16 @@ const ImageCropper = ({
                   alt="Crop preview"
                   className="absolute transition-transform duration-100"
                   style={{
-                    width: '150%',
-                    height: '150%',
-                    left: '-25%',
-                    top: '-25%',
+                    minWidth: '100%',
+                    minHeight: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                    maxWidth: '200%',
+                    maxHeight: '200%',
+                    left: '50%',
+                    top: '50%',
                     objectFit: 'cover',
-                    transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                    transform: `translate(calc(-50% + ${imagePosition.x}px), calc(-50% + ${imagePosition.y}px))`,
                     transformOrigin: 'center center'
                   }}
                   draggable={false}
@@ -318,11 +321,9 @@ const ImageCropper = ({
               <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 Aspect ratio: {CROP_FORMATS.find(f => f.value === selectedFormat)?.ratio}
               </div>
-              {selectedFormat !== "original" && (
-                <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                  Click and drag to reposition
-                </div>
-              )}
+              <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                Click and drag to reposition
+              </div>
             </div>
           </div>
         </div>
@@ -741,7 +742,7 @@ export default function ContentLibraryPage() {
                 readyContent.map((item) => (
                 <div key={item.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                   {/* Image/Video */}
-                  <div className="aspect-video bg-gray-200 overflow-hidden">
+                  <div className="aspect-square bg-gray-200 overflow-hidden">
                     {item.file?.type.startsWith('video/') ? (
                       <video
                         src={item.image}
@@ -758,11 +759,9 @@ export default function ContentLibraryPage() {
                   </div>
 
                   {/* Content */}
-                  <div className="p-6">
-                    <h3 className="font-semibold text-gray-900 text-lg mb-4">{item.title}</h3>
-                    
+                  <div className="p-4">
                     {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-5">
+                    <div className="flex flex-wrap gap-2 mb-4">
                       {item.tags.map((tag, index) => (
                         <span key={index} className={`px-2 py-1 text-xs font-medium rounded-full ${tag.color}`}>
                           {tag.label}
@@ -772,9 +771,11 @@ export default function ContentLibraryPage() {
 
                     {/* Actions and Metadata */}
                     <div className="flex items-center justify-between text-sm">
-                      <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors duration-200">
-                        <TagIcon className="w-4 h-4" />
-                        <span>Manage Tags</span>
+                      <button className="flex items-center space-x-2 text-[#6366F1] hover:text-[#4F46E5] transition-colors duration-200">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span>Edit</span>
                       </button>
                       <span className="text-gray-500">{item.uploadedDate}</span>
                     </div>
