@@ -299,18 +299,29 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
           
           {formData.cadence === 'monthly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">On the following days</label>
-              <input
-                type="text"
-                value={formData.daysOfMonth.map(d => d.toString()).join(', ')}
-                onChange={(e) => {
-                  const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
-                  setFormData({ ...formData, daysOfMonth: days });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                placeholder="1, 5, 10, 15"
-              />
-              <p className="text-xs text-gray-500 mt-1">Enter day numbers separated by commas (e.g., 1, 5, 10, 15 for 1st, 5th, 10th, 15th of month)</p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
+              <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <label key={day} className="flex items-center justify-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfMonth.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-xs text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
+              </p>
             </div>
           )}
           
@@ -515,18 +526,29 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
           
           {formData.cadence === 'monthly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">On the following days</label>
-              <input
-                type="text"
-                value={formData.daysOfMonth.map(d => d.toString()).join(', ')}
-                onChange={(e) => {
-                  const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
-                  setFormData({ ...formData, daysOfMonth: days });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                placeholder="1, 5, 10, 15"
-              />
-              <p className="text-xs text-gray-500 mt-1">Enter day numbers separated by commas (e.g., 1, 5, 10, 15 for 1st, 5th, 10th, 15th of month)</p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
+              <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <label key={day} className="flex items-center justify-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfMonth.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-xs text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
+              </p>
             </div>
           )}
           
@@ -784,7 +806,7 @@ const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; i
     cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
     timesPerWeek: 1,
     daysOfWeek: [] as string[],
-    daysOfMonth: '',
+    daysOfMonth: [] as number[],
     time: '09:00'
   });
 
@@ -798,7 +820,7 @@ const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; i
         cadence: deal.frequency.cadence,
         timesPerWeek: deal.frequency.timesPerWeek || 1,
         daysOfWeek: deal.frequency.daysOfWeek || [],
-        daysOfMonth: deal.frequency.daysOfMonth ? deal.frequency.daysOfMonth.join(', ') : '',
+        daysOfMonth: deal.frequency.daysOfMonth || [],
         time: deal.frequency.time
       });
     }
@@ -819,7 +841,7 @@ const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; i
       frequency.timesPerWeek = formData.timesPerWeek;
       frequency.daysOfWeek = formData.daysOfWeek;
     } else if (formData.cadence === 'monthly') {
-      frequency.daysOfMonth = formData.daysOfMonth.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+      frequency.daysOfMonth = formData.daysOfMonth;
     }
     
     onSave({
@@ -901,6 +923,78 @@ const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; i
               <option value="monthly">Monthly</option>
             </select>
           </div>
+          
+          {formData.cadence === 'weekly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
+              <select
+                value={formData.timesPerWeek}
+                onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {formData.cadence === 'weekly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                  <label key={day} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfWeek.includes(day)}
+                      disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, day] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== day) }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
+              </p>
+            </div>
+          )}
+          
+          {formData.cadence === 'monthly' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
+              <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <label key={day} className="flex items-center justify-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysOfMonth.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-xs text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
+              </p>
+            </div>
+          )}
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
