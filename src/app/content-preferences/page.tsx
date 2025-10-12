@@ -140,7 +140,7 @@ export default function ContentPreferencesPage() {
               </div>
               
               <p className="text-sm text-gray-500 mt-4">
-                Images must adhere to social channel requirements, as above.
+                Image dimensions must adhere to social channel requirements, as above.
               </p>
             </div>
 
