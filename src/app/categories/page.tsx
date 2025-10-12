@@ -49,6 +49,14 @@ interface SubCategory {
     daysOfWeek?: string[];
     timesPerMonth?: number;
     daysOfMonth?: number[];
+    monthlyPattern?: {
+      type: 'specificDates' | 'dayOfWeek';
+      specificDates?: number[]; // e.g., [1, 15, 20] for 1st, 15th, 20th of month
+      dayOfWeek?: {
+        week: 'first' | 'second' | 'third' | 'fourth' | 'last';
+        day: string; // Monday, Tuesday, etc.
+      };
+    };
     time: string;
   };
   postPlan?: {
@@ -56,14 +64,6 @@ interface SubCategory {
     offsets: number[];
   };
 }
-
-// interface Category {
-//   id: string;
-//   name: string;
-//   type: 'deals' | 'offerings' | 'seasonal' | 'custom';
-//   description?: string;
-//   template?: 'deals-like' | 'offerings-like' | 'seasonal-like';
-// }
 
 interface Deal {
   id: string;
@@ -77,6 +77,14 @@ interface Deal {
     daysOfWeek?: string[];
     timesPerMonth?: number;
     daysOfMonth?: number[];
+    monthlyPattern?: {
+      type: 'specificDates' | 'dayOfWeek';
+      specificDates?: number[]; // e.g., [1, 15, 20] for 1st, 15th, 20th of month
+      dayOfWeek?: {
+        week: 'first' | 'second' | 'third' | 'fourth' | 'last';
+        day: string; // Monday, Tuesday, etc.
+      };
+    };
     time: string;
   };
   subCategories: SubCategory[];
@@ -94,6 +102,14 @@ interface Offering {
     daysOfWeek?: string[];
     timesPerMonth?: number;
     daysOfMonth?: number[];
+    monthlyPattern?: {
+      type: 'specificDates' | 'dayOfWeek';
+      specificDates?: number[]; // e.g., [1, 15, 20] for 1st, 15th, 20th of month
+      dayOfWeek?: {
+        week: 'first' | 'second' | 'third' | 'fourth' | 'last';
+        day: string; // Monday, Tuesday, etc.
+      };
+    };
     time: string;
   };
   subCategories: SubCategory[];
@@ -129,6 +145,12 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
     timesPerWeek: 1,
     daysOfWeek: [] as string[],
     daysOfMonth: [] as number[],
+    monthlyPatternType: 'specificDates' as 'specificDates' | 'dayOfWeek',
+    specificDates: [] as number[],
+    dayOfWeekPattern: {
+      week: 'first' as 'first' | 'second' | 'third' | 'fourth' | 'last',
+      day: 'Monday'
+    },
     time: '09:00'
   });
 
@@ -142,7 +164,6 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
     }
   };
 
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
@@ -153,6 +174,14 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
       daysOfWeek?: string[];
       timesPerMonth?: number;
       daysOfMonth?: number[];
+      monthlyPattern?: {
+        type: 'specificDates' | 'dayOfWeek';
+        specificDates?: number[];
+        dayOfWeek?: {
+          week: 'first' | 'second' | 'third' | 'fourth' | 'last';
+          day: string;
+        };
+      };
       time: string;
     } = {
       cadence: formData.cadence,
@@ -163,7 +192,15 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
       frequency.timesPerWeek = formData.timesPerWeek;
       frequency.daysOfWeek = formData.daysOfWeek;
     } else if (formData.cadence === 'monthly') {
-      frequency.daysOfMonth = formData.daysOfMonth;
+      frequency.monthlyPattern = {
+        type: formData.monthlyPatternType
+      };
+      
+      if (formData.monthlyPatternType === 'specificDates') {
+        frequency.monthlyPattern.specificDates = formData.specificDates;
+      } else if (formData.monthlyPatternType === 'dayOfWeek') {
+        frequency.monthlyPattern.dayOfWeek = formData.dayOfWeekPattern;
+      }
     }
     
     const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
@@ -186,6 +223,12 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
       timesPerWeek: 1, 
       daysOfWeek: [], 
       daysOfMonth: [], 
+      monthlyPatternType: 'specificDates',
+      specificDates: [],
+      dayOfWeekPattern: {
+        week: 'first',
+        day: 'Monday'
+      },
       time: '09:00' 
     });
     onClose();
@@ -212,902 +255,241 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
           />
         </FormField>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
-            <textarea
-              value={formData.detail}
-              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Describe the deal"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
+          <textarea
+            value={formData.detail}
+            onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="Describe the deal"
+          />
+        </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
-            <input
-              type="text"
-              value={formData.hashtags}
-              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter hashtags separated by commas (e.g., #deal, #sale, #offer)"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+          <input
+            type="text"
+            value={formData.hashtags}
+            onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="Enter hashtags separated by commas (e.g., #deal, #sale, #offer)"
+          />
+        </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
-            <input
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="https://example.com/deal-page"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+          <input
+            type="url"
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="https://example.com/deal-page"
+          />
+        </div>
           
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+          <select
+            value={formData.cadence}
+            onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+          
+        {formData.cadence === 'weekly' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
             <select
-              value={formData.cadence}
-              onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+              value={formData.timesPerWeek}
+              onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
+              {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
+              ))}
             </select>
           </div>
+        )}
           
-          {formData.cadence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
-              <select
-                value={formData.timesPerWeek}
-                onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              >
-                {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          {formData.cadence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
-              <div className="grid grid-cols-2 gap-2">
-                {daysOfWeekOptions.map(day => (
-                  <label key={day} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfWeek.includes(day)}
-                      disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
-                      onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <span className="text-sm text-gray-700">{day}</span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
-              </p>
-            </div>
-          )}
-          
-          
-          {formData.cadence === 'monthly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="border border-gray-200 rounded-lg p-3">
-                {/* Days 1-28 in a 7x4 grid */}
-                <div className="grid grid-cols-7 gap-2 mb-2">
-                  {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
-                    <label key={day} className="flex items-center justify-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.daysOfMonth.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                          } else {
-                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <span className="text-xs text-gray-700">{day}</span>
-                    </label>
-                  ))}
-                </div>
-                {/* Days 29-31 in a centered row */}
-                <div className="flex justify-start gap-2">
-                  {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
-                    <label key={day} className="flex items-center justify-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.daysOfMonth.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                          } else {
-                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <span className="text-xs text-gray-700">{day}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
-                {formData.daysOfMonth.some(day => day > 28) && (
-                  <span className="block mt-1 text-amber-600">
-                    ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-          
+        {formData.cadence === 'weekly' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+            <div className="grid grid-cols-2 gap-2">
+              {daysOfWeekOptions.map(day => (
+                <label key={day} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.daysOfWeek.includes(day)}
+                    disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
+                    onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
+                    className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm text-gray-700">{day}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
+            </p>
           </div>
+        )}
+          
+        {formData.cadence === 'monthly' && (
+          <div className="space-y-4">
+            {/* Monthly Pattern Type Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Pattern</label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="monthlyPattern"
+                    checked={formData.monthlyPatternType === 'specificDates'}
+                    onChange={() => setFormData(prev => ({ ...prev, monthlyPatternType: 'specificDates' }))}
+                    className="mr-2 text-[#6366F1] focus:ring-[#6366F1]"
+                  />
+                  <span className="text-sm text-gray-700">On specific dates</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="monthlyPattern"
+                    checked={formData.monthlyPatternType === 'dayOfWeek'}
+                    onChange={() => setFormData(prev => ({ ...prev, monthlyPatternType: 'dayOfWeek' }))}
+                    className="mr-2 text-[#6366F1] focus:ring-[#6366F1]"
+                  />
+                  <span className="text-sm text-gray-700">On specific day of week</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Specific Dates Pattern */}
+            {formData.monthlyPatternType === 'specificDates' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Dates</label>
+                <div className="border border-gray-200 rounded-lg p-3">
+                  {/* Days 1-28 in a 7x4 grid */}
+                  <div className="grid grid-cols-7 gap-2 mb-2">
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                      <label key={day} className="flex items-center justify-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={formData.specificDates.includes(day)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({ ...prev, specificDates: [...prev.specificDates, day] }));
+                            } else {
+                              setFormData(prev => ({ ...prev, specificDates: prev.specificDates.filter(d => d !== day) }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                        />
+                        <span className="text-xs text-gray-700">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {/* Days 29-31 in a centered row */}
+                  <div className="flex justify-start gap-2">
+                    {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
+                      <label key={day} className="flex items-center justify-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={formData.specificDates.includes(day)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({ ...prev, specificDates: [...prev.specificDates, day] }));
+                            } else {
+                              setFormData(prev => ({ ...prev, specificDates: prev.specificDates.filter(d => d !== day) }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                        />
+                        <span className="text-xs text-gray-700">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the days of the month when this should be posted (currently selected: {formData.specificDates.length} day{formData.specificDates.length !== 1 ? 's' : ''})
+                  {formData.specificDates.some(day => day > 28) && (
+                    <span className="block mt-1 text-amber-600">
+                      ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Day of Week Pattern */}
+            {formData.monthlyPatternType === 'dayOfWeek' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Which week?</label>
+                  <select
+                    value={formData.dayOfWeekPattern.week}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      dayOfWeekPattern: { ...prev.dayOfWeekPattern, week: e.target.value as any }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  >
+                    <option value="first">First</option>
+                    <option value="second">Second</option>
+                    <option value="third">Third</option>
+                    <option value="fourth">Fourth</option>
+                    <option value="last">Last</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Which day?</label>
+                  <select
+                    value={formData.dayOfWeekPattern.day}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      dayOfWeekPattern: { ...prev.dayOfWeekPattern, day: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  >
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                  </select>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Example: This will post on the <strong>{formData.dayOfWeekPattern.week}</strong> <strong>{formData.dayOfWeekPattern.day}</strong> of each month
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+          <input
+            type="time"
+            value={formData.time}
+            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          />
+        </div>
           
         <FormActions
           onCancel={onClose}
           submitText="Create Deal"
         />
-        </Form>
+      </Form>
     </Modal>
-  );
-};
-
-const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (offering: Omit<Offering, 'id'>) => void }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    detail: '',
-    hashtags: '',
-    url: '',
-    cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
-    timesPerWeek: 1,
-    daysOfWeek: [] as string[],
-    daysOfMonth: [] as number[],
-    time: '09:00'
-  });
-
-  const daysOfWeekOptions = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-  const handleDaysOfWeekChange = (day: string, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, day] }));
-    } else {
-      setFormData(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== day) }));
-    }
-  };
-
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
-    
-    const frequency: {
-      cadence: 'daily' | 'weekly' | 'monthly';
-      timesPerWeek?: number;
-      daysOfWeek?: string[];
-      timesPerMonth?: number;
-      daysOfMonth?: number[];
-      time: string;
-    } = {
-      cadence: formData.cadence,
-      time: formData.time
-    };
-
-    if (formData.cadence === 'weekly') {
-      frequency.timesPerWeek = formData.timesPerWeek;
-      frequency.daysOfWeek = formData.daysOfWeek;
-    } else if (formData.cadence === 'monthly') {
-      frequency.daysOfMonth = formData.daysOfMonth;
-    }
-    
-    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-    
-    onSave({
-      name: formData.name,
-      detail: formData.detail,
-      hashtags: hashtagsArray,
-      url: formData.url,
-      frequency,
-      subCategories: []
-    });
-    
-    setFormData({ 
-      name: '', 
-      detail: '',
-      hashtags: '',
-      url: '',
-      cadence: 'weekly', 
-      timesPerWeek: 1, 
-      daysOfWeek: [], 
-      daysOfMonth: [], 
-      time: '09:00' 
-    });
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">New Offering</h2>
-          <p className="text-gray-600 text-sm mt-1">Create a new offering with posting schedule</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Offering Name *</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter offering name"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Offering Detail</label>
-            <textarea
-              value={formData.detail}
-              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Describe the offering"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
-            <input
-              type="text"
-              value={formData.hashtags}
-              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter hashtags separated by commas (e.g., #service, #offering, #package)"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
-            <input
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="https://example.com/offering-page"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
-            <select
-              value={formData.cadence}
-              onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          
-          {formData.cadence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
-              <select
-                value={formData.timesPerWeek}
-                onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              >
-                {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          {formData.cadence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
-              <div className="grid grid-cols-2 gap-2">
-                {daysOfWeekOptions.map(day => (
-                  <label key={day} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfWeek.includes(day)}
-                      disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
-                      onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <span className="text-sm text-gray-700">{day}</span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
-              </p>
-            </div>
-          )}
-          
-          
-          {formData.cadence === 'monthly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="border border-gray-200 rounded-lg p-3">
-                {/* Days 1-28 in a 7x4 grid */}
-                <div className="grid grid-cols-7 gap-2 mb-2">
-                  {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
-                    <label key={day} className="flex items-center justify-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.daysOfMonth.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                          } else {
-                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <span className="text-xs text-gray-700">{day}</span>
-                    </label>
-                  ))}
-                </div>
-                {/* Days 29-31 in a centered row */}
-                <div className="flex justify-start gap-2">
-                  {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
-                    <label key={day} className="flex items-center justify-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.daysOfMonth.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                          } else {
-                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <span className="text-xs text-gray-700">{day}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
-                {formData.daysOfMonth.some(day => day > 28) && (
-                  <span className="block mt-1 text-amber-600">
-                    ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            />
-          </div>
-          
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
-            >
-              Create Offering
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (event: Omit<SeasonalEvent, 'id'>) => void }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    detail: '',
-    hashtags: '',
-    url: '',
-    dateType: 'single' as 'single' | 'range',
-    eventDate: '',
-    startDate: '',
-    endDate: '',
-    postDays: '1, 3, 5',
-    offsets: '10, 5, 2'
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
-    
-    const offsets = formData.offsets.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-    const postDays = formData.postDays.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-    
-    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-    
-    const eventData: Omit<SeasonalEvent, 'id'> = {
-      name: formData.name,
-      detail: formData.detail,
-      hashtags: hashtagsArray,
-      url: formData.url,
-      postPlan: {
-        numberOfPosts: offsets.length,
-        offsets
-      },
-      subCategories: []
-    };
-
-    if (formData.dateType === 'single') {
-      eventData.eventDate = formData.eventDate;
-    } else {
-      eventData.eventDateRange = {
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        postDays
-      };
-    }
-    
-    onSave(eventData);
-    
-    setFormData({ 
-      name: '', 
-      detail: '',
-      hashtags: '',
-      url: '',
-      dateType: 'single',
-      eventDate: '',
-      startDate: '',
-      endDate: '',
-      postDays: '1, 3, 5',
-      offsets: '10, 5, 2' 
-    });
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">New Seasonal Event</h2>
-          <p className="text-gray-600 text-sm mt-1">Create a seasonal event with post scheduling</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Event Name *</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="e.g., Black Friday"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Event Detail</label>
-            <textarea
-              value={formData.detail}
-              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Describe the seasonal event"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
-            <input
-              type="text"
-              value={formData.hashtags}
-              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter hashtags separated by commas (e.g., #event, #seasonal, #special)"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
-            <input
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="https://example.com/event-page"
-            />
-          </div>
-          
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Event Date Type</label>
-            <select
-              value={formData.dateType}
-              onChange={(e) => setFormData({ ...formData, dateType: e.target.value as 'single' | 'range' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            >
-              <option value="single">Single Date</option>
-              <option value="range">Date Range</option>
-            </select>
-          </div>
-          
-          {formData.dateType === 'single' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Event Date</label>
-              <input
-                type="date"
-                value={formData.eventDate}
-                onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              />
-            </div>
-          )}
-          
-          {formData.dateType === 'range' && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                  <input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                  <input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Days Within Range to Post</label>
-                <input
-                  type="text"
-                  value={formData.postDays}
-                  onChange={(e) => setFormData({ ...formData, postDays: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                  placeholder="1, 3, 5"
-                />
-                <p className="text-xs text-gray-500 mt-1">Days from start of range (e.g., 1, 3, 5 = 1st, 3rd, 5th day of range)</p>
-              </div>
-            </>
-          )}
-          
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Days Before Event</label>
-            <input
-              type="text"
-              value={formData.offsets}
-              onChange={(e) => setFormData({ ...formData, offsets: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="10, 5, 2"
-            />
-            <p className="text-xs text-gray-500 mt-1">Comma-separated days before the event (e.g., 10, 5, 2)</p>
-          </div>
-          
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
-            >
-              Create Event
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Edit Modal Components
-const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; isOpen: boolean; onClose: () => void; onSave: (deal: Deal) => void }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    detail: '',
-    hashtags: '',
-    url: '',
-    cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
-    timesPerWeek: 1,
-    daysOfWeek: [] as string[],
-    daysOfMonth: [] as number[],
-    time: '09:00'
-  });
-
-  useEffect(() => {
-    if (deal) {
-      setFormData({
-        name: deal.name,
-        detail: deal.detail,
-        hashtags: deal.hashtags.join(', '),
-        url: deal.url,
-        cadence: deal.frequency.cadence,
-        timesPerWeek: deal.frequency.timesPerWeek || 1,
-        daysOfWeek: deal.frequency.daysOfWeek || [],
-        daysOfMonth: deal.frequency.daysOfMonth || [],
-        time: deal.frequency.time
-      });
-    }
-  }, [deal]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim() || !deal) return;
-    
-    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-    
-    const frequency: { cadence: 'daily' | 'weekly' | 'monthly'; timesPerWeek?: number; daysOfWeek?: string[]; daysOfMonth?: number[]; time: string } = {
-      cadence: formData.cadence,
-      time: formData.time
-    };
-
-    if (formData.cadence === 'weekly') {
-      frequency.timesPerWeek = formData.timesPerWeek;
-      frequency.daysOfWeek = formData.daysOfWeek;
-    } else if (formData.cadence === 'monthly') {
-      frequency.daysOfMonth = formData.daysOfMonth;
-    }
-    
-    onSave({
-      ...deal,
-      name: formData.name,
-      detail: formData.detail,
-      hashtags: hashtagsArray,
-      url: formData.url,
-      frequency
-    });
-    onClose();
-  };
-
-  if (!isOpen || !deal) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Edit Deal</h2>
-          <p className="text-gray-600 text-sm mt-1">Update deal information</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Name *</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter deal name"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Detail</label>
-            <textarea
-              value={formData.detail}
-              onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Describe the deal"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
-            <input
-              type="text"
-              value={formData.hashtags}
-              onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="Enter hashtags separated by commas (e.g., #deal, #sale, #offer)"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
-            <input
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              placeholder="https://example.com/deal-page"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
-            <select
-              value={formData.cadence}
-              onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          
-          {formData.cadence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
-              <select
-                value={formData.timesPerWeek}
-                onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              >
-                {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                  <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          {formData.cadence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
-              <div className="grid grid-cols-2 gap-2">
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                  <label key={day} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfWeek.includes(day)}
-                      disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, day] }));
-                        } else {
-                          setFormData(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== day) }));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <span className="text-sm text-gray-700">{day}</span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
-              </p>
-            </div>
-          )}
-          
-          {formData.cadence === 'monthly' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="border border-gray-200 rounded-lg p-3">
-                {/* Days 1-28 in a 7x4 grid */}
-                <div className="grid grid-cols-7 gap-2 mb-2">
-                  {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
-                    <label key={day} className="flex items-center justify-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.daysOfMonth.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                          } else {
-                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <span className="text-xs text-gray-700">{day}</span>
-                    </label>
-                  ))}
-                </div>
-                {/* Days 29-31 in a centered row */}
-                <div className="flex justify-start gap-2">
-                  {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
-                    <label key={day} className="flex items-center justify-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.daysOfMonth.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                          } else {
-                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <span className="text-xs text-gray-700">{day}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
-                {formData.daysOfMonth.some(day => day > 28) && (
-                  <span className="block mt-1 text-amber-600">
-                    ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            />
-          </div>
-          
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
-            >
-              Update Deal
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 };
 
@@ -1116,13 +498,6 @@ export default function CategoriesPage() {
   
   // Modal states
   const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
-  const [isNewOfferingModalOpen, setIsNewOfferingModalOpen] = useState(false);
-  const [isNewSeasonalModalOpen, setIsNewSeasonalModalOpen] = useState(false);
-  
-  // Edit modal states
-  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
-  const [editingOffering, setEditingOffering] = useState<Offering | null>(null);
-  const [editingSeasonalEvent, setEditingSeasonalEvent] = useState<SeasonalEvent | null>(null);
   
   // Data states
   const [deals, setDeals] = useState<Deal[]>([
@@ -1136,86 +511,12 @@ export default function CategoriesPage() {
       subCategories: []
     }
   ]);
-  const [offerings, setOfferings] = useState<Offering[]>([
-    {
-      id: '1',
-      name: 'VR Experience Packages',
-      detail: 'Premium VR gaming experiences for groups of 4-8 people',
-      hashtags: ['#vr', '#gaming', '#groups'],
-      url: 'https://gameover.co.nz/vr-packages',
-      frequency: { cadence: 'weekly', timesPerWeek: 1, daysOfWeek: ['Wednesday'], time: '14:00' },
-      subCategories: []
-    }
-  ]);
-  const [seasonalEvents, setSeasonalEvents] = useState<SeasonalEvent[]>([
-    {
-      id: '1',
-      name: 'Summer Gaming Tournament',
-      detail: 'Annual summer arcade tournament with prizes for winners',
-      hashtags: ['#tournament', '#summer', '#gaming', '#prizes'],
-      url: 'https://gameover.co.nz/tournament',
-      postPlan: { numberOfPosts: 4, offsets: [14, 7, 3, 1] },
-      subCategories: []
-    }
-  ]);
-
-  // Sub-category states
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
-  // Edit handlers
-  const handleEditDeal = (deal: Deal) => {
-    setEditingDeal(deal);
-  };
-
-  const handleEditOffering = (offering: Offering) => {
-    setEditingOffering(offering);
-  };
-
-  const handleEditSeasonalEvent = (event: SeasonalEvent) => {
-    setEditingSeasonalEvent(event);
-  };
-
-  const handleUpdateDeal = (updatedDeal: Deal) => {
-    setDeals(prev => prev.map(deal => deal.id === updatedDeal.id ? updatedDeal : deal));
-    setEditingDeal(null);
-  };
-
-  const handleUpdateOffering = (updatedOffering: Offering) => {
-    setOfferings(prev => prev.map(offering => offering.id === updatedOffering.id ? updatedOffering : offering));
-    setEditingOffering(null);
-  };
-
-  const handleUpdateSeasonalEvent = (updatedEvent: SeasonalEvent) => {
-    setSeasonalEvents(prev => prev.map(event => event.id === updatedEvent.id ? updatedEvent : event));
-    setEditingSeasonalEvent(null);
-  };
-
 
   const handleNewDeal = (deal: Omit<Deal, 'id'>) => {
     setDeals(prev => [...prev, { ...deal, id: Date.now().toString() }]);
   };
 
-  const handleNewOffering = (offering: Omit<Offering, 'id'>) => {
-    setOfferings(prev => [...prev, { ...offering, id: Date.now().toString() }]);
-  };
-
-  const handleNewSeasonalEvent = (event: Omit<SeasonalEvent, 'id'>) => {
-    setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
-  };
-
-  const toggleRowExpansion = (id: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; time: string }) => {
+  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: any; time: string }) => {
     const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
@@ -1227,17 +528,25 @@ export default function CategoriesPage() {
       return `Weekly, ${days}, ${time}`;
     }
     
-    if (frequency.cadence === 'monthly' && frequency.daysOfMonth && frequency.daysOfMonth.length > 0) {
-      const days = frequency.daysOfMonth.join(', ');
-      return `Monthly, days ${days}, ${time}`;
+    if (frequency.cadence === 'monthly') {
+      if (frequency.monthlyPattern) {
+        if (frequency.monthlyPattern.type === 'specificDates' && frequency.monthlyPattern.specificDates) {
+          const days = frequency.monthlyPattern.specificDates.join(', ');
+          return `Monthly, days ${days}, ${time}`;
+        } else if (frequency.monthlyPattern.type === 'dayOfWeek' && frequency.monthlyPattern.dayOfWeek) {
+          const { week, day } = frequency.monthlyPattern.dayOfWeek;
+          return `Monthly, ${week} ${day}, ${time}`;
+        }
+      }
+      
+      // Fallback to old format
+      if (frequency.daysOfMonth && frequency.daysOfMonth.length > 0) {
+        const days = frequency.daysOfMonth.join(', ');
+        return `Monthly, days ${days}, ${time}`;
+      }
     }
     
     return `${frequency.cadence.charAt(0).toUpperCase() + frequency.cadence.slice(1)}, ${time}`;
-  };
-
-  const formatPostPlan = (postPlan: { numberOfPosts: number; offsets: number[] }) => {
-    const offsets = postPlan.offsets.map(o => `${o}d`).join(', ');
-    return `${postPlan.numberOfPosts} posts: ${offsets} before`;
   };
 
   return (
@@ -1295,283 +604,24 @@ export default function CategoriesPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {deals.map((deal) => (
-                    <React.Fragment key={deal.id}>
-                      <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-left">
-                          <div className="flex items-center">
-                            <button
-                              onClick={() => toggleRowExpansion(deal.id)}
-                              className="mr-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                            >
-                              {expandedRows.has(deal.id) ? 
-                                <ChevronDownIcon className="w-4 h-4" /> : 
-                                <ChevronRightIcon className="w-4 h-4" />
-                              }
-                            </button>
-                            <div className="text-sm font-medium text-gray-900">{deal.name}</div>
-                            {deal.subCategories.length > 0 && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {deal.subCategories.length}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-left">
-                          <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button 
-                              onClick={() => handleEditDeal(deal)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              <EditIcon className="w-4 h-4" />
-                            </button>
-                            <button className="text-gray-400 hover:text-red-600">
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {expandedRows.has(deal.id) && (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
-                            <div className="space-y-3">
-                              <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
-                              {deal.subCategories.map((sub) => (
-                                <div key={sub.id} className="ml-6 p-3 bg-white rounded-lg border border-gray-200">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="font-medium text-gray-900">{sub.name}</div>
-                                      <div className="text-sm text-gray-600">{sub.detail}</div>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <button className="text-gray-400 hover:text-gray-600">
-                                        <EditIcon className="w-4 h-4" />
-                                      </button>
-                                      <button className="text-gray-400 hover:text-red-600">
-                                        <TrashIcon className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              <button className="ml-6 text-sm text-[#6366F1] hover:text-[#4F46E5] font-medium">
-                                + Add sub-category
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Offerings Section */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Offerings</h2>
-                  <p className="text-gray-600 text-sm mt-1">Manage service offerings and packages</p>
-                </div>
-                <button
-                  onClick={() => setIsNewOfferingModalOpen(true)}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span>Add Offering</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full table-fixed">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="w-1/3 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
-                    <th className="w-1/2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
-                    <th className="w-1/6 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {offerings.map((offering) => (
-                    <React.Fragment key={offering.id}>
-                      <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-left">
-                          <div className="flex items-center">
-                            <button
-                              onClick={() => toggleRowExpansion(offering.id)}
-                              className="mr-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                            >
-                              {expandedRows.has(offering.id) ? 
-                                <ChevronDownIcon className="w-4 h-4" /> : 
-                                <ChevronRightIcon className="w-4 h-4" />
-                              }
-                            </button>
-                            <div className="text-sm font-medium text-gray-900">{offering.name}</div>
-                            {offering.subCategories.length > 0 && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {offering.subCategories.length}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-left">
-                          <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button 
-                              onClick={() => handleEditOffering(offering)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              <EditIcon className="w-4 h-4" />
-                            </button>
-                            <button className="text-gray-400 hover:text-red-600">
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {expandedRows.has(offering.id) && (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
-                            <div className="space-y-3">
-                              <div className="text-sm font-medium text-gray-700 mb-2">Sub-categories</div>
-                              {offering.subCategories.map((sub) => (
-                                <div key={sub.id} className="ml-6 p-3 bg-white rounded-lg border border-gray-200">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="font-medium text-gray-900">{sub.name}</div>
-                                      <div className="text-sm text-gray-600">{sub.detail}</div>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <button className="text-gray-400 hover:text-gray-600">
-                                        <EditIcon className="w-4 h-4" />
-                                      </button>
-                                      <button className="text-gray-400 hover:text-red-600">
-                                        <TrashIcon className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              <button className="ml-6 text-sm text-[#6366F1] hover:text-[#4F46E5] font-medium">
-                                + Add sub-category
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Seasonal Events Section */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Seasonal Events</h2>
-                  <p className="text-gray-600 text-sm mt-1">Manage seasonal campaigns and event-based content</p>
-                </div>
-                <button
-                  onClick={() => setIsNewSeasonalModalOpen(true)}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span>Add Seasonal Event</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full table-fixed">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="w-1/3 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
-                    <th className="w-1/2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Schedule Plan</th>
-                    <th className="w-1/6 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {seasonalEvents.map((event) => (
-                    <React.Fragment key={event.id}>
-                      <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-left">
-                          <div className="flex items-center">
-                            <button
-                              onClick={() => toggleRowExpansion(event.id)}
-                              className="mr-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                            >
-                              {expandedRows.has(event.id) ? 
-                                <ChevronDownIcon className="w-4 h-4" /> : 
-                                <ChevronRightIcon className="w-4 h-4" />
-                              }
-                            </button>
-                            <div className="text-sm font-medium text-gray-900">{event.name}</div>
-                            {event.subCategories.length > 0 && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {event.subCategories.length}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-left">
-                          <div className="text-sm text-gray-900">{formatPostPlan(event.postPlan)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button 
-                              onClick={() => handleEditSeasonalEvent(event)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              <EditIcon className="w-4 h-4" />
-                            </button>
-                            <button className="text-gray-400 hover:text-red-600">
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {expandedRows.has(event.id) && (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 bg-gray-50">
-                            <div className="space-y-3">
-                              <div className="text-sm font-medium text-gray-700 mb-2">Sub-events</div>
-                              {event.subCategories.map((sub) => (
-                                <div key={sub.id} className="ml-6 p-3 bg-white rounded-lg border border-gray-200">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="font-medium text-gray-900">{sub.name}</div>
-                                      <div className="text-sm text-gray-600">{sub.detail}</div>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <button className="text-gray-400 hover:text-gray-600">
-                                        <EditIcon className="w-4 h-4" />
-                                      </button>
-                                      <button className="text-gray-400 hover:text-red-600">
-                                        <TrashIcon className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              <button className="ml-6 text-sm text-[#6366F1] hover:text-[#4F46E5] font-medium">
-                                + Add sub-event
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                    <tr key={deal.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-left">
+                        <div className="text-sm font-medium text-gray-900">{deal.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="text-sm text-gray-900">{formatFrequency(deal.frequency)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <EditIcon className="w-4 h-4" />
+                          </button>
+                          <button className="text-gray-400 hover:text-red-600">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -1584,24 +634,6 @@ export default function CategoriesPage() {
           isOpen={isNewDealModalOpen} 
           onClose={() => setIsNewDealModalOpen(false)} 
           onSave={handleNewDeal} 
-        />
-        <NewOfferingModal 
-          isOpen={isNewOfferingModalOpen} 
-          onClose={() => setIsNewOfferingModalOpen(false)} 
-          onSave={handleNewOffering} 
-        />
-        <NewSeasonalEventModal 
-          isOpen={isNewSeasonalModalOpen} 
-          onClose={() => setIsNewSeasonalModalOpen(false)} 
-          onSave={handleNewSeasonalEvent} 
-        />
-        
-        {/* Edit Modals */}
-        <EditDealModal 
-          deal={editingDeal}
-          isOpen={!!editingDeal} 
-          onClose={() => setEditingDeal(null)} 
-          onSave={handleUpdateDeal} 
         />
       </div>
     </AppLayout>
