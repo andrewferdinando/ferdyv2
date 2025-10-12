@@ -53,13 +53,14 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       icon: SettingsIcon,
       active: pathname === '/settings',
     },
-    {
-      name: 'Super Admin',
-      href: '/super-admin',
-      icon: SuperAdminIcon,
-      active: pathname.startsWith('/super-admin'),
-    },
   ];
+
+  const superAdminItem = {
+    name: 'Super Admin',
+    href: '/super-admin',
+    icon: SuperAdminIcon,
+    active: pathname.startsWith('/super-admin'),
+  };
 
   const handleNavigationClick = () => {
     if (onMobileClose) {
@@ -96,8 +97,8 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       </div>
 
       {/* Navigation Items - Updated spacing for better visual breathing room */}
-      <nav className="flex-1 p-6">
-        <ul className="space-y-2">
+      <nav className="flex-1 p-6 flex flex-col">
+        <ul className="space-y-2 flex-1">
           {navigationItems.map((item) => (
             <li key={item.name}>
               <Link
@@ -115,6 +116,22 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
             </li>
           ))}
         </ul>
+        
+        {/* Super Admin at bottom */}
+        <div className="mt-auto pt-4 border-t border-gray-200">
+          <Link
+            href={superAdminItem.href}
+            onClick={handleNavigationClick}
+            className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+              superAdminItem.active
+                ? 'bg-[#EEF2FF] text-[#6366F1]'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <superAdminItem.icon className="w-5 h-5" />
+            <span className="font-medium text-sm">{superAdminItem.name}</span>
+          </Link>
+        </div>
       </nav>
     </div>
   );

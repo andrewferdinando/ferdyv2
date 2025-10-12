@@ -83,13 +83,6 @@ export default function ContentPreferencesPage() {
         <div className="p-4 sm:p-6 lg:p-10">
           <div className="max-w-4xl mx-auto space-y-6">
             
-            {/* Subtitle */}
-            <div>
-              <p className="text-gray-600 text-sm">
-                Images must adhere to social channel requirements. Square (1:1), Portrait (4:5), and Wide (1.91:1). 
-                When you upload, we&apos;ll adapt your image to fit these frames as needed.
-              </p>
-            </div>
             
             {/* Default Format Selector */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -147,7 +140,7 @@ export default function ContentPreferencesPage() {
               </div>
               
               <p className="text-sm text-gray-500 mt-4">
-                You can change the format per post or per image later.
+                Images must adhere to social channel requirements, as above.
               </p>
             </div>
 
