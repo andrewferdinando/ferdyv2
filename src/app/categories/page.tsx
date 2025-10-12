@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import Modal from '@/components/ui/Modal';
@@ -26,17 +26,6 @@ const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
-const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-  </svg>
-);
-
-const ChevronRightIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
 
 // Types
 interface SubCategory {
@@ -90,49 +79,6 @@ interface Deal {
   subCategories: SubCategory[];
 }
 
-interface Offering {
-  id: string;
-  name: string;
-  detail: string;
-  hashtags: string[];
-  url: string;
-  frequency: {
-    cadence: 'daily' | 'weekly' | 'monthly';
-    timesPerWeek?: number;
-    daysOfWeek?: string[];
-    timesPerMonth?: number;
-    daysOfMonth?: number[];
-    monthlyPattern?: {
-      type: 'specificDates' | 'dayOfWeek';
-      specificDates?: number[]; // e.g., [1, 15, 20] for 1st, 15th, 20th of month
-      dayOfWeek?: {
-        week: 'first' | 'second' | 'third' | 'fourth' | 'last';
-        day: string; // Monday, Tuesday, etc.
-      };
-    };
-    time: string;
-  };
-  subCategories: SubCategory[];
-}
-
-interface SeasonalEvent {
-  id: string;
-  name: string;
-  detail: string;
-  hashtags: string[];
-  url: string;
-  eventDate?: string; // Single date
-  eventDateRange?: {
-    startDate: string;
-    endDate: string;
-    postDays: number[]; // Days within the range to post (e.g., [1, 3, 5])
-  };
-  postPlan: {
-    numberOfPosts: number;
-    offsets: number[];
-  };
-  subCategories: SubCategory[];
-}
 
 // Modal Components
 const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (deal: Omit<Deal, 'id'>) => void }) => {
@@ -432,10 +378,10 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
                   <label className="block text-sm font-medium text-gray-700 mb-2">Which week?</label>
                   <select
                     value={formData.dayOfWeekPattern.week}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      dayOfWeekPattern: { ...prev.dayOfWeekPattern, week: e.target.value as any }
-                    }))}
+                     onChange={(e) => setFormData(prev => ({ 
+                       ...prev, 
+                       dayOfWeekPattern: { ...prev.dayOfWeekPattern, week: e.target.value as 'first' | 'second' | 'third' | 'fourth' | 'last' }
+                     }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
                   >
                     <option value="first">First</option>
@@ -516,7 +462,7 @@ export default function CategoriesPage() {
     setDeals(prev => [...prev, { ...deal, id: Date.now().toString() }]);
   };
 
-  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: any; time: string }) => {
+  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; time: string }) => {
     const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
