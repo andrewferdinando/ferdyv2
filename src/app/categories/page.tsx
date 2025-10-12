@@ -300,27 +300,55 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
           {formData.cadence === 'monthly' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                  <label key={day} className="flex items-center justify-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfMonth.includes(day)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                        } else {
-                          setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-xs text-gray-700">{day}</span>
-                  </label>
-                ))}
+              <div className="border border-gray-200 rounded-lg p-3">
+                {/* Days 1-28 in a 7x4 grid */}
+                <div className="grid grid-cols-7 gap-2 mb-2">
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                    <label key={day} className="flex items-center justify-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.daysOfMonth.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                          } else {
+                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      />
+                      <span className="text-xs text-gray-700">{day}</span>
+                    </label>
+                  ))}
+                </div>
+                {/* Days 29-31 in a centered row */}
+                <div className="flex justify-start gap-2">
+                  {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
+                    <label key={day} className="flex items-center justify-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.daysOfMonth.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                          } else {
+                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      />
+                      <span className="text-xs text-gray-700">{day}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
+                {formData.daysOfMonth.some(day => day > 28) && (
+                  <span className="block mt-1 text-amber-600">
+                    ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -527,27 +555,55 @@ const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClos
           {formData.cadence === 'monthly' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                  <label key={day} className="flex items-center justify-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfMonth.includes(day)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                        } else {
-                          setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-xs text-gray-700">{day}</span>
-                  </label>
-                ))}
+              <div className="border border-gray-200 rounded-lg p-3">
+                {/* Days 1-28 in a 7x4 grid */}
+                <div className="grid grid-cols-7 gap-2 mb-2">
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                    <label key={day} className="flex items-center justify-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.daysOfMonth.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                          } else {
+                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      />
+                      <span className="text-xs text-gray-700">{day}</span>
+                    </label>
+                  ))}
+                </div>
+                {/* Days 29-31 in a centered row */}
+                <div className="flex justify-start gap-2">
+                  {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
+                    <label key={day} className="flex items-center justify-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.daysOfMonth.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                          } else {
+                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      />
+                      <span className="text-xs text-gray-700">{day}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
+                {formData.daysOfMonth.some(day => day > 28) && (
+                  <span className="block mt-1 text-amber-600">
+                    ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -971,27 +1027,55 @@ const EditDealModal = ({ deal, isOpen, onClose, onSave }: { deal: Deal | null; i
           {formData.cadence === 'monthly' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Days of Month</label>
-              <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                  <label key={day} className="flex items-center justify-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysOfMonth.includes(day)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
-                        } else {
-                          setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-xs text-gray-700">{day}</span>
-                  </label>
-                ))}
+              <div className="border border-gray-200 rounded-lg p-3">
+                {/* Days 1-28 in a 7x4 grid */}
+                <div className="grid grid-cols-7 gap-2 mb-2">
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                    <label key={day} className="flex items-center justify-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.daysOfMonth.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                          } else {
+                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      />
+                      <span className="text-xs text-gray-700">{day}</span>
+                    </label>
+                  ))}
+                </div>
+                {/* Days 29-31 in a centered row */}
+                <div className="flex justify-start gap-2">
+                  {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
+                    <label key={day} className="flex items-center justify-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.daysOfMonth.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, daysOfMonth: [...prev.daysOfMonth, day] }));
+                          } else {
+                            setFormData(prev => ({ ...prev, daysOfMonth: prev.daysOfMonth.filter(d => d !== day) }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                      />
+                      <span className="text-xs text-gray-700">{day}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Select the days of the month when this should be posted (currently selected: {formData.daysOfMonth.length} day{formData.daysOfMonth.length !== 1 ? 's' : ''})
+                {formData.daysOfMonth.some(day => day > 28) && (
+                  <span className="block mt-1 text-amber-600">
+                    ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
+                  </span>
+                )}
               </p>
             </div>
           )}
