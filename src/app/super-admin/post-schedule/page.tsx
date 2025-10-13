@@ -248,31 +248,9 @@ export default function PostSchedulePage() {
           </div>
         </div>
 
-        {/* Push Posts Box */}
-        {activeTab === 'next-month' && (
-          <div className="bg-[#EEF2FF] rounded-xl border border-[#C7D2FE] p-4 mx-4 sm:mx-6 lg:mx-10 mt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm text-gray-700">
-                  {selectedPosts.length > 0 
-                    ? `${selectedPosts.length} post${selectedPosts.length > 1 ? 's' : ''} selected for immediate posting`
-                    : 'Select posts to push immediately instead of waiting for scheduled date'
-                  }
-                </p>
-              </div>
-              <button
-                onClick={handlePushPosts}
-                disabled={selectedPosts.length === 0}
-                className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Push Posts
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Content */}
-        <div className="p-4 sm:p-6 lg:p-10">
+        <div className="p-4 sm:p-6 lg:p-10 pt-4">
           <div className="max-w-6xl mx-auto">
             {activeTab === 'programmed' && (
               <div className="space-y-4">
@@ -324,86 +302,73 @@ export default function PostSchedulePage() {
                 {scheduledPosts.map((post) => (
                   <div 
                     key={post.id}
-                    className={`bg-white rounded-xl border p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${
-                      selectedPosts.includes(post.id) 
-                        ? 'border-[#6366F1] bg-[#EEF2FF]' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                   >
-                    <div className="flex items-start space-x-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedPosts.includes(post.id)}
-                        onChange={() => handleSelectPost(post.id)}
-                        className="mt-1 w-4 h-4 text-[#6366F1] border-gray-300 rounded focus:ring-[#6366F1]"
-                      />
-                      
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
-                            <div className="flex items-center space-x-3 text-sm text-gray-500">
-                              <span className="flex items-center space-x-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span>{formatDate(post.date)}</span>
-                              </span>
-                              <span className="flex items-center space-x-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>{post.time}</span>
-                              </span>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
+                          <div className="flex items-center space-x-3 text-sm text-gray-500">
+                            <span className="flex items-center space-x-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span>{formatDate(post.date)}</span>
+                            </span>
+                            <span className="flex items-center space-x-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>{post.time}</span>
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}>
+                            {post.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-gray-700 mb-4">{post.content}</p>
+
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-700">Platforms:</span>
+                            <div className="flex items-center space-x-2">
+                              {post.platforms.map((platform, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                                  {platform}
+                                </span>
+                              ))}
                             </div>
                           </div>
                           
                           <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}>
-                              {post.status}
-                            </span>
+                            <span className="text-sm font-medium text-gray-700">Hashtags:</span>
+                            <div className="flex items-center space-x-2">
+                              {post.hashtags.slice(0, 3).map((hashtag, index) => (
+                                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                                  {hashtag}
+                                </span>
+                              ))}
+                              {post.hashtags.length > 3 && (
+                                <span className="text-xs text-gray-500">+{post.hashtags.length - 3} more</span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        <p className="text-gray-700 mb-4">{post.content}</p>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-700">Platforms:</span>
-                              <div className="flex items-center space-x-1">
-                                {post.platforms.map((platform, index) => (
-                                  <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                                    {platform}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-700">Hashtags:</span>
-                              <div className="flex items-center space-x-1">
-                                {post.hashtags.slice(0, 3).map((hashtag, index) => (
-                                  <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
-                                    {hashtag}
-                                  </span>
-                                ))}
-                                {post.hashtags.length > 3 && (
-                                  <span className="text-xs text-gray-500">+{post.hashtags.length - 3} more</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Sub-category and frequency instead of action buttons */}
-                          <div className="flex flex-col items-end gap-1">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(post.category)}`}>
-                              {post.category}
-                            </span>
-                            <div className="text-right">
-                              <p className="text-xs font-medium text-gray-700">Go Karting</p>
-                              <p className="text-xs text-gray-500">weekly on Mon & Weds</p>
-                            </div>
+                        {/* Sub-category and frequency instead of action buttons */}
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(post.category)}`}>
+                            {post.category}
+                          </span>
+                          <div className="text-right">
+                            <p className="text-xs font-medium text-gray-700">Go Karting</p>
+                            <p className="text-xs text-gray-500">weekly on Mon & Weds</p>
                           </div>
                         </div>
                       </div>
