@@ -444,6 +444,8 @@ export default function CategoriesPage() {
   
   // Modal states
   const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
+  const [isNewOfferingModalOpen, setIsNewOfferingModalOpen] = useState(false);
+  const [isNewSeasonalEventModalOpen, setIsNewSeasonalEventModalOpen] = useState(false);
   
   // Data states
   const [deals, setDeals] = useState<Deal[]>([
@@ -458,8 +460,49 @@ export default function CategoriesPage() {
     }
   ]);
 
+  const [offerings, setOfferings] = useState<Deal[]>([
+    {
+      id: '2',
+      name: 'Go Karting',
+      detail: 'High-speed racing experience for all ages',
+      hashtags: ['#gokarting', '#racing', '#fun'],
+      url: 'https://gameover.co.nz/go-karting',
+      frequency: { cadence: 'weekly', timesPerWeek: 2, daysOfWeek: ['Monday', 'Wednesday'], time: '14:00' },
+      subCategories: []
+    },
+    {
+      id: '3',
+      name: 'Arcade Games',
+      detail: 'Classic and modern arcade gaming experience',
+      hashtags: ['#arcade', '#gaming', '#retro'],
+      url: 'https://gameover.co.nz/arcade',
+      frequency: { cadence: 'daily', time: '10:00' },
+      subCategories: []
+    }
+  ]);
+
+  const [seasonalEvents, setSeasonalEvents] = useState<Deal[]>([
+    {
+      id: '4',
+      name: 'Summer Tournament',
+      detail: 'Annual summer gaming championship',
+      hashtags: ['#tournament', '#summer', '#championship'],
+      url: 'https://gameover.co.nz/summer-tournament',
+      frequency: { cadence: 'monthly', monthlyPattern: { type: 'specificDates', specificDates: [15] }, time: '18:00' },
+      subCategories: []
+    }
+  ]);
+
   const handleNewDeal = (deal: Omit<Deal, 'id'>) => {
     setDeals(prev => [...prev, { ...deal, id: Date.now().toString() }]);
+  };
+
+  const handleNewOffering = (offering: Omit<Deal, 'id'>) => {
+    setOfferings(prev => [...prev, { ...offering, id: Date.now().toString() }]);
+  };
+
+  const handleNewSeasonalEvent = (event: Omit<Deal, 'id'>) => {
+    setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
   };
 
   const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; time: string }) => {
@@ -573,6 +616,112 @@ export default function CategoriesPage() {
               </table>
             </div>
           </div>
+
+          {/* Offerings Section */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Offerings</h2>
+                  <p className="text-gray-600 text-sm mt-1">Manage your core services and activities</p>
+                </div>
+                <button
+                  onClick={() => setIsNewOfferingModalOpen(true)}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Add Offering</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="w-1/3 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offering Name</th>
+                    <th className="w-1/2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
+                    <th className="w-1/6 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {offerings.map((offering) => (
+                    <tr key={offering.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-left">
+                        <div className="text-sm font-medium text-gray-900">{offering.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="text-sm text-gray-900">{formatFrequency(offering.frequency)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <EditIcon className="w-4 h-4" />
+                          </button>
+                          <button className="text-gray-400 hover:text-red-600">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Seasonal Events Section */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Seasonal Events</h2>
+                  <p className="text-gray-600 text-sm mt-1">Manage seasonal and special events</p>
+                </div>
+                <button
+                  onClick={() => setIsNewSeasonalEventModalOpen(true)}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Add Event</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="w-1/3 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
+                    <th className="w-1/2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Frequency</th>
+                    <th className="w-1/6 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {seasonalEvents.map((event) => (
+                    <tr key={event.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-left">
+                        <div className="text-sm font-medium text-gray-900">{event.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="text-sm text-gray-900">{formatFrequency(event.frequency)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <EditIcon className="w-4 h-4" />
+                          </button>
+                          <button className="text-gray-400 hover:text-red-600">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Modals */}
@@ -580,6 +729,16 @@ export default function CategoriesPage() {
           isOpen={isNewDealModalOpen} 
           onClose={() => setIsNewDealModalOpen(false)} 
           onSave={handleNewDeal} 
+        />
+        <NewDealModal 
+          isOpen={isNewOfferingModalOpen} 
+          onClose={() => setIsNewOfferingModalOpen(false)} 
+          onSave={handleNewOffering} 
+        />
+        <NewDealModal 
+          isOpen={isNewSeasonalEventModalOpen} 
+          onClose={() => setIsNewSeasonalEventModalOpen(false)} 
+          onSave={handleNewSeasonalEvent} 
         />
       </div>
     </AppLayout>
