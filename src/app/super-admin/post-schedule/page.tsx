@@ -204,7 +204,7 @@ export default function PostSchedulePage() {
     <AppLayout>
       <div className="flex-1 overflow-auto">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-4">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Schedule</h1>
@@ -223,7 +223,7 @@ export default function PostSchedulePage() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-2">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
           <div className="flex flex-wrap gap-4 sm:gap-8">
             <button
               onClick={() => setActiveTab('programmed')}
@@ -250,7 +250,7 @@ export default function PostSchedulePage() {
 
 
         {/* Content */}
-        <div className="p-4 sm:p-6 lg:p-10 pt-2">
+        <div className="p-4 sm:p-6 lg:p-10">
           <div className="max-w-6xl mx-auto">
             {activeTab === 'programmed' && (
               <div className="space-y-4">
