@@ -250,7 +250,7 @@ export default function PostSchedulePage() {
 
 
         {/* Content */}
-        <div className="p-4 sm:p-6 lg:p-10 pt-4">
+        <div className="p-4 sm:p-6 lg:p-10 pt-2">
           <div className="max-w-6xl mx-auto">
             {activeTab === 'programmed' && (
               <div className="space-y-4">
@@ -305,7 +305,7 @@ export default function PostSchedulePage() {
                     className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                   >
                     <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="mb-3">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
                           <div className="flex items-center space-x-3 text-sm text-gray-500">
@@ -322,12 +322,6 @@ export default function PostSchedulePage() {
                               <span>{post.time}</span>
                             </span>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}>
-                            {post.status}
-                          </span>
                         </div>
                       </div>
 
