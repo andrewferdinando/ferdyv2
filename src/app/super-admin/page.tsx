@@ -19,14 +19,14 @@ export default function SuperAdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Super Admin</h1>
-              <p className="text-gray-600 mt-1 text-sm">Manage brand details and post scheduling</p>
+              <p className="text-gray-600 mt-1 text-sm">Manage brand details and configurations</p>
             </div>
           </div>
         </div>
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
-          <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 sm:gap-6 max-w-2xl">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 max-w-2xl">
             {/* Brand Details Card */}
             <div 
               onClick={handleBrandDetailsClick}
