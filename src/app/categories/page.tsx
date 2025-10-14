@@ -33,7 +33,7 @@ interface SubCategory {
   name: string;
   detail?: string;
   frequency?: {
-    cadence: 'daily' | 'weekly' | 'monthly';
+    cadence: 'daily' | 'weekly' | 'monthly' | 'seasonal';
     timesPerWeek?: number;
     daysOfWeek?: string[];
     timesPerMonth?: number;
@@ -46,6 +46,9 @@ interface SubCategory {
         day: string; // Monday, Tuesday, etc.
       };
     };
+    eventFrequencyType?: 'eventDate' | 'eventDateRange';
+    daysBeforeEvent?: number[];
+    daysWithinEventRange?: number[];
     time: string;
   };
   postPlan?: {
@@ -61,7 +64,7 @@ interface Deal {
   hashtags: string[];
   url: string;
   frequency: {
-    cadence: 'daily' | 'weekly' | 'monthly';
+    cadence: 'daily' | 'weekly' | 'monthly' | 'seasonal';
     timesPerWeek?: number;
     daysOfWeek?: string[];
     timesPerMonth?: number;
@@ -74,6 +77,9 @@ interface Deal {
         day: string; // Monday, Tuesday, etc.
       };
     };
+    eventFrequencyType?: 'eventDate' | 'eventDateRange';
+    daysBeforeEvent?: number[];
+    daysWithinEventRange?: number[];
     time: string;
   };
   subCategories: SubCategory[];
@@ -840,25 +846,7 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
       detail: formData.detail,
       hashtags: hashtagsArray,
       url: formData.url,
-      frequency: frequency as {
-        cadence: string;
-        timesPerWeek?: number;
-        daysOfWeek?: string[];
-        timesPerMonth?: number;
-        daysOfMonth?: number[];
-        monthlyPattern?: {
-          type: string;
-          specificDates?: number[];
-          dayOfWeek?: {
-            week: string;
-            day: string;
-          };
-        };
-        eventFrequencyType?: string;
-        daysBeforeEvent?: number[];
-        daysWithinEventRange?: number[];
-        time: string;
-      },
+      frequency,
       subCategories: []
     });
     
@@ -1111,7 +1099,7 @@ export default function CategoriesPage() {
     setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
   };
 
-  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; eventFrequencyType?: string; daysBeforeEvent?: number[]; daysWithinEventRange?: number[]; time: string }) => {
+  const formatFrequency = (frequency: { cadence: 'daily' | 'weekly' | 'monthly' | 'seasonal'; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; eventFrequencyType?: string; daysBeforeEvent?: number[]; daysWithinEventRange?: number[]; time: string }) => {
     const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
