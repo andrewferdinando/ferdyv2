@@ -935,7 +935,7 @@ export default function CategoriesPage() {
                       Posts for {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} will be automatically sent to users for approval on the 15th of {new Date().toLocaleDateString('en-US', { month: 'long' })}.
                     </p>
                     <p className="text-xs text-blue-600 mt-1">
-                      Use the "Push Notifications Now" button above to send approval requests early if needed.
+                      Use the &quot;Push Notifications Now&quot; button above to send approval requests early if needed.
                     </p>
                   </div>
                 </div>
