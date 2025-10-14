@@ -703,7 +703,7 @@ export default function CategoriesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
-              <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and posting schedules</p>
+              <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
             </div>
             <div className="flex space-x-3">
               {activeTab === 'next-month' && (
