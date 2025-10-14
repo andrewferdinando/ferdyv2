@@ -442,6 +442,9 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
 export default function CategoriesPage() {
   const router = useRouter();
   
+  // Tab state
+  const [activeTab, setActiveTab] = useState('categories');
+  
   // Modal states
   const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
   const [isNewOfferingModalOpen, setIsNewOfferingModalOpen] = useState(false);
@@ -538,6 +541,160 @@ export default function CategoriesPage() {
     return `${frequency.cadence.charAt(0).toUpperCase() + frequency.cadence.slice(1)}, ${time}`;
   };
 
+  // Function to generate scheduled posts for next month
+  const generateScheduledPosts = () => {
+    const allCategories = [...deals, ...offerings, ...seasonalEvents];
+    const scheduledPosts: Array<{
+      id: string;
+      title: string;
+      subCategory: string;
+      frequency: string;
+      hashtags: string[];
+      platforms: string[];
+      scheduledDate: string;
+      scheduledTime: string;
+      category: string;
+    }> = [];
+
+    // Get next month's date
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const year = nextMonth.getFullYear();
+    const month = nextMonth.getMonth();
+
+    allCategories.forEach((category) => {
+      const { frequency } = category;
+      
+      if (frequency.cadence === 'daily') {
+        // Generate posts for every day of the month
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month, day);
+          scheduledPosts.push({
+            id: `${category.id}-${day}`,
+            title: category.name,
+            subCategory: category.name,
+            frequency: formatFrequency(frequency),
+            hashtags: category.hashtags,
+            platforms: ['Facebook', 'Instagram'], // Default platforms
+            scheduledDate: date.toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric' 
+            }),
+            scheduledTime: frequency.time,
+            category: 'Daily'
+          });
+        }
+      } else if (frequency.cadence === 'weekly' && frequency.daysOfWeek) {
+        // Generate posts for specific days of the week
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month, day);
+          const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+          
+          if (frequency.daysOfWeek.includes(dayName)) {
+            scheduledPosts.push({
+              id: `${category.id}-${day}`,
+              title: category.name,
+              subCategory: category.name,
+              frequency: formatFrequency(frequency),
+              hashtags: category.hashtags,
+              platforms: ['Facebook', 'Instagram'],
+              scheduledDate: date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              }),
+              scheduledTime: frequency.time,
+              category: 'Weekly'
+            });
+          }
+        }
+      } else if (frequency.cadence === 'monthly') {
+        // Generate posts for specific dates or day patterns
+        if (frequency.monthlyPattern) {
+          if (frequency.monthlyPattern.type === 'specificDates' && frequency.monthlyPattern.specificDates) {
+            frequency.monthlyPattern.specificDates.forEach((day) => {
+              if (day <= new Date(year, month + 1, 0).getDate()) {
+                const date = new Date(year, month, day);
+                scheduledPosts.push({
+                  id: `${category.id}-${day}`,
+                  title: category.name,
+                  subCategory: category.name,
+                  frequency: formatFrequency(frequency),
+                  hashtags: category.hashtags,
+                  platforms: ['Facebook', 'Instagram'],
+                  scheduledDate: date.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  scheduledTime: frequency.time,
+                  category: 'Monthly'
+                });
+              }
+            });
+          } else if (frequency.monthlyPattern.type === 'dayOfWeek' && frequency.monthlyPattern.dayOfWeek) {
+            // Handle day of week pattern (e.g., first Monday)
+            const { week, day } = frequency.monthlyPattern.dayOfWeek;
+            const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(day);
+            
+            let targetDate: Date;
+            if (week === 'first') {
+              targetDate = new Date(year, month, 1);
+              while (targetDate.getDay() !== dayIndex) {
+                targetDate.setDate(targetDate.getDate() + 1);
+              }
+            } else if (week === 'last') {
+              targetDate = new Date(year, month + 1, 0); // Last day of month
+              while (targetDate.getDay() !== dayIndex) {
+                targetDate.setDate(targetDate.getDate() - 1);
+              }
+            } else {
+              // second, third, fourth
+              const weekNum = ['first', 'second', 'third', 'fourth'].indexOf(week) + 1;
+              targetDate = new Date(year, month, 1);
+              while (targetDate.getDay() !== dayIndex) {
+                targetDate.setDate(targetDate.getDate() + 1);
+              }
+              targetDate.setDate(targetDate.getDate() + (weekNum - 1) * 7);
+            }
+            
+            if (targetDate.getMonth() === month) {
+              scheduledPosts.push({
+                id: `${category.id}-${targetDate.getDate()}`,
+                title: category.name,
+                subCategory: category.name,
+                frequency: formatFrequency(frequency),
+                hashtags: category.hashtags,
+                platforms: ['Facebook', 'Instagram'],
+                scheduledDate: targetDate.toLocaleDateString('en-US', { 
+                  weekday: 'short', 
+                  month: 'short', 
+                  day: 'numeric' 
+                }),
+                scheduledTime: frequency.time,
+                category: 'Monthly'
+              });
+            }
+          }
+        }
+      }
+    });
+
+    // Sort posts by date and time
+    return scheduledPosts.sort((a, b) => {
+      const dateA = new Date(`${nextMonth.toDateString()} ${a.scheduledTime}`);
+      const dateB = new Date(`${nextMonth.toDateString()} ${b.scheduledTime}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+  };
+
+  const handlePushNotificationsNow = () => {
+    alert('Notifications have been sent to users for approval. Posts will be available for review immediately.');
+  };
+
   return (
     <AppLayout>
       <div className="flex-1 overflow-auto">
@@ -549,6 +706,17 @@ export default function CategoriesPage() {
               <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and posting schedules</p>
             </div>
             <div className="flex space-x-3">
+              {activeTab === 'next-month' && (
+                <button 
+                  onClick={handlePushNotificationsNow}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  <span>Push Notifications Now</span>
+                </button>
+              )}
               <button 
                 onClick={() => router.back()}
                 className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 px-4 py-2 w-full sm:w-auto flex items-center space-x-2"
@@ -562,8 +730,36 @@ export default function CategoriesPage() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('categories')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'categories'
+                  ? 'border-[#6366F1] text-[#6366F1]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Categories
+            </button>
+            <button
+              onClick={() => setActiveTab('next-month')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'next-month'
+                  ? 'border-[#6366F1] text-[#6366F1]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Next Month ({generateScheduledPosts().length})
+            </button>
+          </div>
+        </div>
+
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10 space-y-8">
+          {activeTab === 'categories' && (
+            <>
           {/* Deals Section */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
             <div className="p-6 border-b border-gray-200">
@@ -722,6 +918,133 @@ export default function CategoriesPage() {
               </table>
             </div>
           </div>
+            </>
+          )}
+
+          {activeTab === 'next-month' && (
+            <div className="space-y-6">
+              {/* Approval Notification */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-800">Automatic Approval Notifications</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Posts for {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} will be automatically sent to users for approval on the 15th of {new Date().toLocaleDateString('en-US', { month: 'long' })}.
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Use the "Push Notifications Now" button above to send approval requests early if needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scheduled Posts */}
+              <div className="space-y-4">
+                {generateScheduledPosts().length > 0 ? (
+                  generateScheduledPosts().map((post) => (
+                    <div 
+                      key={post.id}
+                      className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-3">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
+                            <div className="flex items-center space-x-3 text-sm text-gray-500">
+                              <span className="flex items-center space-x-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>{post.scheduledDate}</span>
+                              </span>
+                              <span className="flex items-center space-x-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{new Date(`2000-01-01T${post.scheduledTime}`).toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit',
+                                  hour12: true 
+                                })}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start justify-between">
+                          <div className="flex flex-col space-y-3">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-700">Platforms:</span>
+                              <div className="flex items-center space-x-2">
+                                {post.platforms.map((platform, index) => (
+                                  <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                                    {platform}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-700">Hashtags:</span>
+                              <div className="flex items-center space-x-2">
+                                {post.hashtags.slice(0, 3).map((hashtag, index) => (
+                                  <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                                    {hashtag}
+                                  </span>
+                                ))}
+                                {post.hashtags.length > 3 && (
+                                  <span className="text-xs text-gray-500">+{post.hashtags.length - 3} more</span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-700">Frequency:</span>
+                              <span className="text-sm text-gray-600">{post.frequency}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              post.category === 'Daily' ? 'bg-green-100 text-green-800' :
+                              post.category === 'Weekly' ? 'bg-blue-100 text-blue-800' :
+                              post.category === 'Monthly' ? 'bg-purple-100 text-purple-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {post.category}
+                            </span>
+                            <div className="text-right">
+                              <p className="text-xs font-medium text-gray-700">{post.subCategory}</p>
+                              <p className="text-xs text-gray-500">Auto-generated</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                    <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Scheduled Posts</h3>
+                    <p className="text-gray-600 mb-4">
+                      No posts are scheduled for next month. Configure your categories and posting frequency to generate scheduled posts.
+                    </p>
+                    <button 
+                      onClick={() => setActiveTab('categories')}
+                      className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                    >
+                      Configure Categories
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modals */}

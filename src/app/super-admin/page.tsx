@@ -10,9 +10,6 @@ export default function SuperAdminPage() {
     router.push('/super-admin/brand-details');
   };
 
-  const handlePostScheduleClick = () => {
-    router.push('/super-admin/post-schedule');
-  };
 
   return (
     <AppLayout>
@@ -29,7 +26,7 @@ export default function SuperAdminPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 sm:gap-6 max-w-2xl">
             {/* Brand Details Card */}
             <div 
               onClick={handleBrandDetailsClick}
@@ -48,32 +45,6 @@ export default function SuperAdminPage() {
                   </p>
                   <div className="flex items-center text-[#6366F1] text-sm font-medium">
                     <span>Manage Details</span>
-                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Post Schedule Card */}
-            <div 
-              onClick={handlePostScheduleClick}
-              className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-            >
-              <div className="flex items-start space-x-4">
-                <div className="w-14 h-14 bg-[#EEF2FF] rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-7 h-7 text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Post Schedule</h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    View the upcoming post calendar for the next month based on your categories and frequency settings.
-                  </p>
-                  <div className="flex items-center text-[#6366F1] text-sm font-medium">
-                    <span>View Schedule</span>
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
