@@ -18,7 +18,6 @@ export default function SettingsPage() {
     router.push('/categories');
   };
 
-
   const handleContentPreferencesClick = () => {
     router.push('/content-preferences');
   };
