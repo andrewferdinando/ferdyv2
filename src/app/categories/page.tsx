@@ -706,17 +706,6 @@ export default function CategoriesPage() {
               <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
             </div>
             <div className="flex space-x-3">
-              {activeTab === 'next-month' && (
-                <button 
-                  onClick={handlePushNotificationsNow}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  <span>Push Notifications Now</span>
-                </button>
-              )}
               <button 
                 onClick={() => router.back()}
                 className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 px-4 py-2 w-full sm:w-auto flex items-center space-x-2"
@@ -924,20 +913,28 @@ export default function CategoriesPage() {
           {activeTab === 'next-month' && (
             <div className="space-y-6">
               {/* Approval Notification */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-sm font-medium text-blue-800">Automatic Approval Notifications</h3>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Posts for {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} will be automatically sent to users for approval on the 15th of {new Date().toLocaleDateString('en-US', { month: 'long' })}.
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Use the &quot;Push Notifications Now&quot; button above to send approval requests early if needed.
-                    </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-medium text-blue-800">Posts ready for approval</h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        {generateScheduledPosts().length} posts scheduled for {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}. Auto-sent for approval on the 15th.
+                      </p>
+                    </div>
                   </div>
+                  <button 
+                    onClick={handlePushNotificationsNow}
+                    className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 flex items-center space-x-2 flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    <span>Push Posts Now</span>
+                  </button>
                 </div>
               </div>
 
@@ -953,14 +950,14 @@ export default function CategoriesPage() {
                         <div className="mb-3">
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
-                            <div className="flex items-center space-x-3 text-sm text-gray-500">
-                              <span className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                              <span className="flex items-center space-x-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span>{post.scheduledDate}</span>
                               </span>
-                              <span className="flex items-center space-x-2">
+                              <span className="flex items-center space-x-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
