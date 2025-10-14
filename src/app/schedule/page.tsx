@@ -283,7 +283,7 @@ export default function SchedulePage() {
         {draftPosts.map((post) => (
           <div 
             key={post.id} 
-            onClick={() => handlePostClick(post.id)}
+            onClick={handlePostClick}
             className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           >
             <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
