@@ -81,6 +81,364 @@ interface Deal {
 
 
 // Modal Components
+const NewOfferingModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (offering: Omit<Deal, 'id'>) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    detail: '',
+    hashtags: '',
+    url: '',
+    cadence: 'weekly' as 'daily' | 'weekly' | 'monthly',
+    timesPerWeek: 1,
+    daysOfWeek: [] as string[],
+    daysOfMonth: [] as number[],
+    monthlyPatternType: 'specificDates' as 'specificDates' | 'dayOfWeek',
+    specificDates: [] as number[],
+    dayOfWeekPattern: {
+      week: 'first' as 'first' | 'second' | 'third' | 'fourth' | 'last',
+      day: 'Monday'
+    },
+    time: '09:00'
+  });
+
+  const daysOfWeekOptions = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  const handleDaysOfWeekChange = (day: string, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, day] }));
+    } else {
+      setFormData(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== day) }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    const frequency: {
+      cadence: 'daily' | 'weekly' | 'monthly';
+      timesPerWeek?: number;
+      daysOfWeek?: string[];
+      timesPerMonth?: number;
+      daysOfMonth?: number[];
+      monthlyPattern?: {
+        type: 'specificDates' | 'dayOfWeek';
+        specificDates?: number[];
+        dayOfWeek?: {
+          week: 'first' | 'second' | 'third' | 'fourth' | 'last';
+          day: string;
+        };
+      };
+      time: string;
+    } = {
+      cadence: formData.cadence,
+      time: formData.time
+    };
+
+    if (formData.cadence === 'weekly') {
+      frequency.timesPerWeek = formData.timesPerWeek;
+      frequency.daysOfWeek = formData.daysOfWeek;
+    } else if (formData.cadence === 'monthly') {
+      frequency.monthlyPattern = {
+        type: formData.monthlyPatternType
+      };
+      
+      if (formData.monthlyPatternType === 'specificDates') {
+        frequency.monthlyPattern.specificDates = formData.specificDates;
+      } else if (formData.monthlyPatternType === 'dayOfWeek') {
+        frequency.monthlyPattern.dayOfWeek = formData.dayOfWeekPattern;
+      }
+    }
+    
+    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
+    onSave({
+      name: formData.name,
+      detail: formData.detail,
+      hashtags: hashtagsArray,
+      url: formData.url,
+      frequency,
+      subCategories: []
+    });
+    
+    setFormData({ 
+      name: '', 
+      detail: '',
+      hashtags: '',
+      url: '',
+      cadence: 'weekly', 
+      timesPerWeek: 1, 
+      daysOfWeek: [], 
+      daysOfMonth: [], 
+      monthlyPatternType: 'specificDates',
+      specificDates: [],
+      dayOfWeekPattern: {
+        week: 'first',
+        day: 'Monday'
+      },
+      time: '09:00' 
+    });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="New Offering"
+      subtitle="Create a new offering with posting schedule"
+      maxWidth="md"
+    >
+      <Form onSubmit={handleSubmit}>
+        <FormField label="Offering Name" required>
+          <Input
+            type="text"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Enter offering name"
+          />
+        </FormField>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Offering Detail</label>
+          <textarea
+            value={formData.detail}
+            onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="Describe the offering"
+          />
+        </div>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+          <input
+            type="text"
+            value={formData.hashtags}
+            onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="Enter hashtags separated by commas (e.g., #offering, #service, #experience)"
+          />
+        </div>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+          <input
+            type="url"
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="https://example.com/offering-page"
+          />
+        </div>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+          <select
+            value={formData.cadence}
+            onChange={(e) => setFormData({ ...formData, cadence: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+          
+        {formData.cadence === 'weekly' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Times Per Week</label>
+            <select
+              value={formData.timesPerWeek}
+              onChange={(e) => setFormData({ ...formData, timesPerWeek: parseInt(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            >
+              {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                <option key={num} value={num}>{num} time{num > 1 ? 's' : ''} per week</option>
+              ))}
+            </select>
+          </div>
+        )}
+          
+        {formData.cadence === 'weekly' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+            <div className="grid grid-cols-2 gap-2">
+              {daysOfWeekOptions.map(day => (
+                <label key={day} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.daysOfWeek.includes(day)}
+                    disabled={!formData.daysOfWeek.includes(day) && formData.daysOfWeek.length >= formData.timesPerWeek}
+                    onChange={(e) => handleDaysOfWeekChange(day, e.target.checked)}
+                    className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1] disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm text-gray-700">{day}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Select up to {formData.timesPerWeek} day{formData.timesPerWeek > 1 ? 's' : ''} (currently selected: {formData.daysOfWeek.length})
+            </p>
+          </div>
+        )}
+          
+        {formData.cadence === 'monthly' && (
+          <div className="space-y-4">
+            {/* Monthly Pattern Type Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Pattern</label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="monthlyPattern"
+                    checked={formData.monthlyPatternType === 'specificDates'}
+                    onChange={() => setFormData(prev => ({ ...prev, monthlyPatternType: 'specificDates' }))}
+                    className="mr-2 text-[#6366F1] focus:ring-[#6366F1]"
+                  />
+                  <span className="text-sm text-gray-700">On specific dates</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="monthlyPattern"
+                    checked={formData.monthlyPatternType === 'dayOfWeek'}
+                    onChange={() => setFormData(prev => ({ ...prev, monthlyPatternType: 'dayOfWeek' }))}
+                    className="mr-2 text-[#6366F1] focus:ring-[#6366F1]"
+                  />
+                  <span className="text-sm text-gray-700">On specific day of week</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Specific Dates Pattern */}
+            {formData.monthlyPatternType === 'specificDates' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Dates</label>
+                <div className="border border-gray-200 rounded-lg p-3">
+                  {/* Days 1-28 in a 7x4 grid */}
+                  <div className="grid grid-cols-7 gap-2 mb-2">
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                      <label key={day} className="flex items-center justify-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={formData.specificDates.includes(day)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({ ...prev, specificDates: [...prev.specificDates, day] }));
+                            } else {
+                              setFormData(prev => ({ ...prev, specificDates: prev.specificDates.filter(d => d !== day) }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                        />
+                        <span className="text-xs text-gray-700">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {/* Days 29-31 in a centered row */}
+                  <div className="flex justify-start gap-2">
+                    {Array.from({ length: 3 }, (_, i) => i + 29).map(day => (
+                      <label key={day} className="flex items-center justify-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={formData.specificDates.includes(day)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({ ...prev, specificDates: [...prev.specificDates, day] }));
+                            } else {
+                              setFormData(prev => ({ ...prev, specificDates: prev.specificDates.filter(d => d !== day) }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                        />
+                        <span className="text-xs text-gray-700">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the days of the month when this should be posted (currently selected: {formData.specificDates.length} day{formData.specificDates.length !== 1 ? 's' : ''})
+                  {formData.specificDates.some(day => day > 28) && (
+                    <span className="block mt-1 text-amber-600">
+                      ⚠️ Days 29-31 may not exist in some months (e.g., February has 28/29 days)
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Day of Week Pattern */}
+            {formData.monthlyPatternType === 'dayOfWeek' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Which week?</label>
+                  <select
+                    value={formData.dayOfWeekPattern.week}
+                     onChange={(e) => setFormData(prev => ({ 
+                       ...prev, 
+                       dayOfWeekPattern: { ...prev.dayOfWeekPattern, week: e.target.value as 'first' | 'second' | 'third' | 'fourth' | 'last' }
+                     }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  >
+                    <option value="first">First</option>
+                    <option value="second">Second</option>
+                    <option value="third">Third</option>
+                    <option value="fourth">Fourth</option>
+                    <option value="last">Last</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Which day?</label>
+                  <select
+                    value={formData.dayOfWeekPattern.day}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      dayOfWeekPattern: { ...prev.dayOfWeekPattern, day: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  >
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                  </select>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Example: This will post on the <strong>{formData.dayOfWeekPattern.week}</strong> <strong>{formData.dayOfWeekPattern.day}</strong> of each month
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+          <input
+            type="time"
+            value={formData.time}
+            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          />
+        </div>
+          
+        <FormActions
+          onCancel={onClose}
+          submitText="Create Offering"
+        />
+      </Form>
+    </Modal>
+  );
+};
+
 const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (deal: Omit<Deal, 'id'>) => void }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -439,6 +797,233 @@ const NewDealModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: (
   );
 };
 
+const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (event: Omit<Deal, 'id'>) => void }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    detail: '',
+    hashtags: '',
+    url: '',
+    eventFrequencyType: 'eventDate' as 'eventDate' | 'eventDateRange',
+    daysBeforeEvent: [] as number[],
+    daysWithinEventRange: [] as number[],
+    time: '09:00'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    // For seasonal events, we'll use a special frequency structure
+    const frequency: {
+      cadence: 'seasonal';
+      eventFrequencyType: 'eventDate' | 'eventDateRange';
+      daysBeforeEvent?: number[];
+      daysWithinEventRange?: number[];
+      time: string;
+    } = {
+      cadence: 'seasonal',
+      eventFrequencyType: formData.eventFrequencyType,
+      time: formData.time
+    };
+
+    if (formData.eventFrequencyType === 'eventDate') {
+      frequency.daysBeforeEvent = formData.daysBeforeEvent;
+    } else {
+      frequency.daysBeforeEvent = formData.daysBeforeEvent;
+      frequency.daysWithinEventRange = formData.daysWithinEventRange;
+    }
+    
+    const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
+    onSave({
+      name: formData.name,
+      detail: formData.detail,
+      hashtags: hashtagsArray,
+      url: formData.url,
+      frequency: frequency as any, // Type assertion for now
+      subCategories: []
+    });
+    
+    setFormData({ 
+      name: '', 
+      detail: '',
+      hashtags: '',
+      url: '',
+      eventFrequencyType: 'eventDate',
+      daysBeforeEvent: [],
+      daysWithinEventRange: [],
+      time: '09:00' 
+    });
+    onClose();
+  };
+
+  const handleDaysBeforeChange = (day: number, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysBeforeEvent: [...prev.daysBeforeEvent, day].sort((a, b) => b - a) }));
+    } else {
+      setFormData(prev => ({ ...prev, daysBeforeEvent: prev.daysBeforeEvent.filter(d => d !== day) }));
+    }
+  };
+
+  const handleDaysWithinChange = (day: number, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, daysWithinEventRange: [...prev.daysWithinEventRange, day].sort((a, b) => a - b) }));
+    } else {
+      setFormData(prev => ({ ...prev, daysWithinEventRange: prev.daysWithinEventRange.filter(d => d !== day) }));
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="New Seasonal Event"
+      subtitle="Create a new seasonal event with posting schedule"
+      maxWidth="md"
+    >
+      <Form onSubmit={handleSubmit}>
+        <FormField label="Event Name" required>
+          <Input
+            type="text"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Enter event name"
+          />
+        </FormField>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Event Detail</label>
+          <textarea
+            value={formData.detail}
+            onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="Describe the event"
+          />
+        </div>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+          <input
+            type="text"
+            value={formData.hashtags}
+            onChange={(e) => setFormData({ ...formData, hashtags: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="Enter hashtags separated by commas (e.g., #event, #seasonal, #special)"
+          />
+        </div>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">URL</label>
+          <input
+            type="url"
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="https://example.com/event-page"
+          />
+        </div>
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Event Frequency Type</label>
+          <div className="space-y-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="eventFrequencyType"
+                checked={formData.eventFrequencyType === 'eventDate'}
+                onChange={() => setFormData(prev => ({ ...prev, eventFrequencyType: 'eventDate' }))}
+                className="mr-2 text-[#6366F1] focus:ring-[#6366F1]"
+              />
+              <span className="text-sm text-gray-700">Event date</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="eventFrequencyType"
+                checked={formData.eventFrequencyType === 'eventDateRange'}
+                onChange={() => setFormData(prev => ({ ...prev, eventFrequencyType: 'eventDateRange' }))}
+                className="mr-2 text-[#6366F1] focus:ring-[#6366F1]"
+              />
+              <span className="text-sm text-gray-700">Event date range</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Days before event */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Days before the event
+          </label>
+          <div className="border border-gray-200 rounded-lg p-3">
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                <label key={day} className="flex items-center justify-center space-x-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.daysBeforeEvent.includes(day)}
+                    onChange={(e) => handleDaysBeforeChange(day, e.target.checked)}
+                    className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                  />
+                  <span className="text-xs text-gray-700">{day}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Select which days before the event to post (e.g., 10, 5, 2 days before)
+          </p>
+        </div>
+
+        {/* Days within event range - only show if event date range is selected */}
+        {formData.eventFrequencyType === 'eventDateRange' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Days within the event range
+            </label>
+            <div className="border border-gray-200 rounded-lg p-3">
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <label key={day} className="flex items-center justify-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.daysWithinEventRange.includes(day)}
+                      onChange={(e) => handleDaysWithinChange(day, e.target.checked)}
+                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                    />
+                    <span className="text-xs text-gray-700">{day}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Select which days within the event range to post (e.g., 1, 3, 5 days within the range)
+            </p>
+          </div>
+        )}
+          
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+          <input
+            type="time"
+            value={formData.time}
+            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          />
+        </div>
+          
+        <FormActions
+          onCancel={onClose}
+          submitText="Create Event"
+        />
+      </Form>
+    </Modal>
+  );
+};
+
 export default function CategoriesPage() {
   const router = useRouter();
   
@@ -508,12 +1093,32 @@ export default function CategoriesPage() {
     setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
   };
 
-  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; time: string }) => {
+  const formatFrequency = (frequency: { cadence: string; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; eventFrequencyType?: string; daysBeforeEvent?: number[]; daysWithinEventRange?: number[]; time: string }) => {
     const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
       hour12: true 
     });
+    
+    // Handle seasonal events
+    if (frequency.cadence === 'seasonal') {
+      if (frequency.eventFrequencyType === 'eventDate' && frequency.daysBeforeEvent && frequency.daysBeforeEvent.length > 0) {
+        const days = frequency.daysBeforeEvent.join(', ');
+        return `Event date, ${days} days before, ${time}`;
+      } else if (frequency.eventFrequencyType === 'eventDateRange') {
+        let result = 'Event date range';
+        if (frequency.daysBeforeEvent && frequency.daysBeforeEvent.length > 0) {
+          const daysBefore = frequency.daysBeforeEvent.join(', ');
+          result += `, ${daysBefore} days before`;
+        }
+        if (frequency.daysWithinEventRange && frequency.daysWithinEventRange.length > 0) {
+          const daysWithin = frequency.daysWithinEventRange.join(', ');
+          result += `, days ${daysWithin} within range`;
+        }
+        return `${result}, ${time}`;
+      }
+      return `Seasonal event, ${time}`;
+    }
     
     if (frequency.cadence === 'weekly' && frequency.daysOfWeek && frequency.daysOfWeek.length > 0) {
       const days = frequency.daysOfWeek.join(', ');
@@ -678,6 +1283,89 @@ export default function CategoriesPage() {
                 category: 'Monthly'
               });
             }
+          }
+        }
+      } else if (frequency.cadence === 'seasonal') {
+        // For seasonal events, we'll generate placeholder posts
+        // In a real implementation, this would need actual event dates
+        if (frequency.eventFrequencyType === 'eventDate' && frequency.daysBeforeEvent && frequency.daysBeforeEvent.length > 0) {
+          // Generate posts for days before event (using placeholder event date)
+          frequency.daysBeforeEvent.forEach((daysBefore) => {
+            const eventDate = new Date(year, month, 15); // Placeholder event date
+            const postDate = new Date(eventDate);
+            postDate.setDate(postDate.getDate() - daysBefore);
+            
+            if (postDate.getMonth() === month) {
+              scheduledPosts.push({
+                id: `${category.id}-${daysBefore}d`,
+                title: category.name,
+                subCategory: category.name,
+                frequency: formatFrequency(frequency),
+                hashtags: category.hashtags,
+                platforms: ['Facebook', 'Instagram'],
+                scheduledDate: postDate.toLocaleDateString('en-US', { 
+                  weekday: 'short', 
+                  month: 'short', 
+                  day: 'numeric' 
+                }),
+                scheduledTime: frequency.time,
+                category: 'Seasonal'
+              });
+            }
+          });
+        } else if (frequency.eventFrequencyType === 'eventDateRange') {
+          // Generate posts for days before event
+          if (frequency.daysBeforeEvent && frequency.daysBeforeEvent.length > 0) {
+            frequency.daysBeforeEvent.forEach((daysBefore) => {
+              const eventDate = new Date(year, month, 15); // Placeholder event date
+              const postDate = new Date(eventDate);
+              postDate.setDate(postDate.getDate() - daysBefore);
+              
+              if (postDate.getMonth() === month) {
+                scheduledPosts.push({
+                  id: `${category.id}-before-${daysBefore}d`,
+                  title: category.name,
+                  subCategory: category.name,
+                  frequency: formatFrequency(frequency),
+                  hashtags: category.hashtags,
+                  platforms: ['Facebook', 'Instagram'],
+                  scheduledDate: postDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  scheduledTime: frequency.time,
+                  category: 'Seasonal'
+                });
+              }
+            });
+          }
+          
+          // Generate posts for days within event range
+          if (frequency.daysWithinEventRange && frequency.daysWithinEventRange.length > 0) {
+            frequency.daysWithinEventRange.forEach((dayWithin) => {
+              const eventStartDate = new Date(year, month, 15); // Placeholder event start
+              const postDate = new Date(eventStartDate);
+              postDate.setDate(postDate.getDate() + (dayWithin - 1));
+              
+              if (postDate.getMonth() === month) {
+                scheduledPosts.push({
+                  id: `${category.id}-within-${dayWithin}d`,
+                  title: category.name,
+                  subCategory: category.name,
+                  frequency: formatFrequency(frequency),
+                  hashtags: category.hashtags,
+                  platforms: ['Facebook', 'Instagram'],
+                  scheduledDate: postDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  scheduledTime: frequency.time,
+                  category: 'Seasonal'
+                });
+              }
+            });
           }
         }
       }
@@ -1009,6 +1697,7 @@ export default function CategoriesPage() {
                               post.category === 'Daily' ? 'bg-green-100 text-green-800' :
                               post.category === 'Weekly' ? 'bg-blue-100 text-blue-800' :
                               post.category === 'Monthly' ? 'bg-purple-100 text-purple-800' :
+                              post.category === 'Seasonal' ? 'bg-orange-100 text-orange-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
                               {post.category}
@@ -1050,12 +1739,12 @@ export default function CategoriesPage() {
           onClose={() => setIsNewDealModalOpen(false)} 
           onSave={handleNewDeal} 
         />
-        <NewDealModal 
+        <NewOfferingModal 
           isOpen={isNewOfferingModalOpen} 
           onClose={() => setIsNewOfferingModalOpen(false)} 
           onSave={handleNewOffering} 
         />
-        <NewDealModal 
+        <NewSeasonalEventModal 
           isOpen={isNewSeasonalEventModalOpen} 
           onClose={() => setIsNewSeasonalEventModalOpen(false)} 
           onSave={handleNewSeasonalEvent} 
