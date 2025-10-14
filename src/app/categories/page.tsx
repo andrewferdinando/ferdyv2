@@ -840,7 +840,25 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
       detail: formData.detail,
       hashtags: hashtagsArray,
       url: formData.url,
-      frequency: frequency as any, // Type assertion for now
+      frequency: frequency as {
+        cadence: string;
+        timesPerWeek?: number;
+        daysOfWeek?: string[];
+        timesPerMonth?: number;
+        daysOfMonth?: number[];
+        monthlyPattern?: {
+          type: string;
+          specificDates?: number[];
+          dayOfWeek?: {
+            week: string;
+            day: string;
+          };
+        };
+        eventFrequencyType?: string;
+        daysBeforeEvent?: number[];
+        daysWithinEventRange?: number[];
+        time: string;
+      },
       subCategories: []
     });
     
