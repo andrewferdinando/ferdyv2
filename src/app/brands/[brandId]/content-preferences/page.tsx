@@ -38,7 +38,7 @@ export default function ContentPreferencesPage() {
     try {
       await updateContentPrefs(formData)
       setMessage('Preferences saved successfully!')
-    } catch (err) {
+    } catch {
       setMessage('Failed to save preferences. Please try again.')
     } finally {
       setSaving(false)
@@ -95,7 +95,7 @@ export default function ContentPreferencesPage() {
                     onChange={(e) => setFormData({...formData, tone: e.target.value})}
                     placeholder="e.g., Professional, Friendly, Casual, Authoritative"
                   />
-                  <p className="text-sm text-gray-500 mt-1">Describe the tone of voice for your brand's content</p>
+                  <p className="text-sm text-gray-500 mt-1">Describe the tone of voice for your brand&apos;s content</p>
                 </div>
 
                 <div>
