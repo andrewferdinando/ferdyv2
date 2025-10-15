@@ -128,21 +128,24 @@ export default function DraftCard({ draft, onUpdate }: DraftCardProps) {
             {draft.assets && draft.assets.length > 0 && (
               <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
                 <img 
-                  src={`/api/assets/${draft.assets[0].storage_path}`} 
-                  alt={draft.assets[0].title}
+                  src={`/api/assets/${draft.assets[0]?.storage_path || ''}`} 
+                  alt={draft.assets[0]?.title || 'Asset'}
                   className="w-full h-full object-cover"
                 />
               </div>
             )}
             <div>
               <div className="flex items-center space-x-2">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(draft.post_jobs.status)}`}>
-                  {draft.post_jobs.status}
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(draft.post_jobs?.status || 'pending')}`}>
+                  {draft.post_jobs?.status || 'pending'}
                 </span>
                 <span className="text-sm text-gray-500 capitalize">{draft.channel}</span>
               </div>
               <p className="text-sm text-gray-600 mt-1">
-                {formatDateTime(draft.post_jobs.scheduled_at, draft.post_jobs.scheduled_tz)}
+                {draft.post_jobs?.scheduled_at ? 
+                  formatDateTime(draft.post_jobs.scheduled_at, draft.post_jobs.scheduled_tz) : 
+                  'Not scheduled'
+                }
               </p>
             </div>
           </div>
