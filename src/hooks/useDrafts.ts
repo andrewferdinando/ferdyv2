@@ -60,7 +60,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
           .from('drafts')
           .select(`
             *,
-            post_jobs!inner(
+            post_jobs(
               id,
               scheduled_at,
               scheduled_local,
@@ -85,8 +85,15 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         const { data, error } = await query.order('created_at', { ascending: false });
 
         console.log('useDrafts: Query result:', { data, error });
+        console.log('useDrafts: Raw data length:', data?.length || 0);
+        if (data && data.length > 0) {
+          console.log('useDrafts: First draft:', data[0]);
+        }
 
-        if (error) throw error;
+        if (error) {
+          console.error('useDrafts: Query error:', error);
+          throw error;
+        }
 
         setDrafts(data || []);
         console.log('useDrafts: Set drafts:', data?.length || 0, 'items');
@@ -197,7 +204,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         .from('drafts')
         .select(`
           *,
-          post_jobs!inner(
+          post_jobs(
             id,
             scheduled_at,
             scheduled_local,
