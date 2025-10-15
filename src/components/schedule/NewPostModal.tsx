@@ -24,7 +24,7 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
     approve_now: false
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { assets } = useAssets(brandId, true);
+  const { assets } = useAssets(brandId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
