@@ -3,32 +3,31 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 
-export interface Asset {
+export interface Category {
   id: string
   brand_id: string
-  title: string
-  storage_path: string
-  aspect_ratio: string
-  tags: string[]
+  name: string
+  type: 'deal' | 'offering'
+  post_frequency: string
   created_at: string
   updated_at: string
 }
 
-export function useAssets(brandId: string) {
-  const [assets, setAssets] = useState<Asset[]>([])
+export function useCategories(brandId: string) {
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!brandId) return
 
-    const fetchAssets = async () => {
+    const fetchCategories = async () => {
       try {
         setLoading(true)
         setError(null)
 
         const { data, error } = await supabase
-          .from('assets')
+          .from('categories')
           .select('*')
           .eq('brand_id', brandId)
           .order('created_at', { ascending: false })
@@ -38,24 +37,24 @@ export function useAssets(brandId: string) {
           return
         }
 
-        setAssets(data || [])
+        setCategories(data || [])
       } catch (err) {
-        setError('Failed to fetch assets')
-        console.error('Error fetching assets:', err)
+        setError('Failed to fetch categories')
+        console.error('Error fetching categories:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchAssets()
+    fetchCategories()
   }, [brandId])
 
-  const uploadAsset = async (assetData: Omit<Asset, 'id' | 'created_at' | 'updated_at'>) => {
+  const createCategory = async (categoryData: Omit<Category, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
-        .from('assets')
+        .from('categories')
         .insert({
-          ...assetData,
+          ...categoryData,
           brand_id: brandId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -65,18 +64,18 @@ export function useAssets(brandId: string) {
 
       if (error) throw error
 
-      setAssets(prev => [data, ...prev])
+      setCategories(prev => [data, ...prev])
       return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload asset')
+      setError(err instanceof Error ? err.message : 'Failed to create category')
       throw err
     }
   }
 
-  const updateAsset = async (id: string, updates: Partial<Asset>) => {
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
     try {
       const { data, error } = await supabase
-        .from('assets')
+        .from('categories')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -87,38 +86,38 @@ export function useAssets(brandId: string) {
 
       if (error) throw error
 
-      setAssets(prev => 
-        prev.map(asset => asset.id === id ? data : asset)
+      setCategories(prev => 
+        prev.map(cat => cat.id === id ? data : cat)
       )
       return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update asset')
+      setError(err instanceof Error ? err.message : 'Failed to update category')
       throw err
     }
   }
 
-  const deleteAsset = async (id: string) => {
+  const deleteCategory = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('assets')
+        .from('categories')
         .delete()
         .eq('id', id)
 
       if (error) throw error
 
-      setAssets(prev => prev.filter(asset => asset.id !== id))
+      setCategories(prev => prev.filter(cat => cat.id !== id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete asset')
+      setError(err instanceof Error ? err.message : 'Failed to delete category')
       throw err
     }
   }
 
   return {
-    assets,
+    categories,
     loading,
     error,
-    uploadAsset,
-    updateAsset,
-    deleteAsset
+    createCategory,
+    updateCategory,
+    deleteCategory
   }
 }
