@@ -73,7 +73,7 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
         p_hashtags: hashtagsArray,
         p_asset_ids: formData.asset_ids,
         p_channels: formData.channels,
-        p_scheduled_at: new Date(formData.scheduled_at).toISOString(),
+        p_scheduled_at: formData.scheduled_at ? new Date(formData.scheduled_at).toISOString() : null,
         p_approve_now: formData.approve_now
       });
 

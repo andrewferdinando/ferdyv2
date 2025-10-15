@@ -314,8 +314,8 @@ function EditDraftModal({ draft, isOpen, onClose, onSave }: EditDraftModalProps)
         <FormField label="Scheduled Date & Time" required>
           <Input
             type="datetime-local"
-            value={new Date(formData.scheduled_at).toISOString().slice(0, 16)}
-            onChange={(e) => setFormData({ ...formData, scheduled_at: new Date(e.target.value).toISOString() })}
+            value={formData.scheduled_at ? new Date(formData.scheduled_at).toISOString().slice(0, 16) : ''}
+            onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })}
           />
         </FormField>
 
