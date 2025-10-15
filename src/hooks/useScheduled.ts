@@ -56,8 +56,7 @@ export function useScheduled(brandId: string) {
           .select('*')
           .eq('brand_id', brandId)
           .eq('approved', true)
-          .in('post_jobs.status', ['ready', 'publishing'])
-          .order('post_jobs.scheduled_at', { ascending: true });
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
 
