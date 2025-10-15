@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useBrands } from '@/hooks/useBrands';
+import { supabase } from '@/lib/supabase-browser';
 
 // Icons (using simple SVG icons for now)
 const CalendarIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -32,6 +33,12 @@ const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const LogoutIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+  </svg>
+);
+
 interface SidebarProps {
   className?: string;
   onMobileClose?: () => void;
@@ -39,6 +46,7 @@ interface SidebarProps {
 
 export default function Sidebar({ className = '', onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const { brands, loading: brandsLoading } = useBrands();
@@ -52,6 +60,15 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const handleBrandSelect = (brandId: string) => {
     setSelectedBrandId(brandId);
     setIsBrandDropdownOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/auth/sign-in');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const selectedBrand = brands.find(brand => brand.id === selectedBrandId) || brands[0];
@@ -140,8 +157,8 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
           ))}
         </ul>
         
-        {/* Super Admin at bottom */}
-        <div className="mt-auto pt-4 border-t border-gray-200">
+        {/* Super Admin and Sign Out at bottom */}
+        <div className="mt-auto pt-4 border-t border-gray-200 space-y-2">
           <Link
             href={superAdminItem.href}
             onClick={handleNavigationClick}
@@ -154,6 +171,14 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
             <superAdminItem.icon className="w-5 h-5" />
             <span className="font-medium text-sm">{superAdminItem.name}</span>
           </Link>
+          
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 text-gray-700 hover:bg-gray-100"
+          >
+            <LogoutIcon className="w-5 h-5" />
+            <span className="font-medium text-sm">Sign Out</span>
+          </button>
         </div>
       </nav>
     </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import RequireAuth from '@/components/auth/RequireAuth';
 import NewPostModal from '@/components/schedule/NewPostModal';
 
 export default function NewPostPage() {
@@ -29,21 +30,23 @@ export default function NewPostPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Create New Post</h1>
-          <p className="text-gray-600 mt-1">Schedule a manual post across your social channels</p>
-        </div>
+    <RequireAuth>
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Create New Post</h1>
+            <p className="text-gray-600 mt-1">Schedule a manual post across your social channels</p>
+          </div>
 
-        {/* Modal will be rendered immediately */}
-        <NewPostModal
-          isOpen={isModalOpen}
-          onClose={handleClose}
-          brandId={brandId}
-          onSuccess={handleSuccess}
-        />
-      </div>
-    </AppLayout>
+          {/* Modal will be rendered immediately */}
+          <NewPostModal
+            isOpen={isModalOpen}
+            onClose={handleClose}
+            brandId={brandId}
+            onSuccess={handleSuccess}
+          />
+        </div>
+      </AppLayout>
+    </RequireAuth>
   );
 }

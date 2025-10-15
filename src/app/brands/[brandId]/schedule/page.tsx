@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import RequireAuth from '@/components/auth/RequireAuth';
 import NewPostModal from '@/components/schedule/NewPostModal';
 import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
@@ -173,8 +174,9 @@ export default function SchedulePage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <RequireAuth>
+      <AppLayout>
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -232,7 +234,8 @@ export default function SchedulePage() {
         brandId={brandId}
         onSuccess={handleNewPostSuccess}
       />
-    </AppLayout>
+      </AppLayout>
+    </RequireAuth>
   );
 }
 

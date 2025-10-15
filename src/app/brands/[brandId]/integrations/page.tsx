@@ -3,6 +3,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import RequireAuth from '@/components/auth/RequireAuth';
 import { useSocialAccounts } from '@/hooks/useSocialAccounts';
 
 // Icons
@@ -109,16 +110,19 @@ export default function IntegrationsPage() {
 
   if (loading) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
-        </div>
-      </AppLayout>
+      <RequireAuth>
+        <AppLayout>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+          </div>
+        </AppLayout>
+      </RequireAuth>
     );
   }
 
   return (
-    <AppLayout>
+    <RequireAuth>
+      <AppLayout>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -220,6 +224,7 @@ export default function IntegrationsPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+      </AppLayout>
+    </RequireAuth>
   );
 }

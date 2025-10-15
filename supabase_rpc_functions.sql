@@ -420,6 +420,76 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ========================================
+-- TEAM MANAGEMENT RPC FUNCTIONS
+-- ========================================
+
+-- List members with email (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION rpc_list_brand_members(p_brand_id uuid)
+RETURNS TABLE(user_id uuid, email text, full_name text, role text, joined_at timestamptz)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    bm.user_id,
+    u.email,
+    COALESCE(p.full_name,'') as full_name,
+    bm.role,
+    bm.created_at as joined_at
+  FROM brand_memberships bm
+  JOIN auth.users u ON u.id = bm.user_id
+  LEFT JOIN profiles p ON p.user_id = bm.user_id
+  WHERE bm.brand_id = p_brand_id
+    AND (
+      user_is_super_admin()
+      OR EXISTS (SELECT 1 FROM brand_memberships x WHERE x.brand_id = p_brand_id AND x.user_id = auth.uid())
+    );
+$$;
+
+-- Change role (admin or super_admin only)
+CREATE OR REPLACE FUNCTION rpc_set_member_role(p_brand_id uuid, p_user_id uuid, p_role text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_role NOT IN ('admin','editor') THEN
+    RAISE EXCEPTION 'Invalid role';
+  END IF;
+
+  IF NOT ( user_is_super_admin() OR EXISTS(
+    SELECT 1 FROM brand_memberships WHERE brand_id = p_brand_id AND user_id = auth.uid() AND role = 'admin'
+  )) THEN
+    RAISE EXCEPTION 'Not allowed';
+  END IF;
+
+  UPDATE brand_memberships
+  SET role = p_role
+  WHERE brand_id = p_brand_id AND user_id = p_user_id;
+END;
+$$;
+
+-- Remove member (admin or super_admin)
+CREATE OR REPLACE FUNCTION rpc_remove_member(p_brand_id uuid, p_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT ( user_is_super_admin() OR EXISTS(
+    SELECT 1 FROM brand_memberships WHERE brand_id = p_brand_id AND user_id = auth.uid() AND role = 'admin'
+  )) THEN
+    RAISE EXCEPTION 'Not allowed';
+  END IF;
+
+  DELETE FROM brand_memberships
+  WHERE brand_id = p_brand_id AND user_id = p_user_id;
+END;
+$$;
+
 -- Success message
 DO $$
 BEGIN
@@ -430,4 +500,7 @@ BEGIN
     RAISE NOTICE '- rpc_approve_draft()';
     RAISE NOTICE '- rpc_delete_draft()';
     RAISE NOTICE '- rpc_upsert_schedule_rule()';
+    RAISE NOTICE '- rpc_list_brand_members()';
+    RAISE NOTICE '- rpc_set_member_role()';
+    RAISE NOTICE '- rpc_remove_member()';
 END $$;
