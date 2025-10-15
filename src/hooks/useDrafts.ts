@@ -46,6 +46,12 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     console.log('useDrafts: Fetching drafts for brandId:', brandId, 'statusFilter:', statusFilter);
 
     const fetchDrafts = async () => {
+      if (!supabase) {
+        console.log('useDrafts: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -106,6 +112,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
       scheduled_at?: string;
     }
   ) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       const { data, error } = await supabase.rpc('rpc_update_draft', {
         p_draft_id: draftId,
@@ -131,6 +141,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
   };
 
   const approveDraft = async (draftId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       const { data, error } = await supabase.rpc('rpc_approve_draft', {
         p_draft_id: draftId
@@ -151,6 +165,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
   };
 
   const deleteDraft = async (draftId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       const { error } = await supabase.rpc('rpc_delete_draft', {
         p_draft_id: draftId
@@ -167,6 +185,11 @@ export function useDrafts(brandId: string, statusFilter?: string) {
   };
 
   const refetch = async () => {
+    if (!supabase) {
+      console.log('useDrafts: Supabase client not available for refetch');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     

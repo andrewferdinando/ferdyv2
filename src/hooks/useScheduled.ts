@@ -41,6 +41,12 @@ export function useScheduled(brandId: string) {
     if (!brandId) return;
 
     const fetchScheduled = async () => {
+      if (!supabase) {
+        console.log('useScheduled: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);

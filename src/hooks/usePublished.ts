@@ -49,6 +49,12 @@ export function usePublished(brandId: string) {
     if (!brandId) return;
 
     const fetchPublished = async () => {
+      if (!supabase) {
+        console.log('usePublished: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);

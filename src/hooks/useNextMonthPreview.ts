@@ -26,6 +26,12 @@ export function useNextMonthPreview(brandId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPreview = async () => {
+    if (!supabase) {
+      console.log('useNextMonthPreview: Supabase client not available');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -71,6 +77,10 @@ export function useNextMonthPreview(brandId: string) {
   }, [brandId]);
 
   const generateForMonth = async (targetMonth: string, force: boolean = false) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -96,6 +106,10 @@ export function useNextMonthPreview(brandId: string) {
   };
 
   const regenerateSlot = async (postJobId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       setError(null);
 

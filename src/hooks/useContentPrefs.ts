@@ -23,6 +23,12 @@ export function useContentPrefs(brandId: string) {
     if (!brandId) return;
 
     const fetchPrefs = async () => {
+      if (!supabase) {
+        console.log('useContentPrefs: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -49,6 +55,10 @@ export function useContentPrefs(brandId: string) {
   }, [brandId]);
 
   const updatePrefs = async (updates: Partial<ContentPreferences>) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       let data: ContentPreferences;
       

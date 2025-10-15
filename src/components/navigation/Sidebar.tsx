@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useBrands } from '@/hooks/useBrands';
 
 // Icons (using simple SVG icons for now)
 const CalendarIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -39,19 +40,34 @@ interface SidebarProps {
 export default function Sidebar({ className = '', onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const { brands, loading: brandsLoading } = useBrands();
+
+  const handleNavigationClick = () => {
+    if (onMobileClose) {
+      onMobileClose();
+    }
+  };
+
+  const handleBrandSelect = (brandId: string) => {
+    setSelectedBrandId(brandId);
+    setIsBrandDropdownOpen(false);
+  };
+
+  const selectedBrand = brands.find(brand => brand.id === selectedBrandId) || brands[0];
 
   const navigationItems = [
     {
       name: 'Schedule',
-      href: '/schedule',
+      href: selectedBrand ? `/brands/${selectedBrand.id}/schedule` : '/schedule',
       icon: CalendarIcon,
-      active: pathname === '/schedule',
+      active: pathname.includes('/schedule'),
     },
     {
       name: 'Settings',
-      href: '/settings',
+      href: selectedBrand ? `/brands/${selectedBrand.id}/settings` : '/settings',
       icon: SettingsIcon,
-      active: pathname === '/settings',
+      active: pathname.includes('/settings'),
     },
   ];
 
@@ -62,12 +78,6 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
     active: pathname.startsWith('/super-admin'),
   };
 
-  const handleNavigationClick = () => {
-    if (onMobileClose) {
-      onMobileClose();
-    }
-  };
-
   return (
     <div className={`w-[280px] lg:w-[280px] bg-white border-r border-gray-200 flex flex-col h-full ${className}`}>
       {/* Brand Dropdown */}
@@ -76,20 +86,33 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
           <button
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
             className="w-full flex items-center justify-between p-4 text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
+            disabled={brandsLoading}
           >
-            <span className="font-medium text-gray-900 text-xs">Game Over Queenstown</span>
+            <span className="font-medium text-gray-900 text-xs">
+              {brandsLoading ? 'Loading...' : selectedBrand?.name || 'Select Brand'}
+            </span>
             <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           
-          {isBrandDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+          {isBrandDropdownOpen && !brandsLoading && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
               <div className="p-2">
-                <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-xs">
-                  Game Over Queenstown
-                </div>
-                <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-xs">
-                  Another Brand
-                </div>
+                {brands.map((brand) => (
+                  <div
+                    key={brand.id}
+                    onClick={() => handleBrandSelect(brand.id)}
+                    className={`p-2 hover:bg-gray-50 rounded cursor-pointer text-xs transition-colors ${
+                      selectedBrand?.id === brand.id ? 'bg-[#EEF2FF] text-[#6366F1]' : 'text-gray-700'
+                    }`}
+                  >
+                    {brand.name}
+                  </div>
+                ))}
+                {brands.length === 0 && (
+                  <div className="p-2 text-xs text-gray-500 text-center">
+                    No brands found
+                  </div>
+                )}
               </div>
             </div>
           )}

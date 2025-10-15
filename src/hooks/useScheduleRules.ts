@@ -46,6 +46,12 @@ export function useScheduleRules(brandId: string) {
     if (!brandId) return;
 
     const fetchRules = async () => {
+      if (!supabase) {
+        console.log('useScheduleRules: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -74,6 +80,10 @@ export function useScheduleRules(brandId: string) {
   }, [brandId]);
 
   const upsertRule = async (ruleData: Partial<ScheduleRule>) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       const { data, error } = await supabase.rpc('rpc_upsert_schedule_rule', {
         p_id: ruleData.id || null,
@@ -117,6 +127,10 @@ export function useScheduleRules(brandId: string) {
   };
 
   const deleteRule = async (ruleId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       const { error } = await supabase
         .from('schedule_rules')

@@ -25,6 +25,12 @@ export function useAssets(brandId: string, readyOnly: boolean = false) {
     if (!brandId) return;
 
     const fetchAssets = async () => {
+      if (!supabase) {
+        console.log('useAssets: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -56,6 +62,10 @@ export function useAssets(brandId: string, readyOnly: boolean = false) {
   }, [brandId, readyOnly]);
 
   const updateAsset = async (assetId: string, updates: Partial<Asset>) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       const { data, error } = await supabase
         .from('assets')
@@ -79,6 +89,10 @@ export function useAssets(brandId: string, readyOnly: boolean = false) {
   };
 
   const deleteAsset = async (assetId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       // Check if asset is referenced by any drafts
       const { data: drafts, error: checkError } = await supabase

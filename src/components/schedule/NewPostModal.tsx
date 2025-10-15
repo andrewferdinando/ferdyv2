@@ -63,6 +63,10 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
       });
 
       // Create manual post using RPC
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
       const { data, error } = await supabase.rpc('rpc_create_manual_post', {
         p_brand_id: brandId,
         p_copy: formData.copy,

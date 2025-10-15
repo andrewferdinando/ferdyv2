@@ -30,6 +30,12 @@ export function useSocialAccounts(brandId: string) {
     if (!brandId) return;
 
     const fetchAccounts = async () => {
+      if (!supabase) {
+        console.log('useSocialAccounts: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -57,6 +63,10 @@ export function useSocialAccounts(brandId: string) {
   }, [brandId]);
 
   const disconnectAccount = async (accountId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       // TODO: Implement server action to revoke tokens and clear account
       const { error } = await supabase
@@ -83,6 +93,10 @@ export function useSocialAccounts(brandId: string) {
   };
 
   const refreshAccount = async (accountId: string) => {
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
     try {
       // TODO: Implement token refresh logic
       const { error } = await supabase
