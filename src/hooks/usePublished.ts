@@ -79,12 +79,6 @@ export function usePublished(brandId: string) {
               status,
               error
             ),
-            assets(
-              id,
-              title,
-              storage_path,
-              aspect_ratio
-            )
           `)
           .eq('brand_id', brandId)
           .eq('post_jobs.status', 'published')

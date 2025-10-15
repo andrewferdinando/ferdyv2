@@ -53,23 +53,7 @@ export function useScheduled(brandId: string) {
 
         const { data, error } = await supabase
           .from('drafts')
-          .select(`
-            *,
-            post_jobs!inner(
-              id,
-              scheduled_at,
-              scheduled_local,
-              scheduled_tz,
-              status,
-              target_month
-            ),
-            assets(
-              id,
-              title,
-              storage_path,
-              aspect_ratio
-            )
-          `)
+          .select('*')
           .eq('brand_id', brandId)
           .eq('approved', true)
           .in('post_jobs.status', ['ready', 'publishing'])
