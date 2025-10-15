@@ -57,7 +57,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setError(null);
 
         // Simplified query first to debug
-        let query = supabase
+        const query = supabase
           .from('drafts')
           .select('*')
           .eq('brand_id', brandId);
@@ -187,11 +187,11 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     setError(null);
     
     try {
-      // Simplified query first to debug
-      let query = supabase
-        .from('drafts')
-        .select('*')
-        .eq('brand_id', brandId);
+        // Simplified query first to debug
+        const query = supabase
+          .from('drafts')
+          .select('*')
+          .eq('brand_id', brandId);
 
       // Apply status filter if provided
       if (statusFilter) {

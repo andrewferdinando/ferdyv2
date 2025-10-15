@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface PreviewSlot {
@@ -25,7 +25,7 @@ export function useNextMonthPreview(brandId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPreview = async () => {
+  const fetchPreview = useCallback(async () => {
     if (!supabase) {
       console.log('useNextMonthPreview: Supabase client not available');
       setLoading(false);
@@ -69,12 +69,12 @@ export function useNextMonthPreview(brandId: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [brandId]);
 
   useEffect(() => {
     if (!brandId) return;
     fetchPreview();
-  }, [brandId]);
+  }, [brandId, fetchPreview]);
 
   const generateForMonth = async (targetMonth: string, force: boolean = false) => {
     if (!supabase) {
