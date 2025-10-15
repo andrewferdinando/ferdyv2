@@ -50,9 +50,11 @@ export function useContentPrefs(brandId: string) {
 
   const updatePrefs = async (updates: Partial<ContentPreferences>) => {
     try {
+      let data: ContentPreferences;
+      
       if (prefs) {
         // Update existing preferences
-        const { data, error } = await supabase
+        const { data: updateData, error } = await supabase
           .from('content_preferences')
           .update({
             ...updates,
@@ -63,10 +65,11 @@ export function useContentPrefs(brandId: string) {
           .single();
 
         if (error) throw error;
+        data = updateData;
         setPrefs(data);
       } else {
         // Create new preferences
-        const { data, error } = await supabase
+        const { data: insertData, error } = await supabase
           .from('content_preferences')
           .insert({
             brand_id: brandId,
@@ -76,6 +79,7 @@ export function useContentPrefs(brandId: string) {
           .single();
 
         if (error) throw error;
+        data = insertData;
         setPrefs(data);
       }
 
