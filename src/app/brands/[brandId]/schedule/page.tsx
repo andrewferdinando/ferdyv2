@@ -401,7 +401,7 @@ function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) 
             </div>
             <p className="text-sm text-gray-600 mt-1">
               {post.post_jobs?.scheduled_at ? 
-                formatDateTime(post.post_jobs.scheduled_at, post.post_jobs.scheduled_tz) : 
+                formatDateTime(post.post_jobs.scheduled_at, post.post_jobs?.scheduled_tz || '') : 
                 'Not scheduled'
               }
             </p>

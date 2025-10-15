@@ -143,7 +143,7 @@ export default function DraftCard({ draft, onUpdate }: DraftCardProps) {
               </div>
               <p className="text-sm text-gray-600 mt-1">
                 {draft.post_jobs?.scheduled_at ? 
-                  formatDateTime(draft.post_jobs.scheduled_at, draft.post_jobs.scheduled_tz) : 
+                  formatDateTime(draft.post_jobs.scheduled_at, draft.post_jobs?.scheduled_tz || '') : 
                   'Not scheduled'
                 }
               </p>
@@ -243,7 +243,7 @@ function EditDraftModal({ draft, isOpen, onClose, onSave }: EditDraftModalProps)
     hashtags: draft.hashtags.join(', '),
     asset_ids: draft.asset_ids.join(', '),
     channel: draft.channel,
-    scheduled_at: draft.post_jobs.scheduled_at
+    scheduled_at: draft.post_jobs?.scheduled_at || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
