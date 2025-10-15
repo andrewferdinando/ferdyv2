@@ -47,6 +47,9 @@ interface SubCategory {
       };
     };
     eventFrequencyType?: 'eventDate' | 'eventDateRange';
+    eventDate?: string;
+    eventDateRangeStart?: string;
+    eventDateRangeEnd?: string;
     daysBeforeEvent?: number[];
     daysWithinEventRange?: number[];
     time: string;
@@ -78,6 +81,9 @@ interface Deal {
       };
     };
     eventFrequencyType?: 'eventDate' | 'eventDateRange';
+    eventDate?: string;
+    eventDateRangeStart?: string;
+    eventDateRangeEnd?: string;
     daysBeforeEvent?: number[];
     daysWithinEventRange?: number[];
     time: string;
@@ -810,8 +816,11 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     hashtags: '',
     url: '',
     eventFrequencyType: 'eventDate' as 'eventDate' | 'eventDateRange',
-    daysBeforeEvent: [] as number[],
-    daysWithinEventRange: [] as number[],
+    eventDate: '',
+    eventDateRangeStart: '',
+    eventDateRangeEnd: '',
+    daysBeforeEventInput: '',
+    daysWithinEventRangeInput: '',
     time: '09:00'
   });
 
@@ -819,10 +828,25 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     e.preventDefault();
     if (!formData.name.trim()) return;
     
+    // Parse comma-separated input for days before event
+    const daysBeforeEvent = formData.daysBeforeEventInput
+      .split(',')
+      .map(day => parseInt(day.trim()))
+      .filter(day => !isNaN(day) && day > 0);
+    
+    // Parse comma-separated input for days within event range
+    const daysWithinEventRange = formData.daysWithinEventRangeInput
+      .split(',')
+      .map(day => parseInt(day.trim()))
+      .filter(day => !isNaN(day) && day > 0);
+    
     // For seasonal events, we'll use a special frequency structure
     const frequency: {
       cadence: 'seasonal';
       eventFrequencyType: 'eventDate' | 'eventDateRange';
+      eventDate?: string;
+      eventDateRangeStart?: string;
+      eventDateRangeEnd?: string;
       daysBeforeEvent?: number[];
       daysWithinEventRange?: number[];
       time: string;
@@ -833,10 +857,13 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
     };
 
     if (formData.eventFrequencyType === 'eventDate') {
-      frequency.daysBeforeEvent = formData.daysBeforeEvent;
+      frequency.eventDate = formData.eventDate;
+      frequency.daysBeforeEvent = daysBeforeEvent;
     } else {
-      frequency.daysBeforeEvent = formData.daysBeforeEvent;
-      frequency.daysWithinEventRange = formData.daysWithinEventRange;
+      frequency.eventDateRangeStart = formData.eventDateRangeStart;
+      frequency.eventDateRangeEnd = formData.eventDateRangeEnd;
+      frequency.daysBeforeEvent = daysBeforeEvent;
+      frequency.daysWithinEventRange = daysWithinEventRange;
     }
     
     const hashtagsArray = formData.hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
@@ -856,28 +883,16 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
       hashtags: '',
       url: '',
       eventFrequencyType: 'eventDate',
-      daysBeforeEvent: [],
-      daysWithinEventRange: [],
+      eventDate: '',
+      eventDateRangeStart: '',
+      eventDateRangeEnd: '',
+      daysBeforeEventInput: '',
+      daysWithinEventRangeInput: '',
       time: '09:00' 
     });
     onClose();
   };
 
-  const handleDaysBeforeChange = (day: number, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({ ...prev, daysBeforeEvent: [...prev.daysBeforeEvent, day].sort((a, b) => b - a) }));
-    } else {
-      setFormData(prev => ({ ...prev, daysBeforeEvent: prev.daysBeforeEvent.filter(d => d !== day) }));
-    }
-  };
-
-  const handleDaysWithinChange = (day: number, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({ ...prev, daysWithinEventRange: [...prev.daysWithinEventRange, day].sort((a, b) => a - b) }));
-    } else {
-      setFormData(prev => ({ ...prev, daysWithinEventRange: prev.daysWithinEventRange.filter(d => d !== day) }));
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -959,54 +974,78 @@ const NewSeasonalEventModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; o
           </div>
         </div>
 
-        {/* Days before event */}
+        {/* Event Date Picker - only show if event date is selected */}
+        {formData.eventFrequencyType === 'eventDate' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Event Date</label>
+            <input
+              type="date"
+              value={formData.eventDate}
+              onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              required
+            />
+          </div>
+        )}
+
+        {/* Event Date Range Pickers - only show if event date range is selected */}
+        {formData.eventFrequencyType === 'eventDateRange' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Event Start Date</label>
+              <input
+                type="date"
+                value={formData.eventDateRangeStart}
+                onChange={(e) => setFormData({ ...formData, eventDateRangeStart: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Event End Date</label>
+              <input
+                type="date"
+                value={formData.eventDateRangeEnd}
+                onChange={(e) => setFormData({ ...formData, eventDateRangeEnd: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                required
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Days before event input */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Days before the event
           </label>
-          <div className="border border-gray-200 rounded-lg p-3">
-            <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
-                <label key={day} className="flex items-center justify-center space-x-1">
-                  <input
-                    type="checkbox"
-                    checked={formData.daysBeforeEvent.includes(day)}
-                    onChange={(e) => handleDaysBeforeChange(day, e.target.checked)}
-                    className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                  />
-                  <span className="text-xs text-gray-700">{day}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <input
+            type="text"
+            value={formData.daysBeforeEventInput}
+            onChange={(e) => setFormData({ ...formData, daysBeforeEventInput: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            placeholder="e.g., 1, 3, 5"
+          />
           <p className="text-xs text-gray-500 mt-1">
-            Select which days before the event to post (e.g., 10, 5, 2 days before)
+            Enter days before the event to post, separated by commas (e.g., 10, 5, 2)
           </p>
         </div>
 
-        {/* Days within event range - only show if event date range is selected */}
+        {/* Days within event range input - only show if event date range is selected */}
         {formData.eventFrequencyType === 'eventDateRange' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Days within the event range
             </label>
-            <div className="border border-gray-200 rounded-lg p-3">
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                  <label key={day} className="flex items-center justify-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.daysWithinEventRange.includes(day)}
-                      onChange={(e) => handleDaysWithinChange(day, e.target.checked)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-xs text-gray-700">{day}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+            <input
+              type="text"
+              value={formData.daysWithinEventRangeInput}
+              onChange={(e) => setFormData({ ...formData, daysWithinEventRangeInput: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              placeholder="e.g., 1, 3, 5"
+            />
             <p className="text-xs text-gray-500 mt-1">
-              Select which days within the event range to post (e.g., 1, 3, 5 days within the range)
+              Enter days within the event range to post, separated by commas (e.g., 1, 3, 5)
             </p>
           </div>
         )}
@@ -1099,7 +1138,7 @@ export default function CategoriesPage() {
     setSeasonalEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
   };
 
-  const formatFrequency = (frequency: { cadence: 'daily' | 'weekly' | 'monthly' | 'seasonal'; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; eventFrequencyType?: string; daysBeforeEvent?: number[]; daysWithinEventRange?: number[]; time: string }) => {
+  const formatFrequency = (frequency: { cadence: 'daily' | 'weekly' | 'monthly' | 'seasonal'; timesPerWeek?: number; daysOfWeek?: string[]; timesPerMonth?: number; daysOfMonth?: number[]; monthlyPattern?: { type: string; specificDates?: number[]; dayOfWeek?: { week: string; day: string } }; eventFrequencyType?: string; eventDate?: string; eventDateRangeStart?: string; eventDateRangeEnd?: string; daysBeforeEvent?: number[]; daysWithinEventRange?: number[]; time: string }) => {
     const time = new Date(`2000-01-01T${frequency.time}`).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
@@ -1110,9 +1149,15 @@ export default function CategoriesPage() {
     if (frequency.cadence === 'seasonal') {
       if (frequency.eventFrequencyType === 'eventDate' && frequency.daysBeforeEvent && frequency.daysBeforeEvent.length > 0) {
         const days = frequency.daysBeforeEvent.join(', ');
-        return `Event date, ${days} days before, ${time}`;
+        const eventDate = frequency.eventDate ? new Date(frequency.eventDate).toLocaleDateString() : 'TBD';
+        return `Event date (${eventDate}), ${days} days before, ${time}`;
       } else if (frequency.eventFrequencyType === 'eventDateRange') {
         let result = 'Event date range';
+        if (frequency.eventDateRangeStart && frequency.eventDateRangeEnd) {
+          const startDate = new Date(frequency.eventDateRangeStart).toLocaleDateString();
+          const endDate = new Date(frequency.eventDateRangeEnd).toLocaleDateString();
+          result += ` (${startDate} - ${endDate})`;
+        }
         if (frequency.daysBeforeEvent && frequency.daysBeforeEvent.length > 0) {
           const daysBefore = frequency.daysBeforeEvent.join(', ');
           result += `, ${daysBefore} days before`;
