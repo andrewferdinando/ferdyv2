@@ -225,7 +225,13 @@ interface EditDraftModalProps {
   draft: DraftCardProps['draft'];
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updates: any) => Promise<void>;
+  onSave: (updates: {
+    copy?: string;
+    hashtags?: string[];
+    asset_ids?: string[];
+    channel?: string;
+    scheduled_at?: string;
+  }) => Promise<void>;
 }
 
 function EditDraftModal({ draft, isOpen, onClose, onSave }: EditDraftModalProps) {

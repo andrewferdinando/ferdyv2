@@ -39,7 +39,7 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
         .filter(tag => tag);
 
       // Create manual post using RPC
-      const { data, error } = await supabase.rpc('rpc_create_manual_post', {
+      const { error } = await supabase.rpc('rpc_create_manual_post', {
         p_brand_id: brandId,
         p_copy: formData.copy,
         p_hashtags: hashtagsArray,

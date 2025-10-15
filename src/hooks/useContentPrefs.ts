@@ -9,7 +9,7 @@ interface ContentPreferences {
   default_aspect_ratio: '1:1' | '4:5' | '1.91:1';
   allowed_aspect_ratios: string[];
   tone_default: string;
-  hashtag_strategy: any;
+  hashtag_strategy: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

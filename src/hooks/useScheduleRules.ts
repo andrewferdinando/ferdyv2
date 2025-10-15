@@ -10,8 +10,8 @@ interface ScheduleRule {
   category_id: string;
   subcategory_id: string;
   tone: string;
-  hashtag_rule: any;
-  image_tag_rule: any;
+  hashtag_rule: Record<string, unknown>;
+  image_tag_rule: Record<string, unknown>;
   frequency: 'daily' | 'weekly' | 'monthly';
   times_per_week: number;
   days_of_week: number[];

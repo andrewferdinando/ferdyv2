@@ -9,6 +9,102 @@ import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
 
+// Type definitions
+interface Draft {
+  id: string;
+  brand_id: string;
+  post_job_id: string;
+  channel: string;
+  copy: string;
+  hashtags: string[];
+  asset_ids: string[];
+  tone: string;
+  generated_by: 'ai' | 'human' | 'ai+human';
+  created_by: string;
+  created_at: string;
+  approved: boolean;
+  post_jobs: {
+    id: string;
+    scheduled_at: string;
+    scheduled_local: string;
+    scheduled_tz: string;
+    status: string;
+    target_month: string;
+  };
+  assets?: {
+    id: string;
+    title: string;
+    storage_path: string;
+    aspect_ratio: string;
+  }[];
+}
+
+interface ScheduledPost {
+  id: string;
+  brand_id: string;
+  post_job_id: string;
+  channel: string;
+  copy: string;
+  hashtags: string[];
+  asset_ids: string[];
+  tone: string;
+  generated_by: 'ai' | 'human' | 'ai+human';
+  created_by: string;
+  created_at: string;
+  approved: boolean;
+  post_jobs: {
+    id: string;
+    scheduled_at: string;
+    scheduled_local: string;
+    scheduled_tz: string;
+    status: string;
+    target_month: string;
+  };
+  assets?: {
+    id: string;
+    title: string;
+    storage_path: string;
+    aspect_ratio: string;
+  }[];
+}
+
+interface PublishedPost {
+  id: string;
+  brand_id: string;
+  post_job_id: string;
+  channel: string;
+  copy: string;
+  hashtags: string[];
+  asset_ids: string[];
+  tone: string;
+  generated_by: 'ai' | 'human' | 'ai+human';
+  created_by: string;
+  created_at: string;
+  approved: boolean;
+  post_jobs: {
+    id: string;
+    scheduled_at: string;
+    scheduled_local: string;
+    scheduled_tz: string;
+    status: string;
+    target_month: string;
+  };
+  publishes: {
+    id: string;
+    published_at: string;
+    external_post_id: string;
+    external_url: string;
+    status: string;
+    error: string;
+  };
+  assets?: {
+    id: string;
+    title: string;
+    storage_path: string;
+    aspect_ratio: string;
+  }[];
+}
+
 // Icons
 const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,7 +238,7 @@ export default function SchedulePage() {
 
 // Drafts Tab Component
 interface DraftsTabProps {
-  drafts: any[];
+  drafts: Draft[];
   loading: boolean;
   onUpdate: () => void;
 }
@@ -181,7 +277,7 @@ function DraftsTab({ drafts, loading, onUpdate }: DraftsTabProps) {
 
 // Scheduled Tab Component
 interface ScheduledTabProps {
-  scheduled: any[];
+  scheduled: ScheduledPost[];
   loading: boolean;
   onUpdate: () => void;
 }
@@ -220,7 +316,7 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
 
 // Published Tab Component
 interface PublishedTabProps {
-  published: any[];
+  published: PublishedPost[];
   loading: boolean;
   onUpdate: () => void;
 }
@@ -258,7 +354,7 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
 }
 
 // Scheduled Card Component (read-only version of DraftCard)
-function ScheduledCard({ post, onUpdate }: { post: any; onUpdate: () => void }) {
+function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) {
   const formatDateTime = (scheduledAt: string, timezone: string) => {
     const date = new Date(scheduledAt);
     return date.toLocaleString('en-US', {
@@ -330,7 +426,7 @@ function ScheduledCard({ post, onUpdate }: { post: any; onUpdate: () => void }) 
 }
 
 // Published Card Component
-function PublishedCard({ post, onUpdate }: { post: any; onUpdate: () => void }) {
+function PublishedCard({ post }: { post: PublishedPost; onUpdate: () => void }) {
   const formatDateTime = (publishedAt: string) => {
     const date = new Date(publishedAt);
     return date.toLocaleString('en-US', {

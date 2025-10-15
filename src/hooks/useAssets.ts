@@ -11,7 +11,7 @@ interface Asset {
   width: number;
   height: number;
   aspect_ratio: 'original' | '1:1' | '4:5' | '1.91:1';
-  crop_windows: any;
+  crop_windows: Record<string, unknown>;
   tags: string[];
   created_at: string;
 }

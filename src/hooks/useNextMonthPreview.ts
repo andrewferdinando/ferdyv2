@@ -39,7 +39,7 @@ export function useNextMonthPreview(brandId: string) {
         const targetMonth = `${nextMonth.getFullYear()}-${(nextMonth.getMonth() + 1).toString().padStart(2, '0')}-01`;
 
         // Call the edge function to generate preview (no writes)
-        const { data, error } = await supabase.functions.invoke('generate-drafts-for-month', {
+        const { error } = await supabase.functions.invoke('generate-drafts-for-month', {
           body: {
             brand_id: brandId,
             target_month: targetMonth,
