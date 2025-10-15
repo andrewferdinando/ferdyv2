@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 
 export interface BrandMember {
@@ -14,7 +14,7 @@ export function useBrandMembers(brandId: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     if (!brandId) return
 
     try {
@@ -37,11 +37,11 @@ export function useBrandMembers(brandId: string) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [brandId])
 
   useEffect(() => {
     fetchMembers()
-  }, [brandId])
+  }, [brandId, fetchMembers])
 
   return {
     members,

@@ -127,14 +127,18 @@ export default function AccountSettingsPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">Invite New User</h3>
               
               <Form onSubmit={handleInviteUser} className="space-y-4">
-                <Input
-                  label="Email Address"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  required
-                  placeholder="Enter user's email address"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <Input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                    placeholder="Enter user's email address"
+                  />
+                </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
