@@ -56,25 +56,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setLoading(true);
         setError(null);
 
+        // Simplified query first to debug
         let query = supabase
           .from('drafts')
-          .select(`
-            *,
-            post_jobs(
-              id,
-              scheduled_at,
-              scheduled_local,
-              scheduled_tz,
-              status,
-              target_month
-            ),
-            assets(
-              id,
-              title,
-              storage_path,
-              aspect_ratio
-            )
-          `)
+          .select('*')
           .eq('brand_id', brandId);
 
         // Apply status filter if provided
@@ -202,25 +187,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     setError(null);
     
     try {
+      // Simplified query first to debug
       let query = supabase
         .from('drafts')
-        .select(`
-          *,
-          post_jobs(
-            id,
-            scheduled_at,
-            scheduled_local,
-            scheduled_tz,
-            status,
-            target_month
-          ),
-          assets(
-            id,
-            title,
-            storage_path,
-            aspect_ratio
-          )
-        `)
+        .select('*')
         .eq('brand_id', brandId);
 
       // Apply status filter if provided
