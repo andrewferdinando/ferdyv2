@@ -61,28 +61,9 @@ export function usePublished(brandId: string) {
 
         const { data, error } = await supabase
           .from('drafts')
-          .select(`
-            *,
-            post_jobs!inner(
-              id,
-              scheduled_at,
-              scheduled_local,
-              scheduled_tz,
-              status,
-              target_month
-            ),
-            publishes!inner(
-              id,
-              published_at,
-              external_post_id,
-              external_url,
-              status,
-              error
-            ),
-          `)
+          .select('*')
           .eq('brand_id', brandId)
-          .eq('post_jobs.status', 'published')
-          .order('publishes.published_at', { ascending: false });
+          .eq('approved', true);
 
         if (error) throw error;
 
