@@ -18,13 +18,13 @@ const SaveIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 export default function ContentPreferencesPage() {
   const params = useParams()
   const brandId = params.brandId as string
-  const { contentPrefs, loading, error, updateContentPrefs } = useContentPrefs(brandId)
+  const { prefs, loading, error, updatePrefs } = useContentPrefs(brandId)
 
   const [formData, setFormData] = useState({
-    tone: contentPrefs?.tone || '',
-    hashtagStrategy: contentPrefs?.hashtag_strategy || '',
-    contentThemes: contentPrefs?.content_themes || '',
-    postingFrequency: contentPrefs?.posting_frequency || '',
+    tone: prefs?.tone_default || '',
+    hashtagStrategy: prefs?.hashtag_strategy ? JSON.stringify(prefs.hashtag_strategy) : '',
+    contentThemes: '',
+    postingFrequency: '',
   })
 
   const [saving, setSaving] = useState(false)
@@ -36,7 +36,10 @@ export default function ContentPreferencesPage() {
     setMessage('')
 
     try {
-      await updateContentPrefs(formData)
+      await updatePrefs({
+        tone_default: formData.tone,
+        hashtag_strategy: formData.hashtagStrategy ? JSON.parse(formData.hashtagStrategy) : {}
+      })
       setMessage('Preferences saved successfully!')
     } catch {
       setMessage('Failed to save preferences. Please try again.')
