@@ -79,7 +79,9 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
         // Apply status filter if provided
         if (statusFilter) {
-          query = query.in('post_jobs.status', statusFilter.split(','));
+          // Temporarily disable status filter to debug
+          console.log('useDrafts: Status filter disabled for debugging:', statusFilter);
+          // query = query.not('post_jobs', 'is', null).in('post_jobs.status', statusFilter.split(','));
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });
@@ -223,7 +225,9 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
       // Apply status filter if provided
       if (statusFilter) {
-        query = query.in('post_jobs.status', statusFilter.split(','));
+        // Temporarily disable status filter to debug
+        console.log('useDrafts: Status filter disabled for debugging in refetch:', statusFilter);
+        // query = query.not('post_jobs', 'is', null).in('post_jobs.status', statusFilter.split(','));
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
