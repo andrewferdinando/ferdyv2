@@ -179,7 +179,7 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
           />
         </FormField>
 
-        <FormField>
+        <FormField label="">
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
