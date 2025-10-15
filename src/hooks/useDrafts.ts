@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 
 interface Draft {
   id: string;
@@ -75,8 +75,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
               aspect_ratio
             )
           `)
-          .eq('brand_id', brandId)
-          .eq('approved', false);
+          .eq('brand_id', brandId);
 
         // Apply status filter if provided
         if (statusFilter) {
@@ -213,8 +212,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
             aspect_ratio
           )
         `)
-        .eq('brand_id', brandId)
-        .eq('approved', false);
+        .eq('brand_id', brandId);
 
       // Apply status filter if provided
       if (statusFilter) {
