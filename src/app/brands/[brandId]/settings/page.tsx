@@ -86,15 +86,17 @@ export default function SettingsPage() {
   return (
     <RequireAuth>
       <AppLayout>
-        <div className="space-y-8">
+        <div className="flex-1 overflow-auto">
           {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-            <p className="text-gray-600 mt-1">Manage your brand settings and preferences</p>
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Settings</h1>
+              <p className="text-gray-600 mt-1 text-sm">Manage your brand settings and preferences</p>
+            </div>
           </div>
 
           {/* Settings Sections */}
-          <div className="space-y-8">
+          <div className="px-4 sm:px-6 lg:px-10 py-6 space-y-8">
             {settingsSections.map((section, sectionIndex) => (
               <div key={sectionIndex}>
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">{section.title}</h2>
