@@ -32,14 +32,38 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
     try {
       setIsLoading(true);
 
+      // Validate required fields
+      if (!formData.copy.trim()) {
+        alert('Please enter post copy');
+        return;
+      }
+      if (formData.channels.length === 0) {
+        alert('Please select at least one channel');
+        return;
+      }
+      if (!formData.scheduled_at) {
+        alert('Please select a scheduled date and time');
+        return;
+      }
+
       // Parse hashtags
       const hashtagsArray = formData.hashtags
         .split(',')
         .map(tag => tag.trim())
         .filter(tag => tag);
 
+      console.log('Creating post with data:', {
+        brandId,
+        copy: formData.copy,
+        hashtags: hashtagsArray,
+        asset_ids: formData.asset_ids,
+        channels: formData.channels,
+        scheduled_at: formData.scheduled_at,
+        approve_now: formData.approve_now
+      });
+
       // Create manual post using RPC
-      const { error } = await supabase.rpc('rpc_create_manual_post', {
+      const { data, error } = await supabase.rpc('rpc_create_manual_post', {
         p_brand_id: brandId,
         p_copy: formData.copy,
         p_hashtags: hashtagsArray,
@@ -49,8 +73,16 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
         p_approve_now: formData.approve_now
       });
 
-      if (error) throw error;
+      console.log('RPC response:', { data, error });
 
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+
+      console.log('Post created successfully, draft IDs:', data);
+
+      // Call onSuccess to refresh the drafts list
       onSuccess();
       onClose();
       
@@ -65,7 +97,7 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
       });
     } catch (error) {
       console.error('Failed to create post:', error);
-      alert('Failed to create post. Please try again.');
+      alert(`Failed to create post: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }

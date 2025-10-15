@@ -38,7 +38,12 @@ export function useDrafts(brandId: string, statusFilter?: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!brandId) return;
+    if (!brandId) {
+      console.log('useDrafts: No brandId provided');
+      return;
+    }
+
+    console.log('useDrafts: Fetching drafts for brandId:', brandId, 'statusFilter:', statusFilter);
 
     const fetchDrafts = async () => {
       try {
@@ -74,10 +79,14 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
         const { data, error } = await query.order('created_at', { ascending: false });
 
+        console.log('useDrafts: Query result:', { data, error });
+
         if (error) throw error;
 
         setDrafts(data || []);
+        console.log('useDrafts: Set drafts:', data?.length || 0, 'items');
       } catch (err) {
+        console.error('useDrafts: Error fetching drafts:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
       } finally {
         setLoading(false);
@@ -157,6 +166,50 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     }
   };
 
+  const refetch = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let query = supabase
+        .from('drafts')
+        .select(`
+          *,
+          post_jobs!inner(
+            id,
+            scheduled_at,
+            scheduled_local,
+            scheduled_tz,
+            status,
+            target_month
+          ),
+          assets(
+            id,
+            title,
+            storage_path,
+            aspect_ratio
+          )
+        `)
+        .eq('brand_id', brandId)
+        .eq('approved', false);
+
+      // Apply status filter if provided
+      if (statusFilter) {
+        query = query.in('post_jobs.status', statusFilter.split(','));
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setDrafts(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     drafts,
     loading,
@@ -164,10 +217,6 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     updateDraft,
     approveDraft,
     deleteDraft,
-    refetch: () => {
-      setLoading(true);
-      // Trigger useEffect to refetch
-      setDrafts([]);
-    }
+    refetch
   };
 }
