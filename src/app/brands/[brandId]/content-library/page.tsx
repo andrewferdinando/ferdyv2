@@ -320,6 +320,18 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
   const [selectedTags, setSelectedTags] = useState<string[]>(displayAsset.tags || [])
   const [cropWindows] = useState(displayAsset.crop_windows ? JSON.stringify(displayAsset.crop_windows, null, 2) : '')
   const [saving, setSaving] = useState(false)
+  const [imagePosition, setImagePosition] = useState(() => {
+    // Initialize position from saved crop_windows data
+    if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
+      const cropData = displayAsset.crop_windows[selectedAspectRatio] || displayAsset.crop_windows[displayAsset.aspect_ratio]
+      if (cropData && typeof cropData === 'object') {
+        return { x: cropData.x || 0, y: cropData.y || 0 }
+      }
+    }
+    return { x: 0, y: 0 }
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   const availableTags = [
     'Student Discount', 'Happy Hour Special', 'Corporate Team Building',
@@ -341,19 +353,67 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     )
   }
 
+  const handleAspectRatioChange = (ratio: string) => {
+    setSelectedAspectRatio(ratio)
+    
+    // Update image position based on saved crop data for this aspect ratio
+    if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
+      const cropData = displayAsset.crop_windows[ratio]
+      if (cropData && typeof cropData === 'object') {
+        setImagePosition({ x: cropData.x || 0, y: cropData.y || 0 })
+      } else {
+        setImagePosition({ x: 0, y: 0 })
+      }
+    } else {
+      setImagePosition({ x: 0, y: 0 })
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    
+    const newX = e.clientX - dragStart.x
+    const newY = e.clientY - dragStart.y
+    
+    // Constrain movement within reasonable bounds
+    const maxX = 50
+    const maxY = 50
+    const constrainedX = Math.max(-maxX, Math.min(maxX, newX))
+    const constrainedY = Math.max(-maxY, Math.min(maxY, newY))
+    
+    setImagePosition({ x: constrainedX, y: constrainedY })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
   const handleSave = async () => {
     try {
       setSaving(true)
       
       const { supabase } = await import('@/lib/supabase-browser')
       
-      // Update the asset with new tags and aspect ratio
+      // Update the asset with new tags, aspect ratio, and crop position
+      const cropData = {
+        [selectedAspectRatio]: {
+          x: imagePosition.x,
+          y: imagePosition.y,
+          ...(cropWindows.trim() ? JSON.parse(cropWindows) : {})
+        }
+      }
+      
       const { error } = await supabase
         .from('assets')
         .update({
           tags: selectedTags,
           aspect_ratio: selectedAspectRatio,
-          crop_windows: cropWindows.trim() ? JSON.parse(cropWindows) : null
+          crop_windows: cropData
         })
         .eq('id', asset.id)
         .eq('brand_id', asset.brand_id)
@@ -388,7 +448,7 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                   {aspectRatios.map((ratio) => (
                     <button
                       key={ratio.value}
-                      onClick={() => setSelectedAspectRatio(ratio.value)}
+                      onClick={() => handleAspectRatioChange(ratio.value)}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedAspectRatio === ratio.value
                           ? 'bg-[#6366F1] text-white'
@@ -402,23 +462,38 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
 
                 {/* Image Preview */}
                 <div className="relative">
-                  <div className={`bg-gray-100 rounded-xl overflow-hidden ${
-                    selectedAspectRatio === '1.91:1' ? 'aspect-[1.91/1]' :
-                    selectedAspectRatio === '4:5' ? 'aspect-[4/5]' :
-                    selectedAspectRatio === '1:1' ? 'aspect-square' :
-                    'aspect-square'
-                  }`}>
+                  <div 
+                    className={`bg-gray-100 rounded-xl overflow-hidden cursor-move ${
+                      selectedAspectRatio === '1.91:1' ? 'aspect-[1.91/1]' :
+                      selectedAspectRatio === '4:5' ? 'aspect-[4/5]' :
+                      selectedAspectRatio === '1:1' ? 'aspect-square' :
+                      'aspect-square'
+                    }`}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                  >
                     {isVideo ? (
                       <video
                         src={asset.signed_url}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover select-none"
+                        style={{ 
+                          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                          transition: isDragging ? 'none' : 'transform 0.2s ease'
+                        }}
                         muted
                       />
                     ) : (
                       <img 
                         src={asset.signed_url}
                         alt={asset.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover select-none"
+                        style={{ 
+                          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                          transition: isDragging ? 'none' : 'transform 0.2s ease'
+                        }}
+                        draggable={false}
                       />
                     )}
                   </div>
