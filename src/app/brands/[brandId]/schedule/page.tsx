@@ -272,7 +272,7 @@ function DraftsTab({ drafts, loading, onUpdate }: DraftsTabProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {drafts.map((draft) => (
-        <DraftCard key={draft.id} draft={draft} onUpdate={onUpdate} />
+        <DraftCard key={draft.id} draft={draft} onUpdate={onUpdate} status="draft" />
       ))}
     </div>
   );
@@ -311,7 +311,7 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {scheduled.map((post) => (
-        <ScheduledCard key={post.id} post={post} onUpdate={onUpdate} />
+        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status="scheduled" />
       ))}
     </div>
   );
@@ -350,7 +350,7 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {published.map((post) => (
-        <PublishedCard key={post.id} post={post} onUpdate={onUpdate} />
+        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status="published" />
       ))}
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useSocialAccounts } from '@/hooks/useSocialAccounts';
 import Modal from '@/components/ui/Modal';
@@ -26,6 +27,48 @@ const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const ClockIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+// Platform Icons
+const FacebookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <div className={`rounded bg-[#1877F2] flex items-center justify-center ${className}`}>
+    <span className="text-white text-xs font-bold">f</span>
+  </div>
+);
+
+const LinkedInIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <div className={`rounded bg-[#0A66C2] flex items-center justify-center ${className}`}>
+    <span className="text-white text-xs font-bold">in</span>
+  </div>
+);
+
+const InstagramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <div className={`rounded bg-gradient-to-br from-[#833AB4] via-[#C13584] to-[#E1306C] flex items-center justify-center ${className}`}>
+    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.07 1.645.07 4.85s-.012 3.584-.07 4.85c-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07s-3.584-.012-4.85-.07c-3.251-.149-4.771-1.699-4.919-4.919-.058-1.265-.07-1.644-.07-4.85s.012-3.584.07-4.85c.149-3.227 1.664-4.771 4.919-4.919 1.266-.058 1.644-.07 4.85-.07zm0-2.163c-3.259 0-3.667.014-4.947.072C3.58 0.238 2.31 1.684 2.163 4.947.105 6.227.092 6.635.092 9.897s.014 3.667.072 4.947c.147 3.264 1.693 4.534 4.947 4.682 1.28.058 1.688.072 4.947.072s3.667-.014 4.947-.072c3.264-.148 4.534-1.693 4.682-4.947.058-1.28.072-1.688.072-4.947s-.014-3.667-.072-4.947C23.762 2.316 22.316.846 19.053.698 17.773.64 17.365.626 14.103.626zM12 5.835a6.165 6.165 0 100 12.33 6.165 6.165 0 000-12.33zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z" />
+    </svg>
+  </div>
+);
+
+const TikTokIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <div className={`rounded bg-black flex items-center justify-center ${className}`}>
+    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+    </svg>
+  </div>
+);
+
+const platformIcons = {
+  facebook: FacebookIcon,
+  linkedin: LinkedInIcon,
+  instagram: InstagramIcon,
+  tiktok: TikTokIcon,
+};
+
 interface DraftCardProps {
   draft: {
     id: string;
@@ -40,7 +83,7 @@ interface DraftCardProps {
     created_by: string;
     created_at: string;
     approved: boolean;
-    post_jobs: {
+    post_jobs?: {
       id: string;
       scheduled_at: string;
       scheduled_local: string;
@@ -56,11 +99,13 @@ interface DraftCardProps {
     }[];
   };
   onUpdate: () => void;
+  status?: 'draft' | 'scheduled' | 'published';
 }
 
-export default function DraftCard({ draft, onUpdate }: DraftCardProps) {
+export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts } = useSocialAccounts(draft.brand_id);
 
@@ -71,7 +116,62 @@ export default function DraftCard({ draft, onUpdate }: DraftCardProps) {
 
   const canApprove = hasConnectedAccount && draft.copy && draft.asset_ids.length > 0;
 
-  const handleApprove = async () => {
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getStatusBadge = () => {
+    switch (status) {
+      case 'draft':
+        return (
+          <span className="px-3 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 rounded-full">
+            Draft
+          </span>
+        );
+      case 'scheduled':
+        return (
+          <span className="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-full">
+            Scheduled
+          </span>
+        );
+      case 'published':
+        return (
+          <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 border border-green-200 rounded-full">
+            Published
+          </span>
+        );
+      default:
+        return (
+          <span className="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 rounded-full">
+            Draft
+          </span>
+        );
+    }
+  };
+
+  const getPlatformIcon = (platform: string) => {
+    const IconComponent = platformIcons[platform.toLowerCase() as keyof typeof platformIcons];
+    return IconComponent ? <IconComponent className="w-4 h-4" /> : null;
+  };
+
+  const handleCardClick = () => {
+    router.push(`/edit-post?id=${draft.id}`);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/edit-post?id=${draft.id}`);
+  };
+
+  const handleApprove = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       setIsLoading(true);
       await approveDraft(draft.id);
@@ -83,7 +183,8 @@ export default function DraftCard({ draft, onUpdate }: DraftCardProps) {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (confirm('Are you sure you want to delete this draft?')) {
       try {
         setIsLoading(true);
@@ -97,133 +198,120 @@ export default function DraftCard({ draft, onUpdate }: DraftCardProps) {
     }
   };
 
-  const formatDateTime = (scheduledAt: string, timezone: string) => {
-    const date = new Date(scheduledAt);
-    return date.toLocaleString('en-US', {
-      timeZone: timezone,
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'generated': return 'bg-blue-100 text-blue-800';
-      case 'ready': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
     <>
-      <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            {draft.assets && draft.assets.length > 0 && (
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+      <div 
+        className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <div className="flex gap-4">
+          {/* Image Section */}
+          <div className="flex-shrink-0">
+            {draft.assets && draft.assets.length > 0 ? (
+              <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
                 <img 
                   src={`/api/assets/${draft.assets[0]?.storage_path || ''}`} 
                   alt={draft.assets[0]?.title || 'Asset'}
                   className="w-full h-full object-cover"
                 />
               </div>
-            )}
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(draft.post_jobs?.status || 'pending')}`}>
-                  {draft.post_jobs?.status || 'pending'}
-                </span>
-                <span className="text-sm text-gray-500 capitalize">{draft.channel}</span>
+            ) : (
+              <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                <span className="text-gray-400 text-xs">No image</span>
               </div>
-              <p className="text-sm text-gray-600 mt-1">
-                {draft.post_jobs?.scheduled_at ? 
-                  formatDateTime(draft.post_jobs.scheduled_at, draft.post_jobs?.scheduled_tz || '') : 
-                  'Not scheduled'
-                }
-              </p>
-            </div>
+            )}
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Edit draft"
-            >
-              <EditIcon />
-            </button>
-            
-            <button
-              onClick={handleApprove}
-              disabled={!canApprove || isLoading}
-              className={`p-2 rounded-lg transition-colors ${
-                canApprove 
-                  ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
-                  : 'text-gray-300 cursor-not-allowed'
-              }`}
-              title={canApprove ? "Approve draft" : "Cannot approve - missing requirements"}
-            >
-              <CheckIcon />
-            </button>
-            
-            <button
-              onClick={handleDelete}
-              disabled={isLoading}
-              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Delete draft"
-            >
-              <TrashIcon />
-            </button>
-          </div>
-        </div>
 
-        {/* Content */}
-        <div className="space-y-3">
-          <p className="text-gray-900 text-sm leading-relaxed">{draft.copy}</p>
-          
-          {draft.hashtags && draft.hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+          {/* Content Section */}
+          <div className="flex-1 min-w-0">
+            {/* Post Copy */}
+            <p className="text-gray-900 mb-3">{draft.copy}</p>
+            
+            {/* Hashtags */}
+            <div className="flex flex-wrap gap-2 mb-4">
               {draft.hashtags.map((hashtag, index) => (
-                <span key={index} className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                >
                   {hashtag}
                 </span>
               ))}
             </div>
-          )}
-          
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Generated by: {draft.generated_by}</span>
-            <span>{draft.asset_ids.length} asset(s)</span>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {/* Date/Time */}
+                <div className="flex items-center space-x-1 text-gray-500">
+                  <ClockIcon className="w-4 h-4" />
+                  <span className="text-sm">
+                    {status === 'published' ? 'Published' : status === 'scheduled' ? 'Scheduled' : 'Created'} • {formatDateTime(draft.post_jobs?.scheduled_at || draft.created_at)}
+                  </span>
+                </div>
+
+                {/* Platform Icons */}
+                <div className="flex items-center space-x-1">
+                  {getPlatformIcon(draft.channel)}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center space-x-2">
+                {status === 'draft' && (
+                  <button
+                    onClick={handleApprove}
+                    disabled={!canApprove || isLoading}
+                    className={`px-3 py-1 text-xs font-medium border rounded-md transition-colors ${
+                      canApprove 
+                        ? 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700' 
+                        : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Approve
+                  </button>
+                )}
+                {getStatusBadge()}
+                <button
+                  onClick={handleEditClick}
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <EditIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Edit Modal */}
-      <EditDraftModal
-        draft={draft}
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onSave={async (updates) => {
-          try {
-            await updateDraft(draft.id, updates);
-            onUpdate();
-            setIsEditModalOpen(false);
-          } catch (error) {
-            console.error('Failed to update draft:', error);
-          }
-        }}
-      />
+      {isEditModalOpen && (
+        <EditDraftModal
+          draft={draft}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={async (updates) => {
+            try {
+              await updateDraft(draft.id, updates);
+              setIsEditModalOpen(false);
+              onUpdate();
+            } catch (error) {
+              console.error('Failed to update draft:', error);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
 
-// Edit Draft Modal Component
+// Edit Modal Component
 interface EditDraftModalProps {
   draft: DraftCardProps['draft'];
   isOpen: boolean;
@@ -261,21 +349,15 @@ function EditDraftModal({ draft, isOpen, onClose, onSave }: EditDraftModalProps)
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Edit Draft"
-      subtitle="Update the draft content and scheduling"
-      maxWidth="lg"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Draft">
       <Form onSubmit={handleSubmit}>
-        <FormField label="Copy" required>
+        <FormField label="Post Copy" required>
           <textarea
             value={formData.copy}
             onChange={(e) => setFormData({ ...formData, copy: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             rows={4}
-            placeholder="Enter post copy..."
+            required
           />
         </FormField>
 
@@ -288,30 +370,21 @@ function EditDraftModal({ draft, isOpen, onClose, onSave }: EditDraftModalProps)
           />
         </FormField>
 
-        <FormField label="Asset IDs">
-          <Input
-            type="text"
-            value={formData.asset_ids}
-            onChange={(e) => setFormData({ ...formData, asset_ids: e.target.value })}
-            placeholder="Enter asset IDs separated by commas"
-          />
-        </FormField>
-
         <FormField label="Channel" required>
           <select
             value={formData.channel}
             onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            required
           >
             <option value="facebook">Facebook</option>
             <option value="instagram">Instagram</option>
-            <option value="twitter">Twitter/X</option>
             <option value="linkedin">LinkedIn</option>
             <option value="tiktok">TikTok</option>
           </select>
         </FormField>
 
-        <FormField label="Scheduled Date & Time" required>
+        <FormField label="Scheduled Date & Time">
           <Input
             type="datetime-local"
             value={formData.scheduled_at ? new Date(formData.scheduled_at).toISOString().slice(0, 16) : ''}
