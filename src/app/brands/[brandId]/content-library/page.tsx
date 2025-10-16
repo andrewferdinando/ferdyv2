@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -12,16 +13,82 @@ const UploadIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
-const ImageIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
   </svg>
 );
+
+const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+const SearchIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
+// Mock data for demonstration
+const mockAssets = [
+  {
+    id: '1',
+    title: 'Go-kart racing kids',
+    storage_path: '/assets/placeholders/cropped_gameover_may_107 (1).png',
+    tags: ['Student Discount', 'Happy Hour Special'],
+    status: 'ready'
+  },
+  {
+    id: '2', 
+    title: 'Go-kart child waving',
+    storage_path: '/assets/placeholders/cropped_gameover_may_119 - Copy.png',
+    tags: ['Corporate Team Building', 'Student Discount'],
+    status: 'ready'
+  },
+  {
+    id: '3',
+    title: 'Outdoor party scene',
+    storage_path: '/assets/placeholders/cropped_gameover_may_124.png',
+    tags: [],
+    status: 'needs_attention'
+  }
+];
 
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
   const { assets, loading, error } = useAssets(brandId)
+  
+  const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(null)
+
+  // Use mock data for now
+  const allAssets = mockAssets
+  const readyAssets = allAssets.filter(asset => asset.status === 'ready')
+  const needsAttentionAssets = allAssets.filter(asset => asset.status === 'needs_attention')
+  
+  const filteredAssets = activeTab === 'ready' ? readyAssets : needsAttentionAssets
+
+  const handleUpload = () => {
+    // TODO: Implement upload functionality
+    console.log('Upload content clicked')
+  }
+
+  const handleEditAsset = (assetId: string) => {
+    setSelectedAsset(assetId)
+  }
+
+  const handleDeleteAsset = (assetId: string) => {
+    // TODO: Implement delete functionality
+    console.log('Delete asset:', assetId)
+  }
+
+  if (selectedAsset) {
+    return <AssetDetailView assetId={selectedAsset} onBack={() => setSelectedAsset(null)} />
+  }
 
   if (loading) {
     return (
@@ -42,48 +109,283 @@ export default function ContentLibraryPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
-              <p className="text-gray-600 mt-1">Manage your media assets and content</p>
+              <h1 className="text-3xl font-bold text-gray-950">Content Library</h1>
+              <p className="text-gray-700 mt-1">Manage your images and videos</p>
             </div>
             
-            <button className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all font-medium">
+            <button 
+              onClick={handleUpload}
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-xl hover:from-[#4F46E5] hover:to-[#4338CA] transition-all font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
+            >
               <UploadIcon className="w-5 h-5 mr-2" />
-              Upload Assets
+              Upload Content
             </button>
           </div>
 
-          {/* Content */}
-          {error ? (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
-              Error loading content library: {error}
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <div className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('ready')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'ready'
+                    ? 'border-[#6366F1] text-gray-950'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Ready to Use ({readyAssets.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('needs_attention')}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'needs_attention'
+                    ? 'border-[#6366F1] text-gray-950'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Needs Attention ({needsAttentionAssets.length})
+              </button>
             </div>
-          ) : assets.length === 0 ? (
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search content..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#6366F1] focus:border-transparent text-sm"
+            />
+          </div>
+
+          {/* Content Grid */}
+          {filteredAssets.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto h-12 w-12 text-gray-400">
-                <ImageIcon className="w-12 h-12" />
+                <UploadIcon className="w-12 h-12" />
               </div>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No assets yet</h3>
-              <p className="mt-1 text-sm text-gray-500">Upload your first image or video to get started.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                {activeTab === 'ready' ? 'No ready content' : 'No content needs attention'}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {activeTab === 'ready' 
+                  ? 'Upload content to see it here.' 
+                  : 'All content is ready to use.'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {assets.map((asset) => (
-                <div key={asset.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+              {filteredAssets.map((asset) => (
+                <div key={asset.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200">
                   <div className="aspect-square bg-gray-100 flex items-center justify-center">
                     <img 
-                      src={`/api/assets/${asset.storage_path}`} 
+                      src={asset.storage_path} 
                       alt={asset.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="p-4">
-                    <h3 className="font-medium text-gray-900 truncate">{asset.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{asset.aspect_ratio}</p>
+                    {/* Tags */}
+                    {asset.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {asset.tags.map((tag, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
+                            style={{
+                              backgroundColor: getTagColor(tag).bg,
+                              color: getTagColor(tag).text
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Actions */}
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => handleEditAsset(asset.id)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAsset(asset.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      </AppLayout>
+    </RequireAuth>
+  )
+}
+
+// Helper function for tag colors
+function getTagColor(tag: string) {
+  const colors: { [key: string]: { bg: string; text: string } } = {
+    'Student Discount': { bg: '#DBEAFE', text: '#1E40AF' },
+    'Happy Hour Special': { bg: '#D1FAE5', text: '#065F46' },
+    'Corporate Team Building': { bg: '#F3E8FF', text: '#7C3AED' },
+    'Weekend Special': { bg: '#FEF3C7', text: '#D97706' },
+    'Family Package': { bg: '#FCE7F3', text: '#BE185D' },
+    'Birthday Party': { bg: '#F0FDF4', text: '#166534' },
+    'Holiday Special': { bg: '#FFF7ED', text: '#EA580C' },
+    'Summer Promotion': { bg: '#ECFDF5', text: '#047857' }
+  }
+  return colors[tag] || { bg: '#F3F4F6', text: '#374151' }
+}
+
+// Asset Detail View Component
+function AssetDetailView({ assetId, onBack }: { assetId: string; onBack: () => void }) {
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'landscape' | 'portrait' | 'square'>('square')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+
+  const availableTags = [
+    'Student Discount', 'Happy Hour Special', 'Corporate Team Building',
+    'Weekend Special', 'Family Package', 'Birthday Party', 'Holiday Special', 'Summer Promotion'
+  ]
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    )
+  }
+
+  const handleNextImage = () => {
+    // TODO: Navigate to next image
+    console.log('Next image clicked')
+  }
+
+  const handleDeleteImage = () => {
+    // TODO: Delete current image
+    console.log('Delete image clicked')
+  }
+
+  return (
+    <RequireAuth>
+      <AppLayout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onBack}
+              className="text-gray-600 hover:text-gray-900 font-medium"
+            >
+              ← Back to Content Library
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Section - Image Preview */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Aspect Ratio Selection */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setSelectedAspectRatio('landscape')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedAspectRatio === 'landscape'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  1.91:1 Landscape
+                </button>
+                <button
+                  onClick={() => setSelectedAspectRatio('portrait')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedAspectRatio === 'portrait'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  4:5 Portrait
+                </button>
+                <button
+                  onClick={() => setSelectedAspectRatio('square')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedAspectRatio === 'square'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  1:1 Square
+                </button>
+              </div>
+
+              {/* Image Preview */}
+              <div className="relative">
+                <div className={`bg-gray-100 rounded-xl overflow-hidden ${
+                  selectedAspectRatio === 'landscape' ? 'aspect-[1.91/1]' :
+                  selectedAspectRatio === 'portrait' ? 'aspect-[4/5]' :
+                  'aspect-square'
+                }`}>
+                  <img 
+                    src="/assets/placeholders/cropped_gameover_may_124.png"
+                    alt="Content preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
+                  Click and drag to reposition
+                </div>
+              </div>
+            </div>
+
+            {/* Right Section - Tags and Actions */}
+            <div className="space-y-6">
+              {/* Available Tags */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => handleTagToggle(tag)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedTags.includes(tag)
+                          ? 'bg-[#6366F1] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  <button className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+                    + Tag
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleNextImage}
+                  className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+                >
+                  Next Image
+                </button>
+                <button
+                  onClick={handleDeleteImage}
+                  className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </AppLayout>
     </RequireAuth>
