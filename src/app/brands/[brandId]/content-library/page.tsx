@@ -17,7 +17,6 @@ export default function ContentLibraryPage() {
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
 
@@ -324,8 +323,8 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     // Initialize position from saved crop_windows data
     if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
       const cropData = displayAsset.crop_windows[selectedAspectRatio] || displayAsset.crop_windows[displayAsset.aspect_ratio]
-      if (cropData && typeof cropData === 'object') {
-        return { x: cropData.x || 0, y: cropData.y || 0 }
+      if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
+        return { x: (cropData as any).x || 0, y: (cropData as any).y || 0 }
       }
     }
     return { x: 0, y: 0 }
@@ -359,8 +358,8 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     // Update image position based on saved crop data for this aspect ratio
     if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
       const cropData = displayAsset.crop_windows[ratio]
-      if (cropData && typeof cropData === 'object') {
-        setImagePosition({ x: cropData.x || 0, y: cropData.y || 0 })
+      if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
+        setImagePosition({ x: (cropData as any).x || 0, y: (cropData as any).y || 0 })
       } else {
         setImagePosition({ x: 0, y: 0 })
       }
