@@ -181,33 +181,13 @@ export default function ContentLibraryPage() {
 
             {/* Tab Content */}
             {activeTab === 'needs_attention' ? (
-              // Needs Attention tab - always show processing interface
+              // Needs Attention tab - show processing interface directly
               needsAttentionAssets.length > 0 ? (
-                selectedAsset ? (
-                  <AssetDetailView 
-                    asset={selectedAsset} 
-                    onBack={() => setSelectedAsset(null)} 
-                    onUpdate={handleAssetUpdate} 
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center min-h-[400px]">
-                    <div className="text-center mb-8">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select an asset to process</h3>
-                      <p className="text-gray-600">Choose an asset to add tags and select dimensions</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-                      {needsAttentionAssets.map((asset) => (
-                        <div key={asset.id} className="cursor-pointer" onClick={() => setSelectedAsset(asset)}>
-                          <AssetCard
-                            asset={asset}
-                            onEdit={handleEditAsset}
-                            onDelete={handleDeleteAsset}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
+                <AssetDetailView 
+                  asset={needsAttentionAssets[0]} 
+                  onBack={() => {}} 
+                  onUpdate={handleAssetUpdate} 
+                />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                   <div className="text-center mb-8">
@@ -357,41 +337,7 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
   const isVideo = asset.storage_path.match(/\.(mp4|mov|avi)$/i)
 
   return (
-    <RequireAuth>
-      <AppLayout>
-        <div className="flex-1 overflow-auto">
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
-                <p className="text-gray-600 mt-1">Manage your images and videos</p>
-              </div>
-              <button
-                onClick={onBack}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Back to Content Library
-              </button>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
-            <div className="flex space-x-8">
-              <button
-                onClick={onBack}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300`}
-              >
-                Ready to Use (0)
-              </button>
-              <button
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-[#6366F1] text-[#6366F1]`}
-              >
-                Needs Attention (1)
-              </button>
-            </div>
-          </div>
+    <div className="flex-1 overflow-auto">
 
           {/* Content */}
           <div className="p-4 sm:p-6 lg:p-10">
@@ -482,7 +428,5 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
             </div>
           </div>
         </div>
-      </AppLayout>
-    </RequireAuth>
   )
 }
