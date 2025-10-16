@@ -64,10 +64,7 @@ export async function debugStorage() {
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
     if (bucketsError) {
       console.error('❌ Error listing buckets:', bucketsError)
-      console.error('❌ Bucket error details:', {
-        message: bucketsError.message,
-        statusCode: bucketsError.statusCode
-      })
+      console.error('❌ Bucket error details:', bucketsError)
     } else {
       console.log('🪣 Available buckets:', buckets?.map(b => ({ name: b.name, public: b.public })))
     }
@@ -81,10 +78,7 @@ export async function debugStorage() {
       
       if (bucketError) {
         console.error('❌ Direct bucket access error:', bucketError)
-        console.error('❌ Direct bucket error details:', {
-          message: bucketError.message,
-          statusCode: bucketError.statusCode
-        })
+        console.error('❌ Direct bucket error details:', bucketError)
       } else {
         console.log('✅ Direct bucket access works:', bucketData)
       }
