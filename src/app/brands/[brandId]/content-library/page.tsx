@@ -384,9 +384,9 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     const newX = e.clientX - dragStart.x
     const newY = e.clientY - dragStart.y
     
-    // Constrain movement within reasonable bounds (larger since image is 120% size)
-    const maxX = 100
-    const maxY = 100
+    // Constrain movement within reasonable bounds (larger since image is 150% size)
+    const maxX = 150
+    const maxY = 150
     const constrainedX = Math.max(-maxX, Math.min(maxX, newX))
     const constrainedY = Math.max(-maxY, Math.min(maxY, newY))
     
@@ -483,10 +483,11 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                         src={asset.signed_url}
                         className="select-none"
                         style={{ 
-                          width: '120%',
-                          height: '120%',
+                          width: '150%',
+                          height: '150%',
                           objectFit: 'cover',
-                          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                          objectPosition: 'center',
+                          transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
                           transition: isDragging ? 'none' : 'transform 0.2s ease'
                         }}
                         muted
@@ -497,10 +498,11 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                         alt={asset.title}
                         className="select-none"
                         style={{ 
-                          width: '120%',
-                          height: '120%',
+                          width: '150%',
+                          height: '150%',
                           objectFit: 'cover',
-                          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                          objectPosition: 'center',
+                          transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
                           transition: isDragging ? 'none' : 'transform 0.2s ease'
                         }}
                         draggable={false}
