@@ -37,13 +37,13 @@ export default function ContentLibraryPage() {
   const needsAttentionAssets = assets.filter(asset => asset.tags.length === 0)
   const readyAssets = assets.filter(asset => asset.tags.length > 0)
 
-  const handleUploadSuccess = (assetId: string) => {
+  const handleUploadSuccess = (assetIds: string[]) => {
     refetch()
-    // Switch to needs attention tab to show the new asset
+    // Switch to needs attention tab to show the new assets
     setActiveTab('needs_attention')
-    // Find and select the new asset after a short delay to ensure it's loaded
+    // Find and select the first new asset after a short delay to ensure it's loaded
     setTimeout(() => {
-      const newAsset = assets.find(asset => asset.id === assetId)
+      const newAsset = assets.find(asset => assetIds.includes(asset.id))
       if (newAsset) {
         setSelectedAsset(newAsset)
       }
@@ -83,10 +83,6 @@ export default function ContentLibraryPage() {
     refetch()
   }
 
-  // Show detailed view when asset is selected (Needs Attention tab)
-  if (selectedAsset && activeTab === 'needs_attention') {
-    return <AssetDetailView asset={selectedAsset} onBack={() => setSelectedAsset(null)} onUpdate={handleAssetUpdate} />
-  }
 
   if (loading) {
     return (
@@ -184,39 +180,78 @@ export default function ContentLibraryPage() {
             )}
 
             {/* Tab Content */}
-            {filteredAssets.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredAssets.map((asset) => (
-                  <div key={asset.id} className={activeTab === 'needs_attention' ? 'cursor-pointer' : ''} onClick={activeTab === 'needs_attention' ? () => setSelectedAsset(asset) : undefined}>
-                    <AssetCard
-                      asset={asset}
-                      onEdit={handleEditAsset}
-                      onDelete={handleDeleteAsset}
+            {activeTab === 'needs_attention' ? (
+              // Needs Attention tab - always show processing interface
+              needsAttentionAssets.length > 0 ? (
+                selectedAsset ? (
+                  <AssetDetailView 
+                    asset={selectedAsset} 
+                    onBack={() => setSelectedAsset(null)} 
+                    onUpdate={handleAssetUpdate} 
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center min-h-[400px]">
+                    <div className="text-center mb-8">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select an asset to process</h3>
+                      <p className="text-gray-600">Choose an asset to add tags and select dimensions</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+                      {needsAttentionAssets.map((asset) => (
+                        <div key={asset.id} className="cursor-pointer" onClick={() => setSelectedAsset(asset)}>
+                          <AssetCard
+                            asset={asset}
+                            onEdit={handleEditAsset}
+                            onDelete={handleDeleteAsset}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px]">
+                  <div className="text-center mb-8">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
+                    <p className="text-gray-600">No content needs attention right now</p>
+                  </div>
+                  <div className="mt-auto">
+                    <UploadAsset
+                      brandId={brandId}
+                      onUploadSuccess={handleUploadSuccess}
+                      onUploadError={handleUploadError}
                     />
                   </div>
-                ))}
-              </div>
+                </div>
+              )
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <div className="text-center mb-8">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {activeTab === 'ready' ? 'No ready content yet' : 'All caught up!'}
-                  </h3>
-                  <p className="text-gray-600">
-                    {activeTab === 'ready' 
-                      ? 'Tag your assets to make them ready to use' 
-                      : 'No content needs attention right now'
-                    }
-                  </p>
+              // Ready to Use tab - show grid of ready assets
+              filteredAssets.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredAssets.map((asset) => (
+                    <div key={asset.id}>
+                      <AssetCard
+                        asset={asset}
+                        onEdit={handleEditAsset}
+                        onDelete={handleDeleteAsset}
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-auto">
-                  <UploadAsset
-                    brandId={brandId}
-                    onUploadSuccess={handleUploadSuccess}
-                    onUploadError={handleUploadError}
-                  />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px]">
+                  <div className="text-center mb-8">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No ready content yet</h3>
+                    <p className="text-gray-600">Tag your assets to make them ready to use</p>
+                  </div>
+                  <div className="mt-auto">
+                    <UploadAsset
+                      brandId={brandId}
+                      onUploadSuccess={handleUploadSuccess}
+                      onUploadError={handleUploadError}
+                    />
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
         </div>

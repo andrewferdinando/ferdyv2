@@ -5,7 +5,7 @@ import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
 
 interface UploadAssetProps {
   brandId: string
-  onUploadSuccess: (assetId: string) => void
+  onUploadSuccess: (assetIds: string[]) => void
   onUploadError: (error: string) => void
 }
 
@@ -14,31 +14,46 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
   const [dragOver, setDragOver] = useState(false)
   const { uploadAsset, uploading, progress } = useUploadAsset()
 
-  const handleFileSelect = (files: FileList | null) => {
+  const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return
 
-    const file = files[0]
+    const fileArray = Array.from(files)
+    const uploadedAssetIds: string[] = []
     
-    // Validate file type
+    // Validate all files first
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/mov', 'video/avi']
-    if (!allowedTypes.includes(file.type)) {
-      onUploadError('Please select a valid image or video file')
-      return
-    }
-
-    // Validate file size (50MB limit)
     const maxSize = 50 * 1024 * 1024 // 50MB
-    if (file.size > maxSize) {
-      onUploadError('File size must be less than 50MB')
-      return
+    
+    for (const file of fileArray) {
+      if (!allowedTypes.includes(file.type)) {
+        onUploadError(`Please select a valid image or video file: ${file.name}`)
+        return
+      }
+      if (file.size > maxSize) {
+        onUploadError(`File size must be less than 50MB: ${file.name}`)
+        return
+      }
     }
 
-    uploadAsset({
-      file,
-      brandId,
-      onSuccess: onUploadSuccess,
-      onError: onUploadError
-    })
+    // Upload files sequentially
+    for (const file of fileArray) {
+      try {
+        const assetId = await new Promise<string>((resolve, reject) => {
+          uploadAsset({
+            file,
+            brandId,
+            onSuccess: (id) => resolve(id),
+            onError: (error) => reject(new Error(error))
+          })
+        })
+        uploadedAssetIds.push(assetId)
+      } catch (error) {
+        onUploadError(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        return
+      }
+    }
+
+    onUploadSuccess(uploadedAssetIds)
   }
 
   const handleClick = () => {
@@ -69,6 +84,7 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
         ref={fileInputRef}
         type="file"
         accept="image/*,video/*"
+        multiple
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"
         disabled={uploading}
