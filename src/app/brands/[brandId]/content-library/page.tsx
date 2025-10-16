@@ -9,6 +9,11 @@ import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import AssetCard from '@/components/assets/AssetCard'
 
+interface CropData {
+  x: number
+  y: number
+}
+
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
@@ -324,7 +329,7 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
       const cropData = displayAsset.crop_windows[selectedAspectRatio] || displayAsset.crop_windows[displayAsset.aspect_ratio]
       if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
-        return { x: (cropData as any).x || 0, y: (cropData as any).y || 0 }
+        return { x: (cropData as CropData).x || 0, y: (cropData as CropData).y || 0 }
       }
     }
     return { x: 0, y: 0 }
@@ -359,7 +364,7 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
       const cropData = displayAsset.crop_windows[ratio]
       if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
-        setImagePosition({ x: (cropData as any).x || 0, y: (cropData as any).y || 0 })
+        setImagePosition({ x: (cropData as CropData).x || 0, y: (cropData as CropData).y || 0 })
       } else {
         setImagePosition({ x: 0, y: 0 })
       }
