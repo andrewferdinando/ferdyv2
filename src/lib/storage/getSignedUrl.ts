@@ -4,6 +4,8 @@ const signedUrlCache = new Map<string, { url: string; expires: number }>()
 
 export async function getSignedUrl(path: string): Promise<string> {
   console.log('🔍 getSignedUrl called with path:', path)
+  console.log('🔍 Path length:', path.length)
+  console.log('🔍 Path characters:', path.split('').map(c => c.charCodeAt(0)))
   
   // Check cache first
   const cached = signedUrlCache.get(path)
@@ -14,6 +16,19 @@ export async function getSignedUrl(path: string): Promise<string> {
 
   console.log('🔄 Generating new signed URL for:', path)
   
+  // Let's also try to list files in the bucket to see what's actually there
+  try {
+    const { data: listData, error: listError } = await supabase.storage
+      .from('ferdy-assets')
+      .list('', { limit: 100 })
+    
+    if (!listError) {
+      console.log('📁 Files in bucket root:', listData?.map(f => f.name))
+    }
+  } catch (listErr) {
+    console.log('❌ Could not list bucket contents:', listErr)
+  }
+  
   const { data, error } = await supabase.storage
     .from('ferdy-assets')
     .createSignedUrl(path, 600) // 10 minutes
@@ -21,6 +36,7 @@ export async function getSignedUrl(path: string): Promise<string> {
   if (error) {
     console.error('❌ Error creating signed URL:', error)
     console.error('❌ Path that failed:', path)
+    console.error('❌ Error details:', JSON.stringify(error, null, 2))
     throw error
   }
 

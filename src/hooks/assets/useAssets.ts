@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import { getSignedUrl } from '@/lib/storage/getSignedUrl'
+import { debugStorage } from '@/lib/storage/debugStorage'
 
 export interface Asset {
   id: string
@@ -25,6 +26,9 @@ export function useAssets(brandId: string) {
     try {
       setLoading(true)
       setError(null)
+
+      // Debug storage structure first
+      await debugStorage()
 
       const { data, error } = await supabase
         .from('assets')
