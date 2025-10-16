@@ -66,7 +66,6 @@ export async function debugStorage() {
       console.error('❌ Error listing buckets:', bucketsError)
       console.error('❌ Bucket error details:', {
         message: bucketsError.message,
-        status: bucketsError.status,
         statusCode: bucketsError.statusCode
       })
     } else {
@@ -84,7 +83,6 @@ export async function debugStorage() {
         console.error('❌ Direct bucket access error:', bucketError)
         console.error('❌ Direct bucket error details:', {
           message: bucketError.message,
-          status: bucketError.status,
           statusCode: bucketError.statusCode
         })
       } else {
