@@ -37,6 +37,20 @@ export async function debugStorage() {
   console.log('🔍 Starting storage debug...')
   
   try {
+    // Check environment variables
+    console.log('🔧 Environment check:')
+    console.log('🔧 SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING')
+    console.log('🔧 SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'MISSING')
+    
+    // Test basic connection
+    console.log('🔧 Testing Supabase connection...')
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError) {
+      console.error('❌ Auth error:', authError)
+    } else {
+      console.log('✅ Auth connection works, user:', user?.id || 'anonymous')
+    }
+    
     // First, let's see what buckets exist
     console.log('🪣 Checking available buckets...')
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
