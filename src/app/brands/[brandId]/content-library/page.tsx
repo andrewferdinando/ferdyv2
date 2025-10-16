@@ -41,11 +41,13 @@ export default function ContentLibraryPage() {
     refetch()
     // Switch to needs attention tab to show the new asset
     setActiveTab('needs_attention')
-    // Find and select the new asset
-    const newAsset = assets.find(asset => asset.id === assetId)
-    if (newAsset) {
-      setSelectedAsset(newAsset)
-    }
+    // Find and select the new asset after a short delay to ensure it's loaded
+    setTimeout(() => {
+      const newAsset = assets.find(asset => asset.id === assetId)
+      if (newAsset) {
+        setSelectedAsset(newAsset)
+      }
+    }, 500)
   }
 
   const handleUploadError = (error: string) => {
@@ -151,13 +153,7 @@ export default function ContentLibraryPage() {
                 Ready to Use ({readyAssets.length})
               </button>
               <button
-                onClick={() => {
-                  if (needsAttentionAssets.length > 0) {
-                    setSelectedAsset(needsAttentionAssets[0])
-                  } else {
-                    setActiveTab('needs_attention')
-                  }
-                }}
+                onClick={() => setActiveTab('needs_attention')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'needs_attention'
                     ? 'border-[#6366F1] text-[#6366F1]'
@@ -191,12 +187,13 @@ export default function ContentLibraryPage() {
             {filteredAssets.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredAssets.map((asset) => (
-                  <AssetCard
-                    key={asset.id}
-                    asset={asset}
-                    onEdit={handleEditAsset}
-                    onDelete={handleDeleteAsset}
-                  />
+                  <div key={asset.id} className={activeTab === 'needs_attention' ? 'cursor-pointer' : ''} onClick={activeTab === 'needs_attention' ? () => setSelectedAsset(asset) : undefined}>
+                    <AssetCard
+                      asset={asset}
+                      onEdit={handleEditAsset}
+                      onDelete={handleDeleteAsset}
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
@@ -269,6 +266,7 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
   const [selectedAspectRatio, setSelectedAspectRatio] = useState(asset.aspect_ratio || 'original')
   const [selectedTags, setSelectedTags] = useState<string[]>(asset.tags || [])
   const [cropWindows] = useState(asset.crop_windows ? JSON.stringify(asset.crop_windows, null, 2) : '')
+  const [saving, setSaving] = useState(false)
 
   const availableTags = [
     'Student Discount', 'Happy Hour Special', 'Corporate Team Building',
@@ -291,10 +289,35 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
   }
 
   const handleSave = async () => {
-    // This would use the useUpdateAsset hook to save changes
-    // For now, just call onUpdate to refresh the data
-    onUpdate()
-    onBack()
+    try {
+      setSaving(true)
+      
+      const { supabase } = await import('@/lib/supabase-browser')
+      
+      // Update the asset with new tags and aspect ratio
+      const { error } = await supabase
+        .from('assets')
+        .update({
+          tags: selectedTags,
+          aspect_ratio: selectedAspectRatio,
+          crop_windows: cropWindows.trim() ? JSON.parse(cropWindows) : null
+        })
+        .eq('id', asset.id)
+        .eq('brand_id', asset.brand_id)
+
+      if (error) {
+        throw error
+      }
+
+      // Refresh the data
+      onUpdate()
+      onBack()
+    } catch (error) {
+      console.error('Error saving asset:', error)
+      alert('Failed to save asset. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const isVideo = asset.storage_path.match(/\.(mp4|mov|avi)$/i)
@@ -415,9 +438,10 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
                 <div className="flex space-x-3">
                   <button
                     onClick={handleSave}
-                    className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+                    disabled={saving}
+                    className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Changes
+                    {saving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>

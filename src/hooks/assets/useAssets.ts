@@ -44,7 +44,8 @@ export function useAssets(brandId: string) {
             return { ...asset, signed_url: signedUrl }
           } catch (urlError) {
             console.error('Error generating signed URL for asset:', asset.id, urlError)
-            return asset
+            // Return asset without signed_url if generation fails
+            return { ...asset, signed_url: null }
           }
         })
       )
