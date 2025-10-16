@@ -243,9 +243,9 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 {/* Date/Time */}
-                <div className="flex items-center space-x-1 text-gray-500">
+                <div className="flex items-center text-gray-500">
                   <ClockIcon className="w-4 h-4" />
-                  <span className="text-sm">
+                  <span className="text-sm ml-2">
                     {status === 'published' ? 'Published' : 
                      status === 'scheduled' ? 'Scheduled' : 
                      draft.post_jobs?.scheduled_at ? 'Scheduled' : 'Created'} • {formatDateTime(draft.post_jobs?.scheduled_at || draft.created_at)}
