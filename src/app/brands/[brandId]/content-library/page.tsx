@@ -384,9 +384,9 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
     const newX = e.clientX - dragStart.x
     const newY = e.clientY - dragStart.y
     
-    // Constrain movement within reasonable bounds
-    const maxX = 50
-    const maxY = 50
+    // Constrain movement within reasonable bounds (larger since image is 120% size)
+    const maxX = 100
+    const maxY = 100
     const constrainedX = Math.max(-maxX, Math.min(maxX, newX))
     const constrainedY = Math.max(-maxY, Math.min(maxY, newY))
     
@@ -481,8 +481,11 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                     {isVideo ? (
                       <video
                         src={asset.signed_url}
-                        className="w-full h-full object-cover select-none"
+                        className="select-none"
                         style={{ 
+                          width: '120%',
+                          height: '120%',
+                          objectFit: 'cover',
                           transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                           transition: isDragging ? 'none' : 'transform 0.2s ease'
                         }}
@@ -492,8 +495,11 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                       <img 
                         src={asset.signed_url}
                         alt={asset.title}
-                        className="w-full h-full object-cover select-none"
+                        className="select-none"
                         style={{ 
+                          width: '120%',
+                          height: '120%',
+                          objectFit: 'cover',
                           transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                           transition: isDragging ? 'none' : 'transform 0.2s ease'
                         }}
