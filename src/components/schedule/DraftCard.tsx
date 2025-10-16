@@ -201,7 +201,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   return (
     <>
       <div 
-        className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+        className="bg-white rounded-xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
         onClick={handleCardClick}
       >
         <div className="flex gap-4">
