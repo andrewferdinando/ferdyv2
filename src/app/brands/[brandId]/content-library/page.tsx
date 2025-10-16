@@ -9,7 +9,7 @@ import { useAssets } from '@/hooks/useAssets'
 // Icons
 const UploadIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
   </svg>
 );
 
@@ -70,7 +70,14 @@ export default function ContentLibraryPage() {
   const readyAssets = allAssets.filter(asset => asset.status === 'ready')
   const needsAttentionAssets = allAssets.filter(asset => asset.status === 'needs_attention')
   
-  const filteredAssets = activeTab === 'ready' ? readyAssets : needsAttentionAssets
+  const filteredAssets = allAssets.filter(asset => 
+    asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  ).filter(asset => {
+    if (activeTab === 'ready') return asset.status === 'ready'
+    if (activeTab === 'needs_attention') return asset.status === 'needs_attention'
+    return true
+  })
 
   const handleUpload = () => {
     // TODO: Implement upload functionality
