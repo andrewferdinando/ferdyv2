@@ -4,93 +4,86 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
-import { useAssets } from '@/hooks/useAssets'
-
-// Icons
-const UploadIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
-
-const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-
-const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-
-
-// Mock data for demonstration
-const mockAssets = [
-  {
-    id: '1',
-    title: 'Go-kart racing kids',
-    storage_path: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop',
-    tags: ['Student Discount', 'Happy Hour Special'],
-    status: 'ready'
-  },
-  {
-    id: '2', 
-    title: 'Go-kart child waving',
-    storage_path: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop',
-    tags: ['Corporate Team Building', 'Student Discount'],
-    status: 'ready'
-  },
-  {
-    id: '3',
-    title: 'Outdoor party scene',
-    storage_path: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=400&fit=crop',
-    tags: [],
-    status: 'needs_attention'
-  }
-];
+import { useAssets, Asset } from '@/hooks/assets/useAssets'
+import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
+import UploadAsset from '@/components/assets/UploadAsset'
+import AssetCard from '@/components/assets/AssetCard'
+import EditAssetModal from '@/components/assets/EditAssetModal'
 
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
-  const { loading } = useAssets(brandId)
+  const { assets, loading, error, refetch } = useAssets(brandId)
+  const { deleteAsset, deleting } = useDeleteAsset()
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null)
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
 
-  // Use mock data for now
-  const allAssets = mockAssets
-  const readyAssets = allAssets.filter(asset => asset.status === 'ready')
-  const needsAttentionAssets = allAssets.filter(asset => asset.status === 'needs_attention')
-  
-  const filteredAssets = allAssets.filter(asset => 
-    asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  ).filter(asset => {
-    if (activeTab === 'ready') return asset.status === 'ready'
-    if (activeTab === 'needs_attention') return asset.status === 'needs_attention'
-    return true
+  // Filter assets based on tab and search
+  const filteredAssets = assets.filter(asset => {
+    const matchesSearch = asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    
+    if (activeTab === 'ready') {
+      return asset.tags.length > 0 && matchesSearch
+    } else {
+      return asset.tags.length === 0 && matchesSearch
+    }
   })
 
-  const handleUpload = () => {
-    // TODO: Implement upload functionality
-    console.log('Upload content clicked - deployment test')
+  const needsAttentionAssets = assets.filter(asset => asset.tags.length === 0)
+  const readyAssets = assets.filter(asset => asset.tags.length > 0)
+
+  const handleUploadSuccess = (assetId: string) => {
+    refetch()
+    // Switch to needs attention tab to show the new asset
+    setActiveTab('needs_attention')
+    // Find and select the new asset
+    const newAsset = assets.find(asset => asset.id === assetId)
+    if (newAsset) {
+      setSelectedAsset(newAsset)
+    }
   }
 
-  const handleEditAsset = (assetId: string) => {
-    setSelectedAsset(assetId)
+  const handleUploadError = (error: string) => {
+    alert(`Upload failed: ${error}`)
   }
 
-  const handleDeleteAsset = (assetId: string) => {
-    // TODO: Implement delete functionality
-    console.log('Delete asset:', assetId)
+  const handleEditAsset = (asset: Asset) => {
+    setEditingAsset(asset)
   }
 
-  // Show detailed view when asset is selected
-  if (selectedAsset) {
-    return <AssetDetailView onBack={() => setSelectedAsset(null)} />
+  const handleDeleteAsset = (asset: Asset) => {
+    setShowDeleteConfirm(asset)
+  }
+
+  const confirmDelete = async () => {
+    if (!showDeleteConfirm) return
+
+    await deleteAsset({
+      assetId: showDeleteConfirm.id,
+      brandId: showDeleteConfirm.brand_id,
+      storagePath: showDeleteConfirm.storage_path,
+      onSuccess: () => {
+        refetch()
+        setShowDeleteConfirm(null)
+      },
+      onError: (error) => {
+        alert(`Delete failed: ${error}`)
+      }
+    })
+  }
+
+  const handleAssetUpdate = () => {
+    refetch()
+  }
+
+  // Show detailed view when asset is selected (Needs Attention tab)
+  if (selectedAsset && activeTab === 'needs_attention') {
+    return <AssetDetailView asset={selectedAsset} onBack={() => setSelectedAsset(null)} onUpdate={handleAssetUpdate} />
   }
 
   if (loading) {
@@ -99,6 +92,26 @@ export default function ContentLibraryPage() {
         <AppLayout>
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+          </div>
+        </AppLayout>
+      </RequireAuth>
+    )
+  }
+
+  if (error) {
+    return (
+      <RequireAuth>
+        <AppLayout>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">Error loading assets: {error}</p>
+              <button
+                onClick={refetch}
+                className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         </AppLayout>
       </RequireAuth>
@@ -116,13 +129,11 @@ export default function ContentLibraryPage() {
                 <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
                 <p className="text-gray-600 mt-1">Manage your images and videos</p>
               </div>
-              <button 
-                onClick={handleUpload}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-              >
-                <UploadIcon />
-                <span>Upload Content</span>
-              </button>
+              <UploadAsset
+                brandId={brandId}
+                onUploadSuccess={handleUploadSuccess}
+                onUploadError={handleUploadError}
+              />
             </div>
           </div>
 
@@ -142,7 +153,7 @@ export default function ContentLibraryPage() {
               <button
                 onClick={() => {
                   if (needsAttentionAssets.length > 0) {
-                    setSelectedAsset(needsAttentionAssets[0].id)
+                    setSelectedAsset(needsAttentionAssets[0])
                   } else {
                     setActiveTab('needs_attention')
                   }
@@ -177,124 +188,98 @@ export default function ContentLibraryPage() {
             )}
 
             {/* Tab Content */}
-            {activeTab === 'ready' ? (
+            {filteredAssets.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredAssets.length > 0 ? (
-                  filteredAssets.map((asset) => (
-                    <div key={asset.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                      {/* Image/Video */}
-                      <div className="aspect-square bg-gray-200 overflow-hidden">
-                        <img
-                          src={asset.storage_path}
-                          alt={asset.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                          }}
-                        />
-                      </div>
-
-                      {/* Content */}
-                      <div className="p-4">
-                        {/* Tags */}
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {asset.tags.map((tag, index) => (
-                            <span 
-                              key={index}
-                              className="px-2 py-1 text-xs font-medium rounded-full"
-                              style={{
-                                backgroundColor: getTagColor(tag).bg,
-                                color: getTagColor(tag).text
-                              }}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center justify-end gap-3">
-                          <button 
-                            onClick={() => handleEditAsset(asset.id)}
-                            className="p-2 text-[#6366F1] hover:text-[#4F46E5] hover:bg-[#EEF2FF] rounded-lg transition-colors duration-200"
-                            title="Edit"
-                          >
-                            <EditIcon />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteAsset(asset.id)}
-                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                            title="Delete"
-                          >
-                            <TrashIcon />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <div className="text-gray-400 mb-4">
-                      <UploadIcon className="w-16 h-16 mx-auto" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No content yet</h3>
-                    <p className="text-gray-600 mb-4">Upload some images or videos to get started</p>
-                    <button
-                      onClick={handleUpload}
-                      className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                    >
-                      Upload Content
-                    </button>
-                  </div>
-                )}
+                {filteredAssets.map((asset) => (
+                  <AssetCard
+                    key={asset.id}
+                    asset={asset}
+                    onEdit={handleEditAsset}
+                    onDelete={handleDeleteAsset}
+                  />
+                ))}
               </div>
             ) : (
               <div className="text-center py-12">
                 <div className="text-gray-400 mb-4">
-                  <UploadIcon className="w-16 h-16 mx-auto" />
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
-                <p className="text-gray-600 mb-4">No content needs attention right now</p>
-                <button
-                  onClick={handleUpload}
-                  className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                >
-                  Upload Content
-                </button>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {activeTab === 'ready' ? 'No ready content yet' : 'All caught up!'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {activeTab === 'ready' 
+                    ? 'Tag your assets to make them ready to use' 
+                    : 'No content needs attention right now'
+                  }
+                </p>
+                <UploadAsset
+                  brandId={brandId}
+                  onUploadSuccess={handleUploadSuccess}
+                  onUploadError={handleUploadError}
+                />
               </div>
             )}
           </div>
         </div>
+
+        {/* Edit Asset Modal */}
+        <EditAssetModal
+          asset={editingAsset}
+          isOpen={!!editingAsset}
+          onClose={() => setEditingAsset(null)}
+          onSave={handleAssetUpdate}
+        />
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Asset</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete "{showDeleteConfirm.title}"? This action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </AppLayout>
     </RequireAuth>
   )
 }
 
-// Helper function for tag colors
-function getTagColor(tag: string) {
-  const colors: { [key: string]: { bg: string; text: string } } = {
-    'Student Discount': { bg: '#DBEAFE', text: '#1E40AF' },
-    'Happy Hour Special': { bg: '#D1FAE5', text: '#065F46' },
-    'Corporate Team Building': { bg: '#F3E8FF', text: '#7C3AED' },
-    'Weekend Special': { bg: '#FEF3C7', text: '#D97706' },
-    'Family Package': { bg: '#FCE7F3', text: '#BE185D' },
-    'Birthday Party': { bg: '#F0FDF4', text: '#166534' },
-    'Holiday Special': { bg: '#FFF7ED', text: '#EA580C' },
-    'Summer Promotion': { bg: '#ECFDF5', text: '#047857' }
-  }
-  return colors[tag] || { bg: '#F3F4F6', text: '#374151' }
-}
-
-// Asset Detail View Component
-function AssetDetailView({ onBack }: { onBack: () => void }) {
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'landscape' | 'portrait' | 'square'>('square')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+// Asset Detail View Component for Needs Attention tab
+function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: () => void; onUpdate: () => void }) {
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState(asset.aspect_ratio || 'original')
+  const [selectedTags, setSelectedTags] = useState<string[]>(asset.tags || [])
+  const [cropWindows, setCropWindows] = useState(asset.crop_windows ? JSON.stringify(asset.crop_windows, null, 2) : '')
 
   const availableTags = [
     'Student Discount', 'Happy Hour Special', 'Corporate Team Building',
     'Weekend Special', 'Family Package', 'Birthday Party', 'Holiday Special', 'Summer Promotion'
+  ]
+
+  const aspectRatios = [
+    { value: 'original', label: 'Original' },
+    { value: '1:1', label: '1:1 Square' },
+    { value: '4:5', label: '4:5 Portrait' },
+    { value: '1.91:1', label: '1.91:1 Landscape' }
   ]
 
   const handleTagToggle = (tag: string) => {
@@ -305,15 +290,14 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
     )
   }
 
-  const handleNextImage = () => {
-    // TODO: Navigate to next image
-    console.log('Next image clicked')
+  const handleSave = async () => {
+    // This would use the useUpdateAsset hook to save changes
+    // For now, just call onUpdate to refresh the data
+    onUpdate()
+    onBack()
   }
 
-  const handleDeleteImage = () => {
-    // TODO: Delete current image
-    console.log('Delete image clicked')
-  }
+  const isVideo = asset.storage_path.match(/\.(mp4|mov|avi)$/i)
 
   return (
     <RequireAuth>
@@ -342,7 +326,7 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
                 onClick={onBack}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300`}
               >
-                Ready to Use (2)
+                Ready to Use (0)
               </button>
               <button
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-[#6366F1] text-[#6366F1]`}
@@ -359,55 +343,42 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
               <div className="lg:col-span-2 space-y-6">
                 {/* Aspect Ratio Selection */}
                 <div className="flex space-x-3">
-                  <button
-                    onClick={() => setSelectedAspectRatio('landscape')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedAspectRatio === 'landscape'
-                        ? 'bg-[#6366F1] text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    1.91:1 Landscape
-                  </button>
-                  <button
-                    onClick={() => setSelectedAspectRatio('portrait')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedAspectRatio === 'portrait'
-                        ? 'bg-[#6366F1] text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    4:5 Portrait
-                  </button>
-                  <button
-                    onClick={() => setSelectedAspectRatio('square')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedAspectRatio === 'square'
-                        ? 'bg-[#6366F1] text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    1:1 Square
-                  </button>
+                  {aspectRatios.map((ratio) => (
+                    <button
+                      key={ratio.value}
+                      onClick={() => setSelectedAspectRatio(ratio.value)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedAspectRatio === ratio.value
+                          ? 'bg-[#6366F1] text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {ratio.label}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Image Preview */}
                 <div className="relative">
                   <div className={`bg-gray-100 rounded-xl overflow-hidden ${
-                    selectedAspectRatio === 'landscape' ? 'aspect-[1.91/1]' :
-                    selectedAspectRatio === 'portrait' ? 'aspect-[4/5]' :
+                    selectedAspectRatio === '1.91:1' ? 'aspect-[1.91/1]' :
+                    selectedAspectRatio === '4:5' ? 'aspect-[4/5]' :
+                    selectedAspectRatio === '1:1' ? 'aspect-square' :
                     'aspect-square'
                   }`}>
-                    <img 
-                      src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=800&fit=crop"
-                      alt="Content preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                      }}
-                    />
+                    {isVideo ? (
+                      <video
+                        src={asset.signed_url}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                    ) : (
+                      <img 
+                        src={asset.signed_url}
+                        alt={asset.title}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
                   <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
                     Click and drag to reposition
@@ -443,16 +414,10 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
                 {/* Actions */}
                 <div className="flex space-x-3">
                   <button
-                    onClick={handleNextImage}
+                    onClick={handleSave}
                     className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
                   >
-                    Next Image
-                  </button>
-                  <button
-                    onClick={handleDeleteImage}
-                    className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                  >
-                    <TrashIcon className="w-5 h-5" />
+                    Save Changes
                   </button>
                 </div>
               </div>
