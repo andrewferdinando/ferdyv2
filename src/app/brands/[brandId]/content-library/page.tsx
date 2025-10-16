@@ -117,7 +117,7 @@ export default function ContentLibraryPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-950">Content Library</h1>
+              <h1 className="text-3xl font-bold text-red-600">CONTENT LIBRARY - TEST VERSION</h1>
               <p className="text-gray-700 mt-1">Manage your images and videos</p>
             </div>
             
