@@ -81,7 +81,7 @@ export default function ContentLibraryPage() {
 
   const handleUpload = () => {
     // TODO: Implement upload functionality
-    console.log('Upload content clicked')
+    console.log('Upload content clicked - deployment test')
   }
 
   const handleEditAsset = (assetId: string) => {
