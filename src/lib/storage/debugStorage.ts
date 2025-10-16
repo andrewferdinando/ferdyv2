@@ -1,5 +1,38 @@
 import { supabase } from '@/lib/supabase-browser'
 
+async function searchForFilesRecursively(path: string, depth = 0) {
+  if (depth > 3) return // Prevent infinite recursion
+  
+  try {
+    const { data, error } = await supabase.storage
+      .from('ferdy-assets')
+      .list(path, { limit: 100 })
+    
+    if (error) {
+      console.error(`❌ Error listing ${path}:`, error)
+      return
+    }
+    
+    if (data && data.length > 0) {
+      console.log(`📁 Contents of "${path}":`, data.map(f => ({ 
+        name: f.name, 
+        type: f.metadata?.mimetype || 'folder',
+        size: f.metadata?.size 
+      })))
+      
+      // Recursively search subdirectories
+      for (const item of data) {
+        if (!item.metadata?.mimetype) { // It's a folder
+          const newPath = path ? `${path}/${item.name}` : item.name
+          await searchForFilesRecursively(newPath, depth + 1)
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`❌ Error searching ${path}:`, err)
+  }
+}
+
 export async function debugStorage() {
   console.log('🔍 Starting storage debug...')
   
@@ -97,6 +130,10 @@ export async function debugStorage() {
         }
       }
     }
+    
+    // Search for files recursively to find where they actually are
+    console.log('🔍 Searching for files recursively...')
+    await searchForFilesRecursively('')
     
     // Also test some common paths
     const commonTestFiles = [
