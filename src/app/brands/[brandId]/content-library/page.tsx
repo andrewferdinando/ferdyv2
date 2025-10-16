@@ -33,20 +33,32 @@ export default function ContentLibraryPage() {
     }
   })
 
-  const needsAttentionAssets = assets.filter(asset => asset.tags.length === 0)
+  const needsAttentionAssets = assets
+    .filter(asset => asset.tags.length === 0)
+    .sort((a, b) => {
+      // If we have editingAssetData, prioritize that asset first
+      if (editingAssetData) {
+        if (a.id === editingAssetData.id) return -1
+        if (b.id === editingAssetData.id) return 1
+      }
+      // Otherwise, sort by creation date (newest first)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
   const readyAssets = assets.filter(asset => asset.tags.length > 0)
 
   const handleUploadSuccess = (assetIds: string[]) => {
     refetch()
     // Switch to needs attention tab to show the new assets
     setActiveTab('needs_attention')
-    // Find and select the first new asset after a short delay to ensure it's loaded
-    setTimeout(() => {
-      const newAsset = assets.find(asset => assetIds.includes(asset.id))
-      if (newAsset) {
-        setSelectedAsset(newAsset)
-      }
-    }, 500)
+    // Store the first uploaded asset as editing data to prioritize it
+    if (assetIds.length > 0) {
+      setTimeout(() => {
+        const newAsset = assets.find(asset => asset.id === assetIds[0])
+        if (newAsset) {
+          setEditingAssetData(newAsset)
+        }
+      }, 500)
+    }
   }
 
   const handleUploadError = (error: string) => {
