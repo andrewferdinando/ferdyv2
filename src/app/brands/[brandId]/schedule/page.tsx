@@ -356,8 +356,9 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   );
 }
 
-// Scheduled Card Component (read-only version of DraftCard) - Currently unused
-// function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) {
+// Scheduled Card Component - Currently unused
+/*
+function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) {
   const formatDateTime = (scheduledAt: string, timezone: string) => {
     const date = new Date(scheduledAt);
     return date.toLocaleString('en-US', {
@@ -430,6 +431,7 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
     </div>
   );
 }
+*/
 
 // Published Card Component - Currently unused
 /*
