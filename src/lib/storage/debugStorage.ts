@@ -42,6 +42,14 @@ export async function debugStorage() {
     console.log('🔧 SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING')
     console.log('🔧 SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'MISSING')
     
+    // Also log the actual values (first few characters for security)
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('🔧 SUPABASE_URL value:', process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 20) + '...')
+    }
+    if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.log('🔧 SUPABASE_ANON_KEY value:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 20) + '...')
+    }
+    
     // Test basic connection
     console.log('🔧 Testing Supabase connection...')
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -184,5 +192,6 @@ export async function debugStorage() {
     
   } catch (error) {
     console.error('❌ Debug storage error:', error)
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
   }
 }
