@@ -321,16 +321,33 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
         <div className="flex-1 overflow-auto">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Needs Attention</h1>
-                <p className="text-gray-600 mt-1">Review and tag your content</p>
+                <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
+                <p className="text-gray-600 mt-1">Manage your images and videos</p>
               </div>
               <button
                 onClick={onBack}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Back to Content Library
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
+            <div className="flex space-x-8">
+              <button
+                onClick={onBack}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300`}
+              >
+                Ready to Use (2)
+              </button>
+              <button
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-[#6366F1] text-[#6366F1]`}
+              >
+                Needs Attention (1)
               </button>
             </div>
           </div>
@@ -403,12 +420,12 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
                 {/* Available Tags */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1">
                     {availableTags.map((tag) => (
                       <button
                         key={tag}
                         onClick={() => handleTagToggle(tag)}
-                        className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+                        className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
                           selectedTags.includes(tag)
                             ? 'bg-[#6366F1] text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -417,7 +434,7 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
                         {tag}
                       </button>
                     ))}
-                    <button className="px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+                    <button className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
                       + Tag
                     </button>
                   </div>
