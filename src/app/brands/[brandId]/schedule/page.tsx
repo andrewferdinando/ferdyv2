@@ -356,8 +356,8 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   );
 }
 
-// Scheduled Card Component (read-only version of DraftCard)
-function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) {
+// Scheduled Card Component (read-only version of DraftCard) - Currently unused
+// function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) {
   const formatDateTime = (scheduledAt: string, timezone: string) => {
     const date = new Date(scheduledAt);
     return date.toLocaleString('en-US', {
@@ -431,7 +431,8 @@ function ScheduledCard({ post }: { post: ScheduledPost; onUpdate: () => void }) 
   );
 }
 
-// Published Card Component
+// Published Card Component - Currently unused
+/*
 function PublishedCard({ post }: { post: PublishedPost; onUpdate: () => void }) {
   const formatDateTime = (publishedAt: string) => {
     const date = new Date(publishedAt);

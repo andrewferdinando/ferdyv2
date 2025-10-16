@@ -59,7 +59,7 @@ const mockAssets = [
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
-  const { assets, loading, error } = useAssets(brandId)
+  const { loading } = useAssets(brandId)
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
@@ -86,12 +86,9 @@ export default function ContentLibraryPage() {
     console.log('Delete asset:', assetId)
   }
 
-  // Show detailed view for needs attention tab or when asset is selected
-  if (activeTab === 'needs_attention' || selectedAsset) {
-    return <AssetDetailView assetId={selectedAsset || needsAttentionAssets[0]?.id || '3'} onBack={() => {
-      setSelectedAsset(null)
-      setActiveTab('ready')
-    }} />
+  // Show detailed view when asset is selected
+  if (selectedAsset) {
+    return <AssetDetailView onBack={() => setSelectedAsset(null)} />
   }
 
   if (loading) {
@@ -140,7 +137,13 @@ export default function ContentLibraryPage() {
                 Ready to Use ({readyAssets.length})
               </button>
               <button
-                onClick={() => setActiveTab('needs_attention')}
+                onClick={() => {
+                  if (needsAttentionAssets.length > 0) {
+                    setSelectedAsset(needsAttentionAssets[0].id)
+                  } else {
+                    setActiveTab('needs_attention')
+                  }
+                }}
                 className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'needs_attention'
                     ? 'border-[#6366F1] text-gray-950'
@@ -256,7 +259,7 @@ function getTagColor(tag: string) {
 }
 
 // Asset Detail View Component
-function AssetDetailView({ assetId, onBack }: { assetId: string; onBack: () => void }) {
+function AssetDetailView({ onBack }: { onBack: () => void }) {
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<'landscape' | 'portrait' | 'square'>('square')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
 
