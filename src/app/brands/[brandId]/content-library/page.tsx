@@ -8,7 +8,6 @@ import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import AssetCard from '@/components/assets/AssetCard'
-import EditAssetModal from '@/components/assets/EditAssetModal'
 
 export default function ContentLibraryPage() {
   const params = useParams()
@@ -19,7 +18,6 @@ export default function ContentLibraryPage() {
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
 
   // Filter assets based on tab and search
@@ -54,8 +52,28 @@ export default function ContentLibraryPage() {
     alert(`Upload failed: ${error}`)
   }
 
-  const handleEditAsset = (asset: Asset) => {
-    setEditingAsset(asset)
+  const handleEditAsset = async (asset: Asset) => {
+    try {
+      // Move asset to "Needs Attention" by clearing its tags
+      const { supabase } = await import('@/lib/supabase-browser')
+      
+      const { error } = await supabase
+        .from('assets')
+        .update({ tags: [] })
+        .eq('id', asset.id)
+        .eq('brand_id', asset.brand_id)
+
+      if (error) {
+        throw error
+      }
+
+      // Refresh the data and switch to needs attention tab
+      refetch()
+      setActiveTab('needs_attention')
+    } catch (error) {
+      console.error('Error moving asset to needs attention:', error)
+      alert('Failed to move asset for editing. Please try again.')
+    }
   }
 
   const handleDeleteAsset = (asset: Asset) => {
@@ -236,13 +254,6 @@ export default function ContentLibraryPage() {
           </div>
         </div>
 
-        {/* Edit Asset Modal */}
-        <EditAssetModal
-          asset={editingAsset}
-          isOpen={!!editingAsset}
-          onClose={() => setEditingAsset(null)}
-          onSave={handleAssetUpdate}
-        />
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
@@ -340,10 +351,10 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
     <div className="flex-1 overflow-auto">
 
           {/* Content */}
-          <div className="p-4 sm:p-6 lg:p-10">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Section - Image Preview */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 space-y-4">
                 {/* Aspect Ratio Selection */}
                 <div className="flex space-x-3">
                   {aspectRatios.map((ratio) => (
@@ -390,10 +401,10 @@ function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: ()
               </div>
 
               {/* Right Section - Tags and Actions */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Available Tags */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
+                  <h3 className="text-lg font-semibold text-gray-950 mb-3">Available Tags</h3>
                   <div className="grid grid-cols-2 gap-1">
                     {availableTags.map((tag) => (
                       <button
