@@ -37,6 +37,14 @@ export async function debugStorage() {
   console.log('🔍 Starting storage debug...')
   
   try {
+    // First, let's see what buckets exist
+    console.log('🪣 Checking available buckets...')
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
+    if (bucketsError) {
+      console.error('❌ Error listing buckets:', bucketsError)
+    } else {
+      console.log('🪣 Available buckets:', buckets?.map(b => ({ name: b.name, public: b.public })))
+    }
     // First, let's check what's in the Assets table
     const brandId = '986a5e5d-4d6b-4893-acc8-9ddce8083921'
     console.log('📊 Checking Assets table for brand:', brandId)
