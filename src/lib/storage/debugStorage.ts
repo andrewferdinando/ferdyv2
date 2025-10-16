@@ -56,7 +56,6 @@ export async function debugStorage() {
     }
     
     // Try to list the specific brand directory
-    const brandId = '986a5e5d-4d6b-4893-acc8-9ddce8083921'
     const { data: brandData, error: brandError } = await supabase.storage
       .from('ferdy-assets')
       .list(`brands/${brandId}`, { limit: 100 })
