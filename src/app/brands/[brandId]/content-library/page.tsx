@@ -19,6 +19,7 @@ export default function ContentLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
+  const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
 
   // Filter assets based on tab and search
   const filteredAssets = assets.filter(asset => {
@@ -54,12 +55,17 @@ export default function ContentLibraryPage() {
 
   const handleEditAsset = async (asset: Asset) => {
     try {
+      // Store the original asset data for editing
+      setEditingAssetData(asset)
+      
       // Move asset to "Needs Attention" by clearing its tags
       const { supabase } = await import('@/lib/supabase-browser')
       
       const { error } = await supabase
         .from('assets')
-        .update({ tags: [] })
+        .update({ 
+          tags: [], // Clear tags to move to needs attention
+        })
         .eq('id', asset.id)
         .eq('brand_id', asset.brand_id)
 
@@ -99,6 +105,7 @@ export default function ContentLibraryPage() {
 
   const handleAssetUpdate = () => {
     refetch()
+    setEditingAssetData(null) // Clear editing data after successful update
   }
 
 
@@ -157,7 +164,10 @@ export default function ContentLibraryPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
             <div className="flex space-x-8">
               <button
-                onClick={() => setActiveTab('ready')}
+                onClick={() => {
+                  setActiveTab('ready')
+                  setEditingAssetData(null) // Clear editing data when switching tabs
+                }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'ready'
                     ? 'border-[#6366F1] text-[#6366F1]'
@@ -167,7 +177,10 @@ export default function ContentLibraryPage() {
                 Ready to Use ({readyAssets.length})
               </button>
               <button
-                onClick={() => setActiveTab('needs_attention')}
+                onClick={() => {
+                  setActiveTab('needs_attention')
+                  setEditingAssetData(null) // Clear editing data when switching tabs
+                }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'needs_attention'
                     ? 'border-[#6366F1] text-[#6366F1]'
@@ -180,7 +193,7 @@ export default function ContentLibraryPage() {
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6 lg:p-10">
+          <div className="p-4 sm:p-6">
             {/* Search */}
             {activeTab === 'ready' && (
               <div className="mb-6">
@@ -203,6 +216,7 @@ export default function ContentLibraryPage() {
               needsAttentionAssets.length > 0 ? (
                 <AssetDetailView 
                   asset={needsAttentionAssets[0]} 
+                  originalAssetData={editingAssetData}
                   onBack={() => {}} 
                   onUpdate={handleAssetUpdate} 
                 />
@@ -287,10 +301,12 @@ export default function ContentLibraryPage() {
 }
 
 // Asset Detail View Component for Needs Attention tab
-function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: () => void; onUpdate: () => void }) {
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState(asset.aspect_ratio || 'original')
-  const [selectedTags, setSelectedTags] = useState<string[]>(asset.tags || [])
-  const [cropWindows] = useState(asset.crop_windows ? JSON.stringify(asset.crop_windows, null, 2) : '')
+function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset: Asset; originalAssetData: Asset | null; onBack: () => void; onUpdate: () => void }) {
+  // Use original asset data if available (for editing), otherwise use current asset data
+  const displayAsset = originalAssetData || asset
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState(displayAsset.aspect_ratio || 'original')
+  const [selectedTags, setSelectedTags] = useState<string[]>(displayAsset.tags || [])
+  const [cropWindows] = useState(displayAsset.crop_windows ? JSON.stringify(displayAsset.crop_windows, null, 2) : '')
   const [saving, setSaving] = useState(false)
 
   const availableTags = [
