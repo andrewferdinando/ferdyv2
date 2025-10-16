@@ -64,8 +64,34 @@ export async function debugStorage() {
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
     if (bucketsError) {
       console.error('❌ Error listing buckets:', bucketsError)
+      console.error('❌ Bucket error details:', {
+        message: bucketsError.message,
+        status: bucketsError.status,
+        statusCode: bucketsError.statusCode
+      })
     } else {
       console.log('🪣 Available buckets:', buckets?.map(b => ({ name: b.name, public: b.public })))
+    }
+    
+    // Try to access the specific bucket directly
+    console.log('🪣 Testing direct bucket access...')
+    try {
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .from('ferdy-assets')
+        .list('', { limit: 1 })
+      
+      if (bucketError) {
+        console.error('❌ Direct bucket access error:', bucketError)
+        console.error('❌ Direct bucket error details:', {
+          message: bucketError.message,
+          status: bucketError.status,
+          statusCode: bucketError.statusCode
+        })
+      } else {
+        console.log('✅ Direct bucket access works:', bucketData)
+      }
+    } catch (directErr) {
+      console.error('❌ Direct bucket access exception:', directErr)
     }
     // First, let's check what's in the Assets table
     const brandId = '986a5e5d-4d6b-4893-acc8-9ddce8083921'
