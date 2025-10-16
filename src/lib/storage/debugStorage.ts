@@ -60,6 +60,30 @@ export async function debugStorage() {
       console.log('📁 Brand/originals directory contents:', brandOriginalsData?.map(f => ({ name: f.name, type: f.metadata?.mimetype })))
     }
     
+    // Test specific files that are failing
+    const testFiles = [
+      'originals/7f2f2b0c-ec49-450d-ad6a-0d1e678dd12b.png',
+      'originals/1b2d5178-4e26-4fc9-a453-4ed38e864e52.jpg',
+      'brand-assets/gokart.jpg'
+    ]
+    
+    for (const testFile of testFiles) {
+      console.log(`🧪 Testing file: ${testFile}`)
+      try {
+        const { data: testData, error: testError } = await supabase.storage
+          .from('ferdy-assets')
+          .createSignedUrl(testFile, 60)
+        
+        if (testError) {
+          console.error(`❌ Test failed for ${testFile}:`, testError)
+        } else {
+          console.log(`✅ Test passed for ${testFile}:`, testData?.signedUrl)
+        }
+      } catch (testErr) {
+        console.error(`❌ Test error for ${testFile}:`, testErr)
+      }
+    }
+    
   } catch (error) {
     console.error('❌ Debug storage error:', error)
   }
