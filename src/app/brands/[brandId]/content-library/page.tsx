@@ -36,21 +36,21 @@ const mockAssets = [
   {
     id: '1',
     title: 'Go-kart racing kids',
-    storage_path: '/assets/placeholders/cropped_gameover_may_107 (1).png',
+    storage_path: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop',
     tags: ['Student Discount', 'Happy Hour Special'],
     status: 'ready'
   },
   {
     id: '2', 
     title: 'Go-kart child waving',
-    storage_path: '/assets/placeholders/cropped_gameover_may_119 - Copy.png',
+    storage_path: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop',
     tags: ['Corporate Team Building', 'Student Discount'],
     status: 'ready'
   },
   {
     id: '3',
     title: 'Outdoor party scene',
-    storage_path: '/assets/placeholders/cropped_gameover_may_124.png',
+    storage_path: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=400&fit=crop',
     tags: [],
     status: 'needs_attention'
   }
@@ -86,8 +86,12 @@ export default function ContentLibraryPage() {
     console.log('Delete asset:', assetId)
   }
 
-  if (selectedAsset) {
-    return <AssetDetailView assetId={selectedAsset} onBack={() => setSelectedAsset(null)} />
+  // Show detailed view for needs attention tab or when asset is selected
+  if (activeTab === 'needs_attention' || selectedAsset) {
+    return <AssetDetailView assetId={selectedAsset || needsAttentionAssets[0]?.id || '3'} onBack={() => {
+      setSelectedAsset(null)
+      setActiveTab('ready')
+    }} />
   }
 
   if (loading) {
@@ -184,6 +188,11 @@ export default function ContentLibraryPage() {
                       src={asset.storage_path} 
                       alt={asset.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                      }}
                     />
                   </div>
                   <div className="p-4">
@@ -333,9 +342,14 @@ function AssetDetailView({ assetId, onBack }: { assetId: string; onBack: () => v
                   'aspect-square'
                 }`}>
                   <img 
-                    src="/assets/placeholders/cropped_gameover_may_124.png"
+                    src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=800&fit=crop"
                     alt="Content preview"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                    }}
                   />
                 </div>
                 <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
