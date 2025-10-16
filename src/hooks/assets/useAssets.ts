@@ -41,16 +41,34 @@ export function useAssets(brandId: string) {
       const assetsWithUrls = await Promise.all(
         (data || []).map(async (asset) => {
           console.log('🖼️ Processing asset:', asset.id, 'with storage_path:', asset.storage_path)
+          
+          // Try the original path first
+          let signedUrl = null
+          let actualPath = asset.storage_path
+          
           try {
-            const signedUrl = await getSignedUrl(asset.storage_path)
+            signedUrl = await getSignedUrl(asset.storage_path)
             console.log('✅ Successfully generated signed URL for asset:', asset.id)
-            return { ...asset, signed_url: signedUrl }
           } catch (urlError) {
             console.error('❌ Error generating signed URL for asset:', asset.id, urlError)
             console.error('❌ Storage path that failed:', asset.storage_path)
-            // Return asset without signed_url if generation fails
-            return { ...asset, signed_url: null }
+            
+            // Try alternative path without brands/{brandId}/ prefix
+            const alternativePath = asset.storage_path.replace(`brands/${brandId}/`, '')
+            console.log('🔄 Trying alternative path:', alternativePath)
+            
+            try {
+              signedUrl = await getSignedUrl(alternativePath)
+              actualPath = alternativePath
+              console.log('✅ Successfully generated signed URL with alternative path for asset:', asset.id)
+            } catch (altError) {
+              console.error('❌ Alternative path also failed:', alternativePath, altError)
+              // Return asset without signed_url if both paths fail
+              return { ...asset, signed_url: null }
+            }
           }
+          
+          return { ...asset, signed_url: signedUrl }
         })
       )
 

@@ -25,13 +25,18 @@ export function useUploadAsset() {
 
       // Upload to storage
       setProgress(25)
-      const { error: uploadError } = await supabase.storage
+      console.log('📤 Uploading file to path:', path)
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('ferdy-assets')
         .upload(path, file, { upsert: false })
 
       if (uploadError) {
+        console.error('❌ Upload error:', uploadError)
+        console.error('❌ Upload path:', path)
         throw uploadError
       }
+      
+      console.log('✅ Upload successful:', uploadData)
 
       setProgress(50)
 
