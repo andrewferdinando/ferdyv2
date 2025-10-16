@@ -246,13 +246,14 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                 <div className="flex items-center space-x-1 text-gray-500">
                   <ClockIcon className="w-4 h-4" />
                   <span className="text-sm">
-                    {status === 'published' ? 'Published' : status === 'scheduled' ? 'Scheduled' : 'Created'} • {formatDateTime(draft.post_jobs?.scheduled_at || draft.created_at)}
+                    {status === 'published' ? 'Published' : 
+                     status === 'scheduled' ? 'Scheduled' : 
+                     draft.post_jobs?.scheduled_at ? 'Scheduled' : 'Created'} • {formatDateTime(draft.post_jobs?.scheduled_at || draft.created_at)}
                   </span>
-                </div>
-
-                {/* Platform Icons */}
-                <div className="flex items-center space-x-1">
-                  {getPlatformIcon(draft.channel)}
+                  {/* Platform Icons with proper spacing */}
+                  <div className="flex items-center ml-4">
+                    {getPlatformIcon(draft.channel)}
+                  </div>
                 </div>
               </div>
 
