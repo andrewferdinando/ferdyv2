@@ -4,6 +4,24 @@ export async function debugStorage() {
   console.log('🔍 Starting storage debug...')
   
   try {
+    // First, let's check what's in the Assets table
+    const brandId = '986a5e5d-4d6b-4893-acc8-9ddce8083921'
+    console.log('📊 Checking Assets table for brand:', brandId)
+    
+    const { data: assetsData, error: assetsError } = await supabase
+      .from('assets')
+      .select('id, title, storage_path')
+      .eq('brand_id', brandId)
+    
+    if (assetsError) {
+      console.error('❌ Error fetching assets from database:', assetsError)
+    } else {
+      console.log('📊 Assets in database:', assetsData?.map(asset => ({
+        id: asset.id,
+        title: asset.title,
+        storage_path: asset.storage_path
+      })))
+    }
     // List root directory
     const { data: rootData, error: rootError } = await supabase.storage
       .from('ferdy-assets')
@@ -60,14 +78,36 @@ export async function debugStorage() {
       console.log('📁 Brand/originals directory contents:', brandOriginalsData?.map(f => ({ name: f.name, type: f.metadata?.mimetype })))
     }
     
-    // Test specific files that are failing
-    const testFiles = [
+    // Test files from the database
+    if (assetsData && assetsData.length > 0) {
+      console.log('🧪 Testing files from database...')
+      for (const asset of assetsData) {
+        console.log(`🧪 Testing file: ${asset.storage_path}`)
+        try {
+          const { data: testData, error: testError } = await supabase.storage
+            .from('ferdy-assets')
+            .createSignedUrl(asset.storage_path, 60)
+          
+          if (testError) {
+            console.error(`❌ Test failed for ${asset.storage_path}:`, testError)
+          } else {
+            console.log(`✅ Test passed for ${asset.storage_path}:`, testData?.signedUrl)
+          }
+        } catch (testErr) {
+          console.error(`❌ Test error for ${asset.storage_path}:`, testErr)
+        }
+      }
+    }
+    
+    // Also test some common paths
+    const commonTestFiles = [
       'originals/7f2f2b0c-ec49-450d-ad6a-0d1e678dd12b.png',
       'originals/1b2d5178-4e26-4fc9-a453-4ed38e864e52.jpg',
       'brand-assets/gokart.jpg'
     ]
     
-    for (const testFile of testFiles) {
+    console.log('🧪 Testing common file paths...')
+    for (const testFile of commonTestFiles) {
       console.log(`🧪 Testing file: ${testFile}`)
       try {
         const { data: testData, error: testError } = await supabase.storage
