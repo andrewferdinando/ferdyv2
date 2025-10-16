@@ -90,7 +90,7 @@ export default function SettingsPage() {
                 <Link
                   key={index}
                   href={card.href}
-                  className="group bg-gray-50 hover:bg-gray-100 rounded-lg p-6 transition-all duration-200 hover:shadow-md"
+                  className="group bg-white hover:bg-gray-50 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-gray-200"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">

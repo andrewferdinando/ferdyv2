@@ -183,51 +183,42 @@ export default function ContentLibraryPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredAssets.map((asset) => (
-                <div key={asset.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="flex gap-4">
-                    {/* Image Section */}
-                    <div className="flex-shrink-0">
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                        <img 
-                          src={asset.storage_path} 
-                          alt={asset.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                          }}
-                        />
+                <div key={asset.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200">
+                  <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                    <img 
+                      src={asset.storage_path} 
+                      alt={asset.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                      }}
+                    />
+                  </div>
+                  <div className="p-4">
+                    {/* Tags */}
+                    {asset.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {asset.tags.map((tag, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
+                            style={{
+                              backgroundColor: getTagColor(tag).bg,
+                              color: getTagColor(tag).text
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </div>
-                    </div>
-                    
-                    {/* Content Section */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate mb-2">{asset.title}</h3>
-                      
-                      {/* Tags */}
-                      {asset.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {asset.tags.map((tag, index) => (
-                            <span 
-                              key={index}
-                              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
-                              style={{
-                                backgroundColor: getTagColor(tag).bg,
-                                color: getTagColor(tag).text
-                              }}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    )}
                     
                     {/* Actions */}
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-end space-x-2">
                       <button
                         onClick={() => handleEditAsset(asset.id)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -313,101 +304,107 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          <div className="space-y-6">
-            {/* Aspect Ratio Selection */}
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setSelectedAspectRatio('landscape')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedAspectRatio === 'landscape'
-                    ? 'bg-[#6366F1] text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                1.91:1 Landscape
-              </button>
-              <button
-                onClick={() => setSelectedAspectRatio('portrait')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedAspectRatio === 'portrait'
-                    ? 'bg-[#6366F1] text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                4:5 Portrait
-              </button>
-              <button
-                onClick={() => setSelectedAspectRatio('square')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedAspectRatio === 'square'
-                    ? 'bg-[#6366F1] text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                1:1 Square
-              </button>
-            </div>
-
-            {/* Image Preview */}
-            <div className="relative">
-              <div className={`bg-gray-100 rounded-xl overflow-hidden ${
-                selectedAspectRatio === 'landscape' ? 'aspect-[1.91/1]' :
-                selectedAspectRatio === 'portrait' ? 'aspect-[4/5]' :
-                'aspect-square'
-              }`}>
-                <img 
-                  src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=800&fit=crop"
-                  alt="Content preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                  }}
-                />
-              </div>
-              <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
-                Click and drag to reposition
-              </div>
-            </div>
-
-            {/* Available Tags */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {availableTags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => handleTagToggle(tag)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedTags.includes(tag)
-                        ? 'bg-[#6366F1] text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-                <button className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
-                  + Tag
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Section - Image Preview */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Aspect Ratio Selection */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setSelectedAspectRatio('landscape')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedAspectRatio === 'landscape'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  1.91:1 Landscape
+                </button>
+                <button
+                  onClick={() => setSelectedAspectRatio('portrait')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedAspectRatio === 'portrait'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  4:5 Portrait
+                </button>
+                <button
+                  onClick={() => setSelectedAspectRatio('square')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedAspectRatio === 'square'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  1:1 Square
                 </button>
               </div>
+
+              {/* Image Preview */}
+              <div className="relative">
+                <div className={`bg-gray-100 rounded-xl overflow-hidden ${
+                  selectedAspectRatio === 'landscape' ? 'aspect-[1.91/1]' :
+                  selectedAspectRatio === 'portrait' ? 'aspect-[4/5]' :
+                  'aspect-square'
+                }`}>
+                  <img 
+                    src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=800&fit=crop"
+                    alt="Content preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                    }}
+                  />
+                </div>
+                <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
+                  Click and drag to reposition
+                </div>
+              </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex space-x-3">
-              <button
-                onClick={handleNextImage}
-                className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
-              >
-                Next Image
-              </button>
-              <button
-                onClick={handleDeleteImage}
-                className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-              >
-                <TrashIcon className="w-5 h-5" />
-              </button>
+            {/* Right Section - Tags and Actions */}
+            <div className="space-y-6">
+              {/* Available Tags */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => handleTagToggle(tag)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedTags.includes(tag)
+                          ? 'bg-[#6366F1] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  <button className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+                    + Tag
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleNextImage}
+                  className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+                >
+                  Next Image
+                </button>
+                <button
+                  onClick={handleDeleteImage}
+                  className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
