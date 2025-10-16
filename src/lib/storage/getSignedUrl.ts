@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-browser'
+import { supabase } from '@/lib/supabase-browser'
 
 const signedUrlCache = new Map<string, { url: string; expires: number }>()
 
@@ -9,7 +9,6 @@ export async function getSignedUrl(path: string): Promise<string> {
     return cached.url
   }
 
-  const supabase = createClient()
   const { data, error } = await supabase.storage
     .from('ferdy-assets')
     .createSignedUrl(path, 600) // 10 minutes

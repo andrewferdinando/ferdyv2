@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase-browser'
+import { supabase } from '@/lib/supabase-browser'
 
 export interface DeleteAssetParams {
   assetId: string
@@ -16,7 +16,6 @@ export function useDeleteAsset() {
     try {
       setDeleting(true)
 
-      const supabase = createClient()
 
       // Delete from storage first
       const { error: storageError } = await supabase.storage

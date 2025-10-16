@@ -239,7 +239,7 @@ export default function ContentLibraryPage() {
             <div className="bg-white rounded-xl max-w-md w-full p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Asset</h3>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete "{showDeleteConfirm.title}"? This action cannot be undone.
+                Are you sure you want to delete &quot;{showDeleteConfirm.title}&quot;? This action cannot be undone.
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -268,7 +268,7 @@ export default function ContentLibraryPage() {
 function AssetDetailView({ asset, onBack, onUpdate }: { asset: Asset; onBack: () => void; onUpdate: () => void }) {
   const [selectedAspectRatio, setSelectedAspectRatio] = useState(asset.aspect_ratio || 'original')
   const [selectedTags, setSelectedTags] = useState<string[]>(asset.tags || [])
-  const [cropWindows, setCropWindows] = useState(asset.crop_windows ? JSON.stringify(asset.crop_windows, null, 2) : '')
+  const [cropWindows] = useState(asset.crop_windows ? JSON.stringify(asset.crop_windows, null, 2) : '')
 
   const availableTags = [
     'Student Discount', 'Happy Hour Special', 'Corporate Team Building',

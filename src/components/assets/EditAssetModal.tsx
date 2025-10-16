@@ -55,7 +55,7 @@ export default function EditAssetModal({ asset, isOpen, onClose, onSave }: EditA
       if (cropWindows.trim()) {
         try {
           parsedCropWindows = JSON.parse(cropWindows)
-        } catch (e) {
+        } catch {
           alert('Invalid JSON format for crop windows')
           return
         }

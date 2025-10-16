@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase-browser'
+import { supabase } from '@/lib/supabase-browser'
 
 export interface UpdateAssetParams {
   assetId: string
@@ -8,7 +8,7 @@ export interface UpdateAssetParams {
     title?: string
     tags?: string[]
     aspect_ratio?: string
-    crop_windows?: any
+    crop_windows?: Record<string, unknown>
   }
   onSuccess?: () => void
   onError?: (error: string) => void
@@ -21,7 +21,6 @@ export function useUpdateAsset() {
     try {
       setUpdating(true)
 
-      const supabase = createClient()
       const { error } = await supabase
         .from('assets')
         .update(updates)

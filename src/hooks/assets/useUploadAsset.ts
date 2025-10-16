@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase-browser'
+import { supabase } from '@/lib/supabase-browser'
 
 export interface UploadAssetParams {
   file: File
@@ -22,7 +22,6 @@ export function useUploadAsset() {
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
       const path = `brands/${brandId}/originals/${assetId}.${ext}`
 
-      const supabase = createClient()
 
       // Upload to storage
       setProgress(25)
@@ -53,7 +52,7 @@ export function useUploadAsset() {
       setProgress(75)
 
       // Insert into assets table
-      const { data, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('assets')
         .insert({
           id: assetId,

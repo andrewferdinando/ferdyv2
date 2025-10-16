@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase-browser'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase-browser'
 import { getSignedUrl } from '@/lib/storage/getSignedUrl'
 
 export interface Asset {
@@ -9,7 +9,7 @@ export interface Asset {
   storage_path: string
   aspect_ratio: string
   tags: string[]
-  crop_windows?: any
+  crop_windows?: Record<string, unknown>
   width?: number
   height?: number
   created_at: string
@@ -21,12 +21,11 @@ export function useAssets(brandId: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const supabase = createClient()
       const { data, error } = await supabase
         .from('assets')
         .select('*')
@@ -57,13 +56,13 @@ export function useAssets(brandId: string) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [brandId])
 
   useEffect(() => {
     if (brandId) {
       fetchAssets()
     }
-  }, [brandId])
+  }, [brandId, fetchAssets])
 
   const refetch = () => {
     fetchAssets()
