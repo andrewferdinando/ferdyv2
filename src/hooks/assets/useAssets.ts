@@ -37,13 +37,17 @@ export function useAssets(brandId: string) {
       }
 
       // Generate signed URLs for each asset
+      console.log('📦 Assets from database:', data)
       const assetsWithUrls = await Promise.all(
         (data || []).map(async (asset) => {
+          console.log('🖼️ Processing asset:', asset.id, 'with storage_path:', asset.storage_path)
           try {
             const signedUrl = await getSignedUrl(asset.storage_path)
+            console.log('✅ Successfully generated signed URL for asset:', asset.id)
             return { ...asset, signed_url: signedUrl }
           } catch (urlError) {
-            console.error('Error generating signed URL for asset:', asset.id, urlError)
+            console.error('❌ Error generating signed URL for asset:', asset.id, urlError)
+            console.error('❌ Storage path that failed:', asset.storage_path)
             // Return asset without signed_url if generation fails
             return { ...asset, signed_url: null }
           }
