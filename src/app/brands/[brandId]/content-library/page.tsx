@@ -25,7 +25,7 @@ const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
-const SearchIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
@@ -113,32 +113,33 @@ export default function ContentLibraryPage() {
   return (
     <RequireAuth>
       <AppLayout>
-        <div className="space-y-6">
+        <div className="flex-1 overflow-auto">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-950">Content Library</h1>
-              <p className="text-gray-700 mt-1">Manage your images and videos</p>
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
+                <p className="text-gray-600 mt-1">Manage your images and videos</p>
+              </div>
+              <button 
+                onClick={handleUpload}
+                className="flex items-center space-x-2 px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+              >
+                <UploadIcon />
+                <span>Upload Content</span>
+              </button>
             </div>
-            
-            <button 
-              onClick={handleUpload}
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-xl hover:from-[#4F46E5] hover:to-[#4338CA] transition-all font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
-            >
-              <UploadIcon className="w-5 h-5 mr-2" />
-              Upload Content
-            </button>
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-gray-200">
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
             <div className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('ready')}
-                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'ready'
-                    ? 'border-[#6366F1] text-gray-950'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-[#6366F1] text-[#6366F1]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 Ready to Use ({readyAssets.length})
@@ -151,10 +152,10 @@ export default function ContentLibraryPage() {
                     setActiveTab('needs_attention')
                   }
                 }}
-                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'needs_attention'
-                    ? 'border-[#6366F1] text-gray-950'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-[#6366F1] text-[#6366F1]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 Needs Attention ({needsAttentionAssets.length})
@@ -162,88 +163,114 @@ export default function ContentLibraryPage() {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">🔍</div>
-            <input
-              type="text"
-              placeholder="Search content..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#6366F1] focus:border-transparent text-sm"
-            />
-          </div>
-
-          {/* Content Grid */}
-          {filteredAssets.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                <UploadIcon className="w-12 h-12" />
-              </div>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                {activeTab === 'ready' ? 'No ready content' : 'No content needs attention'}
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {activeTab === 'ready' 
-                  ? 'Upload content to see it here.' 
-                  : 'All content is ready to use.'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredAssets.map((asset) => (
-                <div key={asset.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                    <img 
-                      src={asset.storage_path} 
-                      alt={asset.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                      }}
-                    />
-                  </div>
-                  <div className="p-4">
-                    {/* Tags */}
-                    {asset.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {asset.tags.map((tag, index) => (
-                          <span 
-                            key={index}
-                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
-                            style={{
-                              backgroundColor: getTagColor(tag).bg,
-                              color: getTagColor(tag).text
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Actions */}
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => handleEditAsset(asset.id)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <EditIcon />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAsset(asset.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
+          {/* Content */}
+          <div className="p-4 sm:p-6 lg:p-10">
+            {/* Search */}
+            {activeTab === 'ready' && (
+              <div className="mb-6">
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search content..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  />
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* Tab Content */}
+            {activeTab === 'ready' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredAssets.length > 0 ? (
+                  filteredAssets.map((asset) => (
+                    <div key={asset.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                      {/* Image/Video */}
+                      <div className="aspect-square bg-gray-200 overflow-hidden">
+                        <img
+                          src={asset.storage_path}
+                          alt={asset.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                          }}
+                        />
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4">
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {asset.tags.map((tag, index) => (
+                            <span 
+                              key={index}
+                              className="px-2 py-1 text-xs font-medium rounded-full"
+                              style={{
+                                backgroundColor: getTagColor(tag).bg,
+                                color: getTagColor(tag).text
+                              }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-end gap-3">
+                          <button 
+                            onClick={() => handleEditAsset(asset.id)}
+                            className="p-2 text-[#6366F1] hover:text-[#4F46E5] hover:bg-[#EEF2FF] rounded-lg transition-colors duration-200"
+                            title="Edit"
+                          >
+                            <EditIcon />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteAsset(asset.id)}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                            title="Delete"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <div className="text-gray-400 mb-4">
+                      <UploadIcon className="w-16 h-16 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No content yet</h3>
+                    <p className="text-gray-600 mb-4">Upload some images or videos to get started</p>
+                    <button
+                      onClick={handleUpload}
+                      className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                    >
+                      Upload Content
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <UploadIcon className="w-16 h-16 mx-auto" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
+                <p className="text-gray-600 mb-4">No content needs attention right now</p>
+                <button
+                  onClick={handleUpload}
+                  className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                >
+                  Upload Content
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </AppLayout>
     </RequireAuth>
@@ -296,121 +323,126 @@ function AssetDetailView({ onBack }: { onBack: () => void }) {
   return (
     <RequireAuth>
       <AppLayout>
-        <div className="space-y-6">
+        <div className="flex-1 overflow-auto">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Needs Attention</h1>
+                <p className="text-gray-600 mt-1">Review and tag your content</p>
+              </div>
               <button
                 onClick={onBack}
-                className="text-gray-600 hover:text-gray-900 font-medium mb-2"
+                className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                ← Back to Content Library
+                Back to Content Library
               </button>
-              <h1 className="text-3xl font-bold text-gray-950">Needs Attention</h1>
-              <p className="text-gray-700 mt-1">Review and tag your content</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Section - Image Preview */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Aspect Ratio Selection */}
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setSelectedAspectRatio('landscape')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedAspectRatio === 'landscape'
-                      ? 'bg-[#6366F1] text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  1.91:1 Landscape
-                </button>
-                <button
-                  onClick={() => setSelectedAspectRatio('portrait')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedAspectRatio === 'portrait'
-                      ? 'bg-[#6366F1] text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  4:5 Portrait
-                </button>
-                <button
-                  onClick={() => setSelectedAspectRatio('square')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedAspectRatio === 'square'
-                      ? 'bg-[#6366F1] text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  1:1 Square
-                </button>
-              </div>
-
-              {/* Image Preview */}
-              <div className="relative">
-                <div className={`bg-gray-100 rounded-xl overflow-hidden ${
-                  selectedAspectRatio === 'landscape' ? 'aspect-[1.91/1]' :
-                  selectedAspectRatio === 'portrait' ? 'aspect-[4/5]' :
-                  'aspect-square'
-                }`}>
-                  <img 
-                    src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=800&fit=crop"
-                    alt="Content preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                    }}
-                  />
-                </div>
-                <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
-                  Click and drag to reposition
-                </div>
-              </div>
-            </div>
-
-            {/* Right Section - Tags and Actions */}
-            <div className="space-y-6">
-              {/* Available Tags */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {availableTags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => handleTagToggle(tag)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        selectedTags.includes(tag)
-                          ? 'bg-[#6366F1] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                  <button className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
-                    + Tag
+          {/* Content */}
+          <div className="p-4 sm:p-6 lg:p-10">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Section - Image Preview */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Aspect Ratio Selection */}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setSelectedAspectRatio('landscape')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedAspectRatio === 'landscape'
+                        ? 'bg-[#6366F1] text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    1.91:1 Landscape
+                  </button>
+                  <button
+                    onClick={() => setSelectedAspectRatio('portrait')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedAspectRatio === 'portrait'
+                        ? 'bg-[#6366F1] text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    4:5 Portrait
+                  </button>
+                  <button
+                    onClick={() => setSelectedAspectRatio('square')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedAspectRatio === 'square'
+                        ? 'bg-[#6366F1] text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    1:1 Square
                   </button>
                 </div>
+
+                {/* Image Preview */}
+                <div className="relative">
+                  <div className={`bg-gray-100 rounded-xl overflow-hidden ${
+                    selectedAspectRatio === 'landscape' ? 'aspect-[1.91/1]' :
+                    selectedAspectRatio === 'portrait' ? 'aspect-[4/5]' :
+                    'aspect-square'
+                  }`}>
+                    <img 
+                      src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=800&fit=crop"
+                      alt="Content preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                      }}
+                    />
+                  </div>
+                  <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
+                    Click and drag to reposition
+                  </div>
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleNextImage}
-                  className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
-                >
-                  Next Image
-                </button>
-                <button
-                  onClick={handleDeleteImage}
-                  className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                >
-                  <TrashIcon className="w-5 h-5" />
-                </button>
+              {/* Right Section - Tags and Actions */}
+              <div className="space-y-6">
+                {/* Available Tags */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-950 mb-4">Available Tags</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => handleTagToggle(tag)}
+                        className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+                          selectedTags.includes(tag)
+                            ? 'bg-[#6366F1] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                    <button className="px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+                      + Tag
+                    </button>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleNextImage}
+                    className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all"
+                  >
+                    Next Image
+                  </button>
+                  <button
+                    onClick={handleDeleteImage}
+                    className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
