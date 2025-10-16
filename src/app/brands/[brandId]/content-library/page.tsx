@@ -117,7 +117,7 @@ export default function ContentLibraryPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-red-600">CONTENT LIBRARY - TEST VERSION</h1>
+              <h1 className="text-3xl font-bold text-gray-950">Content Library</h1>
               <p className="text-gray-700 mt-1">Manage your images and videos</p>
             </div>
             
@@ -164,7 +164,7 @@ export default function ContentLibraryPage() {
 
           {/* Search */}
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">🔍</div>
             <input
               type="text"
               placeholder="Search content..."
