@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useBrands } from '@/hooks/useBrands';
@@ -51,6 +51,27 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const { brands, loading: brandsLoading } = useBrands();
 
+  // Initialize selectedBrandId from URL or localStorage
+  useEffect(() => {
+    // Extract brandId from current pathname (e.g., /brands/123/schedule -> 123)
+    const brandIdFromUrl = pathname.match(/\/brands\/([^\/]+)/)?.[1];
+    
+    if (brandIdFromUrl) {
+      setSelectedBrandId(brandIdFromUrl);
+      localStorage.setItem('selectedBrandId', brandIdFromUrl);
+    } else {
+      // Fall back to localStorage or first brand
+      const storedBrandId = localStorage.getItem('selectedBrandId');
+      if (storedBrandId && brands.some(brand => brand.id === storedBrandId)) {
+        setSelectedBrandId(storedBrandId);
+      } else if (brands.length > 0) {
+        const firstBrandId = brands[0].id;
+        setSelectedBrandId(firstBrandId);
+        localStorage.setItem('selectedBrandId', firstBrandId);
+      }
+    }
+  }, [pathname, brands]);
+
   const handleNavigationClick = () => {
     if (onMobileClose) {
       onMobileClose();
@@ -59,7 +80,11 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
 
   const handleBrandSelect = (brandId: string) => {
     setSelectedBrandId(brandId);
+    localStorage.setItem('selectedBrandId', brandId);
     setIsBrandDropdownOpen(false);
+    
+    // Navigate to the selected brand's schedule page
+    router.push(`/brands/${brandId}/schedule`);
   };
 
   const handleSignOut = async () => {
