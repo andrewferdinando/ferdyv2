@@ -13,7 +13,7 @@ function SignInForm() {
   const [error, setError] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = searchParams.get('next') || '/brands'
+  const next = searchParams.get('next') || '/schedule'
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
