@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
-import NewPostModal from '@/components/schedule/NewPostModal';
 import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
@@ -121,10 +120,10 @@ interface Tab {
 
 export default function SchedulePage() {
   const params = useParams();
+  const router = useRouter();
   const brandId = params.brandId as string;
   
   const [activeTab, setActiveTab] = useState('drafts');
-  const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
 
   // Fetch data for all tabs
   const { drafts, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId, 'pending,generated,ready');
@@ -137,9 +136,8 @@ export default function SchedulePage() {
     { id: 'published', name: 'Published', count: published.length }
   ];
 
-  const handleNewPostSuccess = () => {
-    refetchDrafts();
-    refetchScheduled();
+  const handleNewPostClick = () => {
+    router.push(`/brands/${brandId}/new-post`);
   };
 
   const renderTabContent = () => {
@@ -186,7 +184,7 @@ export default function SchedulePage() {
             </div>
           
           <button
-            onClick={() => setIsNewPostModalOpen(true)}
+            onClick={handleNewPostClick}
             className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto"
           >
             <PlusIcon className="w-4 h-4" />
@@ -227,13 +225,6 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* New Post Modal */}
-      <NewPostModal
-        isOpen={isNewPostModalOpen}
-        onClose={() => setIsNewPostModalOpen(false)}
-        brandId={brandId}
-        onSuccess={handleNewPostSuccess}
-      />
       </AppLayout>
     </RequireAuth>
   );
