@@ -32,8 +32,12 @@ function SignInForm() {
       }
 
       if (data.user) {
-        // Redirect to the next page or default brand page
-        router.push(next)
+        // If next is /schedule, redirect to brands selection page
+        if (next === '/schedule') {
+          router.push('/brands')
+        } else {
+          router.push(next)
+        }
         router.refresh()
       }
     } catch {
