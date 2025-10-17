@@ -48,30 +48,6 @@ export default function SignUpPage() {
     setUserData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleProfileImageUpload = async (file: File) => {
-    try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${crypto.randomUUID()}.${fileExt}`
-      const filePath = `profile-images/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('ferdy-assets')
-        .upload(filePath, file)
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { data } = supabase.storage
-        .from('ferdy-assets')
-        .getPublicUrl(filePath)
-
-      setUserData(prev => ({ ...prev, profile_image_url: data.publicUrl }))
-    } catch (error) {
-      console.error('Error uploading profile image:', error)
-      setError('Failed to upload profile image')
-    }
-  }
 
   const validateStep1 = () => {
     if (!brandData.name.trim()) {
@@ -136,14 +112,16 @@ export default function SignUpPage() {
     setError('')
 
     try {
-      // Create user account
+      // Create user account with brand data in metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: {
           data: {
             name: userData.name,
-            profile_image_url: userData.profile_image_url
+            brand_name: brandData.name,
+            brand_website_url: brandData.website_url,
+            brand_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
           }
         }
       })
@@ -153,35 +131,6 @@ export default function SignUpPage() {
       }
 
       if (authData.user) {
-        // Create brand
-        const { data: brandDataResult, error: brandError } = await supabase
-          .from('brands')
-          .insert({
-            name: brandData.name,
-            website_url: brandData.website_url,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-          })
-          .select()
-          .single()
-
-        if (brandError) {
-          throw brandError
-        }
-
-        // Update user profile with brand_id
-        const { error: profileUpdateError } = await supabase
-          .from('user_profiles')
-          .update({
-            name: userData.name,
-            profile_image_url: userData.profile_image_url,
-            brand_id: brandDataResult.id
-          })
-          .eq('id', authData.user.id)
-
-        if (profileUpdateError) {
-          throw profileUpdateError
-        }
-
         // Success - redirect to sign-in with message
         router.push('/auth/sign-in?message=Account created successfully! Please check your email to confirm your account.')
       }
@@ -315,46 +264,6 @@ export default function SignUpPage() {
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Profile Image (Optional)
-          </label>
-          <div className="flex items-center space-x-4">
-            {userData.profile_image_url ? (
-              <div className="flex items-center space-x-3">
-                <img
-                  src={userData.profile_image_url}
-                  alt="Profile"
-                  className="w-16 h-16 rounded-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setUserData(prev => ({ ...prev, profile_image_url: undefined }))}
-                  className="text-red-600 hover:text-red-700 text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleProfileImageUpload(file)
-                  }}
-                  className="text-sm text-gray-600"
-                />
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   )
