@@ -76,7 +76,7 @@ export default function BrandsPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Brands Found</h3>
-              <p className="text-gray-600">You don't have access to any brands yet.</p>
+              <p className="text-gray-600">You don&apos;t have access to any brands yet.</p>
             </div>
           </div>
         </RequireAuth>
@@ -91,7 +91,7 @@ export default function BrandsPage() {
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Select a Brand</h1>
-              <p className="text-gray-600">Choose which brand you'd like to manage.</p>
+              <p className="text-gray-600">Choose which brand you&apos;d like to manage.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

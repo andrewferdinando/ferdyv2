@@ -41,22 +41,6 @@ export default function EditPostPage() {
     );
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: '2-digit', 
-      day: '2-digit', 
-      year: 'numeric' 
-    });
-  };
-
-  const formatTime = (timeString: string) => {
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour.toString().padStart(2, '0')}:${minutes} ${ampm}`;
-  };
 
   const handleMediaSelect = (mediaUrl: string) => {
     setSelectedMedia(mediaUrl);

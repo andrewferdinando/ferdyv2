@@ -48,7 +48,6 @@ export function useAssets(brandId: string) {
           
           // Try the original path first
           let signedUrl = null
-          let actualPath = asset.storage_path
           
           try {
             signedUrl = await getSignedUrl(asset.storage_path)
@@ -63,7 +62,6 @@ export function useAssets(brandId: string) {
             
             try {
               signedUrl = await getSignedUrl(alternativePath)
-              actualPath = alternativePath
               console.log('✅ Successfully generated signed URL with alternative path for asset:', asset.id)
             } catch (altError) {
               console.error('❌ Alternative path also failed:', alternativePath, altError)
