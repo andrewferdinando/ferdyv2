@@ -13,7 +13,8 @@ function SignInForm() {
   const [error, setError] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = searchParams.get('next') || '/schedule'
+  const next = searchParams.get('next') || '/brands'
+  const message = searchParams.get('message')
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,12 +33,7 @@ function SignInForm() {
       }
 
       if (data.user) {
-        // If next is /schedule, redirect to brands selection page
-        if (next === '/schedule') {
-          router.push('/brands')
-        } else {
-          router.push(next)
-        }
+        router.push(next)
         router.refresh()
       }
     } catch {
@@ -66,6 +62,12 @@ function SignInForm() {
         </div>
         
         <Form onSubmit={handleSignIn} className="mt-8 space-y-6">
+          {message && (
+            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md">
+              {message}
+            </div>
+          )}
+          
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
               {error}
