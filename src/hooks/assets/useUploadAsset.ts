@@ -20,8 +20,8 @@ export function useUploadAsset() {
       // Generate asset ID and file extension
       const assetId = crypto.randomUUID()
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      // Use the correct path that matches where files are actually stored
-      const path = `originals/${assetId}.${ext}`
+      // Use the correct path structure: brands/{brandId}/originals/{assetId}.{ext}
+      const path = `brands/${brandId}/originals/${assetId}.${ext}`
 
 
       // Upload to storage
