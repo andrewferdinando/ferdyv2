@@ -168,9 +168,9 @@ export default function SignUpPage() {
           throw brandError
         }
 
-        // Update user with brand_id
-        const { error: userUpdateError } = await supabase
-          .from('users')
+        // Update user profile with brand_id
+        const { error: profileUpdateError } = await supabase
+          .from('user_profiles')
           .update({
             name: userData.name,
             profile_image_url: userData.profile_image_url,
@@ -178,8 +178,8 @@ export default function SignUpPage() {
           })
           .eq('id', authData.user.id)
 
-        if (userUpdateError) {
-          throw userUpdateError
+        if (profileUpdateError) {
+          throw profileUpdateError
         }
 
         // Success - redirect to sign-in with message
