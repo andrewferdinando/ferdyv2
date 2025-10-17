@@ -79,7 +79,6 @@ export default function TeamPage() {
       if (error) throw error;
 
       // Get user emails separately since we can't join auth.users directly
-      const userIds = data?.map(member => member.user_id) || [];
       const { data: userEmails } = await supabase.auth.admin.listUsers();
       const emailMap = new Map(userEmails?.users?.map(user => [user.id, user.email]) || []);
 

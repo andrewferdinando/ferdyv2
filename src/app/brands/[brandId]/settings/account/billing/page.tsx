@@ -17,10 +17,6 @@ export default function BillingPage() {
   const [success, setSuccess] = useState('');
   const [unsubscribing, setUnsubscribing] = useState(false);
 
-  useEffect(() => {
-    checkUserRole();
-  }, [checkUserRole]);
-
   const checkUserRole = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -42,6 +38,10 @@ export default function BillingPage() {
       setLoading(false);
     }
   }, [brandId]);
+
+  useEffect(() => {
+    checkUserRole();
+  }, [checkUserRole]);
 
   const handleUnsubscribe = async () => {
     if (!confirm('Are you sure you want to unsubscribe? This action cannot be undone.')) {
