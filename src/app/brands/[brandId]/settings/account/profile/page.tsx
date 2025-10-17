@@ -31,10 +31,6 @@ export default function ProfilePage() {
     profile_image_url: ''
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
   const fetchProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -80,6 +76,10 @@ export default function ProfilePage() {
       setLoading(false);
     }
   }, [brandId]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
