@@ -332,6 +332,7 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
         return { x: (cropData as CropData).x || 0, y: (cropData as CropData).y || 0 }
       }
     }
+    // Default to center the 150% image properly
     return { x: 0, y: 0 }
   })
   const [isDragging, setIsDragging] = useState(false)
@@ -485,8 +486,8 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                         style={{ 
                           width: '150%',
                           height: '150%',
-                          objectFit: 'cover',
-                          objectPosition: 'center',
+                          objectFit: 'contain',
+                          objectPosition: '50% 50%',
                           transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
                           transition: isDragging ? 'none' : 'transform 0.2s ease'
                         }}
@@ -500,8 +501,8 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
                         style={{ 
                           width: '150%',
                           height: '150%',
-                          objectFit: 'cover',
-                          objectPosition: 'center',
+                          objectFit: 'contain',
+                          objectPosition: '50% 50%',
                           transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
                           transition: isDragging ? 'none' : 'transform 0.2s ease'
                         }}

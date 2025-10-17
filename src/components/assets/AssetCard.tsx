@@ -64,11 +64,6 @@ export default function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
 
       {/* Content */}
       <div className="p-4">
-        {/* Title */}
-        <h3 className="text-sm font-medium text-gray-900 mb-2 truncate" title={asset.title}>
-          {asset.title}
-        </h3>
-
         {/* Tags */}
         {asset.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-4">
