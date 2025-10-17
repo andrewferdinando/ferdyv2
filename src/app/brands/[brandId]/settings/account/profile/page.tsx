@@ -33,7 +33,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [brandId]);
 
   const fetchProfile = async () => {
     try {

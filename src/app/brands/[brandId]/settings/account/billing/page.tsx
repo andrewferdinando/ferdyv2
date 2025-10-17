@@ -19,7 +19,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     checkUserRole();
-  }, []);
+  }, [brandId]);
 
   const checkUserRole = async () => {
     try {

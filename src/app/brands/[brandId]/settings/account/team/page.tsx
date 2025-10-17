@@ -33,13 +33,13 @@ export default function TeamPage() {
 
   useEffect(() => {
     checkUserRole();
-  }, []);
+  }, [brandId]);
 
   useEffect(() => {
     if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
       fetchTeamMembers();
     }
-  }, [userRole]);
+  }, [userRole, brandId]);
 
   const checkUserRole = async () => {
     try {
@@ -79,7 +79,13 @@ export default function TeamPage() {
 
       if (error) throw error;
 
-      const members: TeamMember[] = data.map((member: any) => ({
+      const members: TeamMember[] = (data || []).map((member: {
+        user_id: string;
+        role: string;
+        created_at: string;
+        user_profiles: { name: string };
+        auth: { users: { email: string } };
+      }) => ({
         id: member.user_id,
         name: member.user_profiles.name || 'Unknown',
         email: member.auth.users.email,
@@ -105,7 +111,7 @@ export default function TeamPage() {
 
     try {
       // Use Supabase Admin API to invite user
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
+      const { error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
         data: {
           brand_id: brandId,
           role: inviteRole
