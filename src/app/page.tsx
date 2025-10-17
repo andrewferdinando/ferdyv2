@@ -13,8 +13,8 @@ export default function Home() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session) {
-          // User is authenticated, redirect to brands page
-          router.push('/brands')
+          // User is authenticated, redirect to schedule page
+          router.push('/schedule')
         } else {
           // User is not authenticated, redirect to sign-in
           router.push('/auth/sign-in')

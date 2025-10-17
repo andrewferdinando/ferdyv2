@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import RequireAuth from '@/components/auth/RequireAuth';
 
 // Icons
 const PlusIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -170,6 +171,7 @@ export default function SchedulePage() {
 
   return (
     <AppLayout>
+      <RequireAuth>
       <div className="flex-1 overflow-auto">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
@@ -411,6 +413,7 @@ export default function SchedulePage() {
         )}
       </div>
     </div>
+      </RequireAuth>
     </AppLayout>
   );
 }
