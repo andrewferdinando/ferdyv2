@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
@@ -19,9 +19,9 @@ export default function BillingPage() {
 
   useEffect(() => {
     checkUserRole();
-  }, [brandId]);
+  }, [checkUserRole]);
 
-  const checkUserRole = async () => {
+  const checkUserRole = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -41,7 +41,7 @@ export default function BillingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [brandId]);
 
   const handleUnsubscribe = async () => {
     if (!confirm('Are you sure you want to unsubscribe? This action cannot be undone.')) {

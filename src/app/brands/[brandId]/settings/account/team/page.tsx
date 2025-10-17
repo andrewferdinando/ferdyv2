@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
@@ -33,15 +33,15 @@ export default function TeamPage() {
 
   useEffect(() => {
     checkUserRole();
-  }, [brandId]);
+  }, [checkUserRole]);
 
   useEffect(() => {
     if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
       fetchTeamMembers();
     }
-  }, [userRole, brandId]);
+  }, [userRole, fetchTeamMembers]);
 
-  const checkUserRole = async () => {
+  const checkUserRole = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -61,9 +61,9 @@ export default function TeamPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [brandId]);
 
-  const fetchTeamMembers = async () => {
+  const fetchTeamMembers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('brand_memberships')
@@ -71,24 +71,27 @@ export default function TeamPage() {
           user_id,
           role,
           created_at,
-          user_profiles!inner(name),
-          auth.users!inner(email)
+          user_profiles!inner(name)
         `)
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      // Get user emails separately since we can't join auth.users directly
+      const userIds = data?.map(member => member.user_id) || [];
+      const { data: userEmails } = await supabase.auth.admin.listUsers();
+      const emailMap = new Map(userEmails?.users?.map(user => [user.id, user.email]) || []);
+
       const members: TeamMember[] = (data || []).map((member: {
         user_id: string;
         role: string;
         created_at: string;
         user_profiles: { name: string };
-        auth: { users: { email: string } };
       }) => ({
         id: member.user_id,
         name: member.user_profiles.name || 'Unknown',
-        email: member.auth.users.email,
+        email: emailMap.get(member.user_id) || 'Unknown',
         role: member.role,
         created_at: member.created_at
       }));
@@ -98,7 +101,7 @@ export default function TeamPage() {
       console.error('Error fetching team members:', error);
       setError('Failed to load team members');
     }
-  };
+  }, [brandId]);
 
   const handleInviteUser = async () => {
     if (!inviteEmail.trim()) {
