@@ -31,16 +31,6 @@ export default function TeamPage() {
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
 
-  useEffect(() => {
-    checkUserRole();
-  }, [checkUserRole]);
-
-  useEffect(() => {
-    if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
-      fetchTeamMembers();
-    }
-  }, [userRole, fetchTeamMembers]);
-
   const checkUserRole = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -101,6 +91,16 @@ export default function TeamPage() {
       setError('Failed to load team members');
     }
   }, [brandId]);
+
+  useEffect(() => {
+    checkUserRole();
+  }, [checkUserRole]);
+
+  useEffect(() => {
+    if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
+      fetchTeamMembers();
+    }
+  }, [userRole, fetchTeamMembers]);
 
   const handleInviteUser = async () => {
     if (!inviteEmail.trim()) {
