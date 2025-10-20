@@ -106,7 +106,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       active: pathname.includes('/schedule'),
     },
     {
-      name: 'Settings',
+      name: 'Post Settings',
       href: selectedBrand ? `/brands/${selectedBrand.id}/settings` : '/settings',
       icon: SettingsIcon,
       active: pathname.includes('/settings') && !pathname.includes('/account'),
