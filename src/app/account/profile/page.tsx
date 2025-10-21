@@ -74,7 +74,7 @@ export default function ProfilePage() {
         } else if (allBrands && allBrands.length > 0) {
           // Look for Demo brand first
           const demoBrand = allBrands.find(membership => 
-            membership.brands?.name?.toLowerCase().includes('demo')
+            membership.brands?.[0]?.name?.toLowerCase().includes('demo')
           );
           
           if (demoBrand) {
