@@ -45,30 +45,46 @@ export default function ProfilePage() {
       if (profileError) throw profileError;
 
       // Get user's role for the current brand context
-      // First, get the current brand from localStorage or use the first brand
+      // First, try to get the current brand from localStorage
       let currentBrandId = null;
       try {
         const storedBrand = localStorage.getItem('currentBrand');
+        console.log('Raw localStorage currentBrand:', storedBrand);
         if (storedBrand) {
-          currentBrandId = JSON.parse(storedBrand).id;
-          console.log('Current brand from localStorage:', currentBrandId);
+          const brandData = JSON.parse(storedBrand);
+          currentBrandId = brandData.id;
+          console.log('Current brand from localStorage:', currentBrandId, 'Name:', brandData.name);
         }
       } catch (e) {
-        console.log('No current brand in localStorage');
+        console.log('Error parsing currentBrand from localStorage:', e);
       }
 
-      // If no current brand, get the first brand the user is a member of
+      // If no current brand in localStorage, get all brands and let user choose or use Demo brand
       if (!currentBrandId) {
-        const { data: firstBrand } = await supabase
+        const { data: allBrands, error: brandsError } = await supabase
           .from('brand_memberships')
-          .select('brand_id')
-          .eq('user_id', user.id)
-          .limit(1)
-          .single();
+          .select(`
+            brand_id,
+            brands!inner(name)
+          `)
+          .eq('user_id', user.id);
         
-        if (firstBrand) {
-          currentBrandId = firstBrand.brand_id;
-          console.log('Using first brand:', currentBrandId);
+        if (brandsError) {
+          console.error('Error fetching brands:', brandsError);
+        } else if (allBrands && allBrands.length > 0) {
+          // Look for Demo brand first
+          const demoBrand = allBrands.find(membership => 
+            membership.brands?.name?.toLowerCase().includes('demo')
+          );
+          
+          if (demoBrand) {
+            currentBrandId = demoBrand.brand_id;
+            console.log('Found Demo brand:', currentBrandId);
+          } else {
+            // Use first brand if no Demo brand found
+            currentBrandId = allBrands[0].brand_id;
+            console.log('Using first available brand:', currentBrandId);
+          }
         }
       }
 
@@ -141,9 +157,16 @@ export default function ProfilePage() {
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `profile-images/${fileName}`;
 
+      // Use the ferdy-assets bucket (we know it exists)
+      const bucketName = 'ferdy-assets';
+      
+      console.log('Uploading to bucket:', bucketName, 'Path:', filePath);
+
       const { error: uploadError } = await supabase.storage
-        .from('ferdy-assets')
-        .upload(filePath, file);
+        .from(bucketName)
+        .upload(filePath, file, {
+          upsert: true // Allow overwriting if file exists
+        });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
@@ -151,8 +174,10 @@ export default function ProfilePage() {
       }
 
       const { data } = supabase.storage
-        .from('ferdy-assets')
+        .from(bucketName)
         .getPublicUrl(filePath);
+        
+      console.log('Upload successful, public URL:', data.publicUrl);
 
       setFormData(prev => ({ ...prev, profile_image_url: data.publicUrl }));
       setSuccess('Profile image uploaded successfully!');
