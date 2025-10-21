@@ -51,6 +51,7 @@ export default function ProfilePage() {
         const storedBrand = localStorage.getItem('currentBrand');
         if (storedBrand) {
           currentBrandId = JSON.parse(storedBrand).id;
+          console.log('Current brand from localStorage:', currentBrandId);
         }
       } catch (e) {
         console.log('No current brand in localStorage');
@@ -67,11 +68,13 @@ export default function ProfilePage() {
         
         if (firstBrand) {
           currentBrandId = firstBrand.brand_id;
+          console.log('Using first brand:', currentBrandId);
         }
       }
 
       let role = 'editor'; // default
       if (currentBrandId) {
+        console.log('Fetching role for brand:', currentBrandId);
         const { data: membershipData, error: membershipError } = await supabase
           .from('brand_memberships')
           .select('role')
@@ -83,6 +86,7 @@ export default function ProfilePage() {
           console.error('Error fetching membership data:', membershipError);
         } else if (membershipData) {
           role = membershipData.role;
+          console.log('Found role:', role);
         }
       }
 
@@ -291,11 +295,11 @@ export default function ProfilePage() {
                               src={formData.profile_image_url}
                               alt="Profile"
                               className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
                               onError={(e) => {
-                                console.error('Image load error:', e);
-                                // Hide the image and show placeholder
+                                console.error('Image load error for URL:', formData.profile_image_url, e);
+                                // Replace with placeholder
                                 const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
                                 const parent = target.parentElement;
                                 if (parent) {
                                   parent.innerHTML = `
@@ -304,6 +308,9 @@ export default function ProfilePage() {
                                     </svg>
                                   `;
                                 }
+                              }}
+                              onLoad={() => {
+                                console.log('Image loaded successfully:', formData.profile_image_url);
                               }}
                             />
                           </div>
@@ -315,7 +322,13 @@ export default function ProfilePage() {
                             >
                               Remove
                             </button>
-                            <p className="text-xs text-gray-500">Image URL: {formData.profile_image_url}</p>
+                            <button
+                              type="button"
+                              onClick={() => window.open(formData.profile_image_url, '_blank')}
+                              className="text-blue-600 hover:text-blue-700 text-xs"
+                            >
+                              Test URL
+                            </button>
                           </div>
                         </div>
                       ) : (
