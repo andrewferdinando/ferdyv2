@@ -20,8 +20,8 @@ interface SupabaseMember {
   role: string;
   created_at: string;
   brand_id: string;
-  user_profiles: { name: string } | null;
-  brands: { name: string } | null;
+  user_profiles: { name: string }[] | null;
+  brands: { name: string }[] | null;
 }
 
 export default function TeamPage() {
@@ -115,11 +115,11 @@ export default function TeamPage() {
 
       const members: TeamMember[] = (data || []).map((member: SupabaseMember) => ({
         id: member.user_id,
-        name: member.user_profiles?.name || 'Unknown',
+        name: member.user_profiles?.[0]?.name || 'Unknown',
         email: emailMap.get(member.user_id) || 'Unknown',
         role: member.role,
         created_at: member.created_at,
-        brand_name: member.brands?.name || 'Unknown'
+        brand_name: member.brands?.[0]?.name || 'Unknown'
       }));
 
       setTeamMembers(members);
