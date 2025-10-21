@@ -34,6 +34,9 @@ export default function ProfilePage() {
     try {
       // Debug: Test Supabase connection and bucket access
       console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('Supabase Anon Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      console.log('Supabase Anon Key length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length);
+      
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
       console.log('Available buckets:', buckets, 'Error:', bucketsError);
       
@@ -125,6 +128,7 @@ export default function ProfilePage() {
         email: userProfile.email,
         profile_image_url: userProfile.profile_image_url || ''
       });
+      console.log('Profile loaded with image URL:', userProfile.profile_image_url);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setError('Failed to load profile data');
@@ -208,6 +212,7 @@ export default function ProfilePage() {
         
       console.log('Upload successful, public URL:', data.publicUrl);
 
+      console.log('Setting form data with URL:', data.publicUrl);
       setFormData(prev => ({ ...prev, profile_image_url: data.publicUrl }));
       setSuccess('Profile image uploaded successfully!');
       setTimeout(() => setSuccess(''), 3000);
