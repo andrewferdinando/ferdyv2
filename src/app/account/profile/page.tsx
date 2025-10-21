@@ -286,18 +286,37 @@ export default function ProfilePage() {
                     <div className="flex items-center space-x-4">
                       {formData.profile_image_url ? (
                         <div className="flex items-center space-x-3">
-                          <img
-                            src={formData.profile_image_url}
-                            alt="Profile"
-                            className="w-20 h-20 rounded-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, profile_image_url: '' }))}
-                            className="text-red-600 hover:text-red-700 text-sm"
-                          >
-                            Remove
-                          </button>
+                          <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                            <img
+                              src={formData.profile_image_url}
+                              alt="Profile"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Image load error:', e);
+                                // Hide the image and show placeholder
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                  `;
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, profile_image_url: '' }))}
+                              className="text-red-600 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                            <p className="text-xs text-gray-500">Image URL: {formData.profile_image_url}</p>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center space-x-3">
