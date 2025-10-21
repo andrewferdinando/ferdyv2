@@ -162,8 +162,32 @@ export default function ProfilePage() {
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `profile-images/${fileName}`;
 
-      // Use the ferdy-assets bucket (we know it exists)
-      const bucketName = 'ferdy-assets';
+      // Check available buckets and use the first one, or create ferdy-assets
+      const { data: buckets } = await supabase.storage.listBuckets();
+      console.log('Available buckets for upload:', buckets);
+      
+      let bucketName = 'ferdy-assets';
+      
+      // If no buckets exist, try to create ferdy-assets bucket
+      if (!buckets || buckets.length === 0) {
+        console.log('No buckets found, attempting to create ferdy-assets bucket');
+        const { error: createError } = await supabase.storage.createBucket('ferdy-assets', {
+          public: true
+        });
+        
+        if (createError) {
+          console.error('Failed to create bucket:', createError);
+          throw new Error('No storage buckets available and cannot create new bucket. Please check Supabase storage configuration.');
+        }
+        console.log('Successfully created ferdy-assets bucket');
+      } else {
+        // Use the first available bucket if ferdy-assets doesn't exist
+        const ferdyBucket = buckets.find(b => b.name === 'ferdy-assets');
+        if (!ferdyBucket) {
+          bucketName = buckets[0].name;
+          console.log('Using first available bucket:', bucketName);
+        }
+      }
       
       console.log('Uploading to bucket:', bucketName, 'Path:', filePath);
 
