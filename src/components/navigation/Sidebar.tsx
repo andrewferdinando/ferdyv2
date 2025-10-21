@@ -185,10 +185,10 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
         {/* Account Settings, Super Admin and Sign Out at bottom */}
         <div className="mt-auto pt-4 border-t border-gray-200 space-y-2">
           <Link
-            href={selectedBrand ? `/brands/${selectedBrand.id}/settings/account` : '/settings/account'}
+            href="/account"
             onClick={handleNavigationClick}
             className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-              pathname.includes('/settings/account')
+              pathname.startsWith('/account')
                 ? 'bg-[#EEF2FF] text-[#6366F1]'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
