@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -43,22 +44,46 @@ export default function ProfilePage() {
 
       if (profileError) throw profileError;
 
-      // Get user's highest role across all brands
-      const { data: membershipData, error: membershipError } = await supabase
-        .from('brand_memberships')
-        .select('role')
-        .eq('user_id', user.id)
-        .order('role', { ascending: false }); // super_admin > admin > editor
+      // Get user's role for the current brand context
+      // First, get the current brand from localStorage or use the first brand
+      let currentBrandId = null;
+      try {
+        const storedBrand = localStorage.getItem('currentBrand');
+        if (storedBrand) {
+          currentBrandId = JSON.parse(storedBrand).id;
+        }
+      } catch (e) {
+        console.log('No current brand in localStorage');
+      }
 
-      if (membershipError) {
-        console.error('Error fetching membership data:', membershipError);
-        // Continue with default role if membership data is not available
+      // If no current brand, get the first brand the user is a member of
+      if (!currentBrandId) {
+        const { data: firstBrand } = await supabase
+          .from('brand_memberships')
+          .select('brand_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+        
+        if (firstBrand) {
+          currentBrandId = firstBrand.brand_id;
+        }
       }
 
       let role = 'editor'; // default
-      if (membershipData && membershipData.length > 0) {
-        // Get the highest role
-        role = membershipData[0].role;
+      if (currentBrandId) {
+        const { data: membershipData, error: membershipError } = await supabase
+          .from('brand_memberships')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('brand_id', currentBrandId)
+          .single();
+
+        if (membershipError) {
+          console.error('Error fetching membership data:', membershipError);
+        } else if (membershipData) {
+          role = membershipData.role;
+        }
       }
 
       const userProfile: UserProfile = {
@@ -92,6 +117,21 @@ export default function ProfilePage() {
   };
 
   const handleProfileImageUpload = async (file: File) => {
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
@@ -101,16 +141,23 @@ export default function ProfilePage() {
         .from('ferdy-assets')
         .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error(uploadError.message || 'Failed to upload image');
+      }
 
       const { data } = supabase.storage
         .from('ferdy-assets')
         .getPublicUrl(filePath);
 
       setFormData(prev => ({ ...prev, profile_image_url: data.publicUrl }));
+      setSuccess('Profile image uploaded successfully!');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error uploading profile image:', error);
-      setError('Failed to upload profile image');
+      setError(error instanceof Error ? error.message : 'Failed to upload profile image');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -255,19 +302,30 @@ export default function ProfilePage() {
                       ) : (
                         <div className="flex items-center space-x-3">
                           <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center">
-                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                            {uploading ? (
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+                            ) : (
+                              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            )}
                           </div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleProfileImageUpload(file);
-                            }}
-                            className="text-sm text-gray-600"
-                          />
+                          <div className="flex flex-col space-y-2">
+                            <label className="cursor-pointer bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-[#4F46E5] transition-colors text-sm font-medium">
+                              {uploading ? 'Uploading...' : 'Choose Image'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleProfileImageUpload(file);
+                                }}
+                                className="hidden"
+                                disabled={uploading}
+                              />
+                            </label>
+                            <p className="text-xs text-gray-500">JPG, PNG, GIF up to 5MB</p>
+                          </div>
                         </div>
                       )}
                     </div>
