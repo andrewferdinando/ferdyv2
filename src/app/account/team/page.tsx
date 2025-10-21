@@ -149,15 +149,26 @@ export default function TeamPage() {
     setError('');
 
     try {
-      // For now, we'll use a simple approach - in a real app you'd want to specify which brand to invite to
-      // Use Supabase Admin API to invite user
-      const { error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
-        data: {
+      console.log('Attempting to invite user:', inviteEmail, 'with role:', inviteRole);
+      
+      // Call our API route for user invitation
+      const response = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: inviteEmail,
           role: inviteRole
-        }
+        })
       });
 
-      if (error) throw error;
+      const result = await response.json();
+      console.log('Invite API response:', result);
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send invitation');
+      }
 
       setSuccess(`Invitation sent to ${inviteEmail}`);
       setInviteEmail('');
