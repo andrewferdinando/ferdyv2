@@ -42,6 +42,11 @@ export default function TeamPage() {
         .eq('user_id', user.id)
         .order('role', { ascending: false }); // super_admin > admin > editor
 
+      if (membershipError) {
+        console.error('Error fetching membership data:', membershipError);
+        // Continue with default role if membership data is not available
+      }
+
       let role = 'editor'; // default
       if (membershipData && membershipData.length > 0) {
         role = membershipData[0].role;
@@ -99,20 +104,13 @@ export default function TeamPage() {
       const { data: userEmails } = await supabase.auth.admin.listUsers();
       const emailMap = new Map(userEmails?.users?.map(user => [user.id, user.email]) || []);
 
-      const members: TeamMember[] = (data || []).map((member: {
-        user_id: string;
-        role: string;
-        created_at: string;
-        brand_id: string;
-        user_profiles: { name: string };
-        brands: { name: string };
-      }) => ({
+      const members: TeamMember[] = (data || []).map((member: any) => ({
         id: member.user_id,
-        name: member.user_profiles.name || 'Unknown',
+        name: member.user_profiles?.name || 'Unknown',
         email: emailMap.get(member.user_id) || 'Unknown',
         role: member.role,
         created_at: member.created_at,
-        brand_name: member.brands.name
+        brand_name: member.brands?.name || 'Unknown'
       }));
 
       setTeamMembers(members);

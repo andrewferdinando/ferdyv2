@@ -37,6 +37,11 @@ export default function BillingPage() {
         .eq('user_id', user.id)
         .order('role', { ascending: false }); // super_admin > admin > editor
 
+      if (membershipError) {
+        console.error('Error fetching membership data:', membershipError);
+        // Continue with default role if membership data is not available
+      }
+
       let role = 'editor'; // default
       if (membershipData && membershipData.length > 0) {
         role = membershipData[0].role;
