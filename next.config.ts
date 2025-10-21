@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false,
     dirs: ['src'],
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'opzmnjkzsmsxusgledap.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
