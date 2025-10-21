@@ -18,9 +18,6 @@ export default function SettingsPage() {
     router.push('/categories');
   };
 
-  const handleContentPreferencesClick = () => {
-    router.push('/content-preferences');
-  };
 
   return (
     <AppLayout>
@@ -59,29 +56,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Content Preferences Card */}
-              <div 
-                onClick={handleContentPreferencesClick}
-                className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full"
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-[#EEF2FF] rounded-lg flex items-center justify-center text-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white transition-colors duration-200">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#6366F1] transition-colors duration-200">
-                      Content Preferences
-                    </h3>
-                    <p className="text-gray-600 text-sm mt-1 leading-relaxed">
-                      Configure default image formats and content settings.
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               {/* Categories & Post Framework Card */}
               <div 
