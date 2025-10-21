@@ -36,7 +36,7 @@ export default function TeamPage() {
       if (!user) return;
 
       // Get user's highest role across all brands
-      const { data: membershipData, error } = await supabase
+      const { data: membershipData, error: membershipError } = await supabase
         .from('brand_memberships')
         .select('role')
         .eq('user_id', user.id)
@@ -48,8 +48,8 @@ export default function TeamPage() {
       }
 
       setUserRole(role);
-    } catch (error) {
-      console.error('Error checking user role:', error);
+    } catch (membershipError) {
+      console.error('Error checking user role:', membershipError);
       setError('Failed to verify permissions');
     } finally {
       setLoading(false);
@@ -99,7 +99,14 @@ export default function TeamPage() {
       const { data: userEmails } = await supabase.auth.admin.listUsers();
       const emailMap = new Map(userEmails?.users?.map(user => [user.id, user.email]) || []);
 
-      const members: TeamMember[] = (data || []).map((member: any) => ({
+      const members: TeamMember[] = (data || []).map((member: {
+        user_id: string;
+        role: string;
+        created_at: string;
+        brand_id: string;
+        user_profiles: { name: string };
+        brands: { name: string };
+      }) => ({
         id: member.user_id,
         name: member.user_profiles.name || 'Unknown',
         email: emailMap.get(member.user_id) || 'Unknown',

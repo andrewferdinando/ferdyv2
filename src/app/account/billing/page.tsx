@@ -31,7 +31,7 @@ export default function BillingPage() {
       if (!user) return;
 
       // Get user's highest role across all brands
-      const { data: membershipData, error } = await supabase
+      const { data: membershipData, error: membershipError } = await supabase
         .from('brand_memberships')
         .select('role')
         .eq('user_id', user.id)
@@ -43,8 +43,8 @@ export default function BillingPage() {
       }
 
       setUserRole(role);
-    } catch (error) {
-      console.error('Error checking user role:', error);
+    } catch (membershipError) {
+      console.error('Error checking user role:', membershipError);
       setError('Failed to verify permissions');
     } finally {
       setLoading(false);
@@ -268,7 +268,7 @@ export default function BillingPage() {
                     <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg bg-red-50">
                       <div>
                         <h4 className="font-medium text-red-900">Cancel Subscription</h4>
-                        <p className="text-sm text-red-600">Cancel your subscription. You'll retain access until the end of your billing period.</p>
+                        <p className="text-sm text-red-600">Cancel your subscription. You&apos;ll retain access until the end of your billing period.</p>
                       </div>
                       <button 
                         onClick={handleCancelSubscription}
