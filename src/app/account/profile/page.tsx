@@ -32,6 +32,11 @@ export default function ProfilePage() {
 
   const fetchProfile = useCallback(async () => {
     try {
+      // Debug: Test Supabase connection and bucket access
+      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      console.log('Available buckets:', buckets, 'Error:', bucketsError);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
