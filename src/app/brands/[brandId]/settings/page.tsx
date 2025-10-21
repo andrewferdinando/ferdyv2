@@ -49,13 +49,6 @@ export default function SettingsPage() {
       actionText: 'Open',
     },
     {
-      title: 'Content Preferences',
-      description: 'Configure default image formats and content settings.',
-      href: `/brands/${brandId}/content-preferences`,
-      icon: ContentPreferencesIcon,
-      actionText: 'Configure',
-    },
-    {
       title: 'Categories & Post Frequency',
       description: 'Define content categories and post structure templates.',
       href: `/brands/${brandId}/categories`,
@@ -78,31 +71,35 @@ export default function SettingsPage() {
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Settings</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Settings</h1>
               <p className="text-gray-600 mt-1 text-sm">Configure your workspace and integrations</p>
             </div>
           </div>
 
           {/* Settings Cards Grid */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {settingsCards.map((card, index) => (
                 <Link
                   key={index}
                   href={card.href}
-                  className="group bg-white hover:bg-gray-50 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-gray-200"
+                  className="group bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                      <card.icon className="w-6 h-6 text-purple-600" />
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-[#EEF2FF] rounded-lg flex items-center justify-center text-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white transition-colors duration-200">
+                        <card.icon className="w-6 h-6" />
+                      </div>
                     </div>
-                    <ChevronRightIcon className="w-5 h-5 text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#6366F1] transition-colors duration-200">
+                        {card.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm mt-1 leading-relaxed">
+                        {card.description}
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{card.title}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{card.description}</p>
-                  <span className="text-purple-600 font-medium text-sm group-hover:text-purple-700">
-                    {card.actionText} →
-                  </span>
                 </Link>
               ))}
             </div>
