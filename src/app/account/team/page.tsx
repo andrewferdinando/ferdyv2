@@ -15,6 +15,15 @@ interface TeamMember {
   brand_name: string;
 }
 
+interface SupabaseMember {
+  user_id: string;
+  role: string;
+  created_at: string;
+  brand_id: string;
+  user_profiles: { name: string } | null;
+  brands: { name: string } | null;
+}
+
 export default function TeamPage() {
   const router = useRouter();
   
@@ -104,7 +113,7 @@ export default function TeamPage() {
       const { data: userEmails } = await supabase.auth.admin.listUsers();
       const emailMap = new Map(userEmails?.users?.map(user => [user.id, user.email]) || []);
 
-      const members: TeamMember[] = (data || []).map((member: any) => ({
+      const members: TeamMember[] = (data || []).map((member: SupabaseMember) => ({
         id: member.user_id,
         name: member.user_profiles?.name || 'Unknown',
         email: emailMap.get(member.user_id) || 'Unknown',
