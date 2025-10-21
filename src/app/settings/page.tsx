@@ -33,7 +33,7 @@ export default function SettingsPage() {
               <p className="text-gray-600 mt-1 text-sm">Configure your workspace and integrations</p>
             </div>
 
-            {/* Settings Cards */}
+            {/* Settings Cards - Updated Layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Content Library Card */}
               <div 
