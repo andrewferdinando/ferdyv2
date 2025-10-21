@@ -76,10 +76,10 @@ export default function TeamPage() {
         user_id: string;
         role: string;
         created_at: string;
-        user_profiles: { name: string };
+        user_profiles: { name: string }[];
       }) => ({
         id: member.user_id,
-        name: member.user_profiles.name || 'Unknown',
+        name: member.user_profiles?.[0]?.name || 'Unknown',
         email: emailMap.get(member.user_id) || 'Unknown',
         role: member.role,
         created_at: member.created_at
