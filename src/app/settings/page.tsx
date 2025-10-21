@@ -1,3 +1,7 @@
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
+
 'use client';
 
 import { useRouter } from 'next/navigation';
