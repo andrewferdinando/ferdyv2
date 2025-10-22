@@ -54,20 +54,8 @@ export default function ProfilePage() {
 
       if (profileError) throw profileError;
 
-      // Get user's role for the current brand context
-      // First, try to get the current brand from localStorage
-      let currentBrandId = null;
-      try {
-        const storedBrand = localStorage.getItem('currentBrand');
-        console.log('Raw localStorage currentBrand:', storedBrand);
-        if (storedBrand) {
-          const brandData = JSON.parse(storedBrand);
-          currentBrandId = brandData.id;
-          console.log('Current brand from localStorage:', currentBrandId, 'Name:', brandData.name);
-        }
-      } catch (e) {
-        console.log('Error parsing currentBrand from localStorage:', e);
-      }
+      // Get user's role for the current brand (from URL)
+      console.log('Current brand from URL:', brandId);
 
       // If no current brand in localStorage, get all brands and let user choose or use Demo brand
       if (!currentBrandId) {
@@ -99,13 +87,13 @@ export default function ProfilePage() {
       }
 
       let role = 'editor'; // default
-      if (currentBrandId) {
-        console.log('Fetching role for brand:', currentBrandId);
+      if (brandId) {
+        console.log('Fetching role for brand:', brandId);
         const { data: membershipData, error: membershipError } = await supabase
           .from('brand_memberships')
           .select('role')
           .eq('user_id', user.id)
-          .eq('brand_id', currentBrandId)
+          .eq('brand_id', brandId)
           .single();
 
         if (membershipError) {

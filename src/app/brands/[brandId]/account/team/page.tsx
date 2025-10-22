@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
@@ -25,7 +25,9 @@ interface SupabaseMember {
 }
 
 export default function TeamPage() {
+  const params = useParams();
   const router = useRouter();
+  const brandId = params.brandId as string;
   
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,21 +46,21 @@ export default function TeamPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's highest role across all brands
+      // Get user's role for the current brand (from URL)
+      console.log('Fetching role for brand:', brandId);
       const { data: membershipData, error: membershipError } = await supabase
         .from('brand_memberships')
         .select('role')
         .eq('user_id', user.id)
-        .order('role', { ascending: false }); // super_admin > admin > editor
-
-      if (membershipError) {
-        console.error('Error fetching membership data:', membershipError);
-        // Continue with default role if membership data is not available
-      }
+        .eq('brand_id', brandId)
+        .single();
 
       let role = 'editor'; // default
-      if (membershipData && membershipData.length > 0) {
-        role = membershipData[0].role;
+      if (membershipError) {
+        console.error('Error fetching membership data:', membershipError);
+      } else if (membershipData) {
+        role = membershipData.role;
+        console.log('Found role:', role);
       }
 
       setUserRole(role);
