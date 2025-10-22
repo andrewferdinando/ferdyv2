@@ -57,35 +57,6 @@ export default function ProfilePage() {
       // Get user's role for the current brand (from URL)
       console.log('Current brand from URL:', brandId);
 
-      // If no current brand in localStorage, get all brands and let user choose or use Demo brand
-      if (!currentBrandId) {
-        const { data: allBrands, error: brandsError } = await supabase
-          .from('brand_memberships')
-          .select(`
-            brand_id,
-            brands!inner(name)
-          `)
-          .eq('user_id', user.id);
-        
-        if (brandsError) {
-          console.error('Error fetching brands:', brandsError);
-        } else if (allBrands && allBrands.length > 0) {
-          // Look for Demo brand first
-          const demoBrand = allBrands.find(membership => 
-            membership.brands?.[0]?.name?.toLowerCase().includes('demo')
-          );
-          
-          if (demoBrand) {
-            currentBrandId = demoBrand.brand_id;
-            console.log('Found Demo brand:', currentBrandId);
-          } else {
-            // Use first brand if no Demo brand found
-            currentBrandId = allBrands[0].brand_id;
-            console.log('Using first available brand:', currentBrandId);
-          }
-        }
-      }
-
       let role = 'editor'; // default
       if (brandId) {
         console.log('Fetching role for brand:', brandId);
