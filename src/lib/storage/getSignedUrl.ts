@@ -29,9 +29,27 @@ export async function getSignedUrl(path: string): Promise<string> {
     console.log('❌ Could not list bucket contents:', listErr)
   }
   
-  const { data, error } = await supabase.storage
-    .from('ferdy_assets')
-    .createSignedUrl(path, 600) // 10 minutes
+  // Try both bucket names since there might be a naming mismatch
+  let data, error;
+  
+  try {
+    const result = await supabase.storage
+      .from('ferdy_assets')
+      .createSignedUrl(path, 600) // 10 minutes
+    data = result.data;
+    error = result.error;
+  } catch (firstError) {
+    console.log('🔄 ferdy_assets failed, trying ferdy-assets...')
+    try {
+      const result = await supabase.storage
+        .from('ferdy-assets')
+        .createSignedUrl(path, 600) // 10 minutes
+      data = result.data;
+      error = result.error;
+    } catch (secondError) {
+      error = secondError;
+    }
+  }
 
   if (error) {
     console.error('❌ Error creating signed URL:', error)
