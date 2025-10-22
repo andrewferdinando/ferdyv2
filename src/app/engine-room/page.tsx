@@ -3,10 +3,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 
-export default function SettingsPage() {
+export default function EngineRoomPage() {
   const router = useRouter();
+
+  // No redirect needed - this page handles the case when no brand is selected
 
   const handleContentLibraryClick = () => {
     router.push('/content-library');
@@ -20,6 +23,10 @@ export default function SettingsPage() {
     router.push('/categories');
   };
 
+  const handleAccountClick = () => {
+    router.push('/account');
+  };
+
 
   return (
     <AppLayout>
@@ -30,10 +37,15 @@ export default function SettingsPage() {
             <div className="mb-8">
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Engine Room</h1>
               <p className="text-gray-600 mt-1 text-sm">Configure your workspace and integrations</p>
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-800 text-sm">
+                  <strong>Note:</strong> Select a brand from the dropdown above to access brand-specific settings and features.
+                </p>
+              </div>
             </div>
 
-            {/* Settings Cards - 3 Cards Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Settings Cards - 4 Cards Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Content Library Card */}
               <div 
                 onClick={handleContentLibraryClick}
@@ -102,6 +114,30 @@ export default function SettingsPage() {
                     </h3>
                     <p className="text-gray-600 text-sm mt-1 leading-relaxed">
                       Connect social media accounts and third-party services.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Card */}
+              <div 
+                onClick={handleAccountClick}
+                className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full"
+              >
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-[#EEF2FF] rounded-lg flex items-center justify-center text-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white transition-colors duration-200">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#6366F1] transition-colors duration-200">
+                      Account
+                    </h3>
+                    <p className="text-gray-600 text-sm mt-1 leading-relaxed">
+                      Manage your profile, team, and billing settings.
                     </p>
                   </div>
                 </div>
