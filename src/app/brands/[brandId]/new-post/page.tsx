@@ -21,6 +21,57 @@ export default function NewPostPage() {
     if (assets.length > 0) {
       console.log('Assets loaded:', assets);
       console.log('Sample storage_path:', assets[0]?.storage_path);
+      
+      // Test if we can access the storage buckets
+      const testStorageAccess = async () => {
+        try {
+          const { supabase } = await import('@/lib/supabase-browser');
+          
+          // Test different bucket names
+          const buckets = ['assets', 'brands', 'images', 'media'];
+          for (const bucket of buckets) {
+            try {
+              const { data, error } = await supabase.storage.from(bucket).list('', { limit: 1 });
+              console.log(`Bucket ${bucket} exists:`, !error, data);
+            } catch (err) {
+              console.log(`Bucket ${bucket} error:`, err);
+            }
+          }
+        } catch (error) {
+          console.error('Storage access test error:', error);
+        }
+      };
+      
+      testStorageAccess();
+      
+      // Test accessing a specific image file
+      const testSpecificImage = async () => {
+        try {
+          const { supabase } = await import('@/lib/supabase-browser');
+          const sampleAsset = assets[0];
+          if (sampleAsset?.storage_path) {
+            console.log('Testing specific image access for:', sampleAsset.storage_path);
+            
+            // Try to get the file directly
+            if (sampleAsset.storage_path.startsWith('brands/')) {
+              const cleanPath = sampleAsset.storage_path.replace('brands/', '');
+              const { data, error } = await supabase.storage
+                .from('brands')
+                .download(cleanPath);
+              console.log('Direct download test result:', !error, error);
+            } else {
+              const { data, error } = await supabase.storage
+                .from('assets')
+                .download(sampleAsset.storage_path);
+              console.log('Direct download test result:', !error, error);
+            }
+          }
+        } catch (error) {
+          console.error('Specific image test error:', error);
+        }
+      };
+      
+      testSpecificImage();
     }
   }, [assets]);
   
