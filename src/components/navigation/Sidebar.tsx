@@ -101,13 +101,13 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const navigationItems = [
     {
       name: 'Schedule',
-      href: selectedBrand ? `/brands/${selectedBrand.id}/schedule` : '/schedule',
+      href: `/brands/${selectedBrand.id}/schedule`,
       icon: CalendarIcon,
       active: pathname.includes('/schedule'),
     },
     {
       name: 'Engine Room',
-      href: selectedBrand ? `/brands/${selectedBrand.id}/engine-room` : '/engine-room',
+      href: `/brands/${selectedBrand.id}/engine-room`,
       icon: SettingsIcon,
       active: pathname.includes('/engine-room') && !pathname.includes('/account'),
     },
