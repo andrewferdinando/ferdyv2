@@ -185,6 +185,11 @@ export default function NewPostPage() {
           .from('brands')
           .getPublicUrl(cleanPath);
         publicUrl = data.publicUrl;
+      } else if (asset.storage_path.startsWith('originals/')) {
+        const { data } = supabase.storage
+          .from('ferdy_assets')
+          .getPublicUrl(asset.storage_path);
+        publicUrl = data.publicUrl;
       } else if (asset.storage_path.includes('images/')) {
         const { data } = supabase.storage
           .from('images')
@@ -600,6 +605,13 @@ export default function NewPostPage() {
                         .getPublicUrl(cleanPath);
                       imageUrl = data.publicUrl;
                       console.log(`Using bucket ${bucketName} for clean path:`, cleanPath, '-> URL:', data.publicUrl);
+                    } else if (asset.storage_path.startsWith('originals/')) {
+                      bucketName = 'ferdy_assets';
+                      const { data } = supabase.storage
+                        .from(bucketName)
+                        .getPublicUrl(asset.storage_path);
+                      imageUrl = data.publicUrl;
+                      console.log(`Using bucket ${bucketName} for originals path:`, asset.storage_path, '-> URL:', data.publicUrl);
                     } else if (asset.storage_path.includes('images/')) {
                       bucketName = 'images';
                       const { data } = supabase.storage
