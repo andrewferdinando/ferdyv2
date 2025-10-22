@@ -127,7 +127,7 @@ export default function IntegrationsPage() {
             <div className="flex flex-wrap gap-2">
               {accounts.map((account) => (
                 <span key={account.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {account.provider} - {account.username}
+                  {account.provider} - {account.handle}
                 </span>
               ))}
             </div>
