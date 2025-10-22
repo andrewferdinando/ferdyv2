@@ -27,12 +27,44 @@ export default function NewPostPage() {
         try {
           const { supabase } = await import('@/lib/supabase-browser');
           
-          // Test different bucket names
-          const buckets = ['assets', 'brands', 'images', 'media'];
+          // Test different bucket names and list all files
+          const buckets = ['ferdy_assets', 'assets', 'brands', 'images', 'media'];
           for (const bucket of buckets) {
             try {
-              const { data, error } = await supabase.storage.from(bucket).list('', { limit: 1 });
-              console.log(`Bucket ${bucket} exists:`, !error, data);
+              const { data, error } = await supabase.storage.from(bucket).list('', { limit: 10 });
+              console.log(`Bucket ${bucket} exists:`, !error, `Files: ${data?.length || 0}`, data);
+              
+              // Also try to list files recursively
+              if (bucket === 'brands') {
+                try {
+                  const { data: brandData } = await supabase.storage.from('brands').list('986a5e5d-4d6b-4893-acc8-9ddce8083921', { limit: 10 });
+                  console.log(`Brand folder contents:`, brandData);
+                  
+                  // Try to list files in originals folder
+                  const { data: originalsData } = await supabase.storage.from('brands').list('986a5e5d-4d6b-4893-acc8-9ddce8083921/originals', { limit: 10 });
+                  console.log(`Brand originals folder contents:`, originalsData);
+                } catch (err) {
+                  console.log(`Brand folder error:`, err);
+                }
+              }
+              
+              if (bucket === 'ferdy_assets') {
+                try {
+                  const { data: assetsData } = await supabase.storage.from('ferdy_assets').list('originals', { limit: 10 });
+                  console.log(`Ferdy_assets originals folder contents:`, assetsData);
+                } catch (err) {
+                  console.log(`Ferdy_assets originals folder error:`, err);
+                }
+              }
+              
+              if (bucket === 'assets') {
+                try {
+                  const { data: assetsData } = await supabase.storage.from('assets').list('originals', { limit: 10 });
+                  console.log(`Assets originals folder contents:`, assetsData);
+                } catch (err) {
+                  console.log(`Assets originals folder error:`, err);
+                }
+              }
             } catch (err) {
               console.log(`Bucket ${bucket} error:`, err);
             }
@@ -72,6 +104,35 @@ export default function NewPostPage() {
       };
       
       testSpecificImage();
+      
+      // Test signed URLs instead of public URLs
+      const testSignedUrls = async () => {
+        try {
+          const { supabase } = await import('@/lib/supabase-browser');
+          const sampleAsset = assets[0];
+          if (sampleAsset?.storage_path) {
+            console.log('Testing signed URL access for:', sampleAsset.storage_path);
+            
+            // Try to get a signed URL instead of public URL
+            if (sampleAsset.storage_path.startsWith('brands/')) {
+              const cleanPath = sampleAsset.storage_path.replace('brands/', '');
+              const { data, error } = await supabase.storage
+                .from('brands')
+                .createSignedUrl(cleanPath, 3600); // 1 hour expiry
+              console.log('Signed URL test result:', !error, error, data);
+            } else {
+              const { data, error } = await supabase.storage
+                .from('ferdy_assets')
+                .createSignedUrl(sampleAsset.storage_path, 3600);
+              console.log('Signed URL test result:', !error, error, data);
+            }
+          }
+        } catch (error) {
+          console.error('Signed URL test error:', error);
+        }
+      };
+      
+      testSignedUrls();
     }
   }, [assets]);
   
@@ -135,9 +196,9 @@ export default function NewPostPage() {
           .getPublicUrl(asset.storage_path);
         publicUrl = data.publicUrl;
       } else {
-        // Default to assets bucket
+        // Default to ferdy_assets bucket
         const { data } = supabase.storage
-          .from('assets')
+          .from('ferdy_assets')
           .getPublicUrl(asset.storage_path);
         publicUrl = data.publicUrl;
       }
@@ -269,8 +330,8 @@ export default function NewPostPage() {
                             className="w-full h-32 object-cover rounded-lg"
                             onError={(e) => {
                               console.error('Selected media failed to load:', selectedMedia);
-                              // Show placeholder if image fails to load
-                              e.currentTarget.src = '/assets/placeholders/image1.png';
+                              // Show a data URL placeholder image instead of a file path
+                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y3ZjhmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNmI3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
                             }}
                           />
                           <button 
@@ -527,7 +588,7 @@ export default function NewPostPage() {
                   // If storage_path looks like a Supabase storage path, convert it to public URL
                   if (asset.storage_path && !asset.storage_path.startsWith('http')) {
                     // Try different possible bucket names based on common patterns
-                    let bucketName = 'assets'; // default
+                    let bucketName = 'ferdy_assets'; // default
                     
                     // Check if storage_path contains brand info to determine bucket
                     if (asset.storage_path.startsWith('brands/')) {
@@ -554,12 +615,12 @@ export default function NewPostPage() {
                       imageUrl = data.publicUrl;
                       console.log(`Using bucket ${bucketName} for path:`, asset.storage_path, '-> URL:', data.publicUrl);
                     } else {
-                      // Default to assets bucket
+                      // Default to ferdy_assets bucket
                       const { data } = supabase.storage
-                        .from('assets')
+                        .from('ferdy_assets')
                         .getPublicUrl(asset.storage_path);
                       imageUrl = data.publicUrl;
-                      console.log(`Using bucket assets for path:`, asset.storage_path, '-> URL:', data.publicUrl);
+                      console.log(`Using bucket ferdy_assets for path:`, asset.storage_path, '-> URL:', data.publicUrl);
                     }
                   }
                 } catch (error) {
@@ -580,8 +641,8 @@ export default function NewPostPage() {
                       className="w-full h-full object-cover" 
                       onError={(e) => {
                         console.error('Image failed to load:', imageUrl);
-                        // Show placeholder if image fails to load
-                        e.currentTarget.src = '/assets/placeholders/image1.png';
+                        // Show a data URL placeholder image instead of a file path
+                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y3ZjhmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNmI3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
                       }}
                     />
                   </button>
