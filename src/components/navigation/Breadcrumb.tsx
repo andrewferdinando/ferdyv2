@@ -43,8 +43,6 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         return;
       }
       
-      currentPath += `/${segment}`;
-      
       // Skip dynamic segments like [brandId]
       if (segment.startsWith('[') && segment.endsWith(']')) {
         return;
@@ -54,6 +52,13 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
       if (segment === 'brands') {
         skipNext = true; // Skip the next segment (brandId)
         return;
+      }
+
+      // Build the path with brandId for brand-specific pages
+      if (brandId) {
+        currentPath = `/brands/${brandId}/${segment}`;
+      } else {
+        currentPath += `/${segment}`;
       }
 
       // Convert segment to readable label
@@ -75,6 +80,10 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         label = 'Automated Monthly Posts';
       } else if (segment === 'account') {
         label = 'Account';
+      } else if (segment === 'categories') {
+        label = 'Categories';
+      } else if (segment === 'integrations') {
+        label = 'Integrations';
       }
 
       // Don't make the last segment a link (current page)
