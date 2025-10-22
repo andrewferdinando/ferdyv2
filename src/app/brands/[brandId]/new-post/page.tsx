@@ -64,11 +64,22 @@ export default function NewPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
+      // Determine the correct bucket name
+      let bucketName = 'assets'; // default
+      if (asset.storage_path.includes('brands/')) {
+        bucketName = 'brands';
+      } else if (asset.storage_path.includes('images/')) {
+        bucketName = 'images';
+      } else if (asset.storage_path.includes('media/')) {
+        bucketName = 'media';
+      }
+      
       // Get the public URL for the storage path
       const { data } = supabase.storage
-        .from('assets')
+        .from(bucketName)
         .getPublicUrl(asset.storage_path);
       
+      console.log('Selected media URL:', data.publicUrl);
       setSelectedMedia(data.publicUrl);
       setSelectedAssetIds([asset.id]);
       setIsMediaModalOpen(false);
@@ -193,6 +204,11 @@ export default function NewPostPage() {
                             src={selectedMedia}
                             alt="Selected media"
                             className="w-full h-32 object-cover rounded-lg"
+                            onError={(e) => {
+                              console.error('Selected media failed to load:', selectedMedia);
+                              // Show placeholder if image fails to load
+                              e.currentTarget.src = '/assets/placeholders/image1.png';
+                            }}
                           />
                           <button 
                             onClick={() => setSelectedMedia('')}
@@ -447,10 +463,24 @@ export default function NewPostPage() {
                 try {
                   // If storage_path looks like a Supabase storage path, convert it to public URL
                   if (asset.storage_path && !asset.storage_path.startsWith('http')) {
+                    // Try different possible bucket names based on common patterns
+                    let bucketName = 'assets'; // default
+                    
+                    // Check if storage_path contains brand info to determine bucket
+                    if (asset.storage_path.includes('brands/')) {
+                      bucketName = 'brands';
+                    } else if (asset.storage_path.includes('images/')) {
+                      bucketName = 'images';
+                    } else if (asset.storage_path.includes('media/')) {
+                      bucketName = 'media';
+                    }
+                    
                     const { data } = supabase.storage
-                      .from('assets')
+                      .from(bucketName)
                       .getPublicUrl(asset.storage_path);
                     imageUrl = data.publicUrl;
+                    
+                    console.log(`Using bucket ${bucketName} for path:`, asset.storage_path, '-> URL:', data.publicUrl);
                   }
                 } catch (error) {
                   console.error('Error getting public URL for asset:', asset.storage_path, error);

@@ -18,6 +18,7 @@ DECLARE
     v_target_month date;
     v_scheduled_local timestamptz;
     v_channels_text text;
+    v_channel text;
 BEGIN
     -- Get brand timezone
     SELECT timezone INTO v_brand_timezone 
@@ -35,7 +36,11 @@ BEGIN
     -- Convert channels array to comma-separated string for storage
     v_channels_text := array_to_string(p_channels, ',');
     
-    -- Insert single post job with all channels
+    -- Create a post_job for the first channel (to satisfy foreign key constraint)
+    -- We'll use the first channel for the post_job, but store all channels in the draft
+    v_channel := p_channels[1];
+    
+    -- Insert post job with first channel (to satisfy constraint)
     INSERT INTO post_jobs (
         brand_id, 
         schedule_rule_id, 
@@ -48,7 +53,7 @@ BEGIN
     ) VALUES (
         p_brand_id,
         NULL,
-        v_channels_text, -- Store all channels as comma-separated string
+        v_channel, -- Use first channel for post_job constraint
         v_target_month,
         p_scheduled_at,
         v_scheduled_local,
@@ -56,7 +61,7 @@ BEGIN
         CASE WHEN p_approve_now THEN 'ready' ELSE 'generated' END
     ) RETURNING id INTO v_post_job_id;
     
-    -- Insert single draft
+    -- Insert single draft with all channels stored as comma-separated string
     INSERT INTO drafts (
         brand_id,
         post_job_id,
@@ -70,7 +75,7 @@ BEGIN
     ) VALUES (
         p_brand_id,
         v_post_job_id,
-        v_channels_text, -- Store all channels as comma-separated string
+        v_channels_text, -- Store all channels as comma-separated string in draft
         p_copy,
         p_hashtags,
         p_asset_ids,
