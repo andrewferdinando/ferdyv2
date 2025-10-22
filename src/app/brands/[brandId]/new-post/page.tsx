@@ -16,6 +16,14 @@ export default function NewPostPage() {
   // Fetch brand assets
   const { assets, loading: assetsLoading } = useAssets(brandId);
   
+  // Debug: Log assets to see storage_path format
+  React.useEffect(() => {
+    if (assets.length > 0) {
+      console.log('Assets loaded:', assets);
+      console.log('Sample storage_path:', assets[0]?.storage_path);
+    }
+  }, [assets]);
+  
   // Empty initial state for new post
   const [postCopy, setPostCopy] = useState('');
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -433,10 +441,22 @@ export default function NewPostPage() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {assets.map((asset) => {
-                // Get public URL for the asset
-                const { data } = supabase.storage
-                  .from('assets')
-                  .getPublicUrl(asset.storage_path);
+                // Try to get public URL for the asset
+                let imageUrl = asset.storage_path;
+                
+                try {
+                  // If storage_path looks like a Supabase storage path, convert it to public URL
+                  if (asset.storage_path && !asset.storage_path.startsWith('http')) {
+                    const { data } = supabase.storage
+                      .from('assets')
+                      .getPublicUrl(asset.storage_path);
+                    imageUrl = data.publicUrl;
+                  }
+                } catch (error) {
+                  console.error('Error getting public URL for asset:', asset.storage_path, error);
+                  // Fallback to original storage_path
+                  imageUrl = asset.storage_path;
+                }
                 
                 return (
                   <button
@@ -445,9 +465,14 @@ export default function NewPostPage() {
                     className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
                   >
                     <img 
-                      src={data.publicUrl} 
+                      src={imageUrl} 
                       alt={asset.title || 'Asset'} 
                       className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        console.error('Image failed to load:', imageUrl);
+                        // Show placeholder if image fails to load
+                        e.currentTarget.src = '/assets/placeholders/image1.png';
+                      }}
                     />
                   </button>
                 );
