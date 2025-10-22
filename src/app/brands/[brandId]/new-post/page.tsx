@@ -188,16 +188,13 @@ export default function NewPostPage() {
 
   const handleMediaSelect = async (asset: { id: string; storage_path: string }) => {
     try {
-      const { supabase } = await import('@/lib/supabase-browser');
+      // Use the same approach as Content Library - generate signed URL
+      const { getSignedUrl } = await import('@/lib/storage/getSignedUrl');
       
-      // Use the correct bucket name: ferdy_assets (with underscore)
-      const { data } = supabase.storage
-        .from('ferdy_assets')
-        .getPublicUrl(asset.storage_path);
-      const publicUrl = data.publicUrl;
+      const signedUrl = await getSignedUrl(asset.storage_path);
       
-      console.log('Selected media URL:', publicUrl);
-      setSelectedMedia(publicUrl);
+      console.log('Selected media URL:', signedUrl);
+      setSelectedMedia(signedUrl);
       setSelectedAssetIds([asset.id]);
       setIsMediaModalOpen(false);
     } catch (error) {
@@ -574,22 +571,15 @@ export default function NewPostPage() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {assets.map((asset) => {
-                // Try to get public URL for the asset
+                // Use the same approach as Content Library - use signed_url if available
                 let imageUrl = asset.storage_path;
                 
-                try {
-                  // Use the correct bucket name: ferdy_assets (with underscore)
-                  if (asset.storage_path && !asset.storage_path.startsWith('http')) {
-                    const { data } = supabase.storage
-                      .from('ferdy_assets')
-                      .getPublicUrl(asset.storage_path);
-                    imageUrl = data.publicUrl;
-                    console.log(`Using ferdy_assets bucket for path:`, asset.storage_path, '-> URL:', data.publicUrl);
-                  }
-                } catch (error) {
-                  console.error('Error getting public URL for asset:', asset.storage_path, error);
-                  // Fallback to original storage_path
-                  imageUrl = asset.storage_path;
+                // If the asset has a signed_url (from useAssets hook), use it
+                if (asset.signed_url) {
+                  imageUrl = asset.signed_url;
+                  console.log(`Using signed URL for asset:`, asset.id, '-> URL:', asset.signed_url);
+                } else {
+                  console.log(`No signed URL available for asset:`, asset.id, 'storage_path:', asset.storage_path);
                 }
                 
                 return (
