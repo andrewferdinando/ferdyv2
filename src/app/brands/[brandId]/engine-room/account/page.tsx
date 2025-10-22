@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 
 export default function AccountSettingsPage() {
+  const params = useParams();
+  const brandId = params.brandId as string;
   const accountSettings = [
     {
       id: 'profile',
@@ -16,7 +19,7 @@ export default function AccountSettingsPage() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
-      href: '/account/profile',
+      href: `/brands/${brandId}/engine-room/account/profile`,
       accessible: true
     },
     {
@@ -28,7 +31,7 @@ export default function AccountSettingsPage() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       ),
-      href: '/account/team',
+      href: `/brands/${brandId}/engine-room/account/team`,
       accessible: true // Will be checked on the individual page
     },
     {
@@ -40,7 +43,7 @@ export default function AccountSettingsPage() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
         </svg>
       ),
-      href: '/account/billing',
+      href: `/brands/${brandId}/engine-room/account/billing`,
       accessible: true // Will be checked on the individual page
     }
   ];
