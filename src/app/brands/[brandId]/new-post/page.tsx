@@ -51,18 +51,60 @@ export default function NewPostPage() {
     setIsMediaModalOpen(false);
   };
 
-  const handleSave = () => {
-    // TODO: Implement save logic for new post
-    console.log('Saving new post:', {
-      postCopy,
-      hashtags,
-      selectedChannels,
-      scheduleDate,
-      scheduleTime,
-      selectedMedia
-    });
-    // Navigate back to schedule page
-    router.push(`/brands/${brandId}/schedule`);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!postCopy.trim()) {
+      alert('Please enter post content');
+      return;
+    }
+
+    if (selectedChannels.length === 0) {
+      alert('Please select at least one channel');
+      return;
+    }
+
+    if (!scheduleDate || !scheduleTime) {
+      alert('Please select a date and time');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const { supabase } = await import('@/lib/supabase-browser');
+      
+      // Combine date and time into a single timestamp
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      
+      // Call the RPC function to create the post
+      const { data, error } = await supabase.rpc('rpc_create_manual_post', {
+        p_brand_id: brandId,
+        p_copy: postCopy.trim(),
+        p_hashtags: hashtags,
+        p_asset_ids: [], // TODO: Handle asset selection
+        p_channels: selectedChannels,
+        p_scheduled_at: scheduledAt.toISOString(),
+        p_approve_now: false
+      });
+
+      if (error) {
+        console.error('Error creating post:', error);
+        alert(`Failed to create post: ${error.message}`);
+        return;
+      }
+
+      console.log('Post created successfully:', data);
+      alert('Post created successfully!');
+      
+      // Navigate back to schedule page
+      router.push(`/brands/${brandId}/schedule`);
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('Failed to create post. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -86,9 +128,10 @@ export default function NewPostPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Post
+                  {isSaving ? 'Saving...' : 'Save Post'}
                 </button>
               </div>
             </div>
