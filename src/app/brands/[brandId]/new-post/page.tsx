@@ -190,9 +190,9 @@ export default function NewPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // Use the same bucket as upload: ferdy-assets (with hyphen)
+      // Use the correct bucket name: ferdy_assets (with underscore)
       const { data } = supabase.storage
-        .from('ferdy-assets')
+        .from('ferdy_assets')
         .getPublicUrl(asset.storage_path);
       const publicUrl = data.publicUrl;
       
@@ -578,13 +578,13 @@ export default function NewPostPage() {
                 let imageUrl = asset.storage_path;
                 
                 try {
-                  // Use the same bucket as upload: ferdy-assets (with hyphen)
+                  // Use the correct bucket name: ferdy_assets (with underscore)
                   if (asset.storage_path && !asset.storage_path.startsWith('http')) {
                     const { data } = supabase.storage
-                      .from('ferdy-assets')
+                      .from('ferdy_assets')
                       .getPublicUrl(asset.storage_path);
                     imageUrl = data.publicUrl;
-                    console.log(`Using ferdy-assets bucket for path:`, asset.storage_path, '-> URL:', data.publicUrl);
+                    console.log(`Using ferdy_assets bucket for path:`, asset.storage_path, '-> URL:', data.publicUrl);
                   }
                 } catch (error) {
                   console.error('Error getting public URL for asset:', asset.storage_path, error);

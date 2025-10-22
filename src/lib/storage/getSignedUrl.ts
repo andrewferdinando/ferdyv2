@@ -19,7 +19,7 @@ export async function getSignedUrl(path: string): Promise<string> {
   // Let's also try to list files in the bucket to see what's actually there
   try {
     const { data: listData, error: listError } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list('', { limit: 100 })
     
     if (!listError) {
@@ -30,7 +30,7 @@ export async function getSignedUrl(path: string): Promise<string> {
   }
   
   const { data, error } = await supabase.storage
-    .from('ferdy-assets')
+    .from('ferdy_assets')
     .createSignedUrl(path, 600) // 10 minutes
 
   if (error) {

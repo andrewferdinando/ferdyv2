@@ -92,13 +92,13 @@ export default function ProfilePage() {
       const filePath = `profile-images/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('ferdy-assets')
+        .from('ferdy_assets')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
-        .from('ferdy-assets')
+        .from('ferdy_assets')
         .getPublicUrl(filePath);
 
       setFormData(prev => ({ ...prev, profile_image_url: data.publicUrl }));

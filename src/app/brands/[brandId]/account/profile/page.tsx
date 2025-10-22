@@ -132,12 +132,12 @@ export default function ProfilePage() {
       const { data: buckets } = await supabase.storage.listBuckets();
       console.log('Available buckets for upload:', buckets);
       
-      let bucketName = 'ferdy-assets';
+      let bucketName = 'ferdy_assets';
       
       // If no buckets exist, try to create ferdy-assets bucket
       if (!buckets || buckets.length === 0) {
         console.log('No buckets found, attempting to create ferdy-assets bucket');
-        const { error: createError } = await supabase.storage.createBucket('ferdy-assets', {
+        const { error: createError } = await supabase.storage.createBucket('ferdy_assets', {
           public: true
         });
         
@@ -148,7 +148,7 @@ export default function ProfilePage() {
         console.log('Successfully created ferdy-assets bucket');
       } else {
         // Use the first available bucket if ferdy-assets doesn't exist
-        const ferdyBucket = buckets.find(b => b.name === 'ferdy-assets');
+        const ferdyBucket = buckets.find(b => b.name === 'ferdy_assets');
         if (!ferdyBucket) {
           bucketName = buckets[0].name;
           console.log('Using first available bucket:', bucketName);
