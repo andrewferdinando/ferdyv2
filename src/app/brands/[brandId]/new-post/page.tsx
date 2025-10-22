@@ -29,6 +29,20 @@ export default function NewPostPage() {
           
           // Test different bucket names and list all files
           const buckets = ['ferdy_assets', 'assets', 'brands', 'images', 'media'];
+          
+          // Also test if there might be a different bucket name
+          const possibleBuckets = ['ferdy_assets', 'assets', 'brands', 'images', 'media', 'storage', 'uploads', 'files'];
+          
+          // Test all possible bucket names
+          for (const bucket of possibleBuckets) {
+            try {
+              const { data, error } = await supabase.storage.from(bucket).list('', { limit: 10 });
+              console.log(`Testing bucket ${bucket}:`, !error, `Files: ${data?.length || 0}`, data);
+            } catch (err) {
+              console.log(`Bucket ${bucket} error:`, err);
+            }
+          }
+          
           for (const bucket of buckets) {
             try {
               const { data, error } = await supabase.storage.from(bucket).list('', { limit: 10 });
