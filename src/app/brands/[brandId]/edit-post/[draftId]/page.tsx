@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import Breadcrumb from '@/components/navigation/Breadcrumb';
+import { useAssets } from '@/hooks/useAssets';
 
 interface Draft {
   id: string;
@@ -41,6 +42,9 @@ export default function EditPostPage() {
   const router = useRouter();
   const brandId = params.brandId as string;
   const draftId = params.draftId as string;
+  
+  // Fetch brand assets
+  const { assets, loading: assetsLoading } = useAssets(brandId);
   
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -504,22 +508,32 @@ export default function EditPostPage() {
           onClose={() => setIsMediaModalOpen(false)}
           title="Select Media"
         >
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              '/assets/placeholders/image1.png',
-              '/assets/placeholders/image2.png',
-              '/assets/placeholders/image3.png',
-              '/assets/placeholders/image4.png',
-            ].map((media, index) => (
-              <button
-                key={index}
-                onClick={() => handleMediaSelect(media)}
-                className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
-              >
-                <img src={media} alt={`Media ${index + 1}`} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
+          {assetsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+            </div>
+          ) : assets.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No assets available for this brand.</p>
+              <p className="text-sm text-gray-400">Upload assets in the Content Library first.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {assets.map((asset) => (
+                <button
+                  key={asset.id}
+                  onClick={() => handleMediaSelect(asset.storage_path)}
+                  className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                >
+                  <img 
+                    src={asset.storage_path} 
+                    alt={asset.title || 'Asset'} 
+                    className="w-full h-full object-cover" 
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </Modal>
       </AppLayout>
     </RequireAuth>

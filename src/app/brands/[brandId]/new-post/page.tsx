@@ -5,11 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
+import { useAssets } from '@/hooks/useAssets';
 
 export default function NewPostPage() {
   const params = useParams();
   const router = useRouter();
   const brandId = params.brandId as string;
+  
+  // Fetch brand assets
+  const { assets, loading: assetsLoading } = useAssets(brandId);
   
   // Empty initial state for new post
   const [postCopy, setPostCopy] = useState('');
@@ -20,6 +24,7 @@ export default function NewPostPage() {
   const [scheduleTime, setScheduleTime] = useState('');
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState('');
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
@@ -46,8 +51,9 @@ export default function NewPostPage() {
     );
   };
 
-  const handleMediaSelect = (mediaUrl: string) => {
-    setSelectedMedia(mediaUrl);
+  const handleMediaSelect = (asset: { id: string; storage_path: string }) => {
+    setSelectedMedia(asset.storage_path);
+    setSelectedAssetIds([asset.id]);
     setIsMediaModalOpen(false);
   };
 
@@ -82,7 +88,7 @@ export default function NewPostPage() {
         p_brand_id: brandId,
         p_copy: postCopy.trim(),
         p_hashtags: hashtags,
-        p_asset_ids: [], // TODO: Handle asset selection
+        p_asset_ids: selectedAssetIds,
         p_channels: selectedChannels,
         p_scheduled_at: scheduledAt.toISOString(),
         p_approve_now: false
@@ -95,7 +101,9 @@ export default function NewPostPage() {
       }
 
       console.log('Post created successfully:', data);
-      alert('Post created successfully!');
+      const channelCount = selectedChannels.length;
+      const channelText = channelCount === 1 ? 'channel' : 'channels';
+      alert(`Post created successfully! ${channelCount} ${channelText} created.`);
       
       // Navigate back to schedule page
       router.push(`/brands/${brandId}/schedule`);
@@ -276,7 +284,10 @@ export default function NewPostPage() {
 
                   {/* Channels */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Channels</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Channels</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Each selected channel will create a separate post that you can customize individually.
+                    </p>
                     <div className="space-y-3">
                       {/* Instagram */}
                       <div 
@@ -387,22 +398,32 @@ export default function NewPostPage() {
           onClose={() => setIsMediaModalOpen(false)}
           title="Select Media"
         >
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              '/assets/placeholders/image1.png',
-              '/assets/placeholders/image2.png',
-              '/assets/placeholders/image3.png',
-              '/assets/placeholders/image4.png',
-            ].map((media, index) => (
-              <button
-                key={index}
-                onClick={() => handleMediaSelect(media)}
-                className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
-              >
-                <img src={media} alt={`Media ${index + 1}`} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
+          {assetsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+            </div>
+          ) : assets.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No assets available for this brand.</p>
+              <p className="text-sm text-gray-400">Upload assets in the Content Library first.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {assets.map((asset) => (
+                <button
+                  key={asset.id}
+                  onClick={() => handleMediaSelect(asset)}
+                  className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                >
+                  <img 
+                    src={asset.storage_path} 
+                    alt={asset.title || 'Asset'} 
+                    className="w-full h-full object-cover" 
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </Modal>
       </AppLayout>
     </RequireAuth>
