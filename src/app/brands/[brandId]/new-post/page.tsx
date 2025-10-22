@@ -17,6 +17,14 @@ export default function NewPostPage() {
   
   // Debug: Log assets to see storage_path format
   React.useEffect(() => {
+    // Test storage access first
+    const testStorage = async () => {
+      const { testStorageAccess } = await import('@/lib/storage/testStorage');
+      const result = await testStorageAccess();
+      console.log('🧪 Storage test result:', result);
+    };
+    testStorage();
+    
     if (assets.length > 0) {
       console.log('Assets loaded:', assets);
       console.log('Sample storage_path:', assets[0]?.storage_path);
