@@ -164,10 +164,6 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     router.push(`/edit-post?id=${draft.id}`);
   };
 
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(`/edit-post?id=${draft.id}`);
-  };
 
   const handleApprove = async (e: React.MouseEvent) => {
     e.stopPropagation();
