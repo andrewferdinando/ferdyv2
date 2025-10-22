@@ -467,11 +467,11 @@ export default function EditPostPage() {
                         )}
                       </div>
 
-                      {/* Twitter */}
+                      {/* X (Twitter) */}
                       <div 
-                        onClick={() => toggleChannel('twitter')}
+                        onClick={() => toggleChannel('x')}
                         className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                          selectedChannels.includes('twitter')
+                          selectedChannels.includes('x')
                             ? 'border-[#6366F1] bg-[#EEF2FF]'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
@@ -482,9 +482,9 @@ export default function EditPostPage() {
                               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                             </svg>
                           </div>
-                          <span className="font-medium text-gray-900">Twitter</span>
+                          <span className="font-medium text-gray-900">X (Twitter)</span>
                         </div>
-                        {selectedChannels.includes('twitter') && (
+                        {selectedChannels.includes('x') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
