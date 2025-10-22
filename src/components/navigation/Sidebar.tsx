@@ -98,6 +98,11 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
 
   const selectedBrand = brands.find(brand => brand.id === selectedBrandId) || brands[0];
 
+  // Don't render navigation if no brand is available (during build)
+  if (!selectedBrand) {
+    return null;
+  }
+
   const navigationItems = [
     {
       name: 'Schedule',
