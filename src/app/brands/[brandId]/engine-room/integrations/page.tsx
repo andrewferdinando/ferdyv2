@@ -127,7 +127,7 @@ export default function IntegrationsPage() {
             <div className="flex flex-wrap gap-2">
               {accounts.map((account) => (
                 <span key={account.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {account.platform} - {account.username}
+                  {account.provider} - {account.username}
                 </span>
               ))}
             </div>
@@ -137,7 +137,7 @@ export default function IntegrationsPage() {
         {/* Social Media Providers */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {socialProviders.map((provider) => {
-            const isConnected = accounts.some(account => account.platform.toLowerCase() === provider.id);
+            const isConnected = accounts.some(account => account.provider.toLowerCase() === provider.id);
             
             return (
               <div key={provider.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
@@ -161,7 +161,7 @@ export default function IntegrationsPage() {
                       </span>
                       <button
                         onClick={() => {
-                          const account = accounts.find(acc => acc.platform.toLowerCase() === provider.id);
+                          const account = accounts.find(acc => acc.provider.toLowerCase() === provider.id);
                           if (account) handleDisconnect(account.id);
                         }}
                         className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
