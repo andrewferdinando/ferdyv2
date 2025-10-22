@@ -190,37 +190,19 @@ export default function NewPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // Determine the correct bucket name and get public URL
-      let publicUrl = '';
-      if (asset.storage_path.startsWith('brands/')) {
-        // Remove the 'brands/' prefix from the path to avoid duplication
-        const cleanPath = asset.storage_path.replace('brands/', '');
-        const { data } = supabase.storage
-          .from('brands')
-          .getPublicUrl(cleanPath);
-        publicUrl = data.publicUrl;
-      } else if (asset.storage_path.startsWith('originals/')) {
-        const { data } = supabase.storage
-          .from('ferdy_assets')
-          .getPublicUrl(asset.storage_path);
-        publicUrl = data.publicUrl;
-      } else if (asset.storage_path.includes('images/')) {
-        const { data } = supabase.storage
-          .from('images')
-          .getPublicUrl(asset.storage_path);
-        publicUrl = data.publicUrl;
-      } else if (asset.storage_path.includes('media/')) {
-        const { data } = supabase.storage
-          .from('media')
-          .getPublicUrl(asset.storage_path);
-        publicUrl = data.publicUrl;
+      // Since all images are in ferdy_assets bucket, use that for all
+      let fileName = '';
+      if (asset.storage_path.includes('/')) {
+        // Extract filename from path like "brands/uuid/originals/filename.jpg" or "originals/filename.jpg"
+        fileName = asset.storage_path.split('/').pop() || asset.storage_path;
       } else {
-        // Default to ferdy_assets bucket
-        const { data } = supabase.storage
-          .from('ferdy_assets')
-          .getPublicUrl(asset.storage_path);
-        publicUrl = data.publicUrl;
+        fileName = asset.storage_path;
       }
+      
+      const { data } = supabase.storage
+        .from('ferdy_assets')
+        .getPublicUrl(fileName);
+      const publicUrl = data.publicUrl;
       
       console.log('Selected media URL:', publicUrl);
       setSelectedMedia(publicUrl);
@@ -609,45 +591,23 @@ export default function NewPostPage() {
                     // Try different possible bucket names based on common patterns
                     let bucketName = 'ferdy_assets'; // default
                     
-                    // Check if storage_path contains brand info to determine bucket
-                    if (asset.storage_path.startsWith('brands/')) {
-                      bucketName = 'brands';
-                      // Remove the 'brands/' prefix from the path to avoid duplication
-                      const cleanPath = asset.storage_path.replace('brands/', '');
-                      const { data } = supabase.storage
-                        .from(bucketName)
-                        .getPublicUrl(cleanPath);
-                      imageUrl = data.publicUrl;
-                      console.log(`Using bucket ${bucketName} for clean path:`, cleanPath, '-> URL:', data.publicUrl);
-                    } else if (asset.storage_path.startsWith('originals/')) {
-                      bucketName = 'ferdy_assets';
-                      const { data } = supabase.storage
-                        .from(bucketName)
-                        .getPublicUrl(asset.storage_path);
-                      imageUrl = data.publicUrl;
-                      console.log(`Using bucket ${bucketName} for originals path:`, asset.storage_path, '-> URL:', data.publicUrl);
-                    } else if (asset.storage_path.includes('images/')) {
-                      bucketName = 'images';
-                      const { data } = supabase.storage
-                        .from(bucketName)
-                        .getPublicUrl(asset.storage_path);
-                      imageUrl = data.publicUrl;
-                      console.log(`Using bucket ${bucketName} for path:`, asset.storage_path, '-> URL:', data.publicUrl);
-                    } else if (asset.storage_path.includes('media/')) {
-                      bucketName = 'media';
-                      const { data } = supabase.storage
-                        .from(bucketName)
-                        .getPublicUrl(asset.storage_path);
-                      imageUrl = data.publicUrl;
-                      console.log(`Using bucket ${bucketName} for path:`, asset.storage_path, '-> URL:', data.publicUrl);
+                    // Since all images are in ferdy_assets bucket, use that for all
+                    bucketName = 'ferdy_assets';
+                    
+                    // Extract just the filename from the storage_path
+                    let fileName = '';
+                    if (asset.storage_path.includes('/')) {
+                      // Extract filename from path like "brands/uuid/originals/filename.jpg" or "originals/filename.jpg"
+                      fileName = asset.storage_path.split('/').pop() || asset.storage_path;
                     } else {
-                      // Default to ferdy_assets bucket
-                      const { data } = supabase.storage
-                        .from('ferdy_assets')
-                        .getPublicUrl(asset.storage_path);
-                      imageUrl = data.publicUrl;
-                      console.log(`Using bucket ferdy_assets for path:`, asset.storage_path, '-> URL:', data.publicUrl);
+                      fileName = asset.storage_path;
                     }
+                    
+                    const { data } = supabase.storage
+                      .from(bucketName)
+                      .getPublicUrl(fileName);
+                    imageUrl = data.publicUrl;
+                    console.log(`Using ferdy_assets bucket for file:`, fileName, '-> URL:', data.publicUrl);
                   }
                 } catch (error) {
                   console.error('Error getting public URL for asset:', asset.storage_path, error);
