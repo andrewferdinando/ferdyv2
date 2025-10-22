@@ -87,7 +87,7 @@ export default function CategoriesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="mb-4">
-                  <Breadcrumb brandName="Demo" />
+                  <Breadcrumb />
                 </div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>

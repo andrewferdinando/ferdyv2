@@ -23,15 +23,36 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
     const segments = pathname.split('/').filter(Boolean);
     const breadcrumbs: BreadcrumbItem[] = [];
 
-    // Always start with Home
-    breadcrumbs.push({ label: 'Home', href: '/' });
+    // Extract brandId from pathname
+    const brandIdMatch = pathname.match(/\/brands\/([^\/]+)/);
+    const brandId = brandIdMatch ? brandIdMatch[1] : null;
+
+    // Always start with Home - link to Schedule page for the brand
+    if (brandId) {
+      breadcrumbs.push({ label: 'Home', href: `/brands/${brandId}/schedule` });
+    } else {
+      breadcrumbs.push({ label: 'Home', href: '/' });
+    }
 
     let currentPath = '';
+    let skipNext = false;
+    
     segments.forEach((segment, index) => {
+      if (skipNext) {
+        skipNext = false;
+        return;
+      }
+      
       currentPath += `/${segment}`;
       
       // Skip dynamic segments like [brandId]
       if (segment.startsWith('[') && segment.endsWith(']')) {
+        return;
+      }
+
+      // Skip the brands segment and brandId - we handle this above
+      if (segment === 'brands') {
+        skipNext = true; // Skip the next segment (brandId)
         return;
       }
 
@@ -42,14 +63,6 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         .join(' ');
 
       // Special cases for specific routes
-      if (segment === 'brands' && segments[index + 1]) {
-        // For brand pages, use the brand name if provided
-        if (brandName) {
-          breadcrumbs.push({ label: brandName, href: currentPath });
-        }
-        return; // Skip this segment, we'll handle it in the next iteration
-      }
-
       if (segment === 'engine-room') {
         label = 'Engine Room';
       } else if (segment === 'content-library') {

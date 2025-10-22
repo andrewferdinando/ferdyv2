@@ -160,7 +160,7 @@ export default function BillingPage() {
             <div className="max-w-4xl mx-auto">
               {/* Breadcrumb */}
               <div className="mb-6">
-                <Breadcrumb brandName="Demo" />
+                <Breadcrumb />
               </div>
 
               {/* Header */}

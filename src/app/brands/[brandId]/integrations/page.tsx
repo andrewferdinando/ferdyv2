@@ -4,6 +4,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
+import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useSocialAccounts } from '@/hooks/useSocialAccounts';
 
 // Icons
@@ -126,6 +127,9 @@ export default function IntegrationsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
+          <div className="mb-4">
+            <Breadcrumb />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
           <p className="text-gray-600 mt-1">Connect your social media accounts to start publishing</p>
         </div>

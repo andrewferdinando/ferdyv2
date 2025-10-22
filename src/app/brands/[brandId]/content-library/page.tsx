@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
+import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
@@ -165,6 +166,9 @@ export default function ContentLibraryPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
+                <div className="mb-4">
+                  <Breadcrumb />
+                </div>
                 <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
                 <p className="text-gray-600 mt-1">Manage your images and videos</p>
               </div>
