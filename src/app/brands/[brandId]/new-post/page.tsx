@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
-import { useAssets } from '@/hooks/useAssets';
-import { supabase } from '@/lib/supabase-browser';
+import { useAssets, Asset } from '@/hooks/assets/useAssets';
 
 export default function NewPostPage() {
   const params = useParams();
