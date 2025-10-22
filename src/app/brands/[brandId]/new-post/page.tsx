@@ -190,18 +190,10 @@ export default function NewPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // Since all images are in ferdy_assets bucket, use that for all
-      let fileName = '';
-      if (asset.storage_path.includes('/')) {
-        // Extract filename from path like "brands/uuid/originals/filename.jpg" or "originals/filename.jpg"
-        fileName = asset.storage_path.split('/').pop() || asset.storage_path;
-      } else {
-        fileName = asset.storage_path;
-      }
-      
+      // Use ferdy_assets bucket but maintain brand-specific path structure
       const { data } = supabase.storage
         .from('ferdy_assets')
-        .getPublicUrl(fileName);
+        .getPublicUrl(asset.storage_path);
       const publicUrl = data.publicUrl;
       
       console.log('Selected media URL:', publicUrl);
@@ -591,23 +583,15 @@ export default function NewPostPage() {
                     // Try different possible bucket names based on common patterns
                     let bucketName = 'ferdy_assets'; // default
                     
-                    // Since all images are in ferdy_assets bucket, use that for all
+                    // Use ferdy_assets bucket but maintain brand-specific path structure
                     bucketName = 'ferdy_assets';
                     
-                    // Extract just the filename from the storage_path
-                    let fileName = '';
-                    if (asset.storage_path.includes('/')) {
-                      // Extract filename from path like "brands/uuid/originals/filename.jpg" or "originals/filename.jpg"
-                      fileName = asset.storage_path.split('/').pop() || asset.storage_path;
-                    } else {
-                      fileName = asset.storage_path;
-                    }
-                    
+                    // Keep the full path structure to maintain brand organization
                     const { data } = supabase.storage
                       .from(bucketName)
-                      .getPublicUrl(fileName);
+                      .getPublicUrl(asset.storage_path);
                     imageUrl = data.publicUrl;
-                    console.log(`Using ferdy_assets bucket for file:`, fileName, '-> URL:', data.publicUrl);
+                    console.log(`Using ferdy_assets bucket for brand-specific path:`, asset.storage_path, '-> URL:', data.publicUrl);
                   }
                 } catch (error) {
                   console.error('Error getting public URL for asset:', asset.storage_path, error);
