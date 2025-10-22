@@ -32,6 +32,6 @@ export async function testStorageAccess() {
     }
   } catch (error) {
     console.error('❌ Storage test error:', error)
-    return { error: error.message }
+    return { error: error instanceof Error ? error.message : String(error) }
   }
 }
