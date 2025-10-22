@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets } from '@/hooks/useAssets';
+import { supabase } from '@/lib/supabase-browser';
 
 export default function NewPostPage() {
   const params = useParams();
@@ -51,10 +52,25 @@ export default function NewPostPage() {
     );
   };
 
-  const handleMediaSelect = (asset: { id: string; storage_path: string }) => {
-    setSelectedMedia(asset.storage_path);
-    setSelectedAssetIds([asset.id]);
-    setIsMediaModalOpen(false);
+  const handleMediaSelect = async (asset: { id: string; storage_path: string }) => {
+    try {
+      const { supabase } = await import('@/lib/supabase-browser');
+      
+      // Get the public URL for the storage path
+      const { data } = supabase.storage
+        .from('assets')
+        .getPublicUrl(asset.storage_path);
+      
+      setSelectedMedia(data.publicUrl);
+      setSelectedAssetIds([asset.id]);
+      setIsMediaModalOpen(false);
+    } catch (error) {
+      console.error('Error getting public URL:', error);
+      // Fallback to storage_path if public URL fails
+      setSelectedMedia(asset.storage_path);
+      setSelectedAssetIds([asset.id]);
+      setIsMediaModalOpen(false);
+    }
   };
 
   const [isSaving, setIsSaving] = useState(false);
@@ -83,8 +99,8 @@ export default function NewPostPage() {
       // Combine date and time into a single timestamp
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
       
-      // Call the RPC function to create the post
-      const { data, error } = await supabase.rpc('rpc_create_manual_post', {
+      // Call the RPC function to create a single post with multiple channels
+      const { data, error } = await supabase.rpc('rpc_create_single_manual_post', {
         p_brand_id: brandId,
         p_copy: postCopy.trim(),
         p_hashtags: hashtags,
@@ -96,6 +112,13 @@ export default function NewPostPage() {
 
       if (error) {
         console.error('Error creating post:', error);
+        
+        // Check if the RPC function doesn't exist (needs to be deployed)
+        if (error.message.includes('function') && error.message.includes('does not exist')) {
+          alert('Database function not found. Please run the SQL migration in Supabase SQL editor first.');
+          return;
+        }
+        
         alert(`Failed to create post: ${error.message}`);
         return;
       }
@@ -103,7 +126,7 @@ export default function NewPostPage() {
       console.log('Post created successfully:', data);
       const channelCount = selectedChannels.length;
       const channelText = channelCount === 1 ? 'channel' : 'channels';
-      alert(`Post created successfully! ${channelCount} ${channelText} created.`);
+      alert(`Post created successfully! Will be posted to ${channelCount} ${channelText}.`);
       
       // Navigate back to schedule page
       router.push(`/brands/${brandId}/schedule`);
@@ -286,7 +309,7 @@ export default function NewPostPage() {
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Channels</h3>
                     <p className="text-sm text-gray-500 mb-4">
-                      Each selected channel will create a separate post that you can customize individually.
+                      Select the channels where this post will be published. All selected channels will show this same post.
                     </p>
                     <div className="space-y-3">
                       {/* Instagram */}
@@ -409,19 +432,26 @@ export default function NewPostPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              {assets.map((asset) => (
-                <button
-                  key={asset.id}
-                  onClick={() => handleMediaSelect(asset)}
-                  className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
-                >
-                  <img 
-                    src={asset.storage_path} 
-                    alt={asset.title || 'Asset'} 
-                    className="w-full h-full object-cover" 
-                  />
-                </button>
-              ))}
+              {assets.map((asset) => {
+                // Get public URL for the asset
+                const { data } = supabase.storage
+                  .from('assets')
+                  .getPublicUrl(asset.storage_path);
+                
+                return (
+                  <button
+                    key={asset.id}
+                    onClick={() => handleMediaSelect(asset)}
+                    className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                  >
+                    <img 
+                      src={data.publicUrl} 
+                      alt={asset.title || 'Asset'} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
         </Modal>

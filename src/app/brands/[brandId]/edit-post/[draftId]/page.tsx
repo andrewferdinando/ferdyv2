@@ -7,6 +7,7 @@ import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useAssets } from '@/hooks/useAssets';
+import { supabase } from '@/lib/supabase-browser';
 
 interface Draft {
   id: string;
@@ -519,19 +520,26 @@ export default function EditPostPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              {assets.map((asset) => (
-                <button
-                  key={asset.id}
-                  onClick={() => handleMediaSelect(asset.storage_path)}
-                  className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
-                >
-                  <img 
-                    src={asset.storage_path} 
-                    alt={asset.title || 'Asset'} 
-                    className="w-full h-full object-cover" 
-                  />
-                </button>
-              ))}
+              {assets.map((asset) => {
+                // Get public URL for the asset
+                const { data } = supabase.storage
+                  .from('assets')
+                  .getPublicUrl(asset.storage_path);
+                
+                return (
+                  <button
+                    key={asset.id}
+                    onClick={() => handleMediaSelect(data.publicUrl)}
+                    className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                  >
+                    <img 
+                      src={data.publicUrl} 
+                      alt={asset.title || 'Asset'} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
         </Modal>

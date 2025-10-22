@@ -57,11 +57,18 @@ const TikTokIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </div>
 );
 
+const XIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <div className={`rounded bg-black flex items-center justify-center ${className}`}>
+    <span className="text-white text-xs font-bold">X</span>
+  </div>
+);
+
 const platformIcons = {
   facebook: FacebookIcon,
   linkedin: LinkedInIcon,
   instagram: InstagramIcon,
   tiktok: TikTokIcon,
+  x: XIcon,
 };
 
 interface DraftCardProps {
@@ -108,9 +115,16 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
-  // Check if channel has connected social account
-  const hasConnectedAccount = accounts.some(account => 
-    account.provider === draft.channel && account.status === 'connected'
+  // Parse channels (handle both single channel and comma-separated channels)
+  const channels = draft.channel.includes(',') 
+    ? draft.channel.split(',').map(c => c.trim())
+    : [draft.channel];
+
+  // Check if any channel has connected social account
+  const hasConnectedAccount = channels.some(channel => 
+    accounts.some(account => 
+      account.provider === channel && account.status === 'connected'
+    )
   );
 
   const canApprove = hasConnectedAccount && draft.copy && draft.asset_ids.length > 0;
@@ -246,8 +260,12 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                      draft.post_jobs?.scheduled_at ? 'Scheduled' : 'Created'} • {formatDateTime(draft.post_jobs?.scheduled_at || draft.created_at)}
                   </span>
                   {/* Platform Icons with proper spacing */}
-                  <div className="flex items-center ml-4">
-                    {getPlatformIcon(draft.channel)}
+                  <div className="flex items-center ml-4 space-x-1">
+                    {channels.map((channel, index) => (
+                      <div key={index}>
+                        {getPlatformIcon(channel)}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
