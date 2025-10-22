@@ -89,11 +89,11 @@ export default function CategoriesPage() {
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
               <Link
-                href={`/brands/${brandId}/settings`}
+                href={`/brands/${brandId}/engine-room`}
                 className="inline-flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                Back to Settings
+                Back to Engine Room
               </Link>
             </div>
           </div>

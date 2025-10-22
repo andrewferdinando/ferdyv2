@@ -71,7 +71,7 @@ export default function SettingsPage() {
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Settings</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Engine Room</h1>
               <p className="text-gray-600 mt-1 text-sm">Configure your workspace and integrations</p>
             </div>
           </div>

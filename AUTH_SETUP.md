@@ -46,7 +46,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 1. **Sign Up**: Users can create accounts at `/auth/sign-up`
 2. **Sign In**: Users can sign in at `/auth/sign-in`
-3. **Team Management**: Brand admins can manage teams at `/brands/[brandId]/settings/account`
+3. **Team Management**: Brand admins can manage teams at `/brands/[brandId]/engine-room/account`
 4. **Route Protection**: All brand routes are protected and require authentication
 
 ## Super Admin Setup

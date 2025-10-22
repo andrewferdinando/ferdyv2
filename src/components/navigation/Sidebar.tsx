@@ -106,10 +106,10 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       active: pathname.includes('/schedule'),
     },
     {
-      name: 'Post Settings',
-      href: selectedBrand ? `/brands/${selectedBrand.id}/settings` : '/settings',
+      name: 'Engine Room',
+      href: selectedBrand ? `/brands/${selectedBrand.id}/engine-room` : '/engine-room',
       icon: SettingsIcon,
-      active: pathname.includes('/settings') && !pathname.includes('/account'),
+      active: pathname.includes('/engine-room') && !pathname.includes('/account'),
     },
   ];
 
@@ -185,7 +185,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
         {/* Account Settings, Super Admin and Sign Out at bottom */}
         <div className="mt-auto pt-4 border-t border-gray-200 space-y-2">
           <Link
-            href={`/brands/${selectedBrandId}/settings/account`}
+            href={`/brands/${selectedBrandId}/engine-room/account`}
             onClick={handleNavigationClick}
             className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
               pathname.startsWith('/account')
