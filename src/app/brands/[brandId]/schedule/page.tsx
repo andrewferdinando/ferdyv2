@@ -140,6 +140,10 @@ export default function SchedulePage() {
     router.push(`/brands/${brandId}/new-post`);
   };
 
+  const handleEditPost = (draftId: string) => {
+    router.push(`/brands/${brandId}/edit-post/${draftId}`);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'drafts':

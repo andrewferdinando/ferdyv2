@@ -104,6 +104,10 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts } = useSocialAccounts(draft.brand_id);
 
+  const handleEditClick = () => {
+    router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
+  };
+
   // Check if channel has connected social account
   const hasConnectedAccount = accounts.some(account => 
     account.provider === draft.channel && account.status === 'connected'
