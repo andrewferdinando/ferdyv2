@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import Modal from '@/components/ui/Modal';
+import Breadcrumb from '@/components/navigation/Breadcrumb';
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -54,6 +55,9 @@ export default function EditPostPage() {
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
           <div className="flex items-center justify-between">
             <div>
+              <div className="mb-4">
+                <Breadcrumb />
+              </div>
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Edit Post</h1>
               <p className="text-gray-600 mt-1 text-sm">Make changes to your post.</p>
             </div>
@@ -67,12 +71,6 @@ export default function EditPostPage() {
               </div>
               
               {/* Action Buttons */}
-              <button
-                onClick={() => router.back()}
-                className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-              >
-                Back to Post
-              </button>
             </div>
           </div>
         </div>

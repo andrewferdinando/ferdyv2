@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import Link from 'next/link'
+import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
 
 // Icons
@@ -85,16 +86,12 @@ export default function CategoriesPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
               <div>
+                <div className="mb-4">
+                  <Breadcrumb brandName="Demo" />
+                </div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
-              <Link
-                href={`/brands/${brandId}/engine-room`}
-                className="inline-flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                Back to Engine Room
-              </Link>
             </div>
           </div>
 
