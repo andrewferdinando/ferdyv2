@@ -5,7 +5,7 @@ async function searchForFilesRecursively(path: string, depth = 0) {
   
   try {
     const { data, error } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list(path, { limit: 100 })
     
     if (error) {
@@ -73,7 +73,7 @@ export async function debugStorage() {
     console.log('🪣 Testing direct bucket access...')
     try {
       const { data: bucketData, error: bucketError } = await supabase.storage
-        .from('ferdy-assets')
+        .from('ferdy_assets')
         .list('', { limit: 1 })
       
       if (bucketError) {
@@ -105,7 +105,7 @@ export async function debugStorage() {
     }
     // List root directory
     const { data: rootData, error: rootError } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list('', { limit: 100 })
     
     if (rootError) {
@@ -116,7 +116,7 @@ export async function debugStorage() {
     
     // List brands directory
     const { data: brandsData, error: brandsError } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list('brands', { limit: 100 })
     
     if (brandsError) {
@@ -127,7 +127,7 @@ export async function debugStorage() {
     
     // List originals directory
     const { data: originalsData, error: originalsError } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list('originals', { limit: 100 })
     
     if (originalsError) {
@@ -138,7 +138,7 @@ export async function debugStorage() {
     
     // Try to list the specific brand directory
     const { data: brandData, error: brandError } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list(`brands/${brandId}`, { limit: 100 })
     
     if (brandError) {
@@ -149,7 +149,7 @@ export async function debugStorage() {
     
     // Try to list the specific brand/originals directory
     const { data: brandOriginalsData, error: brandOriginalsError } = await supabase.storage
-      .from('ferdy-assets')
+      .from('ferdy_assets')
       .list(`brands/${brandId}/originals`, { limit: 100 })
     
     if (brandOriginalsError) {
@@ -165,7 +165,7 @@ export async function debugStorage() {
         console.log(`🧪 Testing file: ${asset.storage_path}`)
         try {
           const { data: testData, error: testError } = await supabase.storage
-            .from('ferdy-assets')
+            .from('ferdy_assets')
             .createSignedUrl(asset.storage_path, 60)
           
           if (testError) {
@@ -195,7 +195,7 @@ export async function debugStorage() {
       console.log(`🧪 Testing file: ${testFile}`)
       try {
         const { data: testData, error: testError } = await supabase.storage
-          .from('ferdy-assets')
+          .from('ferdy_assets')
           .createSignedUrl(testFile, 60)
         
         if (testError) {
