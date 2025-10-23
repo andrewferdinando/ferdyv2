@@ -19,7 +19,7 @@ export function useDeleteAsset() {
 
       // Delete from storage first
       const { error: storageError } = await supabase.storage
-        .from('ferdy_assets')
+        .from('ferdy-assets')
         .remove([storagePath])
 
       if (storageError) {
