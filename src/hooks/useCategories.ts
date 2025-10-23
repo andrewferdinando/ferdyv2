@@ -11,7 +11,7 @@ export interface Category {
   updated_at: string
 }
 
-export function useCategories(brandId: string) {
+export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

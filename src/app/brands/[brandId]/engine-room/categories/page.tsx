@@ -45,7 +45,7 @@ export default function CategoriesPage() {
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string} | null>(null)
   
-  const { categories, loading } = useCategories(brandId)
+  const { categories, loading } = useCategories()
   const { subcategories, loading: subcategoriesLoading, createSubcategory, updateSubcategory, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
 
   const tabs = [
@@ -223,12 +223,16 @@ export default function CategoriesPage() {
           title={editingSubcategory ? "Edit Sub-category" : "Add New Sub-category"}
         >
           <Form
-            onSubmit={async (formData) => {
+            onSubmit={async (e: React.FormEvent) => {
+              e.preventDefault()
               try {
+                const formData = new FormData(e.currentTarget)
+                const name = formData.get('name') as string
+                
                 if (editingSubcategory) {
-                  await updateSubcategory(editingSubcategory.id, { name: formData.name })
+                  await updateSubcategory(editingSubcategory.id, { name })
                 } else {
-                  await createSubcategory({ name: formData.name })
+                  await createSubcategory({ name })
                 }
                 setIsSubcategoryModalOpen(false)
                 setEditingSubcategory(null)
