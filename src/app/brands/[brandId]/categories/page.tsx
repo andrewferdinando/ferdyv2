@@ -38,7 +38,7 @@ export default function CategoriesPage() {
   const brandId = params.brandId as string
   const [activeTab, setActiveTab] = useState('categories')
   
-  const { categories, loading } = useCategories(brandId)
+  const { categories, loading } = useCategories()
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
