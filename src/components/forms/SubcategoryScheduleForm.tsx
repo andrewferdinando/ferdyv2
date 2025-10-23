@@ -268,7 +268,10 @@ export function SubcategoryScheduleForm({
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Subcategory update error:', error)
+          throw error
+        }
         subcategoryId = data.id
       } else {
         // Create new subcategory
@@ -287,7 +290,10 @@ export function SubcategoryScheduleForm({
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Subcategory insert error:', error)
+          throw error
+        }
         subcategoryId = data.id
       }
 
@@ -322,14 +328,18 @@ export function SubcategoryScheduleForm({
           .from('schedule_rules')
           .insert(scheduleRuleData)
 
-        if (error) throw error
+        if (error) {
+          console.error('Schedule rule insert error:', error)
+          throw error
+        }
       }
 
+      console.log('Successfully saved subcategory and schedule rule')
       onSuccess()
       onClose()
     } catch (error) {
       console.error('Error saving subcategory and schedule rule:', error)
-      setErrors({ submit: 'Failed to save. Please try again.' })
+      setErrors({ submit: `Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}` })
     } finally {
       setIsLoading(false)
     }
