@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase-browser'
 
 export interface Category {
   id: string
-  brand_id: string
   name: string
   created_at: string
 }
@@ -24,7 +23,7 @@ export function useCategories() {
         // Fetch global categories (not brand-specific)
         const { data, error } = await supabase
           .from('categories')
-          .select('id, brand_id, name, created_at')
+          .select('id, name, created_at')
           .order('name', { ascending: true })
 
         if (error) {
