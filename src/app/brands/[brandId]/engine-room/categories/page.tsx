@@ -277,14 +277,10 @@ export default function CategoriesPage() {
               />
             </FormField>
 
-            <FormActions onCancel={() => setIsDealModalOpen(false)}>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-              >
-                {editingDeal ? "Update Deal" : "Create Deal"}
-              </button>
-            </FormActions>
+            <FormActions 
+              onCancel={() => setIsDealModalOpen(false)}
+              submitText={editingDeal ? "Update Deal" : "Create Deal"}
+            />
           </Form>
         </Modal>
 
@@ -319,14 +315,10 @@ export default function CategoriesPage() {
               />
             </FormField>
 
-            <FormActions onCancel={() => setIsOfferingModalOpen(false)}>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-              >
-                {editingOffering ? "Update Offering" : "Create Offering"}
-              </button>
-            </FormActions>
+            <FormActions 
+              onCancel={() => setIsOfferingModalOpen(false)}
+              submitText={editingOffering ? "Update Offering" : "Create Offering"}
+            />
           </Form>
         </Modal>
       </AppLayout>
