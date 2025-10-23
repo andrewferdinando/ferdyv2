@@ -16,7 +16,6 @@ interface SubcategoryData {
 interface ScheduleRuleData {
   frequency: 'daily' | 'weekly' | 'monthly'
   timeOfDay: string
-  timesPerWeek?: number
   daysOfWeek: string[]
   daysOfMonth: number[]
   nthWeek?: number
@@ -40,7 +39,6 @@ interface SubcategoryScheduleFormProps {
     id: string
     frequency: string
     timeOfDay: string
-    timesPerWeek?: number
     daysOfWeek: string[]
     daysOfMonth: number[]
     nthWeek?: number
@@ -107,7 +105,6 @@ export function SubcategoryScheduleForm({
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
     timeOfDay: '09:00',
-    timesPerWeek: undefined,
     daysOfWeek: [],
     daysOfMonth: [],
     nthWeek: undefined,
@@ -142,7 +139,6 @@ export function SubcategoryScheduleForm({
       setScheduleData({
         frequency: editingScheduleRule.frequency as 'daily' | 'weekly' | 'monthly',
         timeOfDay: editingScheduleRule.timeOfDay,
-        timesPerWeek: editingScheduleRule.timesPerWeek,
         daysOfWeek: editingScheduleRule.daysOfWeek || [],
         daysOfMonth: editingScheduleRule.daysOfMonth || [],
         nthWeek: editingScheduleRule.nthWeek,
@@ -153,7 +149,6 @@ export function SubcategoryScheduleForm({
       setScheduleData({
         frequency: 'weekly',
         timeOfDay: '09:00',
-        timesPerWeek: undefined,
         daysOfWeek: [],
         daysOfMonth: [],
         nthWeek: undefined,
@@ -191,9 +186,6 @@ export function SubcategoryScheduleForm({
     if (scheduleData.frequency === 'daily') {
       if (!scheduleData.timeOfDay) {
         newErrors.timeOfDay = 'Time of day is required'
-      }
-      if (scheduleData.timesPerWeek && (scheduleData.timesPerWeek < 1 || scheduleData.timesPerWeek > 7)) {
-        newErrors.timesPerWeek = 'Times per week must be between 1 and 7'
       }
     }
 
@@ -307,7 +299,6 @@ export function SubcategoryScheduleForm({
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
         frequency: scheduleData.frequency,
         time_of_day: scheduleData.timeOfDay,
-        times_per_week: scheduleData.timesPerWeek || null,
         days_of_week: scheduleData.daysOfWeek,
         day_of_month: scheduleData.daysOfMonth.length > 0 ? scheduleData.daysOfMonth : null,
         nth_week: scheduleData.nthWeek || null,
@@ -470,17 +461,6 @@ export function SubcategoryScheduleForm({
                       value={scheduleData.timeOfDay}
                       onChange={(e) => setScheduleData(prev => ({ ...prev, timeOfDay: e.target.value }))}
                       error={errors.timeOfDay}
-                    />
-                  </FormField>
-                  <FormField label="Times per Week (optional)">
-                    <Input
-                      type="number"
-                      min="1"
-                      max="7"
-                      value={scheduleData.timesPerWeek || ''}
-                      onChange={(e) => setScheduleData(prev => ({ ...prev, timesPerWeek: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      placeholder="1-7"
-                      error={errors.timesPerWeek}
                     />
                   </FormField>
                 </div>
