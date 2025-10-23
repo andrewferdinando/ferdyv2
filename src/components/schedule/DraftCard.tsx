@@ -7,6 +7,7 @@ import { useSocialAccounts } from '@/hooks/useSocialAccounts';
 import Modal from '@/components/ui/Modal';
 import { Form, FormField, FormActions } from '@/components/ui/Form';
 import { Input } from '@/components/ui/Input';
+import { supabase } from '@/lib/supabase-browser';
 
 // Helper component for draft images
 function DraftImage({ asset }: { asset: { id: string; title: string; storage_path: string; aspect_ratio: string } }) {
@@ -22,7 +23,6 @@ function DraftImage({ asset }: { asset: { id: string; title: string; storage_pat
 
   // Generate public URL using the same approach as Content Library
   const getPublicUrl = (path: string) => {
-    const { supabase } = require('@/lib/supabase-browser');
     const { data } = supabase.storage
       .from('ferdy-assets')
       .getPublicUrl(path);
