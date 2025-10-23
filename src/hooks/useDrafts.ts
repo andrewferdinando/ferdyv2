@@ -56,18 +56,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setLoading(true);
         setError(null);
 
-        // Fetch drafts with associated assets
+        // Fetch drafts first
         const query = supabase
           .from('drafts')
-          .select(`
-            *,
-            assets!drafts_asset_ids_fkey (
-              id,
-              title,
-              storage_path,
-              aspect_ratio
-            )
-          `)
+          .select('*')
           .eq('brand_id', brandId);
 
         // Apply status filter if provided
@@ -90,8 +82,26 @@ export function useDrafts(brandId: string, statusFilter?: string) {
           throw error;
         }
 
-        setDrafts(data || []);
-        console.log('useDrafts: Set drafts:', data?.length || 0, 'items');
+        // Now fetch assets for each draft that has asset_ids
+        const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
+          if (draft.asset_ids && draft.asset_ids.length > 0) {
+            const { data: assetsData, error: assetsError } = await supabase
+              .from('assets')
+              .select('id, title, storage_path, aspect_ratio')
+              .in('id', draft.asset_ids);
+            
+            if (assetsError) {
+              console.error('Error fetching assets for draft:', draft.id, assetsError);
+              return { ...draft, assets: [] };
+            }
+            
+            return { ...draft, assets: assetsData || [] };
+          }
+          return { ...draft, assets: [] };
+        }));
+
+        setDrafts(draftsWithAssets);
+        console.log('useDrafts: Set drafts:', draftsWithAssets?.length || 0, 'items');
       } catch (err) {
         console.error('useDrafts: Error fetching drafts:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
@@ -195,18 +205,10 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     setError(null);
     
     try {
-        // Fetch drafts with associated assets
+        // Fetch drafts first
         const query = supabase
           .from('drafts')
-          .select(`
-            *,
-            assets!drafts_asset_ids_fkey (
-              id,
-              title,
-              storage_path,
-              aspect_ratio
-            )
-          `)
+          .select('*')
           .eq('brand_id', brandId);
 
       // Apply status filter if provided
@@ -220,7 +222,25 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
       if (error) throw error;
 
-      setDrafts(data || []);
+      // Now fetch assets for each draft that has asset_ids
+      const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
+        if (draft.asset_ids && draft.asset_ids.length > 0) {
+          const { data: assetsData, error: assetsError } = await supabase
+            .from('assets')
+            .select('id, title, storage_path, aspect_ratio')
+            .in('id', draft.asset_ids);
+          
+          if (assetsError) {
+            console.error('Error fetching assets for draft:', draft.id, assetsError);
+            return { ...draft, assets: [] };
+          }
+          
+          return { ...draft, assets: assetsData || [] };
+        }
+        return { ...draft, assets: [] };
+      }));
+
+      setDrafts(draftsWithAssets);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
     } finally {
