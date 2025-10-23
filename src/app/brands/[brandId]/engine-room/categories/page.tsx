@@ -41,7 +41,7 @@ export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState('categories')
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
-  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string} | null>(null)
+  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[]} | null>(null)
   
   const { categories, loading } = useCategories()
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)

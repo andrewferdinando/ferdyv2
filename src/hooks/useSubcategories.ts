@@ -8,6 +8,9 @@ export interface Subcategory {
   brand_id: string
   category_id: string
   name: string
+  detail?: string
+  url?: string
+  hashtags: string[]
   created_at: string
   updated_at: string
 }
