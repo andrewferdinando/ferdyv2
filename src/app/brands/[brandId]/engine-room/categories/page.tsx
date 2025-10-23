@@ -8,9 +8,7 @@ import Link from 'next/link'
 import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
 import { useSubcategories } from '@/hooks/useSubcategories'
-import Modal from '@/components/ui/Modal'
-import { Form, FormField, FormActions } from '@/components/ui/Form'
-import { Input } from '@/components/ui/Input'
+import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -216,46 +214,21 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {/* Subcategory Modal */}
-        <Modal
+        {/* Subcategory Schedule Form */}
+        <SubcategoryScheduleForm
           isOpen={isSubcategoryModalOpen}
-          onClose={() => setIsSubcategoryModalOpen(false)}
-          title={editingSubcategory ? "Edit Sub-category" : "Add New Sub-category"}
-        >
-          <Form
-            onSubmit={async (e: React.FormEvent) => {
-              e.preventDefault()
-              try {
-                const formData = new FormData(e.currentTarget as HTMLFormElement)
-                const name = formData.get('name') as string
-                
-                if (editingSubcategory) {
-                  await updateSubcategory(editingSubcategory.id, { name })
-                } else {
-                  await createSubcategory({ name })
-                }
-                setIsSubcategoryModalOpen(false)
-                setEditingSubcategory(null)
-              } catch (error) {
-                console.error('Error saving subcategory:', error)
-              }
-            }}
-          >
-            <FormField label="Sub-category Name">
-              <Input
-                name="name"
-                placeholder="Enter sub-category name"
-                defaultValue={editingSubcategory?.name || ''}
-                required
-              />
-            </FormField>
-
-            <FormActions 
-              onCancel={() => setIsSubcategoryModalOpen(false)}
-              submitText={editingSubcategory ? "Update Sub-category" : "Create Sub-category"}
-            />
-          </Form>
-        </Modal>
+          onClose={() => {
+            setIsSubcategoryModalOpen(false)
+            setEditingSubcategory(null)
+          }}
+          brandId={brandId}
+          categoryId={selectedCategory?.id}
+          editingSubcategory={editingSubcategory}
+          onSuccess={() => {
+            // Refresh subcategories after successful save
+            window.location.reload()
+          }}
+        />
       </AppLayout>
     </RequireAuth>
   )
