@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-browser'
-import { Modal } from '@/components/ui/Modal'
-import { Form, FormField, FormActions } from '@/components/ui/Form'
+import Modal from '@/components/ui/Modal'
+import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
 
 interface SubcategoryData {
@@ -365,12 +365,8 @@ export function SubcategoryScheduleForm({
   const isFormValid = validateForm()
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="large">
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}>
       <div className="p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">
-          {editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}
-        </h2>
-
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Card A: Subcategory */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">

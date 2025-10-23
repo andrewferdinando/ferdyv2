@@ -44,7 +44,7 @@ export default function CategoriesPage() {
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string} | null>(null)
   
   const { categories, loading } = useCategories()
-  const { subcategories, loading: subcategoriesLoading, createSubcategory, updateSubcategory, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
+  const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
@@ -223,7 +223,7 @@ export default function CategoriesPage() {
           }}
           brandId={brandId}
           categoryId={selectedCategory?.id}
-          editingSubcategory={editingSubcategory}
+          editingSubcategory={editingSubcategory || undefined}
           onSuccess={() => {
             // Refresh subcategories after successful save
             window.location.reload()
