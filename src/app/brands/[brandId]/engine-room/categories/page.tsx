@@ -7,6 +7,7 @@ import RequireAuth from '@/components/auth/RequireAuth'
 import Link from 'next/link'
 import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
+import { useSubcategories } from '@/hooks/useSubcategories'
 import Modal from '@/components/ui/Modal'
 import { Form, FormField, FormActions } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
@@ -40,37 +41,16 @@ export default function CategoriesPage() {
   const params = useParams()
   const brandId = params.brandId as string
   const [activeTab, setActiveTab] = useState('categories')
-  const [isDealModalOpen, setIsDealModalOpen] = useState(false)
-  const [isOfferingModalOpen, setIsOfferingModalOpen] = useState(false)
-  const [editingDeal, setEditingDeal] = useState<{id: number, name: string, frequency: string} | null>(null)
-  const [editingOffering, setEditingOffering] = useState<{id: number, name: string, frequency: string} | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
+  const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
+  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string} | null>(null)
   
   const { categories, loading } = useCategories(brandId)
+  const { subcategories, loading: subcategoriesLoading, createSubcategory, updateSubcategory, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
     { id: 'nextMonth', name: `Next Month (${categories?.length || 0})` },
-  ]
-
-  const deals = [
-    {
-      id: 1,
-      name: 'Happy Hour Special',
-      frequency: 'Weekly, Friday, 3:00 PM'
-    }
-  ]
-
-  const offerings = [
-    {
-      id: 1,
-      name: 'Go Karting',
-      frequency: 'Weekly, Monday, Wednesday, 2:00 PM'
-    },
-    {
-      id: 2,
-      name: 'Arcade Games',
-      frequency: 'Daily, 10:00 AM'
-    }
   ]
 
   if (loading) {
@@ -124,118 +104,108 @@ export default function CategoriesPage() {
           {/* Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
             {activeTab === 'categories' ? (
-              <div className="space-y-8">
-                {/* Deals Section */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Deals</h2>
-                      <p className="text-gray-600 text-sm">Manage promotional deals and special offers</p>
+              <div className="space-y-6">
+                {!selectedCategory ? (
+                  /* Categories List */
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {categories?.map((category) => (
+                      <div
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category)}
+                        className="bg-white rounded-lg border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                      >
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{category.name}</h3>
+                        <p className="text-gray-600 text-sm">Click to manage sub-categories</p>
+                      </div>
+                    ))}
+                    {(!categories || categories.length === 0) && (
+                      <div className="col-span-full text-center py-12">
+                        <p className="text-gray-500">No categories available. Contact your administrator.</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Subcategories for Selected Category */
+                  <div>
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={() => setSelectedCategory(null)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <ArrowLeftIcon className="w-5 h-5" />
+                        </button>
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900">{selectedCategory.name}</h2>
+                          <p className="text-gray-600 text-sm">Manage sub-categories for this category</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setEditingSubcategory(null)
+                          setIsSubcategoryModalOpen(true)
+                        }}
+                        className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                      >
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        Add Sub-category
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => {
-                        setEditingDeal(null)
-                        setIsDealModalOpen(true)
-                      }}
-                      className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                    >
-                      <PlusIcon className="w-4 h-4 mr-2" />
-                      Add Deal
-                    </button>
-                  </div>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead>
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DEAL NAME</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POST FREQUENCY</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {deals.map((deal) => (
-                          <tr key={deal.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{deal.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{deal.frequency}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="flex space-x-2">
-                                <button 
-                                  onClick={() => {
-                                    setEditingDeal(deal)
-                                    setIsDealModalOpen(true)
-                                  }}
-                                  className="text-gray-400 hover:text-gray-600"
-                                >
-                                  <EditIcon className="w-4 h-4" />
-                                </button>
-                                <button className="text-gray-400 hover:text-red-600">
-                                  <TrashIcon className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
 
-                {/* Offerings Section */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Offerings</h2>
-                      <p className="text-gray-600 text-sm">Manage your core services and activities</p>
+                    <div className="bg-white rounded-lg border border-gray-200">
+                      {subcategoriesLoading ? (
+                        <div className="p-6">
+                          <div className="flex items-center justify-center py-12">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+                          </div>
+                        </div>
+                      ) : subcategories.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead>
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SUBCATEGORY NAME</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {subcategories.map((subcategory) => (
+                                <tr key={subcategory.id}>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{subcategory.name}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div className="flex space-x-2">
+                                      <button 
+                                        onClick={() => {
+                                          setEditingSubcategory(subcategory)
+                                          setIsSubcategoryModalOpen(true)
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600"
+                                      >
+                                        <EditIcon className="w-4 h-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => deleteSubcategory(subcategory.id)}
+                                        className="text-gray-400 hover:text-red-600"
+                                      >
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="p-6">
+                          <div className="text-center py-12">
+                            <p className="text-gray-500">No sub-categories yet. Create one to get started.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <button 
-                      onClick={() => {
-                        setEditingOffering(null)
-                        setIsOfferingModalOpen(true)
-                      }}
-                      className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                    >
-                      <PlusIcon className="w-4 h-4 mr-2" />
-                      Add Offering
-                    </button>
                   </div>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead>
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OFFERING NAME</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POST FREQUENCY</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {offerings.map((offering) => (
-                          <tr key={offering.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{offering.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{offering.frequency}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="flex space-x-2">
-                                <button 
-                                  onClick={() => {
-                                    setEditingOffering(offering)
-                                    setIsOfferingModalOpen(true)
-                                  }}
-                                  className="text-gray-400 hover:text-gray-600"
-                                >
-                                  <EditIcon className="w-4 h-4" />
-                                </button>
-                                <button className="text-gray-400 hover:text-red-600">
-                                  <TrashIcon className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -246,78 +216,39 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {/* Deal Modal */}
+        {/* Subcategory Modal */}
         <Modal
-          isOpen={isDealModalOpen}
-          onClose={() => setIsDealModalOpen(false)}
-          title={editingDeal ? "Edit Deal" : "Add New Deal"}
+          isOpen={isSubcategoryModalOpen}
+          onClose={() => setIsSubcategoryModalOpen(false)}
+          title={editingSubcategory ? "Edit Sub-category" : "Add New Sub-category"}
         >
           <Form
             onSubmit={async (formData) => {
-              // Handle form submission
-              console.log('Deal form data:', formData)
-              setIsDealModalOpen(false)
+              try {
+                if (editingSubcategory) {
+                  await updateSubcategory(editingSubcategory.id, { name: formData.name })
+                } else {
+                  await createSubcategory({ name: formData.name })
+                }
+                setIsSubcategoryModalOpen(false)
+                setEditingSubcategory(null)
+              } catch (error) {
+                console.error('Error saving subcategory:', error)
+              }
             }}
           >
-            <FormField label="Deal Name">
+            <FormField label="Sub-category Name">
               <Input
                 name="name"
-                placeholder="Enter deal name"
-                defaultValue={editingDeal?.name || ''}
-                required
-              />
-            </FormField>
-            
-            <FormField label="Post Frequency">
-              <Input
-                name="frequency"
-                placeholder="e.g., Weekly, Friday, 3:00 PM"
-                defaultValue={editingDeal?.frequency || ''}
+                placeholder="Enter sub-category name"
+                defaultValue={editingSubcategory?.name || ''}
                 required
               />
             </FormField>
 
             <FormActions 
-              onCancel={() => setIsDealModalOpen(false)}
-              submitText={editingDeal ? "Update Deal" : "Create Deal"}
-            />
-          </Form>
-        </Modal>
-
-        {/* Offering Modal */}
-        <Modal
-          isOpen={isOfferingModalOpen}
-          onClose={() => setIsOfferingModalOpen(false)}
-          title={editingOffering ? "Edit Offering" : "Add New Offering"}
-        >
-          <Form
-            onSubmit={async (formData) => {
-              // Handle form submission
-              console.log('Offering form data:', formData)
-              setIsOfferingModalOpen(false)
-            }}
-          >
-            <FormField label="Offering Name">
-              <Input
-                name="name"
-                placeholder="Enter offering name"
-                defaultValue={editingOffering?.name || ''}
-                required
-              />
-            </FormField>
-            
-            <FormField label="Post Frequency">
-              <Input
-                name="frequency"
-                placeholder="e.g., Daily, 10:00 AM"
-                defaultValue={editingOffering?.frequency || ''}
-                required
-              />
-            </FormField>
-
-            <FormActions 
-              onCancel={() => setIsOfferingModalOpen(false)}
-              submitText={editingOffering ? "Update Offering" : "Create Offering"}
+              onCancel={() => setIsSubcategoryModalOpen(false)}
+              submitText={editingSubcategory ? "Update Sub-category" : "Create Sub-category"}
             />
           </Form>
         </Modal>
