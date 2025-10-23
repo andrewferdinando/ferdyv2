@@ -334,21 +334,10 @@ export function SubcategoryScheduleForm({
   }
 
   const isFormValid = useMemo(() => {
-    // Quick validation without side effects
+    // Simplified validation - only check essential fields
     if (!subcategoryData.name.trim()) return false
-    if (subcategoryData.url && subcategoryData.url.trim()) {
-      try {
-        new URL(subcategoryData.url)
-      } catch {
-        return false
-      }
-    }
-    if (!scheduleData.frequency) return false
-    if (scheduleData.frequency === 'daily' && !scheduleData.timeOfDay) return false
-    if (scheduleData.frequency === 'weekly' && (scheduleData.daysOfWeek.length === 0 || !scheduleData.timeOfDay)) return false
-    if (scheduleData.frequency === 'monthly' && (!scheduleData.timeOfDay || (scheduleData.daysOfMonth.length === 0 && (!scheduleData.nthWeek || !scheduleData.weekday)))) return false
     return true
-  }, [subcategoryData, scheduleData])
+  }, [subcategoryData])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}>
