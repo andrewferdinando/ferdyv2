@@ -50,7 +50,7 @@ export default function CategoriesPage() {
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
-    { id: 'nextMonth', name: `Next Month (${categories?.length || 0})` },
+    { id: 'nextMonth', name: 'Post Framework' },
   ]
 
   if (loading) {
