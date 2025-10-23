@@ -42,8 +42,8 @@ export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState('categories')
   const [isDealModalOpen, setIsDealModalOpen] = useState(false)
   const [isOfferingModalOpen, setIsOfferingModalOpen] = useState(false)
-  const [editingDeal, setEditingDeal] = useState(null)
-  const [editingOffering, setEditingOffering] = useState(null)
+  const [editingDeal, setEditingDeal] = useState<{id: number, name: string, frequency: string} | null>(null)
+  const [editingOffering, setEditingOffering] = useState<{id: number, name: string, frequency: string} | null>(null)
   
   const { categories, loading } = useCategories(brandId)
 
