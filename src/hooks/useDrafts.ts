@@ -56,10 +56,18 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setLoading(true);
         setError(null);
 
-        // Simplified query first to debug
+        // Fetch drafts with associated assets
         const query = supabase
           .from('drafts')
-          .select('*')
+          .select(`
+            *,
+            assets!drafts_asset_ids_fkey (
+              id,
+              title,
+              storage_path,
+              aspect_ratio
+            )
+          `)
           .eq('brand_id', brandId);
 
         // Apply status filter if provided
@@ -187,10 +195,18 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     setError(null);
     
     try {
-        // Simplified query first to debug
+        // Fetch drafts with associated assets
         const query = supabase
           .from('drafts')
-          .select('*')
+          .select(`
+            *,
+            assets!drafts_asset_ids_fkey (
+              id,
+              title,
+              storage_path,
+              aspect_ratio
+            )
+          `)
           .eq('brand_id', brandId);
 
       // Apply status filter if provided

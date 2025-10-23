@@ -8,6 +8,37 @@ import Modal from '@/components/ui/Modal';
 import { Form, FormField, FormActions } from '@/components/ui/Form';
 import { Input } from '@/components/ui/Input';
 
+// Helper component for draft images
+function DraftImage({ asset }: { asset: { id: string; title: string; storage_path: string; aspect_ratio: string } }) {
+  const [imageError, setImageError] = useState(false);
+  
+  if (imageError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <span className="text-gray-400 text-xs">No image</span>
+      </div>
+    );
+  }
+
+  // Generate public URL using the same approach as Content Library
+  const getPublicUrl = (path: string) => {
+    const { supabase } = require('@/lib/supabase-browser');
+    const { data } = supabase.storage
+      .from('ferdy-assets')
+      .getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  return (
+    <img 
+      src={getPublicUrl(asset.storage_path)} 
+      alt={asset.title || 'Asset'}
+      className="w-full h-full object-cover"
+      onError={() => setImageError(true)}
+    />
+  );
+}
+
 // Icons
 const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -218,11 +249,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
           <div className="flex-shrink-0">
             {draft.assets && draft.assets.length > 0 ? (
               <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                <img 
-                  src={`/api/assets/${draft.assets[0]?.storage_path || ''}`} 
-                  alt={draft.assets[0]?.title || 'Asset'}
-                  className="w-full h-full object-cover"
-                />
+                <DraftImage asset={draft.assets[0]} />
               </div>
             ) : (
               <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">

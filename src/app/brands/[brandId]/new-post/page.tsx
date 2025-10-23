@@ -193,20 +193,25 @@ export default function NewPostPage() {
     );
   };
 
-  const handleMediaSelect = async (asset: { id: string; storage_path: string }) => {
+  const handleMediaSelect = async (asset: { id: string; storage_path: string; signed_url?: string }) => {
     try {
-      // Use the same approach as Content Library - generate signed URL
-      const { getSignedUrl } = await import('@/lib/storage/getSignedUrl');
+      // Use the signed_url from the asset if available, otherwise generate public URL
+      let imageUrl;
       
-      const signedUrl = await getSignedUrl(asset.storage_path);
+      if (asset.signed_url) {
+        imageUrl = asset.signed_url;
+      } else {
+        const { getPublicUrl } = await import('@/lib/storage/getPublicUrl');
+        imageUrl = getPublicUrl(asset.storage_path);
+      }
       
-      console.log('Selected media URL:', signedUrl);
-      setSelectedMedia(signedUrl);
+      console.log('Selected media URL:', imageUrl);
+      setSelectedMedia(imageUrl);
       setSelectedAssetIds([asset.id]);
       setIsMediaModalOpen(false);
     } catch (error) {
-      console.error('Error getting public URL:', error);
-      // Fallback to storage_path if public URL fails
+      console.error('Error getting image URL:', error);
+      // Fallback to storage_path if everything fails
       setSelectedMedia(asset.storage_path);
       setSelectedAssetIds([asset.id]);
       setIsMediaModalOpen(false);
