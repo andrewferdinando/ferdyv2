@@ -53,7 +53,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
     fetchSubcategories()
   }, [brandId, categoryId])
 
-  const createSubcategory = async (subcategoryData: Omit<Subcategory, 'id' | 'brand_id' | 'created_at' | 'updated_at'>) => {
+  const createSubcategory = async (subcategoryData: Omit<Subcategory, 'id' | 'brand_id' | 'category_id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
         .from('subcategories')
