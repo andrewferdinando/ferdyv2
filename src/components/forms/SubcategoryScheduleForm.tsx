@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
@@ -182,7 +182,7 @@ export function SubcategoryScheduleForm({
   }, [editingSubcategory, editingScheduleRule, isOpen])
 
   // Validation
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {}
 
     // Subcategory validation
@@ -232,7 +232,7 @@ export function SubcategoryScheduleForm({
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
+  }, [subcategoryData, scheduleData])
 
   // Hashtag management
   const addHashtag = () => {
@@ -362,7 +362,22 @@ export function SubcategoryScheduleForm({
     }
   }
 
-  const isFormValid = validateForm()
+  const isFormValid = useMemo(() => {
+    // Quick validation without side effects
+    if (!subcategoryData.name.trim()) return false
+    if (subcategoryData.url && subcategoryData.url.trim()) {
+      try {
+        new URL(subcategoryData.url)
+      } catch {
+        return false
+      }
+    }
+    if (!scheduleData.frequency) return false
+    if (scheduleData.frequency === 'daily' && !scheduleData.timeOfDay) return false
+    if (scheduleData.frequency === 'weekly' && (scheduleData.daysOfWeek.length === 0 || !scheduleData.timeOfDay)) return false
+    if (scheduleData.frequency === 'monthly' && (!scheduleData.timeOfDay || (scheduleData.daysOfMonth.length === 0 && (!scheduleData.nthWeek || !scheduleData.weekday)))) return false
+    return true
+  }, [subcategoryData, scheduleData])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}>
