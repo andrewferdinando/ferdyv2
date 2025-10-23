@@ -22,9 +22,6 @@ interface ScheduleRuleData {
   nthWeek?: number
   weekday?: number
   channels: string[]
-  tone?: string
-  timezone: string
-  isActive: boolean
 }
 
 interface SubcategoryScheduleFormProps {
@@ -49,9 +46,6 @@ interface SubcategoryScheduleFormProps {
     nthWeek?: number
     weekday?: number
     channels: string[]
-    tone?: string
-    timezone: string
-    isActive: boolean
   }
   onSuccess: () => void
 }
@@ -118,10 +112,7 @@ export function SubcategoryScheduleForm({
     daysOfMonth: [],
     nthWeek: undefined,
     weekday: undefined,
-    channels: [],
-    tone: '',
-    timezone: 'America/New_York', // Default to brand timezone
-    isActive: true
+    channels: []
   })
 
   // Form state
@@ -156,10 +147,7 @@ export function SubcategoryScheduleForm({
         daysOfMonth: editingScheduleRule.daysOfMonth || [],
         nthWeek: editingScheduleRule.nthWeek,
         weekday: editingScheduleRule.weekday,
-        channels: editingScheduleRule.channels || [],
-        tone: editingScheduleRule.tone || '',
-        timezone: editingScheduleRule.timezone,
-        isActive: editingScheduleRule.isActive
+        channels: editingScheduleRule.channels || []
       })
     } else {
       setScheduleData({
@@ -170,10 +158,7 @@ export function SubcategoryScheduleForm({
         daysOfMonth: [],
         nthWeek: undefined,
         weekday: undefined,
-        channels: [],
-        tone: '',
-        timezone: 'America/New_York',
-        isActive: true
+        channels: []
       })
     }
 
@@ -320,7 +305,6 @@ export function SubcategoryScheduleForm({
         category_id: categoryId,
         subcategory_id: subcategoryId,
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
-        tone: scheduleData.tone || null,
         frequency: scheduleData.frequency,
         time_of_day: scheduleData.timeOfDay,
         times_per_week: scheduleData.timesPerWeek || null,
@@ -329,8 +313,6 @@ export function SubcategoryScheduleForm({
         nth_week: scheduleData.nthWeek || null,
         weekday: scheduleData.weekday || null,
         channels: scheduleData.channels,
-        timezone: scheduleData.timezone,
-        is_active: scheduleData.isActive,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -632,33 +614,6 @@ export function SubcategoryScheduleForm({
                 </div>
               </FormField>
 
-              <FormField label="Tone">
-                <Input
-                  value={scheduleData.tone}
-                  onChange={(e) => setScheduleData(prev => ({ ...prev, tone: e.target.value }))}
-                  placeholder="Enter tone (optional)"
-                />
-              </FormField>
-
-              <FormField label="Timezone">
-                <Input
-                  value={scheduleData.timezone}
-                  onChange={(e) => setScheduleData(prev => ({ ...prev, timezone: e.target.value }))}
-                  placeholder="America/New_York"
-                />
-              </FormField>
-
-              <FormField label="Active">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={scheduleData.isActive}
-                    onChange={(e) => setScheduleData(prev => ({ ...prev, isActive: e.target.checked }))}
-                    className="mr-2"
-                  />
-                  Schedule rule is active
-                </label>
-              </FormField>
             </div>
           </div>
 
