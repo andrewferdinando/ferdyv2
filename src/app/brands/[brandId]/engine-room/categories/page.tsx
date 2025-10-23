@@ -7,6 +7,9 @@ import RequireAuth from '@/components/auth/RequireAuth'
 import Link from 'next/link'
 import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
+import Modal from '@/components/ui/Modal'
+import { Form, FormField, FormActions } from '@/components/ui/Form'
+import { Input } from '@/components/ui/Input'
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -37,6 +40,10 @@ export default function CategoriesPage() {
   const params = useParams()
   const brandId = params.brandId as string
   const [activeTab, setActiveTab] = useState('categories')
+  const [isDealModalOpen, setIsDealModalOpen] = useState(false)
+  const [isOfferingModalOpen, setIsOfferingModalOpen] = useState(false)
+  const [editingDeal, setEditingDeal] = useState(null)
+  const [editingOffering, setEditingOffering] = useState(null)
   
   const { categories, loading } = useCategories(brandId)
 
@@ -125,7 +132,13 @@ export default function CategoriesPage() {
                       <h2 className="text-lg font-semibold text-gray-900">Deals</h2>
                       <p className="text-gray-600 text-sm">Manage promotional deals and special offers</p>
                     </div>
-                    <button className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors">
+                    <button 
+                      onClick={() => {
+                        setEditingDeal(null)
+                        setIsDealModalOpen(true)
+                      }}
+                      className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                    >
                       <PlusIcon className="w-4 h-4 mr-2" />
                       Add Deal
                     </button>
@@ -147,7 +160,13 @@ export default function CategoriesPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{deal.frequency}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex space-x-2">
-                                <button className="text-gray-400 hover:text-gray-600">
+                                <button 
+                                  onClick={() => {
+                                    setEditingDeal(deal)
+                                    setIsDealModalOpen(true)
+                                  }}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
                                   <EditIcon className="w-4 h-4" />
                                 </button>
                                 <button className="text-gray-400 hover:text-red-600">
@@ -169,7 +188,13 @@ export default function CategoriesPage() {
                       <h2 className="text-lg font-semibold text-gray-900">Offerings</h2>
                       <p className="text-gray-600 text-sm">Manage your core services and activities</p>
                     </div>
-                    <button className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors">
+                    <button 
+                      onClick={() => {
+                        setEditingOffering(null)
+                        setIsOfferingModalOpen(true)
+                      }}
+                      className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                    >
                       <PlusIcon className="w-4 h-4 mr-2" />
                       Add Offering
                     </button>
@@ -191,7 +216,13 @@ export default function CategoriesPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{offering.frequency}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex space-x-2">
-                                <button className="text-gray-400 hover:text-gray-600">
+                                <button 
+                                  onClick={() => {
+                                    setEditingOffering(offering)
+                                    setIsOfferingModalOpen(true)
+                                  }}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
                                   <EditIcon className="w-4 h-4" />
                                 </button>
                                 <button className="text-gray-400 hover:text-red-600">
@@ -214,6 +245,104 @@ export default function CategoriesPage() {
             )}
           </div>
         </div>
+
+        {/* Deal Modal */}
+        <Modal
+          isOpen={isDealModalOpen}
+          onClose={() => setIsDealModalOpen(false)}
+          title={editingDeal ? "Edit Deal" : "Add New Deal"}
+        >
+          <Form
+            onSubmit={async (formData) => {
+              // Handle form submission
+              console.log('Deal form data:', formData)
+              setIsDealModalOpen(false)
+            }}
+          >
+            <FormField label="Deal Name">
+              <Input
+                name="name"
+                placeholder="Enter deal name"
+                defaultValue={editingDeal?.name || ''}
+                required
+              />
+            </FormField>
+            
+            <FormField label="Post Frequency">
+              <Input
+                name="frequency"
+                placeholder="e.g., Weekly, Friday, 3:00 PM"
+                defaultValue={editingDeal?.frequency || ''}
+                required
+              />
+            </FormField>
+
+            <FormActions>
+              <button
+                type="button"
+                onClick={() => setIsDealModalOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+              >
+                {editingDeal ? "Update Deal" : "Create Deal"}
+              </button>
+            </FormActions>
+          </Form>
+        </Modal>
+
+        {/* Offering Modal */}
+        <Modal
+          isOpen={isOfferingModalOpen}
+          onClose={() => setIsOfferingModalOpen(false)}
+          title={editingOffering ? "Edit Offering" : "Add New Offering"}
+        >
+          <Form
+            onSubmit={async (formData) => {
+              // Handle form submission
+              console.log('Offering form data:', formData)
+              setIsOfferingModalOpen(false)
+            }}
+          >
+            <FormField label="Offering Name">
+              <Input
+                name="name"
+                placeholder="Enter offering name"
+                defaultValue={editingOffering?.name || ''}
+                required
+              />
+            </FormField>
+            
+            <FormField label="Post Frequency">
+              <Input
+                name="frequency"
+                placeholder="e.g., Daily, 10:00 AM"
+                defaultValue={editingOffering?.frequency || ''}
+                required
+              />
+            </FormField>
+
+            <FormActions>
+              <button
+                type="button"
+                onClick={() => setIsOfferingModalOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+              >
+                {editingOffering ? "Update Offering" : "Create Offering"}
+              </button>
+            </FormActions>
+          </Form>
+        </Modal>
       </AppLayout>
     </RequireAuth>
   )
