@@ -226,7 +226,7 @@ export default function CategoriesPage() {
             onSubmit={async (e: React.FormEvent) => {
               e.preventDefault()
               try {
-                const formData = new FormData(e.currentTarget)
+                const formData = new FormData(e.currentTarget as HTMLFormElement)
                 const name = formData.get('name') as string
                 
                 if (editingSubcategory) {
