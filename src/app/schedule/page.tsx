@@ -63,13 +63,14 @@ export default function SchedulePage() {
 
   const handleEditPost = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click when clicking edit button
-    router.push('/edit-post');
+    // This is the old schedule page - should redirect to brand-specific schedule
+    router.push('/brands');
   };
 
   const handlePostClick = () => {
     // Only allow editing for drafts and scheduled posts
     if (activeTab === 'drafts' || activeTab === 'scheduled') {
-      router.push('/edit-post');
+      router.push('/brands');
     }
   };
 

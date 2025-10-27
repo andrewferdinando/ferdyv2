@@ -206,7 +206,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   };
 
   const handleCardClick = () => {
-    router.push(`/edit-post?id=${draft.id}`);
+    router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
 
