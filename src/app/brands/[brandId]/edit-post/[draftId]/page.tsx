@@ -9,6 +9,8 @@ import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useAssets } from '@/hooks/useAssets';
 import { supabase } from '@/lib/supabase-browser';
 
+console.log('Edit Post page component loaded');
+
 interface Draft {
   id: string;
   brand_id: string;
@@ -45,6 +47,8 @@ export default function EditPostPage() {
   const router = useRouter();
   const brandId = params.brandId as string;
   const draftId = params.draftId as string;
+  
+  console.log('Edit Post page rendered with params:', { brandId, draftId });
   
   // Fetch brand assets
   const { assets, loading: assetsLoading } = useAssets(brandId);
