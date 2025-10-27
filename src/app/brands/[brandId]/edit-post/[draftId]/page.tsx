@@ -192,7 +192,7 @@ export default function EditPostPage() {
     );
   };
 
-  const handleMediaSelect = async (asset: { id: string; title: string; storage_path: string; signed_url?: string }) => {
+  const handleMediaSelect = async (asset: { id: string; title: string; storage_path: string; aspect_ratio: string; signed_url?: string }) => {
     try {
       // Add asset to draft
       const newAssetIds = [...(draft?.asset_ids || []), asset.id];
