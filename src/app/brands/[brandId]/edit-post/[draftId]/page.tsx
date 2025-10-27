@@ -68,6 +68,7 @@ export default function EditPostPage() {
   useEffect(() => {
     const loadDraft = async () => {
       try {
+        console.log('Edit Post: Loading draft with ID:', draftId, 'Brand ID:', brandId);
         const { supabase } = await import('@/lib/supabase-browser');
         
         // Fetch draft with all required fields
@@ -77,6 +78,8 @@ export default function EditPostPage() {
           .eq('id', draftId)
           .eq('brand_id', brandId)
           .single();
+
+        console.log('Edit Post: Draft query result:', { data, error });
 
         if (error) {
           console.error('Error loading draft:', error);
@@ -89,19 +92,27 @@ export default function EditPostPage() {
         }
 
         if (!data) {
+          console.log('Edit Post: No data returned from query');
           setError('Draft not found');
           return;
         }
 
+        console.log('Edit Post: Setting draft data:', data);
         setDraft(data);
         
         // Populate form with draft data
+        console.log('Edit Post: Populating form with data:', {
+          copy: data.copy,
+          hashtags: data.hashtags,
+          channel: data.channel
+        });
         setPostCopy(data.copy || '');
         setHashtags(data.hashtags || []);
         
         // Handle comma-separated channels
         if (data.channel) {
           const channels = data.channel.split(',').map((c: string) => c.trim()).filter((c: string) => c);
+          console.log('Edit Post: Setting channels:', channels);
           setSelectedChannels(channels);
         }
         
