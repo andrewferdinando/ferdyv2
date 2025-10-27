@@ -67,6 +67,10 @@ export default function EditPostPage() {
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+
+  // Check if post can be approved
+  const canApprove = postCopy.trim() && selectedChannels.length > 0 && scheduleDate && scheduleTime && draft?.asset_ids && draft.asset_ids.length > 0;
 
   // Load draft data
   useEffect(() => {
@@ -298,6 +302,82 @@ export default function EditPostPage() {
       alert('Failed to update post. Please try again.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!postCopy.trim()) {
+      alert('Please enter post content');
+      return;
+    }
+
+    if (selectedChannels.length === 0) {
+      alert('Please select at least one channel');
+      return;
+    }
+
+    if (!scheduleDate || !scheduleTime) {
+      alert('Please select a date and time');
+      return;
+    }
+
+    setIsApproving(true);
+
+    try {
+      const { supabase } = await import('@/lib/supabase-browser');
+      
+      // First save the draft with current changes
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      
+      const { data, error } = await supabase
+        .from('drafts')
+        .update({
+          copy: postCopy.trim(),
+          hashtags: hashtags,
+          asset_ids: draft?.asset_ids || [],
+          channel: selectedChannels.join(','),
+          approved: true, // Mark as approved
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draftId)
+        .eq('brand_id', brandId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating draft:', error);
+        alert(`Failed to approve post: ${error.message}`);
+        return;
+      }
+
+      // Update the post_job if it exists
+      if (draft?.post_job_id) {
+        const { error: postJobError } = await supabase
+          .from('post_jobs')
+          .update({
+            scheduled_at: scheduledAt.toISOString(),
+            channel: selectedChannels[0], // Use first channel for post_job constraint
+            status: 'scheduled', // Update status to scheduled
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', draft.post_job_id);
+
+        if (postJobError) {
+          console.error('Error updating post_job:', postJobError);
+          // Don't fail the whole operation for this
+        }
+      }
+
+      console.log('Post approved successfully:', data);
+      alert('Post approved and scheduled successfully!');
+      
+      // Navigate back to schedule page
+      router.push(`/brands/${brandId}/schedule`);
+    } catch (error) {
+      console.error('Error approving post:', error);
+      alert('Failed to approve post. Please try again.');
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -634,6 +714,47 @@ export default function EditPostPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="bg-white border-t border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push(`/brands/${brandId}/schedule`)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSaving ? 'Saving...' : 'Save Draft'}
+              </button>
+              {!draft?.approved && (
+                <button
+                  onClick={handleApprove}
+                  disabled={isSaving || isApproving || !canApprove}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    canApprove
+                      ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {isApproving ? 'Approving...' : 'Approve & Schedule'}
+                </button>
+              )}
+              {draft?.approved && (
+                <div className="px-6 py-2 bg-green-100 text-green-800 rounded-lg font-medium">
+                  ✓ Approved
+                </div>
+              )}
             </div>
           </div>
         </div>

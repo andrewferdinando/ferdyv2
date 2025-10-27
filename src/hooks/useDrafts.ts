@@ -56,11 +56,12 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setLoading(true);
         setError(null);
 
-        // Fetch drafts first
+        // Fetch drafts first - exclude approved drafts (they should be in scheduled tab)
         const query = supabase
           .from('drafts')
           .select('*')
-          .eq('brand_id', brandId);
+          .eq('brand_id', brandId)
+          .eq('approved', false); // Only show non-approved drafts
 
         // Apply status filter if provided
         if (statusFilter) {
@@ -163,10 +164,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
       if (error) throw error;
 
-      // Update local state
-      setDrafts(prev => prev.map(draft => 
-        draft.id === draftId ? { ...draft, approved: true } : draft
-      ));
+      // Remove approved draft from local state (it will move to scheduled tab)
+      setDrafts(prev => prev.filter(draft => draft.id !== draftId));
 
       return data;
     } catch (err) {

@@ -299,7 +299,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
 
               {/* Actions */}
               <div className="flex items-center space-x-2">
-                {status === 'draft' && (
+                {status === 'draft' && !draft.approved && (
                   <button
                     onClick={handleApprove}
                     disabled={!canApprove || isLoading}
@@ -312,7 +312,12 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                     Approve
                   </button>
                 )}
-                {getStatusBadge()}
+                {status === 'draft' && draft.approved && (
+                  <div className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 border border-green-200 rounded-md">
+                    ✓ Approved
+                  </div>
+                )}
+                {!draft.approved && getStatusBadge()}
                 <button
                   onClick={handleEditClick}
                   className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
