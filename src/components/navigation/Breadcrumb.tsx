@@ -43,7 +43,7 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         return;
       }
       
-      // Skip dynamic segments like [brandId]
+      // Skip dynamic segments like [brandId] and [draftId]
       if (segment.startsWith('[') && segment.endsWith(']')) {
         return;
       }
@@ -51,6 +51,11 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
       // Skip the brands segment and brandId - we handle this above
       if (segment === 'brands') {
         skipNext = true; // Skip the next segment (brandId)
+        return;
+      }
+
+      // Skip draft IDs (long UUIDs) - they're not user-friendly in breadcrumbs
+      if (segment.length > 20 && /^[a-f0-9-]+$/i.test(segment)) {
         return;
       }
 
@@ -76,6 +81,10 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         label = 'New Post';
       } else if (segment === 'edit-post') {
         label = 'Edit Post';
+        // For edit-post, link back to schedule instead of the edit-post route
+        if (brandId) {
+          currentPath = `/brands/${brandId}/schedule`;
+        }
       } else if (segment === 'automated-monthly-posts') {
         label = 'Automated Monthly Posts';
       } else if (segment === 'account') {
