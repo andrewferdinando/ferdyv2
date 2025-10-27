@@ -21,8 +21,9 @@ interface Draft {
   generated_by: 'ai' | 'human' | 'ai+human';
   created_by: string;
   created_at: string;
+  created_at_nzt: string;
   approved: boolean;
-  post_jobs: {
+  post_jobs?: {
     id: string;
     scheduled_at: string;
     scheduled_local: string;
@@ -35,6 +36,7 @@ interface Draft {
     title: string;
     storage_path: string;
     aspect_ratio: string;
+    signed_url?: string;
   }[];
 }
 
@@ -68,16 +70,26 @@ export default function EditPostPage() {
       try {
         const { supabase } = await import('@/lib/supabase-browser');
         
+        // Fetch draft with all required fields
         const { data, error } = await supabase
           .from('drafts')
-          .select('*')
+          .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt')
           .eq('id', draftId)
           .eq('brand_id', brandId)
           .single();
 
         if (error) {
           console.error('Error loading draft:', error);
-          setError('Failed to load post');
+          if (error.code === 'PGRST116') {
+            setError('Draft not found');
+          } else {
+            setError('Failed to load post');
+          }
+          return;
+        }
+
+        if (!data) {
+          setError('Draft not found');
           return;
         }
 
@@ -86,13 +98,60 @@ export default function EditPostPage() {
         // Populate form with draft data
         setPostCopy(data.copy || '');
         setHashtags(data.hashtags || []);
-        setSelectedChannels([data.channel]);
         
-        // Parse scheduled date and time
-        if (data.post_jobs?.scheduled_at) {
-          const scheduledDate = new Date(data.post_jobs.scheduled_at);
-          setScheduleDate(scheduledDate.toISOString().split('T')[0]);
-          setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
+        // Handle comma-separated channels
+        if (data.channel) {
+          const channels = data.channel.split(',').map(c => c.trim()).filter(c => c);
+          setSelectedChannels(channels);
+        }
+        
+        // Load assets if asset_ids exist
+        if (data.asset_ids && data.asset_ids.length > 0) {
+          const { data: assetsData, error: assetsError } = await supabase
+            .from('assets')
+            .select('id, title, storage_path, aspect_ratio')
+            .in('id', data.asset_ids)
+            .eq('brand_id', brandId);
+
+          if (assetsError) {
+            console.error('Error loading assets:', assetsError);
+          } else if (assetsData) {
+            // Generate public URLs for assets
+            const assetsWithUrls = assetsData.map(asset => {
+              const { data } = supabase.storage
+                .from('ferdy-assets')
+                .getPublicUrl(asset.storage_path);
+              return { ...asset, signed_url: data.publicUrl };
+            });
+            
+            setDraft(prev => prev ? { ...prev, assets: assetsWithUrls } : null);
+            
+            // Set first asset as selected media if available
+            if (assetsWithUrls.length > 0) {
+              setSelectedMedia(assetsWithUrls[0].signed_url || '');
+            }
+          }
+        }
+        
+        // Parse scheduled date and time from post_jobs if available
+        if (data.post_job_id) {
+          const { data: postJobData, error: postJobError } = await supabase
+            .from('post_jobs')
+            .select('scheduled_at, scheduled_local, scheduled_tz, status, target_month')
+            .eq('id', data.post_job_id)
+            .single();
+
+          if (!postJobError && postJobData?.scheduled_at) {
+            const scheduledDate = new Date(postJobData.scheduled_at);
+            setScheduleDate(scheduledDate.toISOString().split('T')[0]);
+            setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
+            
+            // Update draft with post_jobs data
+            setDraft(prev => prev ? { 
+              ...prev, 
+              post_jobs: postJobData 
+            } : null);
+          }
         }
         
       } catch (err) {
@@ -133,9 +192,23 @@ export default function EditPostPage() {
     );
   };
 
-  const handleMediaSelect = (mediaUrl: string) => {
-    setSelectedMedia(mediaUrl);
-    setIsMediaModalOpen(false);
+  const handleMediaSelect = async (asset: { id: string; title: string; storage_path: string; signed_url?: string }) => {
+    try {
+      // Add asset to draft
+      const newAssetIds = [...(draft?.asset_ids || []), asset.id];
+      const newAssets = [...(draft?.assets || []), asset];
+      
+      setDraft(prev => prev ? { 
+        ...prev, 
+        asset_ids: newAssetIds,
+        assets: newAssets 
+      } : null);
+      
+      setSelectedMedia(asset.signed_url || asset.storage_path);
+      setIsMediaModalOpen(false);
+    } catch (error) {
+      console.error('Error adding asset to draft:', error);
+    }
   };
 
   const handleSave = async () => {
@@ -162,20 +235,42 @@ export default function EditPostPage() {
       // Combine date and time into a single timestamp
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
       
-      // Update the draft using the RPC function
-      const { data, error } = await supabase.rpc('rpc_update_draft', {
-        p_draft_id: draftId,
-        p_copy: postCopy.trim(),
-        p_hashtags: hashtags,
-        p_asset_ids: [], // TODO: Handle asset selection
-        p_channel: selectedChannels[0], // For now, just use the first channel
-        p_scheduled_at: scheduledAt.toISOString()
-      });
+      // Update the draft directly
+      const { data, error } = await supabase
+        .from('drafts')
+        .update({
+          copy: postCopy.trim(),
+          hashtags: hashtags,
+          asset_ids: draft?.asset_ids || [],
+          channel: selectedChannels.join(','), // Store as comma-separated string
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draftId)
+        .eq('brand_id', brandId)
+        .select()
+        .single();
 
       if (error) {
-        console.error('Error updating post:', error);
+        console.error('Error updating draft:', error);
         alert(`Failed to update post: ${error.message}`);
         return;
+      }
+
+      // Update the post_job if it exists
+      if (draft?.post_job_id) {
+        const { error: postJobError } = await supabase
+          .from('post_jobs')
+          .update({
+            scheduled_at: scheduledAt.toISOString(),
+            channel: selectedChannels[0], // Use first channel for post_job constraint
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', draft.post_job_id);
+
+        if (postJobError) {
+          console.error('Error updating post_job:', postJobError);
+          // Don't fail the whole operation for this
+        }
       }
 
       console.log('Post updated successfully:', data);
@@ -269,26 +364,51 @@ export default function EditPostPage() {
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {/* Existing Image */}
-                      {selectedMedia && (
-                        <div className="relative">
-                          <img
-                            src={selectedMedia}
-                            alt="Selected media"
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button 
-                            onClick={() => setSelectedMedia('')}
-                            className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                          >
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
+                      {/* Existing Images from Draft */}
+                      {draft?.assets && draft.assets.length > 0 ? (
+                        draft.assets.map((asset, index) => (
+                          <div key={asset.id} className="relative">
+                            <img
+                              src={asset.signed_url || asset.storage_path}
+                              alt={asset.title || 'Asset'}
+                              className="w-full h-32 object-cover rounded-lg"
+                              onError={(e) => {
+                                console.error('Image failed to load:', asset.signed_url || asset.storage_path);
+                                e.currentTarget.src = '/assets/placeholders/image1.png';
+                              }}
+                            />
+                            <button 
+                              onClick={() => {
+                                // Remove this asset from the draft
+                                const updatedAssets = draft.assets?.filter(a => a.id !== asset.id) || [];
+                                const updatedAssetIds = draft.asset_ids.filter(id => id !== asset.id);
+                                setDraft(prev => prev ? { 
+                                  ...prev, 
+                                  assets: updatedAssets,
+                                  asset_ids: updatedAssetIds 
+                                } : null);
+                                if (selectedMedia === (asset.signed_url || asset.storage_path)) {
+                                  setSelectedMedia('');
+                                }
+                              }}
+                              className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                            >
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-2 text-center py-8 text-gray-500">
+                          <svg className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-sm">No media attached to this post</p>
                         </div>
                       )}
                       
-                      {/* Add Media Placeholder */}
+                      {/* Add Media Button */}
                       <div 
                         onClick={() => setIsMediaModalOpen(true)}
                         className="border-2 border-dashed border-gray-300 rounded-lg h-32 flex items-center justify-center hover:border-gray-400 transition-colors cursor-pointer"
@@ -521,27 +641,19 @@ export default function EditPostPage() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {assets.map((asset) => {
-                // Try to get public URL for the asset
-                let imageUrl = asset.storage_path;
-                
-                try {
-                  // If storage_path looks like a Supabase storage path, convert it to public URL
-                  if (asset.storage_path && !asset.storage_path.startsWith('http')) {
-                    const { data } = supabase.storage
-                      .from('assets')
-                      .getPublicUrl(asset.storage_path);
-                    imageUrl = data.publicUrl;
-                  }
-                } catch (error) {
-                  console.error('Error getting public URL for asset:', asset.storage_path, error);
-                  // Fallback to original storage_path
-                  imageUrl = asset.storage_path;
-                }
+                // Generate public URL for the asset using correct bucket
+                const { data } = supabase.storage
+                  .from('ferdy-assets')
+                  .getPublicUrl(asset.storage_path);
+                const imageUrl = data.publicUrl;
                 
                 return (
                   <button
                     key={asset.id}
-                    onClick={() => handleMediaSelect(imageUrl)}
+                    onClick={() => handleMediaSelect({ 
+                      ...asset, 
+                      signed_url: imageUrl 
+                    })}
                     className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
                   >
                     <img 
