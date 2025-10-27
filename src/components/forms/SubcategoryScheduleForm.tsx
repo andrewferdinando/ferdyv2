@@ -165,51 +165,14 @@ export function SubcategoryScheduleForm({
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {}
 
-    // Subcategory validation
+    // Simplified validation - only check essential fields
     if (!subcategoryData.name.trim()) {
       newErrors.subcategoryName = 'Name is required'
     }
 
-    if (subcategoryData.url && subcategoryData.url.trim()) {
-      try {
-        new URL(subcategoryData.url)
-      } catch {
-        newErrors.subcategoryUrl = 'Please enter a valid URL'
-      }
-    }
-
-    // Schedule validation
-    if (!scheduleData.frequency) {
-      newErrors.frequency = 'Frequency is required'
-    }
-
-    if (scheduleData.frequency === 'daily') {
-      if (!scheduleData.timeOfDay) {
-        newErrors.timeOfDay = 'Time of day is required'
-      }
-    }
-
-    if (scheduleData.frequency === 'weekly') {
-      if (scheduleData.daysOfWeek.length === 0) {
-        newErrors.daysOfWeek = 'At least one day of week is required'
-      }
-      if (!scheduleData.timeOfDay) {
-        newErrors.timeOfDay = 'Time of day is required'
-      }
-    }
-
-    if (scheduleData.frequency === 'monthly') {
-      if (scheduleData.daysOfMonth.length === 0 && (!scheduleData.nthWeek || !scheduleData.weekday)) {
-        newErrors.monthlyType = 'Either days of month or weekday pattern is required'
-      }
-      if (!scheduleData.timeOfDay) {
-        newErrors.timeOfDay = 'Time of day is required'
-      }
-    }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }, [subcategoryData, scheduleData])
+  }, [subcategoryData])
 
   // Hashtag management
   const addHashtag = () => {
@@ -242,11 +205,14 @@ export function SubcategoryScheduleForm({
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Form submitted, validating...')
     
     if (!validateForm()) {
+      console.log('Form validation failed')
       return
     }
 
+    console.log('Form validation passed, starting save...')
     setIsLoading(true)
 
     try {
