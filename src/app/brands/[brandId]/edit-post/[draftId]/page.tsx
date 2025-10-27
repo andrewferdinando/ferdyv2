@@ -101,7 +101,7 @@ export default function EditPostPage() {
         
         // Handle comma-separated channels
         if (data.channel) {
-          const channels = data.channel.split(',').map(c => c.trim()).filter(c => c);
+          const channels = data.channel.split(',').map((c: string) => c.trim()).filter((c: string) => c);
           setSelectedChannels(channels);
         }
         
@@ -366,7 +366,7 @@ export default function EditPostPage() {
                     <div className="grid grid-cols-2 gap-4">
                       {/* Existing Images from Draft */}
                       {draft?.assets && draft.assets.length > 0 ? (
-                        draft.assets.map((asset, index) => (
+                        draft.assets.map((asset) => (
                           <div key={asset.id} className="relative">
                             <img
                               src={asset.signed_url || asset.storage_path}
