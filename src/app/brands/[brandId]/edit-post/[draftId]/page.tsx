@@ -137,7 +137,7 @@ export default function EditPostPage() {
         if (data.post_job_id) {
           const { data: postJobData, error: postJobError } = await supabase
             .from('post_jobs')
-            .select('scheduled_at, scheduled_local, scheduled_tz, status, target_month')
+            .select('id, scheduled_at, scheduled_local, scheduled_tz, status, target_month')
             .eq('id', data.post_job_id)
             .single();
 
