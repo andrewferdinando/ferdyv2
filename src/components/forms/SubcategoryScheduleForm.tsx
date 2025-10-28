@@ -293,6 +293,20 @@ export function SubcategoryScheduleForm({
       newErrors.channels = 'At least one channel is required'
     }
 
+    // Validate weekly frequency fields
+    if (scheduleData.frequency === 'weekly') {
+      if (scheduleData.daysOfWeek.length === 0) {
+        newErrors.daysOfWeek = 'At least one day of the week is required'
+      }
+    }
+
+    // Validate monthly frequency fields
+    if (scheduleData.frequency === 'monthly') {
+      if (scheduleData.daysOfMonth.length === 0 && (!scheduleData.nthWeek || !scheduleData.weekday)) {
+        newErrors.monthlyType = 'Select either specific days of the month or nth weekday option'
+      }
+    }
+
     // Validate specific date/range fields
     if (scheduleData.frequency === 'specific') {
       if (!scheduleData.startDate) {
@@ -446,7 +460,7 @@ export function SubcategoryScheduleForm({
       const scheduleRuleData: typeof baseRuleData & {
         time_of_day?: string[] | null
         days_of_week?: number[] | null
-        day_of_month?: number | null
+        day_of_month?: number[] | null
         nth_week?: number | null
         weekday?: number | null
         start_date?: string | null
@@ -466,23 +480,41 @@ export function SubcategoryScheduleForm({
           : null
         // Explicitly don't set other fields (optional fields will be undefined/null)
       } else if (scheduleData.frequency === 'weekly') {
-        // Weekly: days_of_week and time_of_day as array (single element)
-        scheduleRuleData.days_of_week = scheduleData.daysOfWeek.length > 0 
-          ? scheduleData.daysOfWeek.map(d => {
-              const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
-              return dayMap[d] || 0
-            }).filter(d => d > 0)
-          : null
+        // Weekly: days_of_week as integer array, time_of_day as array (single element)
+        if (scheduleData.daysOfWeek.length > 0) {
+          // Map string days to integers (mon -> 1, tue -> 2, etc.), filter invalid, sort, and remove duplicates
+          const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
+          const mappedDays = scheduleData.daysOfWeek
+            .map(d => dayMap[d] || 0)
+            .filter(d => d > 0 && d <= 7) // Valid range: 1-7
+          // Remove duplicates and sort
+          scheduleRuleData.days_of_week = Array.from(new Set(mappedDays)).sort((a, b) => a - b)
+        } else {
+          scheduleRuleData.days_of_week = null
+        }
         scheduleRuleData.time_of_day = scheduleData.timeOfDay 
           ? [scheduleData.timeOfDay] 
           : null
       } else if (scheduleData.frequency === 'monthly') {
-        // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as array (single element)
+        // Monthly: either day_of_month (integer array) OR nth_week + weekday, plus time_of_day as array (single element)
         if (scheduleData.daysOfMonth.length > 0) {
-          scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]
+          // Filter valid days (1-31), remove duplicates, and sort
+          const validDays = scheduleData.daysOfMonth
+            .filter(d => d >= 1 && d <= 31)
+          scheduleRuleData.day_of_month = Array.from(new Set(validDays)).sort((a, b) => a - b)
+          // Clear nth_week and weekday when using day_of_month
+          delete (scheduleRuleData as any).nth_week
+          delete (scheduleRuleData as any).weekday
         } else if (scheduleData.nthWeek && scheduleData.weekday) {
           scheduleRuleData.nth_week = scheduleData.nthWeek
           scheduleRuleData.weekday = scheduleData.weekday
+          // Clear day_of_month when using nth_week + weekday
+          delete (scheduleRuleData as any).day_of_month
+        } else {
+          // No days selected - clear both options
+          delete (scheduleRuleData as any).day_of_month
+          delete (scheduleRuleData as any).nth_week
+          delete (scheduleRuleData as any).weekday
         }
         scheduleRuleData.time_of_day = scheduleData.timeOfDay 
           ? [scheduleData.timeOfDay] 
@@ -782,7 +814,9 @@ export function SubcategoryScheduleForm({
                               const newDays = scheduleData.daysOfMonth.includes(day)
                                 ? scheduleData.daysOfMonth.filter(d => d !== day)
                                 : [...scheduleData.daysOfMonth, day]
-                              setScheduleData(prev => ({ ...prev, daysOfMonth: newDays }))
+                              // Sort and remove duplicates before setting
+                              const sortedUniqueDays = Array.from(new Set(newDays)).sort((a, b) => a - b)
+                              setScheduleData(prev => ({ ...prev, daysOfMonth: sortedUniqueDays }))
                             }}
                             className={`w-8 h-8 text-xs rounded ${
                               scheduleData.daysOfMonth.includes(day)

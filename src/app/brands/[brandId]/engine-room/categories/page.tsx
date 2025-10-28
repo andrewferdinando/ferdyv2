@@ -273,12 +273,20 @@ export default function CategoriesPage() {
                                               timeOfDay: timeOfDayValue || '',  // Ensure it's always a string, never undefined
                                               timesOfDay: timesOfDayArray,
                                               daysOfWeek: scheduleRule.days_of_week 
-                                                ? scheduleRule.days_of_week.map((d: number) => {
+                                                ? (Array.isArray(scheduleRule.days_of_week) 
+                                                    ? scheduleRule.days_of_week 
+                                                    : [scheduleRule.days_of_week] // Backward compatibility: wrap single value in array
+                                                  ).map((d: number) => {
                                                     const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
                                                     return dayMap[d] || ''
                                                   }).filter(Boolean)
                                                 : [],
-                                              daysOfMonth: scheduleRule.day_of_month ? [scheduleRule.day_of_month] : [],
+                                              daysOfMonth: scheduleRule.day_of_month 
+                                                ? (Array.isArray(scheduleRule.day_of_month) 
+                                                    ? scheduleRule.day_of_month 
+                                                    : [scheduleRule.day_of_month] // Backward compatibility: wrap single value in array
+                                                  )
+                                                : [],
                                               nthWeek: scheduleRule.nth_week,
                                               weekday: scheduleRule.weekday,
                                               channels: scheduleRule.channels || [],
