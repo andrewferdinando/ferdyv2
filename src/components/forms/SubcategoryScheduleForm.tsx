@@ -15,13 +15,21 @@ interface SubcategoryData {
 }
 
 interface ScheduleRuleData {
-  frequency: 'daily' | 'weekly' | 'monthly'
-  timeOfDay: string
+  frequency: 'daily' | 'weekly' | 'monthly' | 'specific'
+  timeOfDay: string  // For daily/weekly/monthly
+  timesOfDay: string[]  // For specific date/range
   daysOfWeek: string[]
   daysOfMonth: number[]
   nthWeek?: number
   weekday?: number
   channels: string[]
+  // Specific date/range fields
+  isDateRange: boolean  // Single date vs date range
+  startDate: string  // YYYY-MM-DD format
+  endDate: string  // YYYY-MM-DD format (same as startDate for single date)
+  daysBefore: number[]  // e.g., [5, 3, 1]
+  daysDuring: number[]  // e.g., [2, 3, 5] (only for ranges)
+  timezone: string  // IANA timezone
 }
 
 interface SubcategoryScheduleFormProps {
@@ -106,12 +114,24 @@ export function SubcategoryScheduleForm({
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
     timeOfDay: '09:00',
+    timesOfDay: ['09:00'],
     daysOfWeek: [],
     daysOfMonth: [],
     nthWeek: undefined,
     weekday: undefined,
-    channels: []
+    channels: [],
+    isDateRange: false,
+    startDate: '',
+    endDate: '',
+    daysBefore: [],
+    daysDuring: [],
+    timezone: 'Pacific/Auckland'  // Default to NZ timezone
   })
+
+  // Helper state for specific date inputs
+  const [daysBeforeInput, setDaysBeforeInput] = useState('')
+  const [daysDuringInput, setDaysDuringInput] = useState('')
+  const [newTimeInput, setNewTimeInput] = useState('')
 
   // Form state
   const [isLoading, setIsLoading] = useState(false)
@@ -137,30 +157,88 @@ export function SubcategoryScheduleForm({
     }
 
     if (editingScheduleRule) {
+      const freq = editingScheduleRule.frequency as 'daily' | 'weekly' | 'monthly' | 'specific'
       setScheduleData({
-        frequency: editingScheduleRule.frequency as 'daily' | 'weekly' | 'monthly',
-        timeOfDay: editingScheduleRule.timeOfDay,
+        frequency: freq,
+        timeOfDay: editingScheduleRule.timeOfDay || '09:00',
+        timesOfDay: (editingScheduleRule as any).timesOfDay || ['09:00'],
         daysOfWeek: editingScheduleRule.daysOfWeek || [],
         daysOfMonth: editingScheduleRule.daysOfMonth || [],
         nthWeek: editingScheduleRule.nthWeek,
         weekday: editingScheduleRule.weekday,
-        channels: editingScheduleRule.channels || []
+        channels: editingScheduleRule.channels || [],
+        isDateRange: (editingScheduleRule as any).isDateRange || false,
+        startDate: (editingScheduleRule as any).startDate || '',
+        endDate: (editingScheduleRule as any).endDate || '',
+        daysBefore: (editingScheduleRule as any).daysBefore || [],
+        daysDuring: (editingScheduleRule as any).daysDuring || [],
+        timezone: (editingScheduleRule as any).timezone || 'Pacific/Auckland'
       })
+      setDaysBeforeInput(((editingScheduleRule as any).daysBefore || []).join(','))
+      setDaysDuringInput(((editingScheduleRule as any).daysDuring || []).join(','))
     } else {
       setScheduleData({
         frequency: 'weekly',
         timeOfDay: '09:00',
+        timesOfDay: ['09:00'],
         daysOfWeek: [],
         daysOfMonth: [],
         nthWeek: undefined,
         weekday: undefined,
-        channels: []
+        channels: [],
+        isDateRange: false,
+        startDate: '',
+        endDate: '',
+        daysBefore: [],
+        daysDuring: [],
+        timezone: 'Pacific/Auckland'
       })
+      setDaysBeforeInput('')
+      setDaysDuringInput('')
     }
 
     setErrors({})
     setHashtagInput('')
+    setNewTimeInput('')
   }, [editingSubcategory, editingScheduleRule, isOpen])
+
+  // Helper functions for specific date/range
+  const parseDaysInput = (input: string): number[] => {
+    if (!input.trim()) return []
+    return input
+      .split(',')
+      .map(d => parseInt(d.trim()))
+      .filter(d => !isNaN(d) && d >= 0)
+  }
+
+  const updateDaysBefore = (input: string) => {
+    setDaysBeforeInput(input)
+    const parsed = parseDaysInput(input)
+    setScheduleData(prev => ({ ...prev, daysBefore: parsed }))
+  }
+
+  const updateDaysDuring = (input: string) => {
+    setDaysDuringInput(input)
+    const parsed = parseDaysInput(input)
+    setScheduleData(prev => ({ ...prev, daysDuring: parsed }))
+  }
+
+  const addTime = () => {
+    if (newTimeInput.trim() && !scheduleData.timesOfDay.includes(newTimeInput.trim())) {
+      setScheduleData(prev => ({
+        ...prev,
+        timesOfDay: [...prev.timesOfDay, newTimeInput.trim()].sort()
+      }))
+      setNewTimeInput('')
+    }
+  }
+
+  const removeTime = (timeToRemove: string) => {
+    setScheduleData(prev => ({
+      ...prev,
+      timesOfDay: prev.timesOfDay.filter(t => t !== timeToRemove)
+    }))
+  }
 
   // Validation
   const validateForm = useCallback(() => {
@@ -171,9 +249,36 @@ export function SubcategoryScheduleForm({
       newErrors.subcategoryName = 'Name is required'
     }
 
+    // Validate specific date/range fields
+    if (scheduleData.frequency === 'specific') {
+      if (!scheduleData.startDate) {
+        newErrors.startDate = 'Start date is required'
+      }
+      if (scheduleData.isDateRange && !scheduleData.endDate) {
+        newErrors.endDate = 'End date is required for date ranges'
+      }
+      if (scheduleData.startDate && scheduleData.endDate && scheduleData.isDateRange) {
+        const start = new Date(scheduleData.startDate)
+        const end = new Date(scheduleData.endDate)
+        if (end < start) {
+          newErrors.endDate = 'End date must be after start date'
+        }
+      }
+      if (scheduleData.timesOfDay.length === 0) {
+        newErrors.timesOfDay = 'At least one time of day is required'
+      }
+      // Ensure days_before and days_during have valid non-negative integers
+      if (scheduleData.daysBefore.some(d => d < 0)) {
+        newErrors.daysBefore = 'Days before must be non-negative'
+      }
+      if (scheduleData.isDateRange && scheduleData.daysDuring.some(d => d < 0)) {
+        newErrors.daysDuring = 'Days during must be non-negative'
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }, [subcategoryData])
+  }, [subcategoryData, scheduleData])
 
   // Hashtag management
   const addHashtag = () => {
@@ -267,12 +372,56 @@ export function SubcategoryScheduleForm({
         subcategoryId = data.id
       }
 
-      // Save schedule rule - simplified to basic fields only
-      const scheduleRuleData = {
+      // Save schedule rule
+      const scheduleRuleData: any = {
         brand_id: brandId,
         subcategory_id: subcategoryId,
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
-        frequency: scheduleData.frequency
+        frequency: scheduleData.frequency,
+        channels: scheduleData.channels.length > 0 ? scheduleData.channels : null,
+        timezone: scheduleData.frequency === 'specific' ? scheduleData.timezone : null
+      }
+
+      // Add fields based on frequency type
+      if (scheduleData.frequency === 'daily') {
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay
+      } else if (scheduleData.frequency === 'weekly') {
+        scheduleRuleData.days_of_week = scheduleData.daysOfWeek.map(d => {
+          const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
+          return dayMap[d] || 0
+        }).filter(d => d > 0)
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay
+      } else if (scheduleData.frequency === 'monthly') {
+        if (scheduleData.daysOfMonth.length > 0) {
+          scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]  // Simplified - use first day
+        }
+        if (scheduleData.nthWeek && scheduleData.weekday) {
+          scheduleRuleData.nth_week = scheduleData.nthWeek
+          scheduleRuleData.weekday = scheduleData.weekday
+        }
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay
+      } else if (scheduleData.frequency === 'specific') {
+        // Convert dates to timestamptz (start of day in the specified timezone)
+        const startDateObj = new Date(scheduleData.startDate)
+        const endDateObj = scheduleData.isDateRange 
+          ? new Date(scheduleData.endDate)
+          : new Date(scheduleData.startDate)
+
+        // For now, we'll store dates as timestamptz at midnight in the timezone
+        // The generation logic will handle timezone conversion properly
+        scheduleRuleData.start_date = scheduleData.startDate ? `${scheduleData.startDate}T00:00:00` : null
+        scheduleRuleData.end_date = scheduleData.isDateRange && scheduleData.endDate 
+          ? `${scheduleData.endDate}T23:59:59`
+          : scheduleData.startDate 
+          ? `${scheduleData.startDate}T23:59:59` 
+          : null
+        scheduleRuleData.days_before = scheduleData.daysBefore.length > 0 ? scheduleData.daysBefore : null
+        scheduleRuleData.days_during = scheduleData.isDateRange && scheduleData.daysDuring.length > 0 
+          ? scheduleData.daysDuring 
+          : null
+        scheduleRuleData.times_of_day = scheduleData.timesOfDay.length > 0 
+          ? scheduleData.timesOfDay 
+          : null
       }
 
       // Try to save schedule rule, but don't fail if table doesn't exist
@@ -313,10 +462,18 @@ export function SubcategoryScheduleForm({
   }
 
   const isFormValid = useMemo(() => {
-    // Simplified validation - only check essential fields
+    // Check essential fields
     if (!subcategoryData.name.trim()) return false
+
+    // Check specific frequency requirements
+    if (scheduleData.frequency === 'specific') {
+      if (!scheduleData.startDate) return false
+      if (scheduleData.isDateRange && !scheduleData.endDate) return false
+      if (scheduleData.timesOfDay.length === 0) return false
+    }
+
     return true
-  }, [subcategoryData])
+  }, [subcategoryData, scheduleData])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}>
@@ -401,17 +558,17 @@ export function SubcategoryScheduleForm({
             <div className="space-y-4">
               {/* Frequency */}
               <FormField label="Frequency" required>
-                <div className="flex gap-2">
-                  {(['daily', 'weekly', 'monthly'] as const).map((freq) => (
+                <div className="flex gap-2 flex-wrap">
+                  {(['daily', 'weekly', 'monthly', 'specific'] as const).map((freq) => (
                     <label key={freq} className="flex items-center">
                       <input
                         type="radio"
                         value={freq}
                         checked={scheduleData.frequency === freq}
-                        onChange={(e) => setScheduleData(prev => ({ ...prev, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' }))}
+                        onChange={(e) => setScheduleData(prev => ({ ...prev, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' | 'specific' }))}
                         className="mr-2"
                       />
-                      {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                      {freq === 'specific' ? 'Specific Date/Range' : freq.charAt(0).toUpperCase() + freq.slice(1)}
                     </label>
                   ))}
                 </div>
@@ -535,6 +692,154 @@ export function SubcategoryScheduleForm({
                     />
                   </FormField>
                   {errors.monthlyType && <p className="text-red-500 text-sm">{errors.monthlyType}</p>}
+                </div>
+              )}
+
+              {/* Specific Date/Range Options */}
+              {scheduleData.frequency === 'specific' && (
+                <div className="space-y-4 pl-4 border-l-2 border-gray-200">
+                  {/* Date Type Toggle */}
+                  <FormField label="Date Type">
+                    <div className="flex gap-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          checked={!scheduleData.isDateRange}
+                          onChange={() => {
+                            setScheduleData(prev => ({
+                              ...prev,
+                              isDateRange: false,
+                              endDate: prev.startDate  // Set endDate to startDate for single date
+                            }))
+                          }}
+                          className="mr-2"
+                        />
+                        Single Date
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          checked={scheduleData.isDateRange}
+                          onChange={() => setScheduleData(prev => ({ ...prev, isDateRange: true }))}
+                          className="mr-2"
+                        />
+                        Date Range
+                      </label>
+                    </div>
+                  </FormField>
+
+                  {/* Start Date */}
+                  <FormField label="Start Date" required>
+                    <Input
+                      type="date"
+                      value={scheduleData.startDate}
+                      onChange={(e) => {
+                        const date = e.target.value
+                        setScheduleData(prev => ({
+                          ...prev,
+                          startDate: date,
+                          endDate: !prev.isDateRange ? date : prev.endDate  // Update endDate if single date
+                        }))
+                      }}
+                      error={errors.startDate}
+                    />
+                  </FormField>
+
+                  {/* End Date (only for ranges) */}
+                  {scheduleData.isDateRange && (
+                    <FormField label="End Date" required>
+                      <Input
+                        type="date"
+                        value={scheduleData.endDate}
+                        onChange={(e) => setScheduleData(prev => ({ ...prev, endDate: e.target.value }))}
+                        min={scheduleData.startDate}
+                        error={errors.endDate}
+                      />
+                    </FormField>
+                  )}
+
+                  {/* Times of Day */}
+                  <FormField label="Times of Day" required>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          type="time"
+                          value={newTimeInput}
+                          onChange={(e) => setNewTimeInput(e.target.value)}
+                          placeholder="HH:MM"
+                        />
+                        <button
+                          type="button"
+                          onClick={addTime}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          Add Time
+                        </button>
+                      </div>
+                      {scheduleData.timesOfDay.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {scheduleData.timesOfDay.map((time, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-md"
+                            >
+                              {time}
+                              <button
+                                type="button"
+                                onClick={() => removeTime(time)}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {errors.timesOfDay && <p className="text-red-500 text-sm mt-1">{errors.timesOfDay}</p>}
+                    </div>
+                  </FormField>
+
+                  {/* Days Before */}
+                  <FormField label="Days Before (comma-separated, e.g., 5,3,1)">
+                    <Input
+                      type="text"
+                      value={daysBeforeInput}
+                      onChange={(e) => updateDaysBefore(e.target.value)}
+                      placeholder="5,3,1"
+                      error={errors.daysBefore}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Posts will be scheduled X days before the start date</p>
+                  </FormField>
+
+                  {/* Days During (only for ranges) */}
+                  {scheduleData.isDateRange && (
+                    <FormField label="Days During (comma-separated, e.g., 2,3,5)">
+                      <Input
+                        type="text"
+                        value={daysDuringInput}
+                        onChange={(e) => updateDaysDuring(e.target.value)}
+                        placeholder="2,3,5"
+                        error={errors.daysDuring}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Posts will be scheduled X days after the start date (within the range)</p>
+                    </FormField>
+                  )}
+
+                  {/* Timezone */}
+                  <FormField label="Timezone" required>
+                    <select
+                      value={scheduleData.timezone}
+                      onChange={(e) => setScheduleData(prev => ({ ...prev, timezone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Pacific/Auckland">Pacific/Auckland (NZ)</option>
+                      <option value="Pacific/Sydney">Pacific/Sydney (AEST)</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+                      <option value="America/New_York">America/New_York (EST)</option>
+                      <option value="Europe/London">Europe/London (GMT)</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                    </select>
+                  </FormField>
                 </div>
               )}
 
