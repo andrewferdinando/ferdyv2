@@ -65,18 +65,18 @@ export default function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
       {/* Content */}
       <div className="p-4">
         {/* Tags */}
-        {asset.tags.length > 0 && (
+        {asset.tags && asset.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-4">
-            {asset.tags.map((tag, index) => (
+            {asset.tags.map((tag) => (
               <span 
-                key={index}
-                className="px-2 py-1 text-xs font-medium rounded-full"
-                style={{
-                  backgroundColor: getTagColor(tag).bg,
-                  color: getTagColor(tag).text
-                }}
+                key={tag.id}
+                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  tag.kind === 'subcategory' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-gray-100 text-gray-700'
+                }`}
               >
-                {tag}
+                {tag.name}
               </span>
             ))}
           </div>
@@ -108,17 +108,3 @@ export default function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
   )
 }
 
-// Helper function for tag colors
-function getTagColor(tag: string) {
-  const colors: { [key: string]: { bg: string; text: string } } = {
-    'Student Discount': { bg: '#DBEAFE', text: '#1E40AF' },
-    'Happy Hour Special': { bg: '#D1FAE5', text: '#065F46' },
-    'Corporate Team Building': { bg: '#F3E8FF', text: '#7C3AED' },
-    'Weekend Special': { bg: '#FEF3C7', text: '#D97706' },
-    'Family Package': { bg: '#FCE7F3', text: '#BE185D' },
-    'Birthday Party': { bg: '#F0FDF4', text: '#166534' },
-    'Holiday Special': { bg: '#FFF7ED', text: '#EA580C' },
-    'Summer Promotion': { bg: '#ECFDF5', text: '#047857' }
-  }
-  return colors[tag] || { bg: '#F3F4F6', text: '#374151' }
-}
