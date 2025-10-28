@@ -438,7 +438,7 @@ export function SubcategoryScheduleForm({
         channels?: string[] | null
         timezone?: string | null
         is_active: boolean
-        time_of_day?: string | null  // Single time for daily/weekly/monthly
+        time_of_day?: string | string[] | null  // Single time for daily/weekly/monthly, array for specific
         days_of_week?: number[] | null
         day_of_month?: number | null
         nth_week?: number | null
@@ -447,7 +447,6 @@ export function SubcategoryScheduleForm({
         end_date?: string | null
         days_before?: number[] | null
         days_during?: number[] | null
-        times_of_day?: string[] | null  // Array for specific frequency
         // Clear fields not used by current frequency
         tone?: string | null
         hashtag_rule?: Record<string, unknown> | null
@@ -479,7 +478,6 @@ export function SubcategoryScheduleForm({
         delete (scheduleRuleData as any).end_date
         delete (scheduleRuleData as any).days_before
         delete (scheduleRuleData as any).days_during
-        delete (scheduleRuleData as any).times_of_day
         delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'weekly') {
         // Weekly: days_of_week and time_of_day as single time value
@@ -498,7 +496,6 @@ export function SubcategoryScheduleForm({
         delete (scheduleRuleData as any).end_date
         delete (scheduleRuleData as any).days_before
         delete (scheduleRuleData as any).days_during
-        delete (scheduleRuleData as any).times_of_day
         delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'monthly') {
         // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as single value
@@ -518,10 +515,9 @@ export function SubcategoryScheduleForm({
         delete (scheduleRuleData as any).end_date
         delete (scheduleRuleData as any).days_before
         delete (scheduleRuleData as any).days_during
-        delete (scheduleRuleData as any).times_of_day
         delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'specific') {
-        // Specific: start_date, end_date, days_before, days_during, times_of_day, timezone
+        // Specific: start_date, end_date, days_before, days_during, time_of_day (array), timezone
         // Store dates as timestamptz (convert date string to timestamp at start of day in timezone)
         if (scheduleData.startDate) {
           // Create date at start of day in the specified timezone, then convert to UTC timestamptz
@@ -544,16 +540,16 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.days_during = scheduleData.isDateRange && scheduleData.daysDuring.length > 0 
           ? scheduleData.daysDuring 
           : null
-        scheduleRuleData.times_of_day = scheduleData.timesOfDay.length > 0 
+        // Use time_of_day as array for specific frequency
+        scheduleRuleData.time_of_day = scheduleData.timesOfDay.length > 0 
           ? scheduleData.timesOfDay 
           : null
         scheduleRuleData.timezone = scheduleData.timezone || null
         // Clear unused fields
-        scheduleRuleData.days_of_week = null
-        scheduleRuleData.day_of_month = null
-        scheduleRuleData.nth_week = null
-        scheduleRuleData.weekday = null
-        scheduleRuleData.time_of_day = null
+        delete (scheduleRuleData as any).days_of_week
+        delete (scheduleRuleData as any).day_of_month
+        delete (scheduleRuleData as any).nth_week
+        delete (scheduleRuleData as any).weekday
       }
 
       // Upsert schedule rule - update if exists, insert if not

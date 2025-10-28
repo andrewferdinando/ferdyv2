@@ -253,15 +253,19 @@ export default function CategoriesPage() {
                                           
                                           if (scheduleRule) {
                                             // Map database fields to form format
-                                            // Handle time_of_day (single value for daily/weekly/monthly) or times_of_day (array for specific)
-                                            const timeOfDayValue = typeof scheduleRule.time_of_day === 'string' 
-                                              ? scheduleRule.time_of_day 
-                                              : (Array.isArray(scheduleRule.time_of_day) && scheduleRule.time_of_day.length > 0
-                                                  ? scheduleRule.time_of_day[0]
-                                                  : '')
-                                            const timesOfDayArray = scheduleRule.times_of_day && Array.isArray(scheduleRule.times_of_day)
-                                              ? scheduleRule.times_of_day
-                                              : (timeOfDayValue ? [timeOfDayValue] : [])
+                                            // Handle time_of_day (can be single value for daily/weekly/monthly or array for specific)
+                                            let timeOfDayValue = ''
+                                            let timesOfDayArray: string[] = []
+                                            
+                                            if (Array.isArray(scheduleRule.time_of_day)) {
+                                              // time_of_day is an array (specific frequency)
+                                              timesOfDayArray = scheduleRule.time_of_day
+                                              timeOfDayValue = timesOfDayArray.length > 0 ? timesOfDayArray[0] : ''
+                                            } else if (typeof scheduleRule.time_of_day === 'string') {
+                                              // time_of_day is a single string (daily/weekly/monthly)
+                                              timeOfDayValue = scheduleRule.time_of_day
+                                              timesOfDayArray = timeOfDayValue ? [timeOfDayValue] : []
+                                            }
                                             
                                             const mappedRule = {
                                               id: scheduleRule.id,
