@@ -29,6 +29,7 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
           .single();
 
         if (!profileError && profileData) {
+          console.log('UserAvatar: Found user in user_profiles:', profileData);
           setUser({
             id: profileData.id,
             email: profileData.email,
@@ -38,6 +39,8 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
           setLoading(false);
           return;
         }
+
+        console.log('UserAvatar: Not found in user_profiles, trying auth.users...');
 
         // Fallback to auth.users table if not found in user_profiles
         const { data: authUser, error: authError } = await supabase.auth.getUser();
@@ -95,22 +98,31 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
 
   // Generate initials from full_name or email
   const getInitials = () => {
+    console.log('UserAvatar: Generating initials for user:', user);
+    
     if (user.full_name) {
-      return user.full_name
+      const initials = user.full_name
         .split(' ')
         .map(name => name.charAt(0))
         .join('')
         .toUpperCase()
         .slice(0, 2); // Take up to 2 initials
+      console.log('UserAvatar: Generated initials from full_name:', initials);
+      return initials;
     }
     if (user.email) {
       // For email, take first letter and first letter after @ or dot
       const emailParts = user.email.split('@')[0].split('.');
       if (emailParts.length >= 2) {
-        return (emailParts[0].charAt(0) + emailParts[1].charAt(0)).toUpperCase();
+        const initials = (emailParts[0].charAt(0) + emailParts[1].charAt(0)).toUpperCase();
+        console.log('UserAvatar: Generated initials from email:', initials);
+        return initials;
       }
-      return user.email.charAt(0).toUpperCase();
+      const initials = user.email.charAt(0).toUpperCase();
+      console.log('UserAvatar: Generated single initial from email:', initials);
+      return initials;
     }
+    console.log('UserAvatar: Using fallback initial: U');
     return 'U';
   };
 
