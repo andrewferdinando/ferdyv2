@@ -152,8 +152,14 @@ export function SubcategoryScheduleForm({
         channels: editingSubcategory.channels || []
       })
       // Prefill schedule rule channels from subcategory channels if schedule rule has no channels
-      if (editingSubcategory.channels && editingSubcategory.channels.length > 0 && (!scheduleData.channels || scheduleData.channels.length === 0)) {
-        setScheduleData(prev => ({ ...prev, channels: editingSubcategory.channels || [] }))
+      if (editingSubcategory.channels && editingSubcategory.channels.length > 0) {
+        setScheduleData(prev => {
+          // Only update if schedule rule channels are empty
+          if (!prev.channels || prev.channels.length === 0) {
+            return { ...prev, channels: editingSubcategory.channels || [] }
+          }
+          return prev
+        })
       }
     } else {
       setSubcategoryData({
@@ -916,30 +922,33 @@ export function SubcategoryScheduleForm({
               )}
 
               {/* Common Options - Channels (inherited from subcategory, but can be overridden) */}
-              <FormField label="Channels" helperText="Inherited from subcategory above, but can be customized for this schedule rule">
-                <div className="flex flex-wrap gap-2">
-                  {CHANNELS.map((channel) => (
-                    <label key={channel.value} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={scheduleData.channels.includes(channel.value)}
-                        onChange={(e) => {
-                          const newChannels = e.target.checked
-                            ? [...scheduleData.channels, channel.value]
-                            : scheduleData.channels.filter(c => c !== channel.value)
-                          setScheduleData(prev => ({ ...prev, channels: newChannels }))
-                        }}
-                        className="mr-2"
-                      />
-                      {channel.label}
-                    </label>
-                  ))}
+              <FormField label="Channels">
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">Inherited from subcategory above, but can be customized for this schedule rule</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CHANNELS.map((channel) => (
+                      <label key={channel.value} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={scheduleData.channels.includes(channel.value)}
+                          onChange={(e) => {
+                            const newChannels = e.target.checked
+                              ? [...scheduleData.channels, channel.value]
+                              : scheduleData.channels.filter(c => c !== channel.value)
+                            setScheduleData(prev => ({ ...prev, channels: newChannels }))
+                          }}
+                          className="mr-2"
+                        />
+                        {channel.label}
+                      </label>
+                    ))}
+                  </div>
+                  {scheduleData.channels.length === 0 && subcategoryData.channels.length > 0 && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Will use channels from subcategory: {subcategoryData.channels.join(', ')}
+                    </p>
+                  )}
                 </div>
-                {scheduleData.channels.length === 0 && subcategoryData.channels.length > 0 && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Will use channels from subcategory: {subcategoryData.channels.join(', ')}
-                  </p>
-                )}
               </FormField>
 
             </div>
