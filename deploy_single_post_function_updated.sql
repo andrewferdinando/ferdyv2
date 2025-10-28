@@ -37,8 +37,8 @@ BEGIN
     -- Convert channels array to comma-separated string for storage
     v_channels_text := array_to_string(p_channels, ',');
     
-    -- Create NZT timestamp for scheduled_for_nzt field
-    v_scheduled_for_nzt := p_scheduled_at AT TIME ZONE 'Pacific/Auckland';
+    -- Create NZT timestamp for scheduled_for_nzt field (as text)
+    v_scheduled_for_nzt := to_char(p_scheduled_at AT TIME ZONE 'Pacific/Auckland', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
     
     -- Create a post_job for the first channel (to satisfy foreign key constraint)
     -- We'll use the first channel for the post_job, but store all channels in the draft
