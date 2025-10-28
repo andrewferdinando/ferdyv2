@@ -467,8 +467,10 @@ export function SubcategoryScheduleForm({
 
       // Add fields based on frequency type
       if (scheduleData.frequency === 'daily') {
-        // Daily: time_of_day as single time value
-        scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
+        // Daily: time_of_day as array (single element)
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay 
+          ? [scheduleData.timeOfDay] 
+          : null
         // Don't set specific frequency fields (they may not exist in schema yet)
         delete (scheduleRuleData as any).days_of_week
         delete (scheduleRuleData as any).day_of_month
@@ -487,7 +489,9 @@ export function SubcategoryScheduleForm({
               return dayMap[d] || 0
             }).filter(d => d > 0)
           : null
-        scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay 
+          ? [scheduleData.timeOfDay] 
+          : null
         // Don't set specific frequency fields
         delete (scheduleRuleData as any).day_of_month
         delete (scheduleRuleData as any).nth_week
@@ -498,7 +502,7 @@ export function SubcategoryScheduleForm({
         delete (scheduleRuleData as any).days_during
         delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'monthly') {
-        // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as single value
+        // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as array (single element)
         if (scheduleData.daysOfMonth.length > 0) {
           scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]
           delete (scheduleRuleData as any).nth_week
@@ -508,7 +512,9 @@ export function SubcategoryScheduleForm({
           scheduleRuleData.weekday = scheduleData.weekday
           delete (scheduleRuleData as any).day_of_month
         }
-        scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay 
+          ? [scheduleData.timeOfDay] 
+          : null
         // Don't set specific frequency fields
         delete (scheduleRuleData as any).days_of_week
         delete (scheduleRuleData as any).start_date
