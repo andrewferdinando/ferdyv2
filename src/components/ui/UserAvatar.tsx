@@ -33,7 +33,7 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
           
           setUser({
             id: profileData.id,
-            email: null, // user_profiles doesn't have email field
+            email: undefined, // user_profiles doesn't have email field
             full_name: profileData.name, // Use 'name' field as full_name
             avatar_url: profileData.profile_image_url // Already has full URL
           });
