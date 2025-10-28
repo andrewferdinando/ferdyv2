@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useSocialAccounts } from '@/hooks/useSocialAccounts';
@@ -144,9 +144,34 @@ interface DraftCardProps {
 export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSeeMore, setShowSeeMore] = useState(false);
+  const copyRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts } = useSocialAccounts(draft.brand_id);
+
+  // Check if content exceeds 2 lines
+  useEffect(() => {
+    if (copyRef.current) {
+      const element = copyRef.current;
+      // Temporarily remove line-clamp to measure full height
+      const originalStyle = element.style.cssText;
+      element.style.display = 'block';
+      element.style.webkitLineClamp = 'unset';
+      element.style.webkitBoxOrient = 'unset';
+      element.style.overflow = 'visible';
+      
+      const fullHeight = element.scrollHeight;
+      const lineHeight = parseFloat(window.getComputedStyle(element).lineHeight) || 24;
+      const maxHeight = lineHeight * 2;
+      
+      // Restore original style
+      element.style.cssText = originalStyle;
+      
+      // Show "see more" if content exceeds 2 lines
+      setShowSeeMore(fullHeight > maxHeight + 4); // +4 for slight tolerance
+    }
+  }, [draft.copy]);
 
   const handleEditClick = () => {
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
@@ -260,12 +285,42 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
 
           {/* Content Section */}
           <div className="flex-1 min-w-0">
-            {/* Post Copy */}
-            <p className="text-gray-900 mb-3">{draft.copy}</p>
+            {/* Post Copy with 2-line limit and "see more" */}
+            <div className="relative mb-4">
+              <div 
+                ref={copyRef}
+                className="text-gray-900"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  lineHeight: '1.5',
+                  paddingRight: showSeeMore ? '4rem' : '0',
+                }}
+              >
+                {draft.copy}
+              </div>
+              {/* "See more" link - only shown when content exceeds 2 lines */}
+              {showSeeMore && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
+                  }}
+                  className="absolute bottom-0 right-0 text-[#6366F1] text-sm font-medium hover:text-[#4F46E5] transition-colors ml-2 bg-white pl-1"
+                  style={{
+                    textShadow: '0 0 3px white, 0 0 3px white',
+                  }}
+                >
+                  see more
+                </button>
+              )}
+            </div>
             
             {/* Hashtags */}
             {draft.hashtags && draft.hashtags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4" style={{ marginTop: showSeeMore ? '0.5rem' : '0.75rem' }}>
                 {draft.hashtags.map((hashtag, index) => (
                   <span
                     key={index}
