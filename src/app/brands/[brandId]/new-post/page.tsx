@@ -289,27 +289,9 @@ export default function NewPostPage() {
         <div className="flex-1 overflow-auto bg-gray-50">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Create New Post</h1>
-                <p className="text-gray-600 mt-1 text-sm">Create a new post to schedule across your social channels.</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                {/* Action Buttons */}
-                <button
-                  onClick={() => router.push(`/brands/${brandId}/schedule`)}
-                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? 'Saving...' : 'Save Post'}
-                </button>
-              </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Create New Post</h1>
+              <p className="text-gray-600 mt-1 text-sm">Create a new post to schedule across your social channels.</p>
             </div>
           </div>
 
@@ -616,6 +598,27 @@ export default function NewPostPage() {
             </div>
           )}
         </Modal>
+
+        {/* Action Buttons - Bottom Right */}
+        <div className="bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-10 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => router.push(`/brands/${brandId}/schedule`)}
+                className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? 'Saving...' : 'Save Post'}
+              </button>
+            </div>
+          </div>
+        </div>
       </AppLayout>
     </RequireAuth>
   );
