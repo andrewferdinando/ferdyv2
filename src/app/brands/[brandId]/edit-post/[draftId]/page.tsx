@@ -586,7 +586,7 @@ export default function EditPostPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                        <div className="relative flex items-center">
+                        <div className="relative">
                           <input
                             type="date"
                             value={scheduleDate}
@@ -595,10 +595,11 @@ export default function EditPostPage() {
                             style={{
                               appearance: 'none',
                               WebkitAppearance: 'none',
-                              MozAppearance: 'textfield'
+                              MozAppearance: 'textfield',
+                              lineHeight: '1.5'
                             }}
                           />
-                          <svg className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-2px' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
@@ -606,7 +607,7 @@ export default function EditPostPage() {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-                        <div className="relative flex items-center">
+                        <div className="relative">
                           <input
                             type="time"
                             value={scheduleTime}
@@ -615,10 +616,11 @@ export default function EditPostPage() {
                             style={{
                               appearance: 'none',
                               WebkitAppearance: 'none',
-                              MozAppearance: 'textfield'
+                              MozAppearance: 'textfield',
+                              lineHeight: '1.5'
                             }}
                           />
-                          <svg className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-2px' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
