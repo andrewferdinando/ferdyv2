@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
-import Link from 'next/link'
 import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
 import { useSubcategories } from '@/hooks/useSubcategories'
+import { useUserRole } from '@/hooks/useUserRole'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
+import Modal from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -41,17 +43,41 @@ export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState('categories')
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [categoryName, setCategoryName] = useState('')
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[]} | null>(null)
   
-  const { categories, loading } = useCategories()
+  const { categories, loading, createCategory, refetch } = useCategories()
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
+  const { isAdmin, loading: roleLoading } = useUserRole(brandId)
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
     { id: 'nextMonth', name: 'Post Framework' },
   ]
 
-  if (loading) {
+  const handleCreateCategory = async () => {
+    if (!categoryName.trim()) {
+      alert('Please enter a category name')
+      return
+    }
+
+    setIsCreatingCategory(true)
+    try {
+      await createCategory(categoryName.trim())
+      setCategoryName('')
+      setIsCategoryModalOpen(false)
+      // Categories will be automatically updated via local state in createCategory
+    } catch (error) {
+      console.error('Error creating category:', error)
+      alert('Failed to create category. Please try again.')
+    } finally {
+      setIsCreatingCategory(false)
+    }
+  }
+
+  if (loading || roleLoading) {
     return (
       <RequireAuth>
         <AppLayout>
@@ -77,6 +103,15 @@ export default function CategoriesPage() {
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
+              {isAdmin && !selectedCategory && (
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Add Category
+                </button>
+              )}
             </div>
           </div>
 
@@ -229,6 +264,62 @@ export default function CategoriesPage() {
             window.location.reload()
           }}
         />
+
+        {/* Create Category Modal */}
+        <Modal
+          isOpen={isCategoryModalOpen}
+          onClose={() => {
+            setIsCategoryModalOpen(false)
+            setCategoryName('')
+          }}
+          maxWidth="md"
+          title="Create New Category"
+        >
+          <div className="p-6">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleCreateCategory()
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  placeholder="e.g. Seasonal Events"
+                  required
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">Example: Seasonal Events</p>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryModalOpen(false)
+                    setCategoryName('')
+                  }}
+                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingCategory || !categoryName.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreatingCategory ? 'Creating...' : 'Create Category'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Modal>
       </AppLayout>
     </RequireAuth>
   )
