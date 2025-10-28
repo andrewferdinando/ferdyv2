@@ -19,7 +19,7 @@ DECLARE
     v_scheduled_local timestamptz;
     v_channels_text text;
     v_channel text;
-    v_scheduled_for_nzt text;
+    v_scheduled_for_nzt timestamptz;
 BEGIN
     -- Get brand timezone
     SELECT timezone INTO v_brand_timezone 
@@ -37,8 +37,8 @@ BEGIN
     -- Convert channels array to comma-separated string for storage
     v_channels_text := array_to_string(p_channels, ',');
     
-    -- Create NZT timestamp for scheduled_for_nzt field (as text)
-    v_scheduled_for_nzt := to_char(p_scheduled_at AT TIME ZONE 'Pacific/Auckland', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+    -- Create NZT timestamp for scheduled_for_nzt field (as timestamptz)
+    v_scheduled_for_nzt := (p_scheduled_at AT TIME ZONE 'Pacific/Auckland')::timestamptz;
     
     -- Create a post_job for the first channel (to satisfy foreign key constraint)
     -- We'll use the first channel for the post_job, but store all channels in the draft
