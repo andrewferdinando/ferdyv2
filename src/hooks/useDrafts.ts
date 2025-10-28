@@ -210,11 +210,12 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     setError(null);
     
     try {
-        // Fetch drafts first
+        // Fetch drafts first - exclude approved drafts (they should be in scheduled tab)
         const query = supabase
           .from('drafts')
           .select('*')
-          .eq('brand_id', brandId);
+          .eq('brand_id', brandId)
+          .eq('approved', false); // Only show non-approved drafts
 
       // Apply status filter if provided
       if (statusFilter) {

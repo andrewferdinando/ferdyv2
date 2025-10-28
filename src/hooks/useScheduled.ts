@@ -89,13 +89,62 @@ export function useScheduled(brandId: string) {
     fetchScheduled();
   }, [brandId]);
 
+  const refetch = async () => {
+    if (!brandId) return;
+
+    const fetchScheduled = async () => {
+      if (!supabase) {
+        console.log('useScheduled: Supabase client not available');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error } = await supabase
+          .from('drafts')
+          .select('*')
+          .eq('brand_id', brandId)
+          .eq('approved', true)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        // Now fetch assets for each scheduled post that has asset_ids
+        const scheduledWithAssets = await Promise.all((data || []).map(async (draft) => {
+          if (draft.asset_ids && draft.asset_ids.length > 0 && supabase) {
+            const { data: assetsData, error: assetsError } = await supabase
+              .from('assets')
+              .select('id, title, storage_path, aspect_ratio')
+              .in('id', draft.asset_ids);
+            
+            if (assetsError) {
+              console.error('Error fetching assets for scheduled post:', draft.id, assetsError);
+              return { ...draft, assets: [] };
+            }
+            
+            return { ...draft, assets: assetsData || [] };
+          }
+          return { ...draft, assets: [] };
+        }));
+
+        setScheduled(scheduledWithAssets);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch scheduled posts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    await fetchScheduled();
+  };
+
   return {
     scheduled,
     loading,
     error,
-    refetch: () => {
-      setLoading(true);
-      setScheduled([]);
-    }
+    refetch
   };
 }
