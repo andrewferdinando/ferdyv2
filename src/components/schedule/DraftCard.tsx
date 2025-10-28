@@ -327,13 +327,6 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                   </div>
                 )}
                 
-                {/* Debug: Show scheduled_by value */}
-                {status === 'scheduled' && (
-                  <div className="text-xs text-red-500">
-                    Debug: scheduled_by = {draft.scheduled_by || 'null'}
-                  </div>
-                )}
-                
                 <button
                   onClick={handleEditClick}
                   className="p-1 text-gray-400 hover:text-gray-600 transition-colors"

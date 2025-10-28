@@ -164,11 +164,15 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     }
 
     try {
-      // Directly update the approved field to true
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Directly update the approved field to true and set scheduled_by
       const { data, error } = await supabase
         .from('drafts')
         .update({ 
-          approved: true
+          approved: true,
+          scheduled_by: user?.id || null
         })
         .eq('id', draftId)
         .select()
