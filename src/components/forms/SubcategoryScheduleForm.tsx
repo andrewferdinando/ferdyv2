@@ -470,17 +470,17 @@ export function SubcategoryScheduleForm({
       if (scheduleData.frequency === 'daily') {
         // Daily: time_of_day as single time value
         scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
-        // Clear unused fields
-        scheduleRuleData.days_of_week = null
-        scheduleRuleData.day_of_month = null
-        scheduleRuleData.nth_week = null
-        scheduleRuleData.weekday = null
-        scheduleRuleData.start_date = null
-        scheduleRuleData.end_date = null
-        scheduleRuleData.days_before = null
-        scheduleRuleData.days_during = null
-        scheduleRuleData.times_of_day = null
-        scheduleRuleData.timezone = null
+        // Don't set specific frequency fields (they may not exist in schema yet)
+        delete (scheduleRuleData as any).days_of_week
+        delete (scheduleRuleData as any).day_of_month
+        delete (scheduleRuleData as any).nth_week
+        delete (scheduleRuleData as any).weekday
+        delete (scheduleRuleData as any).start_date
+        delete (scheduleRuleData as any).end_date
+        delete (scheduleRuleData as any).days_before
+        delete (scheduleRuleData as any).days_during
+        delete (scheduleRuleData as any).times_of_day
+        delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'weekly') {
         // Weekly: days_of_week and time_of_day as single time value
         scheduleRuleData.days_of_week = scheduleData.daysOfWeek.length > 0 
@@ -490,36 +490,36 @@ export function SubcategoryScheduleForm({
             }).filter(d => d > 0)
           : null
         scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
-        // Clear unused fields
-        scheduleRuleData.day_of_month = null
-        scheduleRuleData.nth_week = null
-        scheduleRuleData.weekday = null
-        scheduleRuleData.start_date = null
-        scheduleRuleData.end_date = null
-        scheduleRuleData.days_before = null
-        scheduleRuleData.days_during = null
-        scheduleRuleData.times_of_day = null
-        scheduleRuleData.timezone = null
+        // Don't set specific frequency fields
+        delete (scheduleRuleData as any).day_of_month
+        delete (scheduleRuleData as any).nth_week
+        delete (scheduleRuleData as any).weekday
+        delete (scheduleRuleData as any).start_date
+        delete (scheduleRuleData as any).end_date
+        delete (scheduleRuleData as any).days_before
+        delete (scheduleRuleData as any).days_during
+        delete (scheduleRuleData as any).times_of_day
+        delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'monthly') {
         // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as single value
         if (scheduleData.daysOfMonth.length > 0) {
           scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]
-          scheduleRuleData.nth_week = null
-          scheduleRuleData.weekday = null
+          delete (scheduleRuleData as any).nth_week
+          delete (scheduleRuleData as any).weekday
         } else if (scheduleData.nthWeek && scheduleData.weekday) {
           scheduleRuleData.nth_week = scheduleData.nthWeek
           scheduleRuleData.weekday = scheduleData.weekday
-          scheduleRuleData.day_of_month = null
+          delete (scheduleRuleData as any).day_of_month
         }
         scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
-        // Clear unused fields
-        scheduleRuleData.days_of_week = null
-        scheduleRuleData.start_date = null
-        scheduleRuleData.end_date = null
-        scheduleRuleData.days_before = null
-        scheduleRuleData.days_during = null
-        scheduleRuleData.times_of_day = null
-        scheduleRuleData.timezone = null
+        // Don't set specific frequency fields
+        delete (scheduleRuleData as any).days_of_week
+        delete (scheduleRuleData as any).start_date
+        delete (scheduleRuleData as any).end_date
+        delete (scheduleRuleData as any).days_before
+        delete (scheduleRuleData as any).days_during
+        delete (scheduleRuleData as any).times_of_day
+        delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'specific') {
         // Specific: start_date, end_date, days_before, days_during, times_of_day, timezone
         // Store dates as timestamptz (convert date string to timestamp at start of day in timezone)
