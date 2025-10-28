@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
+import { normalizeHashtags } from '@/lib/utils/hashtags';
 
 export default function NewPostPage() {
   const params = useParams();
@@ -171,10 +172,9 @@ export default function NewPostPage() {
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
       e.preventDefault();
-      const tag = newHashtag.trim().startsWith('#') ? newHashtag.trim() : `#${newHashtag.trim()}`;
-      if (!hashtags.includes(tag)) {
-        setHashtags([...hashtags, tag]);
-      }
+      // Normalize the new hashtag and add it to the array, then re-normalize the entire array
+      const newTags = [...hashtags, newHashtag.trim()];
+      setHashtags(normalizeHashtags(newTags));
       setNewHashtag('');
     } else if (e.key === 'Backspace' && !newHashtag && hashtags.length > 0) {
       setHashtags(hashtags.slice(0, -1));
@@ -244,11 +244,14 @@ export default function NewPostPage() {
       // Combine date and time into a single timestamp
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
       
+      // Normalize hashtags before saving
+      const normalizedHashtags = normalizeHashtags(hashtags);
+      
       // Call the RPC function to create a single post with multiple channels
       const { data, error } = await supabase.rpc('rpc_create_single_manual_post', {
         p_brand_id: brandId,
         p_copy: postCopy.trim(),
-        p_hashtags: hashtags,
+        p_hashtags: normalizedHashtags,
         p_asset_ids: selectedAssetIds,
         p_channels: selectedChannels,
         p_scheduled_at: scheduledAt.toISOString(),

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { normalizeHashtags } from '@/lib/utils/hashtags';
 
 interface ScheduledPost {
   id: string;
@@ -65,8 +66,14 @@ export function useScheduled(brandId: string) {
 
         if (error) throw error;
 
-        // Now fetch assets for each scheduled post that has asset_ids
+        // Now fetch assets for each scheduled post that has asset_ids, and normalize hashtags
         const scheduledWithAssets = await Promise.all((data || []).map(async (draft) => {
+          // Normalize hashtags
+          const normalizedDraft = {
+            ...draft,
+            hashtags: normalizeHashtags(draft.hashtags || [])
+          };
+          
           if (draft.asset_ids && draft.asset_ids.length > 0 && supabase) {
             const { data: assetsData, error: assetsError } = await supabase
               .from('assets')
@@ -75,12 +82,12 @@ export function useScheduled(brandId: string) {
             
             if (assetsError) {
               console.error('Error fetching assets for scheduled post:', draft.id, assetsError);
-              return { ...draft, assets: [] };
+              return { ...normalizedDraft, assets: [] };
             }
             
-            return { ...draft, assets: assetsData || [] };
+            return { ...normalizedDraft, assets: assetsData || [] };
           }
-          return { ...draft, assets: [] };
+          return { ...normalizedDraft, assets: [] };
         }));
 
         setScheduled(scheduledWithAssets);
@@ -117,8 +124,14 @@ export function useScheduled(brandId: string) {
 
         if (error) throw error;
 
-        // Now fetch assets for each scheduled post that has asset_ids
+        // Now fetch assets for each scheduled post that has asset_ids, and normalize hashtags
         const scheduledWithAssets = await Promise.all((data || []).map(async (draft) => {
+          // Normalize hashtags
+          const normalizedDraft = {
+            ...draft,
+            hashtags: normalizeHashtags(draft.hashtags || [])
+          };
+          
           if (draft.asset_ids && draft.asset_ids.length > 0 && supabase) {
             const { data: assetsData, error: assetsError } = await supabase
               .from('assets')
@@ -127,12 +140,12 @@ export function useScheduled(brandId: string) {
             
             if (assetsError) {
               console.error('Error fetching assets for scheduled post:', draft.id, assetsError);
-              return { ...draft, assets: [] };
+              return { ...normalizedDraft, assets: [] };
             }
             
-            return { ...draft, assets: assetsData || [] };
+            return { ...normalizedDraft, assets: assetsData || [] };
           }
-          return { ...draft, assets: [] };
+          return { ...normalizedDraft, assets: [] };
         }));
 
         setScheduled(scheduledWithAssets);

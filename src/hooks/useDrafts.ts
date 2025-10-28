@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase-browser';
+import { normalizeHashtags } from '@/lib/utils/hashtags';
 
 interface Draft {
   id: string;
@@ -89,8 +90,14 @@ export function useDrafts(brandId: string, statusFilter?: string) {
           throw error;
         }
 
-        // Now fetch assets for each draft that has asset_ids
+        // Now fetch assets for each draft that has asset_ids, and normalize hashtags
         const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
+          // Normalize hashtags
+          const normalizedDraft = {
+            ...draft,
+            hashtags: normalizeHashtags(draft.hashtags || [])
+          };
+          
           if (draft.asset_ids && draft.asset_ids.length > 0) {
             const { data: assetsData, error: assetsError } = await supabase
               .from('assets')
@@ -99,12 +106,12 @@ export function useDrafts(brandId: string, statusFilter?: string) {
             
             if (assetsError) {
               console.error('Error fetching assets for draft:', draft.id, assetsError);
-              return { ...draft, assets: [] };
+              return { ...normalizedDraft, assets: [] };
             }
             
-            return { ...draft, assets: assetsData || [] };
+            return { ...normalizedDraft, assets: assetsData || [] };
           }
-          return { ...draft, assets: [] };
+          return { ...normalizedDraft, assets: [] };
         }));
 
         setDrafts(draftsWithAssets);

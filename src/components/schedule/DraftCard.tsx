@@ -264,16 +264,18 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
             <p className="text-gray-900 mb-3">{draft.copy}</p>
             
             {/* Hashtags */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {draft.hashtags.map((hashtag, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                >
-                  {hashtag}
-                </span>
-              ))}
-            </div>
+            {draft.hashtags && draft.hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {draft.hashtags.map((hashtag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2.5 py-1 bg-[#EEF2FF] text-[#6366F1] text-xs font-medium rounded-full"
+                  >
+                    {hashtag.startsWith('#') ? hashtag : `#${hashtag}`}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-between">

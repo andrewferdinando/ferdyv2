@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase-browser'
 import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
+import { normalizeHashtags } from '@/lib/utils/hashtags'
 
 interface SubcategoryData {
   name: string
@@ -177,13 +178,13 @@ export function SubcategoryScheduleForm({
   // Hashtag management
   const addHashtag = () => {
     if (hashtagInput.trim()) {
-      const tag = hashtagInput.trim().replace(/^#/, '')
-      if (!subcategoryData.hashtags.includes(tag)) {
-        setSubcategoryData(prev => ({
-          ...prev,
-          hashtags: [...prev.hashtags, tag]
-        }))
-      }
+      // Normalize hashtags when adding
+      const newTags = [...subcategoryData.hashtags, hashtagInput.trim()];
+      const normalized = normalizeHashtags(newTags);
+      setSubcategoryData(prev => ({
+        ...prev,
+        hashtags: normalized
+      }))
       setHashtagInput('')
     }
   }
@@ -220,11 +221,17 @@ export function SubcategoryScheduleForm({
       let subcategoryId: string
 
       if (editingSubcategory) {
+        // Normalize hashtags before saving
+        const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
+        
         // Update existing subcategory
         const { data, error } = await supabase
           .from('subcategories')
           .update({
-            name: subcategoryData.name
+            name: subcategoryData.name,
+            detail: subcategoryData.detail || null,
+            url: subcategoryData.url || null,
+            default_hashtags: normalizedHashtags
           })
           .eq('id', editingSubcategory.id)
           .select()
@@ -236,13 +243,19 @@ export function SubcategoryScheduleForm({
         }
         subcategoryId = data.id
       } else {
+        // Normalize hashtags before saving
+        const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
+        
         // Create new subcategory
         const { data, error } = await supabase
           .from('subcategories')
           .insert({
             brand_id: brandId,
             category_id: categoryId,
-            name: subcategoryData.name
+            name: subcategoryData.name,
+            detail: subcategoryData.detail || null,
+            url: subcategoryData.url || null,
+            default_hashtags: normalizedHashtags
           })
           .select()
           .single()

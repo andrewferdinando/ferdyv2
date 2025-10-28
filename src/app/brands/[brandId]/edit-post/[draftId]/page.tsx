@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useAssets } from '@/hooks/useAssets';
 import { supabase } from '@/lib/supabase-browser';
+import { normalizeHashtags } from '@/lib/utils/hashtags';
 
 console.log('Edit Post page component loaded');
 
@@ -120,7 +121,8 @@ export default function EditPostPage() {
           channel: data.channel
         });
         setPostCopy(data.copy || '');
-        setHashtags(data.hashtags || []);
+        // Normalize hashtags when loading from database
+        setHashtags(normalizeHashtags(data.hashtags || []));
         
         // Handle comma-separated channels
         if (data.channel) {
@@ -199,10 +201,9 @@ export default function EditPostPage() {
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
       e.preventDefault();
-      const tag = newHashtag.trim().startsWith('#') ? newHashtag.trim() : `#${newHashtag.trim()}`;
-      if (!hashtags.includes(tag)) {
-        setHashtags([...hashtags, tag]);
-      }
+      // Normalize the new hashtag and add it to the array, then re-normalize the entire array
+      const newTags = [...hashtags, newHashtag.trim()];
+      setHashtags(normalizeHashtags(newTags));
       setNewHashtag('');
     } else if (e.key === 'Backspace' && !newHashtag && hashtags.length > 0) {
       setHashtags(hashtags.slice(0, -1));
@@ -264,12 +265,15 @@ export default function EditPostPage() {
       // Combine date and time into a single timestamp
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
       
+      // Normalize hashtags before saving
+      const normalizedHashtags = normalizeHashtags(hashtags);
+      
       // Update the draft with new scheduling fields
       const { data, error } = await supabase
         .from('drafts')
         .update({
           copy: postCopy.trim(),
-          hashtags: hashtags,
+          hashtags: normalizedHashtags,
           asset_ids: draft?.asset_ids || [],
           channel: selectedChannels.join(','), // Store as comma-separated string
           scheduled_for: scheduledAt.toISOString(), // UTC timestamp
@@ -342,11 +346,14 @@ export default function EditPostPage() {
       // First save the draft with current changes
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
       
+      // Normalize hashtags before saving
+      const normalizedHashtags = normalizeHashtags(hashtags);
+      
       const { data, error } = await supabase
         .from('drafts')
         .update({
           copy: postCopy.trim(),
-          hashtags: hashtags,
+          hashtags: normalizedHashtags,
           asset_ids: draft?.asset_ids || [],
           channel: selectedChannels.join(','),
           approved: true, // Mark as approved

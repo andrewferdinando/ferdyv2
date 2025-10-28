@@ -10,7 +10,7 @@ export interface Subcategory {
   name: string
   detail?: string
   url?: string
-  hashtags: string[]
+  hashtags: string[] // Maps to default_hashtags in database
   created_at: string
   updated_at: string
 }
@@ -44,7 +44,13 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
           return
         }
 
-        setSubcategories(data || [])
+        // Map default_hashtags to hashtags for consistency
+        const mappedData = (data || []).map((item: any) => ({
+          ...item,
+          hashtags: item.default_hashtags || []
+        }))
+
+        setSubcategories(mappedData)
       } catch (err) {
         setError('Failed to fetch subcategories')
         console.error('Error fetching subcategories:', err)
