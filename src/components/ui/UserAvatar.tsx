@@ -21,7 +21,25 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // Try to get user from auth.users table first
+        // First try to get user from user_profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name, profile_image_url')
+          .eq('id', userId)
+          .single();
+
+        if (!profileError && profileData) {
+          setUser({
+            id: profileData.id,
+            email: profileData.email,
+            full_name: profileData.full_name,
+            avatar_url: profileData.profile_image_url
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Fallback to auth.users table if not found in user_profiles
         const { data: authUser, error: authError } = await supabase.auth.getUser();
         
         if (authError || !authUser.user) {
@@ -42,8 +60,7 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
           return;
         }
 
-        // For other users, we might need to fetch from a profiles table
-        // For now, we'll create a basic user object
+        // For other users, create a basic user object
         setUser({
           id: userId,
           email: 'user@example.com', // Placeholder
@@ -84,9 +101,14 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
         .map(name => name.charAt(0))
         .join('')
         .toUpperCase()
-        .slice(0, 2);
+        .slice(0, 2); // Take up to 2 initials
     }
     if (user.email) {
+      // For email, take first letter and first letter after @ or dot
+      const emailParts = user.email.split('@')[0].split('.');
+      if (emailParts.length >= 2) {
+        return (emailParts[0].charAt(0) + emailParts[1].charAt(0)).toUpperCase();
+      }
       return user.email.charAt(0).toUpperCase();
     }
     return 'U';
