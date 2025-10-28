@@ -48,7 +48,7 @@ export default function CategoriesPage() {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[]} | null>(null)
   
-  const { categories, loading, createCategory, refetch } = useCategories()
+  const { categories, loading, createCategory, refetch } = useCategories(brandId)
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
 
@@ -63,9 +63,14 @@ export default function CategoriesPage() {
       return
     }
 
+    if (!brandId) {
+      alert('Brand ID is missing')
+      return
+    }
+
     setIsCreatingCategory(true)
     try {
-      await createCategory(categoryName.trim())
+      await createCategory(categoryName.trim(), brandId)
       setCategoryName('')
       setIsCategoryModalOpen(false)
       // Categories will be automatically updated via local state in createCategory

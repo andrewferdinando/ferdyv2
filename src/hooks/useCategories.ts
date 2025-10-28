@@ -5,25 +5,33 @@ import { supabase } from '@/lib/supabase-browser'
 
 export interface Category {
   id: string
+  brand_id: string
   name: string
   created_at: string
 }
 
-export function useCategories() {
+export function useCategories(brandId: string) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!brandId) {
+      setCategories([])
+      setLoading(false)
+      return
+    }
+
     const fetchCategories = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        // Fetch global categories (not brand-specific)
+        // Fetch brand-specific categories
         const { data, error } = await supabase
           .from('categories')
-          .select('id, name, created_at')
+          .select('id, brand_id, name, created_at')
+          .eq('brand_id', brandId)
           .order('name', { ascending: true })
 
         if (error) {
@@ -41,9 +49,9 @@ export function useCategories() {
     }
 
     fetchCategories()
-  }, []) // Remove brandId dependency since categories are global
+  }, [brandId])
 
-  const createCategory = async (name: string) => {
+  const createCategory = async (name: string, brandId: string) => {
     try {
       setError(null)
 
@@ -51,10 +59,15 @@ export function useCategories() {
         throw new Error('Category name is required')
       }
 
+      if (!brandId) {
+        throw new Error('Brand ID is required')
+      }
+
       const { data, error } = await supabase
         .from('categories')
         .insert({
-          name: name.trim()
+          name: name.trim(),
+          brand_id: brandId
         })
         .select()
         .single()
@@ -75,13 +88,19 @@ export function useCategories() {
   }
 
   const refetch = async () => {
+    if (!brandId) {
+      setCategories([])
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
 
       const { data, error } = await supabase
         .from('categories')
-        .select('id, name, created_at')
+        .select('id, brand_id, name, created_at')
+        .eq('brand_id', brandId)
         .order('name', { ascending: true })
 
       if (error) {
