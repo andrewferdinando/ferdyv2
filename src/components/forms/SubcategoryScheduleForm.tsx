@@ -428,17 +428,23 @@ export function SubcategoryScheduleForm({
         .eq('is_active', true)
         .limit(1)
 
+      // Prepare base schedule rule data
+      const baseRuleData = {
+        brand_id: brandId,
+        subcategory_id: subcategoryId,
+        category_id: categoryId || null,
+        name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
+        frequency: scheduleData.frequency,
+        channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+        is_active: true,
+        tone: null,
+        hashtag_rule: null,
+        image_tag_rule: null
+      }
+
       // Prepare schedule rule data based on frequency type
-      const scheduleRuleData: {
-        brand_id: string
-        subcategory_id: string
-        category_id?: string | null
-        name: string
-        frequency: string
-        channels?: string[] | null
-        timezone?: string | null
-        is_active: boolean
-        time_of_day?: string | string[] | null  // Single time for daily/weekly/monthly, array for specific
+      let scheduleRuleData: typeof baseRuleData & {
+        time_of_day?: string[] | null
         days_of_week?: number[] | null
         day_of_month?: number | null
         nth_week?: number | null
@@ -447,10 +453,7 @@ export function SubcategoryScheduleForm({
         end_date?: string | null
         days_before?: number[] | null
         days_during?: number[] | null
-        // Clear fields not used by current frequency
-        tone?: string | null
-        hashtag_rule?: Record<string, unknown> | null
-        image_tag_rule?: Record<string, unknown> | null
+        timezone?: string | null
       } = {
         brand_id: brandId,
         subcategory_id: subcategoryId,
@@ -460,9 +463,7 @@ export function SubcategoryScheduleForm({
         channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
         is_active: true,
         // Default tone and rules - can be enhanced later
-        tone: null,
-        hashtag_rule: null,
-        image_tag_rule: null
+        ...baseRuleData
       }
 
       // Add fields based on frequency type
@@ -471,18 +472,9 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.time_of_day = scheduleData.timeOfDay 
           ? [scheduleData.timeOfDay] 
           : null
-        // Don't set specific frequency fields (they may not exist in schema yet)
-        delete (scheduleRuleData as any).days_of_week
-        delete (scheduleRuleData as any).day_of_month
-        delete (scheduleRuleData as any).nth_week
-        delete (scheduleRuleData as any).weekday
-        delete (scheduleRuleData as any).start_date
-        delete (scheduleRuleData as any).end_date
-        delete (scheduleRuleData as any).days_before
-        delete (scheduleRuleData as any).days_during
-        delete (scheduleRuleData as any).timezone
+        // Explicitly don't set other fields (optional fields will be undefined/null)
       } else if (scheduleData.frequency === 'weekly') {
-        // Weekly: days_of_week and time_of_day as single time value
+        // Weekly: days_of_week and time_of_day as array (single element)
         scheduleRuleData.days_of_week = scheduleData.daysOfWeek.length > 0 
           ? scheduleData.daysOfWeek.map(d => {
               const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
@@ -492,36 +484,17 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.time_of_day = scheduleData.timeOfDay 
           ? [scheduleData.timeOfDay] 
           : null
-        // Don't set specific frequency fields
-        delete (scheduleRuleData as any).day_of_month
-        delete (scheduleRuleData as any).nth_week
-        delete (scheduleRuleData as any).weekday
-        delete (scheduleRuleData as any).start_date
-        delete (scheduleRuleData as any).end_date
-        delete (scheduleRuleData as any).days_before
-        delete (scheduleRuleData as any).days_during
-        delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'monthly') {
         // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as array (single element)
         if (scheduleData.daysOfMonth.length > 0) {
           scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]
-          delete (scheduleRuleData as any).nth_week
-          delete (scheduleRuleData as any).weekday
         } else if (scheduleData.nthWeek && scheduleData.weekday) {
           scheduleRuleData.nth_week = scheduleData.nthWeek
           scheduleRuleData.weekday = scheduleData.weekday
-          delete (scheduleRuleData as any).day_of_month
         }
         scheduleRuleData.time_of_day = scheduleData.timeOfDay 
           ? [scheduleData.timeOfDay] 
           : null
-        // Don't set specific frequency fields
-        delete (scheduleRuleData as any).days_of_week
-        delete (scheduleRuleData as any).start_date
-        delete (scheduleRuleData as any).end_date
-        delete (scheduleRuleData as any).days_before
-        delete (scheduleRuleData as any).days_during
-        delete (scheduleRuleData as any).timezone
       } else if (scheduleData.frequency === 'specific') {
         // Specific: start_date, end_date, days_before, days_during, time_of_day (array), timezone
         // Store dates as timestamptz (convert date string to timestamp at start of day in timezone)
@@ -551,11 +524,14 @@ export function SubcategoryScheduleForm({
           ? scheduleData.timesOfDay 
           : null
         scheduleRuleData.timezone = scheduleData.timezone || null
-        // Clear unused fields
-        delete (scheduleRuleData as any).days_of_week
-        delete (scheduleRuleData as any).day_of_month
-        delete (scheduleRuleData as any).nth_week
-        delete (scheduleRuleData as any).weekday
+      }
+      
+      // Clean up undefined fields to avoid sending them to Supabase
+      const cleanRuleData: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(scheduleRuleData)) {
+        if (value !== undefined) {
+          cleanRuleData[key] = value
+        }
       }
 
       // Upsert schedule rule - update if exists, insert if not
@@ -564,7 +540,7 @@ export function SubcategoryScheduleForm({
           // Update existing rule
           const { error } = await supabase
             .from('schedule_rules')
-            .update(scheduleRuleData)
+            .update(cleanRuleData)
             .eq('id', existingRules[0].id)
 
           if (error) {
@@ -575,7 +551,7 @@ export function SubcategoryScheduleForm({
           // Create new rule
           const { error } = await supabase
             .from('schedule_rules')
-            .insert(scheduleRuleData)
+            .insert(cleanRuleData)
 
           if (error) {
             console.error('Schedule rule insert error:', error)
