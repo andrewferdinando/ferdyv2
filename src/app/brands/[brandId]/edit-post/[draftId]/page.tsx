@@ -273,7 +273,7 @@ export default function EditPostPage() {
           asset_ids: draft?.asset_ids || [],
           channel: selectedChannels.join(','), // Store as comma-separated string
           scheduled_for: scheduledAt.toISOString(), // UTC timestamp
-          scheduled_for_nzt: scheduledAt.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }), // NZT timestamp
+          scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
           schedule_source: 'manual',
           scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
         })
@@ -351,7 +351,7 @@ export default function EditPostPage() {
           channel: selectedChannels.join(','),
           approved: true, // Mark as approved
           scheduled_for: scheduledAt.toISOString(), // UTC timestamp
-          scheduled_for_nzt: scheduledAt.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }), // NZT timestamp
+          scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
           schedule_source: 'manual',
           scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
         })
