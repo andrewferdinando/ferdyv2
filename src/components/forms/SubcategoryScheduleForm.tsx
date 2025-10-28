@@ -189,10 +189,18 @@ export function SubcategoryScheduleForm({
         daysDuring?: number[]
         timezone?: string
       }
+      
+      // Extract timeOfDay from timesOfDay array if present, otherwise use timeOfDay directly
+      const firstTime = editingRule.timesOfDay && editingRule.timesOfDay.length > 0 
+        ? editingRule.timesOfDay[0] 
+        : editingRule.timeOfDay || ''
+      
       setScheduleData({
         frequency: freq,
-        timeOfDay: editingRule.timeOfDay || '',
-        timesOfDay: editingRule.timesOfDay || [],
+        timeOfDay: firstTime,
+        timesOfDay: editingRule.timesOfDay && editingRule.timesOfDay.length > 0 
+          ? editingRule.timesOfDay 
+          : (firstTime ? [firstTime] : []),
         daysOfWeek: editingRule.daysOfWeek || [],
         daysOfMonth: editingRule.daysOfMonth || [],
         nthWeek: editingRule.nthWeek,
@@ -410,62 +418,131 @@ export function SubcategoryScheduleForm({
         subcategoryId = data.id
       }
 
-      // Save schedule rule
+      // Upsert schedule rule - one active rule per subcategory
+      // First, check if a rule already exists for this subcategory
+      const { data: existingRules } = await supabase
+        .from('schedule_rules')
+        .select('id')
+        .eq('brand_id', brandId)
+        .eq('subcategory_id', subcategoryId)
+        .eq('is_active', true)
+        .limit(1)
+
+      // Prepare schedule rule data based on frequency type
       const scheduleRuleData: {
         brand_id: string
         subcategory_id: string
+        category_id?: string | null
         name: string
         frequency: string
         channels?: string[] | null
         timezone?: string | null
-        time_of_day?: string
-        days_of_week?: number[]
-        day_of_month?: number
-        nth_week?: number
-        weekday?: number
+        is_active: boolean
+        time_of_day?: string[] | null  // Array for all frequencies
+        days_of_week?: number[] | null
+        day_of_month?: number | null
+        nth_week?: number | null
+        weekday?: number | null
         start_date?: string | null
         end_date?: string | null
         days_before?: number[] | null
         days_during?: number[] | null
-        times_of_day?: string[] | null
+        times_of_day?: string[] | null  // For specific frequency
+        // Clear fields not used by current frequency
+        tone?: string | null
+        hashtag_rule?: Record<string, unknown> | null
+        image_tag_rule?: Record<string, unknown> | null
       } = {
         brand_id: brandId,
         subcategory_id: subcategoryId,
+        category_id: categoryId || null,
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
         frequency: scheduleData.frequency,
-        // Use channels from subcategory if schedule rule channels are empty, otherwise use schedule rule channels
-        channels: scheduleData.channels.length > 0 ? scheduleData.channels : (subcategoryData.channels.length > 0 ? subcategoryData.channels : null),
-        timezone: scheduleData.frequency === 'specific' ? scheduleData.timezone : null
+        channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+        is_active: true,
+        // Default tone and rules - can be enhanced later
+        tone: null,
+        hashtag_rule: null,
+        image_tag_rule: null
       }
 
       // Add fields based on frequency type
       if (scheduleData.frequency === 'daily') {
-        scheduleRuleData.time_of_day = scheduleData.timeOfDay
+        // Daily: time_of_day as array (wrap single value)
+        const times = scheduleData.timeOfDay ? [scheduleData.timeOfDay] : []
+        scheduleRuleData.time_of_day = times.length > 0 ? times : null
+        // Clear unused fields
+        scheduleRuleData.days_of_week = null
+        scheduleRuleData.day_of_month = null
+        scheduleRuleData.nth_week = null
+        scheduleRuleData.weekday = null
+        scheduleRuleData.start_date = null
+        scheduleRuleData.end_date = null
+        scheduleRuleData.days_before = null
+        scheduleRuleData.days_during = null
+        scheduleRuleData.times_of_day = null
+        scheduleRuleData.timezone = null
       } else if (scheduleData.frequency === 'weekly') {
-        scheduleRuleData.days_of_week = scheduleData.daysOfWeek.map(d => {
-          const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
-          return dayMap[d] || 0
-        }).filter(d => d > 0)
-        scheduleRuleData.time_of_day = scheduleData.timeOfDay
+        // Weekly: days_of_week and time_of_day as array
+        scheduleRuleData.days_of_week = scheduleData.daysOfWeek.length > 0 
+          ? scheduleData.daysOfWeek.map(d => {
+              const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
+              return dayMap[d] || 0
+            }).filter(d => d > 0)
+          : null
+        const times = scheduleData.timeOfDay ? [scheduleData.timeOfDay] : []
+        scheduleRuleData.time_of_day = times.length > 0 ? times : null
+        // Clear unused fields
+        scheduleRuleData.day_of_month = null
+        scheduleRuleData.nth_week = null
+        scheduleRuleData.weekday = null
+        scheduleRuleData.start_date = null
+        scheduleRuleData.end_date = null
+        scheduleRuleData.days_before = null
+        scheduleRuleData.days_during = null
+        scheduleRuleData.times_of_day = null
+        scheduleRuleData.timezone = null
       } else if (scheduleData.frequency === 'monthly') {
+        // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day
         if (scheduleData.daysOfMonth.length > 0) {
-          scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]  // Simplified - use first day
-        }
-        if (scheduleData.nthWeek && scheduleData.weekday) {
+          scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]
+          scheduleRuleData.nth_week = null
+          scheduleRuleData.weekday = null
+        } else if (scheduleData.nthWeek && scheduleData.weekday) {
           scheduleRuleData.nth_week = scheduleData.nthWeek
           scheduleRuleData.weekday = scheduleData.weekday
+          scheduleRuleData.day_of_month = null
         }
-        scheduleRuleData.time_of_day = scheduleData.timeOfDay
+        const times = scheduleData.timeOfDay ? [scheduleData.timeOfDay] : []
+        scheduleRuleData.time_of_day = times.length > 0 ? times : null
+        // Clear unused fields
+        scheduleRuleData.days_of_week = null
+        scheduleRuleData.start_date = null
+        scheduleRuleData.end_date = null
+        scheduleRuleData.days_before = null
+        scheduleRuleData.days_during = null
+        scheduleRuleData.times_of_day = null
+        scheduleRuleData.timezone = null
       } else if (scheduleData.frequency === 'specific') {
-        // Convert dates to timestamptz (start of day in the specified timezone)
-        // For now, we'll store dates as timestamptz at midnight in the timezone
-        // The generation logic will handle timezone conversion properly
-        scheduleRuleData.start_date = scheduleData.startDate ? `${scheduleData.startDate}T00:00:00` : null
-        scheduleRuleData.end_date = scheduleData.isDateRange && scheduleData.endDate 
-          ? `${scheduleData.endDate}T23:59:59`
-          : scheduleData.startDate 
-          ? `${scheduleData.startDate}T23:59:59` 
-          : null
+        // Specific: start_date, end_date, days_before, days_during, times_of_day, timezone
+        // Store dates as timestamptz (convert date string to timestamp at start of day in timezone)
+        if (scheduleData.startDate) {
+          // Create date at start of day in the specified timezone, then convert to UTC timestamptz
+          const startDateStr = `${scheduleData.startDate}T00:00:00`
+          scheduleRuleData.start_date = startDateStr
+          
+          if (scheduleData.isDateRange && scheduleData.endDate) {
+            // End date at end of day
+            const endDateStr = `${scheduleData.endDate}T23:59:59`
+            scheduleRuleData.end_date = endDateStr
+          } else {
+            // Single date: end_date = start_date (at end of day)
+            scheduleRuleData.end_date = `${scheduleData.startDate}T23:59:59`
+          }
+        } else {
+          scheduleRuleData.start_date = null
+          scheduleRuleData.end_date = null
+        }
         scheduleRuleData.days_before = scheduleData.daysBefore.length > 0 ? scheduleData.daysBefore : null
         scheduleRuleData.days_during = scheduleData.isDateRange && scheduleData.daysDuring.length > 0 
           ? scheduleData.daysDuring 
@@ -473,32 +550,42 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.times_of_day = scheduleData.timesOfDay.length > 0 
           ? scheduleData.timesOfDay 
           : null
+        scheduleRuleData.timezone = scheduleData.timezone || null
+        // Clear unused fields
+        scheduleRuleData.days_of_week = null
+        scheduleRuleData.day_of_month = null
+        scheduleRuleData.nth_week = null
+        scheduleRuleData.weekday = null
+        scheduleRuleData.time_of_day = null
       }
 
-      // Try to save schedule rule, but don't fail if table doesn't exist
+      // Upsert schedule rule - update if exists, insert if not
       try {
-        if (editingScheduleRule) {
-          // Update existing schedule rule
+        if (existingRules && existingRules.length > 0) {
+          // Update existing rule
           const { error } = await supabase
             .from('schedule_rules')
             .update(scheduleRuleData)
-            .eq('id', editingScheduleRule.id)
+            .eq('id', existingRules[0].id)
 
           if (error) {
-            console.warn('Schedule rule update failed (table may not exist):', error)
+            console.error('Schedule rule update error:', error)
+            throw new Error(`Failed to update schedule rule: ${error.message}`)
           }
         } else {
-          // Create new schedule rule
+          // Create new rule
           const { error } = await supabase
             .from('schedule_rules')
             .insert(scheduleRuleData)
 
           if (error) {
-            console.warn('Schedule rule insert failed (table may not exist):', error)
+            console.error('Schedule rule insert error:', error)
+            throw new Error(`Failed to create schedule rule: ${error.message}`)
           }
         }
       } catch (scheduleError) {
-        console.warn('Schedule rule save failed (table may not exist):', scheduleError)
+        console.error('Schedule rule save failed:', scheduleError)
+        throw scheduleError  // Re-throw to trigger form error handling
       }
 
       console.log('Successfully saved subcategory and schedule rule')

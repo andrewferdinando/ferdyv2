@@ -125,6 +125,19 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
 
   const deleteSubcategory = async (id: string) => {
     try {
+      // Soft-disable associated schedule_rules first (set is_active = false)
+      const { error: scheduleRuleError } = await supabase
+        .from('schedule_rules')
+        .update({ is_active: false })
+        .eq('subcategory_id', id)
+        .eq('is_active', true)
+
+      if (scheduleRuleError) {
+        console.warn('Failed to soft-disable schedule rules:', scheduleRuleError)
+        // Continue with subcategory deletion even if schedule rule update fails
+      }
+
+      // Delete the subcategory
       const { error } = await supabase
         .from('subcategories')
         .delete()

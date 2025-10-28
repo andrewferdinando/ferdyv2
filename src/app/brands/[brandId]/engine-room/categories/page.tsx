@@ -11,6 +11,7 @@ import { useUserRole } from '@/hooks/useUserRole'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
 import Modal from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
+import { supabase } from '@/lib/supabase-browser'
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -47,6 +48,23 @@ export default function CategoriesPage() {
   const [categoryName, setCategoryName] = useState('')
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[], channels?: string[]} | null>(null)
+  const [editingScheduleRule, setEditingScheduleRule] = useState<{
+    id: string
+    frequency: string
+    timeOfDay?: string
+    timesOfDay?: string[]
+    daysOfWeek?: string[]
+    daysOfMonth?: number[]
+    nthWeek?: number
+    weekday?: number
+    channels?: string[]
+    isDateRange?: boolean
+    startDate?: string
+    endDate?: string
+    daysBefore?: number[]
+    daysDuring?: number[]
+    timezone?: string
+  } | null>(null)
   
   const { categories, loading, createCategory, refetch } = useCategories(brandId)
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
@@ -181,6 +199,7 @@ export default function CategoriesPage() {
                       <button 
                         onClick={() => {
                           setEditingSubcategory(null)
+                          setEditingScheduleRule(null)
                           setIsSubcategoryModalOpen(true)
                         }}
                         className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
@@ -213,7 +232,7 @@ export default function CategoriesPage() {
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <div className="flex space-x-2">
                                       <button 
-                                        onClick={() => {
+                                        onClick={async () => {
                                           setEditingSubcategory({
                                             id: subcategory.id,
                                             name: subcategory.name,
@@ -222,6 +241,50 @@ export default function CategoriesPage() {
                                             hashtags: subcategory.hashtags,
                                             channels: subcategory.channels
                                           })
+                                          
+                                          // Fetch associated schedule rule
+                                          const { data: scheduleRule } = await supabase
+                                            .from('schedule_rules')
+                                            .select('*')
+                                            .eq('brand_id', brandId)
+                                            .eq('subcategory_id', subcategory.id)
+                                            .eq('is_active', true)
+                                            .single()
+                                          
+                                          if (scheduleRule) {
+                                            // Map database fields to form format
+                                            const mappedRule = {
+                                              id: scheduleRule.id,
+                                              frequency: scheduleRule.frequency,
+                                              timeOfDay: Array.isArray(scheduleRule.time_of_day) && scheduleRule.time_of_day.length > 0
+                                                ? scheduleRule.time_of_day[0]
+                                                : typeof scheduleRule.time_of_day === 'string'
+                                                ? scheduleRule.time_of_day
+                                                : '',
+                                              timesOfDay: scheduleRule.times_of_day || (scheduleRule.time_of_day ? (Array.isArray(scheduleRule.time_of_day) ? scheduleRule.time_of_day : [scheduleRule.time_of_day]) : []),
+                                              daysOfWeek: scheduleRule.days_of_week 
+                                                ? scheduleRule.days_of_week.map((d: number) => {
+                                                    const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
+                                                    return dayMap[d] || ''
+                                                  }).filter(Boolean)
+                                                : [],
+                                              daysOfMonth: scheduleRule.day_of_month ? [scheduleRule.day_of_month] : [],
+                                              nthWeek: scheduleRule.nth_week,
+                                              weekday: scheduleRule.weekday,
+                                              channels: scheduleRule.channels || [],
+                                              // Specific date/range fields
+                                              isDateRange: scheduleRule.end_date && scheduleRule.end_date !== scheduleRule.start_date,
+                                              startDate: scheduleRule.start_date ? new Date(scheduleRule.start_date).toISOString().split('T')[0] : '',
+                                              endDate: scheduleRule.end_date ? new Date(scheduleRule.end_date).toISOString().split('T')[0] : '',
+                                              daysBefore: scheduleRule.days_before || [],
+                                              daysDuring: scheduleRule.days_during || [],
+                                              timezone: scheduleRule.timezone || 'Pacific/Auckland'
+                                            }
+                                            setEditingScheduleRule(mappedRule)
+                                          } else {
+                                            setEditingScheduleRule(null)
+                                          }
+                                          
                                           setIsSubcategoryModalOpen(true)
                                         }}
                                         className="text-gray-400 hover:text-gray-600"
@@ -267,10 +330,12 @@ export default function CategoriesPage() {
           onClose={() => {
             setIsSubcategoryModalOpen(false)
             setEditingSubcategory(null)
+            setEditingScheduleRule(null)
           }}
           brandId={brandId}
           categoryId={selectedCategory?.id}
           editingSubcategory={editingSubcategory || undefined}
+          editingScheduleRule={editingScheduleRule || undefined}
           onSuccess={() => {
             // Refresh subcategories after successful save
             window.location.reload()
