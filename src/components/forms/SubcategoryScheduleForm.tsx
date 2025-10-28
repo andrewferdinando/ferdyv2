@@ -502,20 +502,13 @@ export function SubcategoryScheduleForm({
           const validDays = scheduleData.daysOfMonth
             .filter(d => d >= 1 && d <= 31)
           scheduleRuleData.day_of_month = Array.from(new Set(validDays)).sort((a, b) => a - b)
-          // Clear nth_week and weekday when using day_of_month
-          delete (scheduleRuleData as any).nth_week
-          delete (scheduleRuleData as any).weekday
+          // Don't set nth_week and weekday when using day_of_month (they won't be included in cleanRuleData)
         } else if (scheduleData.nthWeek && scheduleData.weekday) {
           scheduleRuleData.nth_week = scheduleData.nthWeek
           scheduleRuleData.weekday = scheduleData.weekday
-          // Clear day_of_month when using nth_week + weekday
-          delete (scheduleRuleData as any).day_of_month
-        } else {
-          // No days selected - clear both options
-          delete (scheduleRuleData as any).day_of_month
-          delete (scheduleRuleData as any).nth_week
-          delete (scheduleRuleData as any).weekday
+          // Don't set day_of_month when using nth_week + weekday (it won't be included in cleanRuleData)
         }
+        // If neither option is selected, neither field will be set (they'll be undefined and filtered out)
         scheduleRuleData.time_of_day = scheduleData.timeOfDay 
           ? [scheduleData.timeOfDay] 
           : null
