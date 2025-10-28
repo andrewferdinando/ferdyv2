@@ -455,14 +455,6 @@ export function SubcategoryScheduleForm({
         days_during?: number[] | null
         timezone?: string | null
       } = {
-        brand_id: brandId,
-        subcategory_id: subcategoryId,
-        category_id: categoryId || null,
-        name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
-        frequency: scheduleData.frequency,
-        channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
-        is_active: true,
-        // Default tone and rules - can be enhanced later
         ...baseRuleData
       }
 
