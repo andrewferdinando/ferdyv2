@@ -11,6 +11,7 @@ export interface Subcategory {
   detail?: string
   url?: string
   hashtags: string[] // Maps to default_hashtags in database
+  channels?: string[] // Social media channels
   created_at: string
   updated_at: string
 }
@@ -44,7 +45,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
           return
         }
 
-        // Map default_hashtags to hashtags for consistency
+        // Map default_hashtags to hashtags and include channels
         const mappedData = (data || []).map((item: {
           id: string;
           brand_id: string;
@@ -53,11 +54,13 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
           detail?: string;
           url?: string;
           default_hashtags?: string[];
+          channels?: string[];
           created_at: string;
           updated_at: string;
         }) => ({
           ...item,
-          hashtags: item.default_hashtags || []
+          hashtags: item.default_hashtags || [],
+          channels: item.channels || []
         }))
 
         setSubcategories(mappedData)

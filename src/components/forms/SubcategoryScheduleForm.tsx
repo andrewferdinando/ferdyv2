@@ -12,6 +12,7 @@ interface SubcategoryData {
   detail?: string
   url?: string
   hashtags: string[]
+  channels: string[]
 }
 
 interface ScheduleRuleData {
@@ -43,6 +44,7 @@ interface SubcategoryScheduleFormProps {
     detail?: string
     url?: string
     hashtags: string[]
+    channels?: string[]
   }
   editingScheduleRule?: {
     id: string
@@ -107,7 +109,8 @@ export function SubcategoryScheduleForm({
     name: '',
     detail: '',
     url: '',
-    hashtags: []
+    hashtags: [],
+    channels: []
   })
 
   // Schedule rule state
@@ -145,14 +148,20 @@ export function SubcategoryScheduleForm({
         name: editingSubcategory.name,
         detail: editingSubcategory.detail || '',
         url: editingSubcategory.url || '',
-        hashtags: editingSubcategory.hashtags || []
+        hashtags: editingSubcategory.hashtags || [],
+        channels: editingSubcategory.channels || []
       })
+      // Prefill schedule rule channels from subcategory channels if schedule rule has no channels
+      if (editingSubcategory.channels && editingSubcategory.channels.length > 0 && (!scheduleData.channels || scheduleData.channels.length === 0)) {
+        setScheduleData(prev => ({ ...prev, channels: editingSubcategory.channels || [] }))
+      }
     } else {
       setSubcategoryData({
         name: '',
         detail: '',
         url: '',
-        hashtags: []
+        hashtags: [],
+        channels: []
       })
     }
 
@@ -265,6 +274,11 @@ export function SubcategoryScheduleForm({
       newErrors.subcategoryName = 'Name is required'
     }
 
+    // Validate channels - at least one channel is required
+    if (!subcategoryData.channels || subcategoryData.channels.length === 0) {
+      newErrors.channels = 'At least one channel is required'
+    }
+
     // Validate specific date/range fields
     if (scheduleData.frequency === 'specific') {
       if (!scheduleData.startDate) {
@@ -352,7 +366,8 @@ export function SubcategoryScheduleForm({
             name: subcategoryData.name,
             detail: subcategoryData.detail || null,
             url: subcategoryData.url || null,
-            default_hashtags: normalizedHashtags
+            default_hashtags: normalizedHashtags,
+            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
           })
           .eq('id', editingSubcategory.id)
           .select()
@@ -376,7 +391,8 @@ export function SubcategoryScheduleForm({
             name: subcategoryData.name,
             detail: subcategoryData.detail || null,
             url: subcategoryData.url || null,
-            default_hashtags: normalizedHashtags
+            default_hashtags: normalizedHashtags,
+            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
           })
           .select()
           .single()
@@ -411,7 +427,8 @@ export function SubcategoryScheduleForm({
         subcategory_id: subcategoryId,
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
         frequency: scheduleData.frequency,
-        channels: scheduleData.channels.length > 0 ? scheduleData.channels : null,
+        // Use channels from subcategory if schedule rule channels are empty, otherwise use schedule rule channels
+        channels: scheduleData.channels.length > 0 ? scheduleData.channels : (subcategoryData.channels.length > 0 ? subcategoryData.channels : null),
         timezone: scheduleData.frequency === 'specific' ? scheduleData.timezone : null
       }
 
@@ -492,6 +509,7 @@ export function SubcategoryScheduleForm({
   const isFormValid = useMemo(() => {
     // Check essential fields
     if (!subcategoryData.name.trim()) return false
+    if (!subcategoryData.channels || subcategoryData.channels.length === 0) return false
 
     // Check specific frequency requirements
     if (scheduleData.frequency === 'specific') {
@@ -538,6 +556,32 @@ export function SubcategoryScheduleForm({
                   placeholder="https://example.com (optional)"
                   error={errors.subcategoryUrl}
                 />
+              </FormField>
+
+              <FormField label="Channels" required>
+                <div className="flex flex-wrap gap-2">
+                  {CHANNELS.map((channel) => (
+                    <label key={channel.value} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={subcategoryData.channels.includes(channel.value)}
+                        onChange={(e) => {
+                          const newChannels = e.target.checked
+                            ? [...subcategoryData.channels, channel.value]
+                            : subcategoryData.channels.filter(c => c !== channel.value)
+                          setSubcategoryData(prev => ({ ...prev, channels: newChannels }))
+                          // Also update schedule rule channels if they're empty or match the old subcategory channels
+                          if (scheduleData.channels.length === 0 || scheduleData.channels.every(c => subcategoryData.channels.includes(c))) {
+                            setScheduleData(prev => ({ ...prev, channels: newChannels }))
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {channel.label}
+                    </label>
+                  ))}
+                </div>
+                {errors.channels && <p className="text-red-500 text-sm mt-1">{errors.channels}</p>}
               </FormField>
 
               <FormField label="Hashtags">
@@ -871,8 +915,8 @@ export function SubcategoryScheduleForm({
                 </div>
               )}
 
-              {/* Common Options */}
-              <FormField label="Channels">
+              {/* Common Options - Channels (inherited from subcategory, but can be overridden) */}
+              <FormField label="Channels" helperText="Inherited from subcategory above, but can be customized for this schedule rule">
                 <div className="flex flex-wrap gap-2">
                   {CHANNELS.map((channel) => (
                     <label key={channel.value} className="flex items-center">
@@ -891,6 +935,11 @@ export function SubcategoryScheduleForm({
                     </label>
                   ))}
                 </div>
+                {scheduleData.channels.length === 0 && subcategoryData.channels.length > 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Will use channels from subcategory: {subcategoryData.channels.join(', ')}
+                  </p>
+                )}
               </FormField>
 
             </div>

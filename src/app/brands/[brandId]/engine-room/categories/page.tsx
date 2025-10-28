@@ -46,7 +46,7 @@ export default function CategoriesPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [categoryName, setCategoryName] = useState('')
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
-  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[]} | null>(null)
+  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[], channels?: string[]} | null>(null)
   
   const { categories, loading, createCategory, refetch } = useCategories(brandId)
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
@@ -214,7 +214,14 @@ export default function CategoriesPage() {
                                     <div className="flex space-x-2">
                                       <button 
                                         onClick={() => {
-                                          setEditingSubcategory(subcategory)
+                                          setEditingSubcategory({
+                                            id: subcategory.id,
+                                            name: subcategory.name,
+                                            detail: subcategory.detail,
+                                            url: subcategory.url,
+                                            hashtags: subcategory.hashtags,
+                                            channels: subcategory.channels
+                                          })
                                           setIsSubcategoryModalOpen(true)
                                         }}
                                         className="text-gray-400 hover:text-gray-600"
