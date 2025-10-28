@@ -25,6 +25,11 @@ interface Draft {
   created_at: string;
   created_at_nzt: string;
   approved: boolean;
+  scheduled_for?: string; // UTC timestamp
+  scheduled_for_nzt?: string; // NZT timestamp
+  schedule_source?: 'manual' | 'auto';
+  scheduled_by?: string;
+  publish_status?: string;
   post_jobs?: {
     id: string;
     scheduled_at: string;
@@ -79,10 +84,10 @@ export default function EditPostPage() {
         console.log('Edit Post: Loading draft with ID:', draftId, 'Brand ID:', brandId);
         const { supabase } = await import('@/lib/supabase-browser');
         
-        // Fetch draft with all required fields
+        // Fetch draft with all required fields including new scheduling fields
         const { data, error } = await supabase
           .from('drafts')
-          .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt')
+          .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt, scheduled_for, scheduled_for_nzt, schedule_source, scheduled_by, publish_status')
           .eq('id', draftId)
           .eq('brand_id', brandId)
           .single();
@@ -152,26 +157,31 @@ export default function EditPostPage() {
           }
         }
         
-        // Parse scheduled date and time from post_jobs if available
-        if (data.post_job_id) {
-          const { data: postJobData, error: postJobError } = await supabase
-            .from('post_jobs')
-            .select('id, scheduled_at, scheduled_local, scheduled_tz, status, target_month')
-            .eq('id', data.post_job_id)
-            .single();
+             // Parse scheduled date and time from scheduled_for field (preferred) or post_jobs
+             if (data.scheduled_for) {
+               // Convert UTC to local time for the date/time pickers
+               const scheduledDate = new Date(data.scheduled_for);
+               setScheduleDate(scheduledDate.toISOString().split('T')[0]);
+               setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
+             } else if (data.post_job_id) {
+               const { data: postJobData, error: postJobError } = await supabase
+                 .from('post_jobs')
+                 .select('id, scheduled_at, scheduled_local, scheduled_tz, status, target_month')
+                 .eq('id', data.post_job_id)
+                 .single();
 
-          if (!postJobError && postJobData?.scheduled_at) {
-            const scheduledDate = new Date(postJobData.scheduled_at);
-            setScheduleDate(scheduledDate.toISOString().split('T')[0]);
-            setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
-            
-            // Update draft with post_jobs data
-            setDraft(prev => prev ? { 
-              ...prev, 
-              post_jobs: postJobData 
-            } : null);
-          }
-        }
+               if (!postJobError && postJobData?.scheduled_at) {
+                 const scheduledDate = new Date(postJobData.scheduled_at);
+                 setScheduleDate(scheduledDate.toISOString().split('T')[0]);
+                 setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
+                 
+                 // Update draft with post_jobs data
+                 setDraft(prev => prev ? { 
+                   ...prev, 
+                   post_jobs: postJobData 
+                 } : null);
+               }
+             }
         
       } catch (err) {
         console.error('Error loading draft:', err);
@@ -254,7 +264,7 @@ export default function EditPostPage() {
       // Combine date and time into a single timestamp
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
       
-      // Update the draft directly
+      // Update the draft with new scheduling fields
       const { data, error } = await supabase
         .from('drafts')
         .update({
@@ -262,7 +272,10 @@ export default function EditPostPage() {
           hashtags: hashtags,
           asset_ids: draft?.asset_ids || [],
           channel: selectedChannels.join(','), // Store as comma-separated string
-          updated_at: new Date().toISOString()
+          scheduled_for: scheduledAt.toISOString(), // UTC timestamp
+          scheduled_for_nzt: scheduledAt.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }), // NZT timestamp
+          schedule_source: 'manual',
+          scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
         })
         .eq('id', draftId)
         .eq('brand_id', brandId)
@@ -336,7 +349,11 @@ export default function EditPostPage() {
           hashtags: hashtags,
           asset_ids: draft?.asset_ids || [],
           channel: selectedChannels.join(','),
-          approved: true // Mark as approved
+          approved: true, // Mark as approved
+          scheduled_for: scheduledAt.toISOString(), // UTC timestamp
+          scheduled_for_nzt: scheduledAt.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }), // NZT timestamp
+          schedule_source: 'manual',
+          scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
         })
         .eq('id', draftId)
         .eq('brand_id', brandId)

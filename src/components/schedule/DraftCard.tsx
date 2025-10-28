@@ -116,6 +116,11 @@ interface DraftCardProps {
     created_by: string;
     created_at: string;
     approved: boolean;
+    scheduled_for?: string; // UTC timestamp
+    scheduled_for_nzt?: string; // NZT timestamp
+    schedule_source?: 'manual' | 'auto';
+    scheduled_by?: string;
+    publish_status?: string;
     post_jobs?: {
       id: string;
       scheduled_at: string;
@@ -278,7 +283,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                   <span className="text-sm ml-2">
                     {status === 'published' ? 'Published' : 
                      status === 'scheduled' ? 'Scheduled' : 
-                     draft.post_jobs?.scheduled_at ? 'Scheduled' : 'Created'} • {formatDateTime(draft.post_jobs?.scheduled_at || draft.created_at)}
+                     draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)}
                   </span>
                   {/* Platform Icons with proper spacing */}
                   <div className="flex items-center ml-4 space-x-1">

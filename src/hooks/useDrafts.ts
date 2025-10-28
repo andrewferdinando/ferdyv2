@@ -16,6 +16,11 @@ interface Draft {
   created_by: string;
   created_at: string;
   approved: boolean;
+  scheduled_for?: string; // UTC timestamp
+  scheduled_for_nzt?: string; // NZT timestamp
+  schedule_source?: 'manual' | 'auto';
+  scheduled_by?: string;
+  publish_status?: string;
   post_jobs: {
     id: string;
     scheduled_at: string;
