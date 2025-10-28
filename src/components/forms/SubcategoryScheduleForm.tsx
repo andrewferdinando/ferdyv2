@@ -869,8 +869,8 @@ export function SubcategoryScheduleForm({
                     </div>
                   </FormField>
 
-                  {/* Start Date */}
-                  <FormField label="Start Date" required>
+                  {/* Start Date / Date */}
+                  <FormField label={scheduleData.isDateRange ? "Start Date" : "Date"} required>
                     <Input
                       type="date"
                       value={scheduleData.startDate}
