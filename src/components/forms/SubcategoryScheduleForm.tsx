@@ -116,8 +116,8 @@ export function SubcategoryScheduleForm({
   // Schedule rule state
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
-    timeOfDay: '09:00',
-    timesOfDay: ['09:00'],
+    timeOfDay: '',
+    timesOfDay: [],
     daysOfWeek: [],
     daysOfMonth: [],
     nthWeek: undefined,
@@ -191,8 +191,8 @@ export function SubcategoryScheduleForm({
       }
       setScheduleData({
         frequency: freq,
-        timeOfDay: editingRule.timeOfDay || '09:00',
-        timesOfDay: editingRule.timesOfDay || ['09:00'],
+        timeOfDay: editingRule.timeOfDay || '',
+        timesOfDay: editingRule.timesOfDay || [],
         daysOfWeek: editingRule.daysOfWeek || [],
         daysOfMonth: editingRule.daysOfMonth || [],
         nthWeek: editingRule.nthWeek,
@@ -210,8 +210,8 @@ export function SubcategoryScheduleForm({
     } else {
       setScheduleData({
         frequency: 'weekly',
-        timeOfDay: '09:00',
-        timesOfDay: ['09:00'],
+        timeOfDay: '',
+        timesOfDay: [],
         daysOfWeek: [],
         daysOfMonth: [],
         nthWeek: undefined,
@@ -613,7 +613,7 @@ export function SubcategoryScheduleForm({
                         key={index}
                         className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md"
                       >
-                        #{tag}
+                        {tag}
                         <button
                           type="button"
                           onClick={() => removeHashtag(tag)}
@@ -920,36 +920,6 @@ export function SubcategoryScheduleForm({
                   </FormField>
                 </div>
               )}
-
-              {/* Common Options - Channels (inherited from subcategory, but can be overridden) */}
-              <FormField label="Channels">
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">Inherited from subcategory above, but can be customized for this schedule rule</p>
-                  <div className="flex flex-wrap gap-2">
-                    {CHANNELS.map((channel) => (
-                      <label key={channel.value} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={scheduleData.channels.includes(channel.value)}
-                          onChange={(e) => {
-                            const newChannels = e.target.checked
-                              ? [...scheduleData.channels, channel.value]
-                              : scheduleData.channels.filter(c => c !== channel.value)
-                            setScheduleData(prev => ({ ...prev, channels: newChannels }))
-                          }}
-                          className="mr-2"
-                        />
-                        {channel.label}
-                      </label>
-                    ))}
-                  </div>
-                  {scheduleData.channels.length === 0 && subcategoryData.channels.length > 0 && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Will use channels from subcategory: {subcategoryData.channels.join(', ')}
-                    </p>
-                  )}
-                </div>
-              </FormField>
 
             </div>
           </div>
