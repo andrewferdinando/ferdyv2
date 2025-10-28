@@ -125,6 +125,8 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
 
   const deleteSubcategory = async (id: string) => {
     try {
+      setLoading(true) // Set loading to prevent multiple simultaneous deletes
+      
       // Soft-disable associated schedule_rules first (set is_active = false)
       const { error: scheduleRuleError } = await supabase
         .from('schedule_rules')
@@ -145,10 +147,46 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
 
       if (error) throw error
 
-      setSubcategories(prev => prev.filter(sub => sub.id !== id))
+      // Update local state by filtering out the deleted subcategory
+      setSubcategories(prev => {
+        const filtered = prev.filter(sub => sub.id !== id)
+        return filtered
+      })
+      
+      // Also refetch to ensure consistency
+      if (categoryId) {
+        const { data, error: fetchError } = await supabase
+          .from('subcategories')
+          .select('*')
+          .eq('brand_id', brandId)
+          .eq('category_id', categoryId)
+          .order('name', { ascending: true })
+
+        if (!fetchError && data) {
+          const mappedData = data.map((item: {
+            id: string;
+            brand_id: string;
+            category_id: string;
+            name: string;
+            detail?: string;
+            url?: string;
+            default_hashtags?: string[];
+            channels?: string[];
+            created_at: string;
+            updated_at: string;
+          }) => ({
+            ...item,
+            hashtags: item.default_hashtags || [],
+            channels: item.channels || []
+          }))
+          setSubcategories(mappedData)
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete subcategory')
       throw err
+    } finally {
+      setLoading(false)
     }
   }
 

@@ -302,7 +302,17 @@ export default function CategoriesPage() {
                                         <EditIcon className="w-4 h-4" />
                                       </button>
                                       <button 
-                                        onClick={() => deleteSubcategory(subcategory.id)}
+                                        onClick={async () => {
+                                          if (confirm(`Are you sure you want to delete "${subcategory.name}"?`)) {
+                                            try {
+                                              await deleteSubcategory(subcategory.id)
+                                              // Subcategories will refresh automatically via useEffect
+                                            } catch (error) {
+                                              console.error('Error deleting subcategory:', error)
+                                              alert('Failed to delete subcategory. Please try again.')
+                                            }
+                                          }
+                                        }}
                                         className="text-gray-400 hover:text-red-600"
                                       >
                                         <TrashIcon className="w-4 h-4" />
@@ -347,8 +357,13 @@ export default function CategoriesPage() {
           editingSubcategory={editingSubcategory || undefined}
           editingScheduleRule={editingScheduleRule || undefined}
           onSuccess={() => {
-            // Refresh subcategories after successful save
-            window.location.reload()
+            // Close modal - subcategories will refresh automatically via useEffect
+            setIsSubcategoryModalOpen(false)
+            setEditingSubcategory(null)
+            setEditingScheduleRule(null)
+            // Force a refresh of subcategories by triggering a state change
+            // The useSubcategories hook will automatically refetch when categoryId changes
+            // So we can just close the modal and it will refresh
           }}
         />
 
