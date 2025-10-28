@@ -20,60 +20,65 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0) // Add trigger for manual refresh
 
-  useEffect(() => {
+  const fetchSubcategories = async () => {
     if (!brandId || !categoryId) {
       setSubcategories([])
       setLoading(false)
       return
     }
 
-    const fetchSubcategories = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    try {
+      setLoading(true)
+      setError(null)
 
-        const { data, error } = await supabase
-          .from('subcategories')
-          .select('*')
-          .eq('brand_id', brandId)
-          .eq('category_id', categoryId)
-          .order('name', { ascending: true })
+      const { data, error } = await supabase
+        .from('subcategories')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('category_id', categoryId)
+        .order('name', { ascending: true })
 
-        if (error) {
-          setError(error.message)
-          return
-        }
-
-        // Map default_hashtags to hashtags and include channels
-        const mappedData = (data || []).map((item: {
-          id: string;
-          brand_id: string;
-          category_id: string;
-          name: string;
-          detail?: string;
-          url?: string;
-          default_hashtags?: string[];
-          channels?: string[];
-          created_at: string;
-          updated_at: string;
-        }) => ({
-          ...item,
-          hashtags: item.default_hashtags || [],
-          channels: item.channels || []
-        }))
-
-        setSubcategories(mappedData)
-      } catch (err) {
-        setError('Failed to fetch subcategories')
-        console.error('Error fetching subcategories:', err)
-      } finally {
-        setLoading(false)
+      if (error) {
+        setError(error.message)
+        return
       }
-    }
 
+      // Map default_hashtags to hashtags and include channels
+      const mappedData = (data || []).map((item: {
+        id: string;
+        brand_id: string;
+        category_id: string;
+        name: string;
+        detail?: string;
+        url?: string;
+        default_hashtags?: string[];
+        channels?: string[];
+        created_at: string;
+        updated_at: string;
+      }) => ({
+        ...item,
+        hashtags: item.default_hashtags || [],
+        channels: item.channels || []
+      }))
+
+      setSubcategories(mappedData)
+    } catch (err) {
+      setError('Failed to fetch subcategories')
+      console.error('Error fetching subcategories:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchSubcategories()
-  }, [brandId, categoryId])
+  }, [brandId, categoryId, refreshTrigger])
+
+  const refetch = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
 
   const createSubcategory = async (subcategoryData: Omit<Subcategory, 'id' | 'brand_id' | 'category_id' | 'created_at' | 'updated_at'>) => {
     try {
@@ -196,6 +201,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
     error,
     createSubcategory,
     updateSubcategory,
-    deleteSubcategory
+    deleteSubcategory,
+    refetch
   }
 }

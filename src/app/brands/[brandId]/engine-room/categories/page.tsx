@@ -67,7 +67,7 @@ export default function CategoriesPage() {
   } | null>(null)
   
   const { categories, loading, createCategory, refetch } = useCategories(brandId)
-  const { subcategories, loading: subcategoriesLoading, deleteSubcategory } = useSubcategories(brandId, selectedCategory?.id || null)
+  const { subcategories, loading: subcategoriesLoading, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
 
   const tabs = [
@@ -357,13 +357,12 @@ export default function CategoriesPage() {
           editingSubcategory={editingSubcategory || undefined}
           editingScheduleRule={editingScheduleRule || undefined}
           onSuccess={() => {
-            // Close modal - subcategories will refresh automatically via useEffect
+            // Close modal and refresh subcategories
             setIsSubcategoryModalOpen(false)
             setEditingSubcategory(null)
             setEditingScheduleRule(null)
-            // Force a refresh of subcategories by triggering a state change
-            // The useSubcategories hook will automatically refetch when categoryId changes
-            // So we can just close the modal and it will refresh
+            // Refetch subcategories to show the newly created one
+            refetchSubcategories()
           }}
         />
 
