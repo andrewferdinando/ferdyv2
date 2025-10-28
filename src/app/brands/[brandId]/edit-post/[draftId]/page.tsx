@@ -438,29 +438,12 @@ export default function EditPostPage() {
         <div className="flex-1 overflow-auto bg-gray-50">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <div className="mb-4">
-                  <Breadcrumb />
-                </div>
-                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Edit Post</h1>
-                <p className="text-gray-600 mt-1 text-sm">Edit your social media post</p>
+            <div>
+              <div className="mb-4">
+                <Breadcrumb />
               </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => router.push(`/brands/${brandId}/schedule`)}
-                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Edit Post</h1>
+              <p className="text-gray-600 mt-1 text-sm">Edit your social media post</p>
             </div>
           </div>
 
@@ -734,42 +717,44 @@ export default function EditPostPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="bg-white border-t border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push(`/brands/${brandId}/schedule`)}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSaving ? 'Saving...' : 'Save Draft'}
-              </button>
-              {!draft?.approved && (
+        <div className="bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-10 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
                 <button
-                  onClick={handleApprove}
-                  disabled={isSaving || isApproving || !canApprove}
-                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                    canApprove
-                      ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  onClick={() => router.push(`/brands/${brandId}/schedule`)}
+                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
-                  {isApproving ? 'Approving...' : 'Approve & Schedule'}
+                  Cancel
                 </button>
-              )}
-              {draft?.approved && (
-                <div className="px-6 py-2 bg-green-100 text-green-800 rounded-lg font-medium">
-                  ✓ Approved
-                </div>
-              )}
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                {!draft?.approved && (
+                  <button
+                    onClick={handleApprove}
+                    disabled={isSaving || isApproving || !canApprove}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      canApprove
+                        ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {isApproving ? 'Approving...' : 'Approve & Schedule'}
+                  </button>
+                )}
+                {draft?.approved && (
+                  <div className="px-6 py-2 bg-green-100 text-green-800 rounded-lg font-medium">
+                    ✓ Approved
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
