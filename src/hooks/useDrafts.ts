@@ -171,9 +171,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
       if (error) throw error;
 
-      // Remove approved draft from local state (it will move to scheduled tab)
-      setDrafts(prev => prev.filter(draft => draft.id !== draftId));
-
+      // Don't update local state immediately - let the parent component trigger a refetch
+      // This ensures all hooks (drafts, scheduled, published) are synchronized
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve draft');

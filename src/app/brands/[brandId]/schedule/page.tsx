@@ -144,6 +144,13 @@ export default function SchedulePage() {
     router.push(`/brands/${brandId}/edit-post/${draftId}`);
   };
 
+  // Combined update function that refetches all tabs
+  const handleGlobalUpdate = () => {
+    refetchDrafts();
+    refetchScheduled();
+    refetchPublished();
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'drafts':
@@ -151,7 +158,7 @@ export default function SchedulePage() {
           <DraftsTab 
             drafts={drafts} 
             loading={draftsLoading} 
-            onUpdate={refetchDrafts}
+            onUpdate={handleGlobalUpdate}
           />
         );
       case 'scheduled':
