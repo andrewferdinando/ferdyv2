@@ -220,6 +220,61 @@ export default function NewPostPage() {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  // Validate that all assets have tags
+  const validateAssetsHaveTags = async (assetIds: string[]): Promise<boolean> => {
+    if (!assetIds || assetIds.length === 0) {
+      return true // No assets means no validation needed
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase-browser')
+      
+      // Fetch assets with their tags via asset_tags join
+      const { data: assetsData, error } = await supabase
+        .from('assets')
+        .select(`
+          id,
+          asset_tags (
+            tag_id,
+            tags (
+              id,
+              is_active
+            )
+          )
+        `)
+        .in('id', assetIds)
+        .eq('brand_id', brandId)
+
+      if (error) {
+        console.error('Error validating asset tags:', error)
+        return false
+      }
+
+      // Check each asset has at least one active tag
+      const assetsWithoutTags = (assetsData || []).filter((asset: any) => {
+        const activeTags = (asset.asset_tags || []).filter(
+          (at: any) => at.tags && at.tags.is_active
+        )
+        return activeTags.length === 0
+      })
+
+      if (assetsWithoutTags.length > 0) {
+        const assetIdsWithoutTags = assetsWithoutTags.map((a: any) => a.id)
+        alert(
+          `Cannot create this post. The following assets do not have tags:\n\n` +
+          `${assetIdsWithoutTags.join(', ')}\n\n` +
+          `Please tag all assets in the Content Library before creating this post.`
+        )
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error validating asset tags:', error)
+      return false
+    }
+  }
+
   const handleSave = async () => {
     if (!postCopy.trim()) {
       alert('Please enter post content');
@@ -234,6 +289,14 @@ export default function NewPostPage() {
     if (!scheduleDate || !scheduleTime) {
       alert('Please select a date and time');
       return;
+    }
+
+    // Validate assets have tags before creating post
+    if (selectedAssetIds && selectedAssetIds.length > 0) {
+      const assetsValid = await validateAssetsHaveTags(selectedAssetIds)
+      if (!assetsValid) {
+        return // Validation failed, error message already shown
+      }
     }
 
     setIsSaving(true);

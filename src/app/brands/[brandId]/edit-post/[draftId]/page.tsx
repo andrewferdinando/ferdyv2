@@ -241,6 +241,61 @@ export default function EditPostPage() {
     }
   };
 
+  // Validate that all assets have tags
+  const validateAssetsHaveTags = async (assetIds: string[]): Promise<boolean> => {
+    if (!assetIds || assetIds.length === 0) {
+      return true // No assets means no validation needed
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase-browser')
+      
+      // Fetch assets with their tags via asset_tags join
+      const { data: assetsData, error } = await supabase
+        .from('assets')
+        .select(`
+          id,
+          asset_tags (
+            tag_id,
+            tags (
+              id,
+              is_active
+            )
+          )
+        `)
+        .in('id', assetIds)
+        .eq('brand_id', brandId)
+
+      if (error) {
+        console.error('Error validating asset tags:', error)
+        return false
+      }
+
+      // Check each asset has at least one active tag
+      const assetsWithoutTags = (assetsData || []).filter((asset: any) => {
+        const activeTags = (asset.asset_tags || []).filter(
+          (at: any) => at.tags && at.tags.is_active
+        )
+        return activeTags.length === 0
+      })
+
+      if (assetsWithoutTags.length > 0) {
+        const assetIdsWithoutTags = assetsWithoutTags.map((a: any) => a.id)
+        alert(
+          `Cannot save this post. The following assets do not have tags:\n\n` +
+          `${assetIdsWithoutTags.join(', ')}\n\n` +
+          `Please tag all assets in the Content Library before saving this post.`
+        )
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error validating asset tags:', error)
+      return false
+    }
+  }
+
   const handleSave = async () => {
     if (!postCopy.trim()) {
       alert('Please enter post content');
@@ -255,6 +310,14 @@ export default function EditPostPage() {
     if (!scheduleDate || !scheduleTime) {
       alert('Please select a date and time');
       return;
+    }
+
+    // Validate assets have tags before saving
+    if (draft?.asset_ids && draft.asset_ids.length > 0) {
+      const assetsValid = await validateAssetsHaveTags(draft.asset_ids)
+      if (!assetsValid) {
+        return // Validation failed, error message already shown
+      }
     }
 
     setIsSaving(true);
@@ -336,6 +399,14 @@ export default function EditPostPage() {
     if (!scheduleDate || !scheduleTime) {
       alert('Please select a date and time');
       return;
+    }
+
+    // Validate assets have tags before approving
+    if (draft?.asset_ids && draft.asset_ids.length > 0) {
+      const assetsValid = await validateAssetsHaveTags(draft.asset_ids)
+      if (!assetsValid) {
+        return // Validation failed, error message already shown
+      }
     }
 
     setIsApproving(true);
