@@ -443,7 +443,7 @@ export function SubcategoryScheduleForm({
       }
 
       // Prepare schedule rule data based on frequency type
-      let scheduleRuleData: typeof baseRuleData & {
+      const scheduleRuleData: typeof baseRuleData & {
         time_of_day?: string[] | null
         days_of_week?: number[] | null
         day_of_month?: number | null
