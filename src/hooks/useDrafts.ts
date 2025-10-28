@@ -76,6 +76,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         console.log('useDrafts: Raw data length:', data?.length || 0);
         if (data && data.length > 0) {
           console.log('useDrafts: First draft:', data[0]);
+          console.log('useDrafts: First draft approved field:', data[0].approved);
         }
 
         if (error) {

@@ -60,7 +60,25 @@ export function useScheduled(brandId: string) {
 
         if (error) throw error;
 
-        setScheduled(data || []);
+        // Now fetch assets for each scheduled post that has asset_ids
+        const scheduledWithAssets = await Promise.all((data || []).map(async (draft) => {
+          if (draft.asset_ids && draft.asset_ids.length > 0) {
+            const { data: assetsData, error: assetsError } = await supabase
+              .from('assets')
+              .select('id, title, storage_path, aspect_ratio')
+              .in('id', draft.asset_ids);
+            
+            if (assetsError) {
+              console.error('Error fetching assets for scheduled post:', draft.id, assetsError);
+              return { ...draft, assets: [] };
+            }
+            
+            return { ...draft, assets: assetsData || [] };
+          }
+          return { ...draft, assets: [] };
+        }));
+
+        setScheduled(scheduledWithAssets);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch scheduled posts');
       } finally {

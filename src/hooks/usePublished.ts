@@ -59,15 +59,10 @@ export function usePublished(brandId: string) {
         setLoading(true);
         setError(null);
 
-        const { data, error } = await supabase
-          .from('drafts')
-          .select('*')
-          .eq('brand_id', brandId)
-          .eq('approved', true);
-
-        if (error) throw error;
-
-        setPublished(data || []);
+        // Published posts should have actual publish records, not just approved drafts
+        // For now, return empty array since we don't have a publishes table yet
+        // This will be implemented when we add the actual publishing functionality
+        setPublished([]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch published posts');
       } finally {
