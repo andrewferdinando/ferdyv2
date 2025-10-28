@@ -62,7 +62,7 @@ export function useScheduled(brandId: string) {
 
         // Now fetch assets for each scheduled post that has asset_ids
         const scheduledWithAssets = await Promise.all((data || []).map(async (draft) => {
-          if (draft.asset_ids && draft.asset_ids.length > 0) {
+          if (draft.asset_ids && draft.asset_ids.length > 0 && supabase) {
             const { data: assetsData, error: assetsError } = await supabase
               .from('assets')
               .select('id, title, storage_path, aspect_ratio')
