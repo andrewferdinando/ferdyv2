@@ -21,34 +21,27 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // First try to get user from profiles table (not user_profiles)
+        // First try to get user from user_profiles table
         const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, email, full_name, profile_image_url')
+          .from('user_profiles')
+          .select('id, name, profile_image_url')
           .eq('id', userId)
           .single();
 
         if (!profileError && profileData) {
-          console.log('UserAvatar: Found user in profiles:', profileData);
-          
-          // Convert profile_image_url to use correct bucket and folder
-          let avatarUrl = profileData.profile_image_url;
-          if (avatarUrl && !avatarUrl.startsWith('http')) {
-            // If it's just a filename, construct the full URL
-            avatarUrl = `https://opzmnjkzsmsxusgledap.supabase.co/storage/v1/object/public/ferdy-assets/profile-images/${avatarUrl}`;
-          }
+          console.log('UserAvatar: Found user in user_profiles:', profileData);
           
           setUser({
             id: profileData.id,
-            email: profileData.email,
-            full_name: profileData.full_name,
-            avatar_url: avatarUrl
+            email: null, // user_profiles doesn't have email field
+            full_name: profileData.name, // Use 'name' field as full_name
+            avatar_url: profileData.profile_image_url // Already has full URL
           });
           setLoading(false);
           return;
         }
 
-        console.log('UserAvatar: Not found in profiles, trying auth.users...');
+        console.log('UserAvatar: Not found in user_profiles, trying auth.users...');
 
         // Fallback to auth.users table if not found in user_profiles
         const { data: authUser, error: authError } = await supabase.auth.getUser();
