@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import { Form, FormField, FormActions } from '@/components/ui/Form';
 import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase-browser';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 // Helper component for draft images
 function DraftImage({ asset }: { asset: { id: string; title: string; storage_path: string; aspect_ratio: string } }) {
@@ -317,6 +318,15 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                   </div>
                 )}
                 {!draft.approved && getStatusBadge()}
+                
+                {/* Approved by indicator for scheduled posts */}
+                {status === 'scheduled' && draft.scheduled_by && (
+                  <div className="flex items-center space-x-1 text-xs text-gray-500">
+                    <span>Approved by</span>
+                    <UserAvatar userId={draft.scheduled_by} size="sm" />
+                  </div>
+                )}
+                
                 <button
                   onClick={handleEditClick}
                   className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
