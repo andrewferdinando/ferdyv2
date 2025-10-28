@@ -438,7 +438,7 @@ export function SubcategoryScheduleForm({
         channels?: string[] | null
         timezone?: string | null
         is_active: boolean
-        time_of_day?: string[] | null  // Array for all frequencies
+        time_of_day?: string | null  // Single time for daily/weekly/monthly
         days_of_week?: number[] | null
         day_of_month?: number | null
         nth_week?: number | null
@@ -447,7 +447,7 @@ export function SubcategoryScheduleForm({
         end_date?: string | null
         days_before?: number[] | null
         days_during?: number[] | null
-        times_of_day?: string[] | null  // For specific frequency
+        times_of_day?: string[] | null  // Array for specific frequency
         // Clear fields not used by current frequency
         tone?: string | null
         hashtag_rule?: Record<string, unknown> | null
@@ -468,9 +468,8 @@ export function SubcategoryScheduleForm({
 
       // Add fields based on frequency type
       if (scheduleData.frequency === 'daily') {
-        // Daily: time_of_day as array (wrap single value)
-        const times = scheduleData.timeOfDay ? [scheduleData.timeOfDay] : []
-        scheduleRuleData.time_of_day = times.length > 0 ? times : null
+        // Daily: time_of_day as single time value
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
         // Clear unused fields
         scheduleRuleData.days_of_week = null
         scheduleRuleData.day_of_month = null
@@ -483,15 +482,14 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.times_of_day = null
         scheduleRuleData.timezone = null
       } else if (scheduleData.frequency === 'weekly') {
-        // Weekly: days_of_week and time_of_day as array
+        // Weekly: days_of_week and time_of_day as single time value
         scheduleRuleData.days_of_week = scheduleData.daysOfWeek.length > 0 
           ? scheduleData.daysOfWeek.map(d => {
               const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
               return dayMap[d] || 0
             }).filter(d => d > 0)
           : null
-        const times = scheduleData.timeOfDay ? [scheduleData.timeOfDay] : []
-        scheduleRuleData.time_of_day = times.length > 0 ? times : null
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
         // Clear unused fields
         scheduleRuleData.day_of_month = null
         scheduleRuleData.nth_week = null
@@ -503,7 +501,7 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.times_of_day = null
         scheduleRuleData.timezone = null
       } else if (scheduleData.frequency === 'monthly') {
-        // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day
+        // Monthly: either day_of_month OR nth_week + weekday, plus time_of_day as single value
         if (scheduleData.daysOfMonth.length > 0) {
           scheduleRuleData.day_of_month = scheduleData.daysOfMonth[0]
           scheduleRuleData.nth_week = null
@@ -513,8 +511,7 @@ export function SubcategoryScheduleForm({
           scheduleRuleData.weekday = scheduleData.weekday
           scheduleRuleData.day_of_month = null
         }
-        const times = scheduleData.timeOfDay ? [scheduleData.timeOfDay] : []
-        scheduleRuleData.time_of_day = times.length > 0 ? times : null
+        scheduleRuleData.time_of_day = scheduleData.timeOfDay || null
         // Clear unused fields
         scheduleRuleData.days_of_week = null
         scheduleRuleData.start_date = null
