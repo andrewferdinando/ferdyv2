@@ -775,7 +775,10 @@ export function SubcategoryScheduleForm({
                             const newDays = scheduleData.daysOfWeek.includes(day.value)
                               ? scheduleData.daysOfWeek.filter(d => d !== day.value)
                               : [...scheduleData.daysOfWeek, day.value]
-                            setScheduleData(prev => ({ ...prev, daysOfWeek: newDays }))
+                            // Sort by day order (mon=0, tue=1, etc.) to maintain logical order
+                            const dayOrder: Record<string, number> = { 'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6 }
+                            const sortedDays = newDays.sort((a, b) => (dayOrder[a] || 99) - (dayOrder[b] || 99))
+                            setScheduleData(prev => ({ ...prev, daysOfWeek: sortedDays }))
                           }}
                           className={`px-3 py-1 rounded-md text-sm ${
                             scheduleData.daysOfWeek.includes(day.value)
