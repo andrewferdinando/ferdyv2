@@ -69,7 +69,7 @@ export default function EditPostPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
-  // Check if post can be approved
+  // Check if post can be approved (allow without connected social accounts for now)
   const canApprove = postCopy.trim() && selectedChannels.length > 0 && scheduleDate && scheduleTime && draft?.asset_ids && draft.asset_ids.length > 0;
 
   // Load draft data

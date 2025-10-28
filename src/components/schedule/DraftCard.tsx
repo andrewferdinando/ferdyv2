@@ -151,14 +151,8 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     ? draft.channel.split(',').map(c => c.trim())
     : [draft.channel];
 
-  // Check if any channel has connected social account
-  const hasConnectedAccount = channels.some(channel => 
-    accounts.some(account => 
-      account.provider === channel && account.status === 'connected'
-    )
-  );
-
-  const canApprove = hasConnectedAccount && draft.copy && draft.asset_ids.length > 0;
+  // Allow approval without connected social accounts (APIs will be integrated later)
+  const canApprove = draft.copy && draft.asset_ids.length > 0;
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
