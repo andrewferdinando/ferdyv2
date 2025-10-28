@@ -158,24 +158,40 @@ export function SubcategoryScheduleForm({
 
     if (editingScheduleRule) {
       const freq = editingScheduleRule.frequency as 'daily' | 'weekly' | 'monthly' | 'specific'
+      const editingRule = editingScheduleRule as {
+        frequency: string
+        timeOfDay?: string
+        timesOfDay?: string[]
+        daysOfWeek?: string[]
+        daysOfMonth?: number[]
+        nthWeek?: number
+        weekday?: number
+        channels?: string[]
+        isDateRange?: boolean
+        startDate?: string
+        endDate?: string
+        daysBefore?: number[]
+        daysDuring?: number[]
+        timezone?: string
+      }
       setScheduleData({
         frequency: freq,
-        timeOfDay: editingScheduleRule.timeOfDay || '09:00',
-        timesOfDay: (editingScheduleRule as any).timesOfDay || ['09:00'],
-        daysOfWeek: editingScheduleRule.daysOfWeek || [],
-        daysOfMonth: editingScheduleRule.daysOfMonth || [],
-        nthWeek: editingScheduleRule.nthWeek,
-        weekday: editingScheduleRule.weekday,
-        channels: editingScheduleRule.channels || [],
-        isDateRange: (editingScheduleRule as any).isDateRange || false,
-        startDate: (editingScheduleRule as any).startDate || '',
-        endDate: (editingScheduleRule as any).endDate || '',
-        daysBefore: (editingScheduleRule as any).daysBefore || [],
-        daysDuring: (editingScheduleRule as any).daysDuring || [],
-        timezone: (editingScheduleRule as any).timezone || 'Pacific/Auckland'
+        timeOfDay: editingRule.timeOfDay || '09:00',
+        timesOfDay: editingRule.timesOfDay || ['09:00'],
+        daysOfWeek: editingRule.daysOfWeek || [],
+        daysOfMonth: editingRule.daysOfMonth || [],
+        nthWeek: editingRule.nthWeek,
+        weekday: editingRule.weekday,
+        channels: editingRule.channels || [],
+        isDateRange: editingRule.isDateRange || false,
+        startDate: editingRule.startDate || '',
+        endDate: editingRule.endDate || '',
+        daysBefore: editingRule.daysBefore || [],
+        daysDuring: editingRule.daysDuring || [],
+        timezone: editingRule.timezone || 'Pacific/Auckland'
       })
-      setDaysBeforeInput(((editingScheduleRule as any).daysBefore || []).join(','))
-      setDaysDuringInput(((editingScheduleRule as any).daysDuring || []).join(','))
+      setDaysBeforeInput((editingRule.daysBefore || []).join(','))
+      setDaysDuringInput((editingRule.daysDuring || []).join(','))
     } else {
       setScheduleData({
         frequency: 'weekly',
@@ -373,7 +389,24 @@ export function SubcategoryScheduleForm({
       }
 
       // Save schedule rule
-      const scheduleRuleData: any = {
+      const scheduleRuleData: {
+        brand_id: string
+        subcategory_id: string
+        name: string
+        frequency: string
+        channels?: string[] | null
+        timezone?: string | null
+        time_of_day?: string
+        days_of_week?: number[]
+        day_of_month?: number
+        nth_week?: number
+        weekday?: number
+        start_date?: string | null
+        end_date?: string | null
+        days_before?: number[] | null
+        days_during?: number[] | null
+        times_of_day?: string[] | null
+      } = {
         brand_id: brandId,
         subcategory_id: subcategoryId,
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
@@ -402,11 +435,6 @@ export function SubcategoryScheduleForm({
         scheduleRuleData.time_of_day = scheduleData.timeOfDay
       } else if (scheduleData.frequency === 'specific') {
         // Convert dates to timestamptz (start of day in the specified timezone)
-        const startDateObj = new Date(scheduleData.startDate)
-        const endDateObj = scheduleData.isDateRange 
-          ? new Date(scheduleData.endDate)
-          : new Date(scheduleData.startDate)
-
         // For now, we'll store dates as timestamptz at midnight in the timezone
         // The generation logic will handle timezone conversion properly
         scheduleRuleData.start_date = scheduleData.startDate ? `${scheduleData.startDate}T00:00:00` : null
