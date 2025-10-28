@@ -51,13 +51,13 @@ export default function CategoriesPage() {
   const [editingScheduleRule, setEditingScheduleRule] = useState<{
     id: string
     frequency: string
-    timeOfDay?: string
+    timeOfDay: string
     timesOfDay?: string[]
-    daysOfWeek?: string[]
-    daysOfMonth?: number[]
+    daysOfWeek: string[]
+    daysOfMonth: number[]
     nthWeek?: number
     weekday?: number
-    channels?: string[]
+    channels: string[]
     isDateRange?: boolean
     startDate?: string
     endDate?: string
@@ -266,7 +266,7 @@ export default function CategoriesPage() {
                                             const mappedRule = {
                                               id: scheduleRule.id,
                                               frequency: scheduleRule.frequency,
-                                              timeOfDay: timeOfDayValue,
+                                              timeOfDay: timeOfDayValue || '',  // Ensure it's always a string, never undefined
                                               timesOfDay: timesOfDayArray,
                                               daysOfWeek: scheduleRule.days_of_week 
                                                 ? scheduleRule.days_of_week.map((d: number) => {
