@@ -45,7 +45,17 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         }
 
         // Map default_hashtags to hashtags for consistency
-        const mappedData = (data || []).map((item: any) => ({
+        const mappedData = (data || []).map((item: {
+          id: string;
+          brand_id: string;
+          category_id: string;
+          name: string;
+          detail?: string;
+          url?: string;
+          default_hashtags?: string[];
+          created_at: string;
+          updated_at: string;
+        }) => ({
           ...item,
           hashtags: item.default_hashtags || []
         }))
