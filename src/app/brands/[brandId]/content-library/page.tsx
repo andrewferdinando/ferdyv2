@@ -52,15 +52,21 @@ export default function ContentLibraryPage() {
     })
   const readyAssets = assets.filter(asset => asset.tags.length > 0)
 
-  const handleUploadSuccess = (assetIds: string[]) => {
-    refetch()
-    // Switch to needs attention tab to show the new assets
+  const handleUploadSuccess = async (assetIds: string[]) => {
+    // Refetch to get newly uploaded assets
+    await refetch()
+    
+    // Switch to needs attention tab to show the new assets (they'll have no tags initially)
     setActiveTab('needs_attention')
-    // Store the first uploaded asset as editing data to prioritize it
+    
+    // Store the first uploaded asset as editing data to prioritize it after refetch
     if (assetIds.length > 0) {
-      setTimeout(() => {
+      // Wait for refetch to complete, then find the asset
+      setTimeout(async () => {
+        // Refetch one more time to ensure we have the latest
+        await refetch()
         const newAsset = assets.find(asset => asset.id === assetIds[0])
-        if (newAsset) {
+        if (newAsset && newAsset.tags.length === 0) {
           setEditingAssetData(newAsset)
         }
       }, 500)

@@ -57,7 +57,7 @@ export function useUploadAsset() {
 
       setProgress(75)
 
-      // Insert into assets table
+      // Insert into assets table (tags are stored in asset_tags table, not here)
       const { error: insertError } = await supabase
         .from('assets')
         .insert({
@@ -66,7 +66,6 @@ export function useUploadAsset() {
           title: file.name,
           storage_path: path,
           aspect_ratio: 'original',
-          tags: [],
           width,
           height
         })
