@@ -42,7 +42,7 @@ BEGIN
       AND sr.is_active = true
       AND sr.start_date IS NOT NULL
       AND sr.start_date > v_current_time  -- Only future dates
-      AND COALESCE(array_length(sr.times_of_day, 1), 0) > 0  -- Must have at least one time
+      AND COALESCE(array_length(sr.time_of_day, 1), 0) > 0  -- Must have at least one time
   LOOP
     BEGIN
       v_rules_processed := v_rules_processed + 1;
@@ -71,7 +71,7 @@ BEGIN
           END IF;
           
           -- For each time of day, create a draft
-          FOREACH v_time_of_day IN ARRAY v_rule.times_of_day
+          FOREACH v_time_of_day IN ARRAY v_rule.time_of_day
           LOOP
             -- Combine date and time, then convert to UTC using the rule's timezone
             -- We need to construct a timestamptz in the rule's timezone
@@ -188,7 +188,7 @@ BEGIN
           END IF;
           
           -- For each time of day, create a draft
-          FOREACH v_time_of_day IN ARRAY v_rule.times_of_day
+          FOREACH v_time_of_day IN ARRAY v_rule.time_of_day
           LOOP
             -- Convert to UTC
             v_scheduled_for_utc := (
