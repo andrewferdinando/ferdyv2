@@ -528,6 +528,12 @@ export function SubcategoryScheduleForm({
 
       // Upsert schedule rule - update if exists, insert if not
       try {
+        // Debug: Log the data being sent
+        console.log('Schedule rule data being saved:', {
+          frequency: cleanRuleData.frequency,
+          cleanRuleData
+        })
+        
         if (existingRules && existingRules.length > 0) {
           // Update existing rule
           const { error } = await supabase
@@ -537,6 +543,7 @@ export function SubcategoryScheduleForm({
 
           if (error) {
             console.error('Schedule rule update error:', error)
+            console.error('Error details:', JSON.stringify(error, null, 2))
             throw new Error(`Failed to update schedule rule: ${error.message}`)
           }
         } else {
@@ -547,6 +554,8 @@ export function SubcategoryScheduleForm({
 
           if (error) {
             console.error('Schedule rule insert error:', error)
+            console.error('Error details:', JSON.stringify(error, null, 2))
+            console.error('Data being inserted:', JSON.stringify(cleanRuleData, null, 2))
             throw new Error(`Failed to create schedule rule: ${error.message}`)
           }
         }
