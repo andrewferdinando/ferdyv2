@@ -336,8 +336,7 @@ export default function EditPostPage() {
           hashtags: hashtags,
           asset_ids: draft?.asset_ids || [],
           channel: selectedChannels.join(','),
-          approved: true, // Mark as approved
-          updated_at: new Date().toISOString()
+          approved: true // Mark as approved
         })
         .eq('id', draftId)
         .eq('brand_id', brandId)
@@ -357,8 +356,7 @@ export default function EditPostPage() {
           .update({
             scheduled_at: scheduledAt.toISOString(),
             channel: selectedChannels[0], // Use first channel for post_job constraint
-            status: 'scheduled', // Update status to scheduled
-            updated_at: new Date().toISOString()
+            status: 'scheduled' // Update status to scheduled
           })
           .eq('id', draft.post_job_id);
 

@@ -158,9 +158,15 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     }
 
     try {
-      const { data, error } = await supabase.rpc('rpc_approve_draft', {
-        p_draft_id: draftId
-      });
+      // Directly update the approved field to true
+      const { data, error } = await supabase
+        .from('drafts')
+        .update({ 
+          approved: true
+        })
+        .eq('id', draftId)
+        .select()
+        .single();
 
       if (error) throw error;
 
