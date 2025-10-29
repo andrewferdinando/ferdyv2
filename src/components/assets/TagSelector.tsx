@@ -16,14 +16,23 @@ export default function TagSelector({
   onTagsChange, 
   required = false 
 }: TagSelectorProps) {
-  const { tags, loading, createCustomTag } = useTags(brandId)
+  const { tags, loading, error, createCustomTag, refetch } = useTags(brandId)
   const [showAddTagInput, setShowAddTagInput] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [isCreatingTag, setIsCreatingTag] = useState(false)
 
+  // Debug logging
+  console.log('🏷️ TagSelector - brandId:', brandId)
+  console.log('🏷️ TagSelector - tags:', tags)
+  console.log('🏷️ TagSelector - loading:', loading)
+  console.log('🏷️ TagSelector - error:', error)
+
   // Separate tags by kind
   const subcategoryTags = tags.filter(tag => tag.kind === 'subcategory')
   const customTags = tags.filter(tag => tag.kind === 'custom')
+
+  console.log('🏷️ TagSelector - subcategoryTags:', subcategoryTags)
+  console.log('🏷️ TagSelector - customTags:', customTags)
 
   const handleTagToggle = (tagId: string) => {
     const newSelected = selectedTagIds.includes(tagId)
@@ -58,6 +67,20 @@ export default function TagSelector({
   if (loading) {
     return (
       <div className="text-sm text-gray-500">Loading tags...</div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm text-red-500">
+        Error loading tags: {error}
+        <button 
+          onClick={() => refetch()} 
+          className="ml-2 text-blue-600 underline"
+        >
+          Retry
+        </button>
+      </div>
     )
   }
 
