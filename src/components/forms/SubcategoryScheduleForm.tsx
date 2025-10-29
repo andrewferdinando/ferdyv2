@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
+import { useBrand } from '@/hooks/useBrand'
 
 interface SubcategoryData {
   name: string
@@ -104,6 +105,9 @@ export function SubcategoryScheduleForm({
   editingScheduleRule,
   onSuccess
 }: SubcategoryScheduleFormProps) {
+  // Fetch brand for timezone
+  const { brand } = useBrand(brandId)
+
   // Subcategory state
   const [subcategoryData, setSubcategoryData] = useState<SubcategoryData>({
     name: '',
@@ -114,6 +118,7 @@ export function SubcategoryScheduleForm({
   })
 
   // Schedule rule state
+  // Default timezone to brand timezone, fallback to Pacific/Auckland
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
     timeOfDay: '',
@@ -128,8 +133,15 @@ export function SubcategoryScheduleForm({
     endDate: '',
     daysBefore: [],
     daysDuring: [],
-    timezone: 'Pacific/Auckland'  // Default to NZ timezone
+    timezone: brand?.timezone || 'Pacific/Auckland'  // Default to brand timezone
   })
+
+  // Update timezone when brand loads
+  useEffect(() => {
+    if (brand?.timezone && !editingScheduleRule) {
+      setScheduleData(prev => ({ ...prev, timezone: brand.timezone }))
+    }
+  }, [brand?.timezone, editingScheduleRule])
 
   // Helper state for specific date inputs
   const [daysBeforeInput, setDaysBeforeInput] = useState('')

@@ -4,11 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useSocialAccounts } from '@/hooks/useSocialAccounts';
+import { useBrand } from '@/hooks/useBrand';
 import Modal from '@/components/ui/Modal';
 import { Form, FormField, FormActions } from '@/components/ui/Form';
 import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase-browser';
 import UserAvatar from '@/components/ui/UserAvatar';
+import { formatDateTimeLocal } from '@/lib/utils/timezone';
 
 // Helper component for draft images
 function DraftImage({ asset }: { asset: { id: string; title: string; storage_path: string; aspect_ratio: string } }) {
@@ -149,6 +151,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const router = useRouter();
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts } = useSocialAccounts(draft.brand_id);
+  const { brand } = useBrand(draft.brand_id); // Fetch brand for timezone
 
   // Check if content exceeds 2 lines
   useEffect(() => {
@@ -186,14 +189,19 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const canApprove = draft.copy && draft.asset_ids.length > 0;
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    if (!brand?.timezone) {
+      // Fallback to browser local time if brand timezone not loaded
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    // Use brand timezone for formatting
+    return formatDateTimeLocal(dateString, brand.timezone);
   };
 
   const getStatusBadge = () => {
@@ -340,7 +348,6 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                   <ClockIcon className="w-4 h-4" />
                   <span className="text-sm ml-2">
                     {status === 'published' ? 'Published' : 
-                     status === 'scheduled' ? 'Scheduled' : 
                      draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)}
                   </span>
                   {/* Platform Icons with proper spacing */}

@@ -7,11 +7,16 @@ import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
+import { useBrand } from '@/hooks/useBrand';
+import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
 
 export default function NewPostPage() {
   const params = useParams();
   const router = useRouter();
   const brandId = params.brandId as string;
+  
+  // Fetch brand with timezone
+  const { brand, loading: brandLoading } = useBrand(brandId);
   
   // Fetch brand assets
   const { assets, loading: assetsLoading } = useAssets(brandId);
@@ -315,8 +320,13 @@ export default function NewPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // Combine date and time into a single timestamp
-      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      // Convert local date/time (in brand timezone) to UTC
+      if (!brand?.timezone) {
+        alert('Brand timezone not configured. Please update brand settings.')
+        return
+      }
+
+      const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
       
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
@@ -328,7 +338,7 @@ export default function NewPostPage() {
         p_hashtags: normalizedHashtags,
         p_asset_ids: selectedAssetIds,
         p_channels: selectedChannels,
-        p_scheduled_at: scheduledAt.toISOString(),
+        p_scheduled_at: scheduledAt.toISOString(), // UTC timestamp
         p_approve_now: false
       });
 

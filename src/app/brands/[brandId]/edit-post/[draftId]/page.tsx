@@ -9,6 +9,8 @@ import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useAssets } from '@/hooks/useAssets';
 import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
+import { useBrand } from '@/hooks/useBrand';
+import { utcToLocalDate, utcToLocalTime, localToUtc, formatDateTimeLocal } from '@/lib/utils/timezone';
 
 console.log('Edit Post page component loaded');
 
@@ -53,6 +55,9 @@ export default function EditPostPage() {
   const router = useRouter();
   const brandId = params.brandId as string;
   const draftId = params.draftId as string;
+  
+  // Fetch brand with timezone
+  const { brand, loading: brandLoading } = useBrand(brandId);
   
   console.log('Edit Post page rendered with params:', { brandId, draftId });
   
@@ -159,31 +164,8 @@ export default function EditPostPage() {
           }
         }
         
-             // Parse scheduled date and time from scheduled_for field (preferred) or post_jobs
-             if (data.scheduled_for) {
-               // Convert UTC to local time for the date/time pickers
-               const scheduledDate = new Date(data.scheduled_for);
-               setScheduleDate(scheduledDate.toISOString().split('T')[0]);
-               setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
-             } else if (data.post_job_id) {
-               const { data: postJobData, error: postJobError } = await supabase
-                 .from('post_jobs')
-                 .select('id, scheduled_at, scheduled_local, scheduled_tz, status, target_month')
-                 .eq('id', data.post_job_id)
-                 .single();
-
-               if (!postJobError && postJobData?.scheduled_at) {
-                 const scheduledDate = new Date(postJobData.scheduled_at);
-                 setScheduleDate(scheduledDate.toISOString().split('T')[0]);
-                 setScheduleTime(scheduledDate.toTimeString().slice(0, 5));
-                 
-                 // Update draft with post_jobs data
-                 setDraft(prev => prev ? { 
-                   ...prev, 
-                   post_jobs: postJobData 
-                 } : null);
-               }
-             }
+             // Parse scheduled date and time - will convert to brand local time in separate useEffect
+             // Just store the draft data here, conversion happens when brand loads
         
       } catch (err) {
         console.error('Error loading draft:', err);
@@ -197,6 +179,20 @@ export default function EditPostPage() {
       loadDraft();
     }
   }, [draftId, brandId]);
+
+  // Convert UTC scheduled_for to brand local time when both draft and brand are loaded
+  useEffect(() => {
+    if (draft && brand?.timezone) {
+      const scheduledFor = draft.scheduled_for || draft.post_jobs?.scheduled_at
+      if (scheduledFor) {
+        // Convert UTC to brand local time
+        const localDate = utcToLocalDate(scheduledFor, brand.timezone)
+        const localTime = utcToLocalTime(scheduledFor, brand.timezone)
+        setScheduleDate(localDate)
+        setScheduleTime(localTime)
+      }
+    }
+  }, [draft, brand?.timezone]);
 
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
@@ -336,8 +332,13 @@ export default function EditPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // Combine date and time into a single timestamp
-      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      // Convert local date/time (in brand timezone) to UTC
+      if (!brand?.timezone) {
+        alert('Brand timezone not configured. Please update brand settings.')
+        return
+      }
+      
+      const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
       
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
@@ -425,8 +426,13 @@ export default function EditPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // First save the draft with current changes
-      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      // Convert local date/time (in brand timezone) to UTC
+      if (!brand?.timezone) {
+        alert('Brand timezone not configured. Please update brand settings.')
+        return
+      }
+      
+      const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
       
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
