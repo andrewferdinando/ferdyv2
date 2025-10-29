@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { Input } from '@/components/ui/Input'
 import { Form } from '@/components/ui/Form'
+import { getTimezonesByCountry, getAllTimezones } from '@/lib/utils/timezone'
 
 interface BrandData {
   name: string
   website_url: string
+  country_code: string
+  timezone: string
 }
 
 interface UserData {
@@ -28,8 +31,38 @@ export default function SignUpPage() {
   // Form data
   const [brandData, setBrandData] = useState<BrandData>({
     name: '',
-    website_url: ''
+    website_url: '',
+    country_code: '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // Default to browser timezone
   })
+
+  // Get timezones by country for dropdown
+  const timezonesByCountry = getTimezonesByCountry()
+  const allTimezones = getAllTimezones()
+  
+  // Get timezones for selected country, or all timezones if no country selected
+  const availableTimezones = brandData.country_code && timezonesByCountry[brandData.country_code]
+    ? timezonesByCountry[brandData.country_code]
+    : allTimezones
+
+  // Common country codes (ISO 3166-1 alpha-2)
+  const countries = [
+    { code: 'NZ', name: 'New Zealand' },
+    { code: 'AU', name: 'Australia' },
+    { code: 'US', name: 'United States' },
+    { code: 'GB', name: 'United Kingdom' },
+    { code: 'CA', name: 'Canada' },
+    { code: 'JP', name: 'Japan' },
+    { code: 'CN', name: 'China' },
+    { code: 'IN', name: 'India' },
+    { code: 'DE', name: 'Germany' },
+    { code: 'FR', name: 'France' },
+    { code: 'BR', name: 'Brazil' },
+    { code: 'MX', name: 'Mexico' },
+    { code: 'ZA', name: 'South Africa' },
+    { code: 'SG', name: 'Singapore' },
+    { code: 'HK', name: 'Hong Kong' },
+  ]
   
   const [userData, setUserData] = useState<UserData>({
     name: '',
@@ -63,6 +96,14 @@ export default function SignUpPage() {
       new URL(brandData.website_url)
     } catch {
       setError('Please enter a valid website URL')
+      return false
+    }
+    if (!brandData.country_code) {
+      setError('Country is required')
+      return false
+    }
+    if (!brandData.timezone) {
+      setError('Timezone is required')
       return false
     }
     return true
@@ -113,6 +154,7 @@ export default function SignUpPage() {
 
     try {
       // Create user account with brand data in metadata
+      // Note: The brand will be created via database trigger/function using this metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -121,10 +163,30 @@ export default function SignUpPage() {
             name: userData.name,
             brand_name: brandData.name,
             brand_website_url: brandData.website_url,
-            brand_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            brand_country_code: brandData.country_code,
+            brand_timezone: brandData.timezone
           }
         }
       })
+
+      // After successful sign-up, create the brand in Supabase
+      if (authData.user && !authError) {
+        const { error: brandError } = await supabase
+          .from('brands')
+          .insert({
+            name: brandData.name,
+            website_url: brandData.website_url,
+            country_code: brandData.country_code,
+            timezone: brandData.timezone,
+            created_by: authData.user.id
+          })
+
+        if (brandError) {
+          console.error('Error creating brand:', brandError)
+          // Don't fail the whole sign-up process if brand creation fails
+          // The user can still sign in and the brand might be created via trigger
+        }
+      }
 
       if (authError) {
         throw authError
@@ -199,6 +261,53 @@ export default function SignUpPage() {
             required
             placeholder="https://yourwebsite.com"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Country *
+          </label>
+          <select
+            value={brandData.country_code}
+            onChange={(e) => {
+              handleBrandDataChange('country_code', e.target.value)
+              // Auto-select first timezone for the country if none selected
+              if (e.target.value && timezonesByCountry[e.target.value]?.length > 0) {
+                handleBrandDataChange('timezone', timezonesByCountry[e.target.value][0])
+              }
+            }}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          >
+            <option value="">Select a country</option>
+            {countries.map(country => (
+              <option key={country.code} value={country.code}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Timezone *
+          </label>
+          <select
+            value={brandData.timezone}
+            onChange={(e) => handleBrandDataChange('timezone', e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+          >
+            <option value="">Select a timezone</option>
+            {availableTimezones.map(tz => (
+              <option key={tz} value={tz}>
+                {tz.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            Selected: {brandData.timezone || 'Browser timezone'}
+          </p>
         </div>
       </div>
     </div>
@@ -281,6 +390,8 @@ export default function SignUpPage() {
           <div className="space-y-2 text-sm">
             <div><span className="font-medium">Name:</span> {brandData.name}</div>
             <div><span className="font-medium">Website:</span> {brandData.website_url}</div>
+            <div><span className="font-medium">Country:</span> {countries.find(c => c.code === brandData.country_code)?.name || brandData.country_code}</div>
+            <div><span className="font-medium">Timezone:</span> {brandData.timezone.replace(/_/g, ' ')}</div>
           </div>
         </div>
         
