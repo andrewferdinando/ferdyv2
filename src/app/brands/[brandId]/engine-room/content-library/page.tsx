@@ -9,6 +9,7 @@ import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import AssetCard from '@/components/assets/AssetCard'
+import TagSelector from '@/components/assets/TagSelector'
 
 interface CropData {
   x: number
@@ -18,7 +19,7 @@ interface CropData {
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
-  const { assets, loading, error, refetch } = useAssets(brandId)
+  const { assets, loading, error, refetch, saveAssetTags } = useAssets(brandId)
   const { deleteAsset, deleting } = useDeleteAsset()
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
@@ -238,7 +239,9 @@ export default function ContentLibraryPage() {
                   asset={needsAttentionAssets[0]} 
                   originalAssetData={editingAssetData}
                   onBack={() => {}} 
-                  onUpdate={handleAssetUpdate} 
+                  onUpdate={handleAssetUpdate}
+                  brandId={brandId}
+                  saveAssetTags={saveAssetTags}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -321,11 +324,18 @@ export default function ContentLibraryPage() {
 }
 
 // Asset Detail View Component for Needs Attention tab
-function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset: Asset; originalAssetData: Asset | null; onBack: () => void; onUpdate: () => void }) {
+function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, saveAssetTags }: { 
+  asset: Asset; 
+  originalAssetData: Asset | null; 
+  onBack: () => void; 
+  onUpdate: () => void;
+  brandId: string;
+  saveAssetTags: (assetId: string, tagIds: string[]) => Promise<void>;
+}) {
   // Use original asset data if available (for editing), otherwise use current asset data
   const displayAsset = originalAssetData || asset
   const [selectedAspectRatio, setSelectedAspectRatio] = useState(displayAsset.aspect_ratio || 'original')
-  const [selectedTags, setSelectedTags] = useState<string[]>(displayAsset.tags || [])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(displayAsset.tag_ids || [])
   const [cropWindows] = useState(displayAsset.crop_windows ? JSON.stringify(displayAsset.crop_windows, null, 2) : '')
   const [saving, setSaving] = useState(false)
   const [imagePosition, setImagePosition] = useState(() => {
@@ -342,25 +352,12 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
-  const availableTags = [
-    'Student Discount', 'Happy Hour Special', 'Corporate Team Building',
-    'Weekend Special', 'Family Package', 'Birthday Party', 'Holiday Special', 'Summer Promotion'
-  ]
-
   const aspectRatios = [
     { value: 'original', label: 'Original' },
     { value: '1:1', label: '1:1 Square' },
     { value: '4:5', label: '4:5 Portrait' },
     { value: '1.91:1', label: '1.91:1 Landscape' }
   ]
-
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    )
-  }
 
   const handleAspectRatioChange = (ratio: string) => {
     setSelectedAspectRatio(ratio)
@@ -403,12 +400,17 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
   }
 
   const handleSave = async () => {
+    if (selectedTagIds.length === 0) {
+      alert('Please select at least one tag')
+      return
+    }
+
     try {
       setSaving(true)
       
       const { supabase } = await import('@/lib/supabase-browser')
       
-      // Update the asset with new tags, aspect ratio, and crop position
+      // Update the asset with aspect ratio and crop position
       const cropData = {
         [selectedAspectRatio]: {
           x: imagePosition.x,
@@ -417,19 +419,21 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
         }
       }
       
-      const { error } = await supabase
+      const { error: assetError } = await supabase
         .from('assets')
         .update({
-          tags: selectedTags,
           aspect_ratio: selectedAspectRatio,
           crop_windows: cropData
         })
         .eq('id', asset.id)
         .eq('brand_id', asset.brand_id)
 
-      if (error) {
-        throw error
+      if (assetError) {
+        throw assetError
       }
+
+      // Save tags to asset_tags table
+      await saveAssetTags(asset.id, selectedTagIds)
 
       // Refresh the data
       onUpdate()
@@ -522,27 +526,15 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { asset
 
               {/* Right Section - Tags and Actions */}
               <div className="space-y-4">
-                {/* Available Tags */}
+                {/* Tags */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-950 mb-3">Available Tags</h3>
-                  <div className="grid grid-cols-2 gap-1">
-                    {availableTags.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => handleTagToggle(tag)}
-                        className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                          selectedTags.includes(tag)
-                            ? 'bg-[#6366F1] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                    <button className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
-                      + Tag
-                    </button>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-950 mb-3">Tags</h3>
+                  <TagSelector
+                    brandId={brandId}
+                    selectedTagIds={selectedTagIds}
+                    onTagsChange={setSelectedTagIds}
+                    required
+                  />
                 </div>
 
                 {/* Actions */}
