@@ -78,6 +78,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Step 3: Create a view user_profiles if it doesn't exist (maps full_name to name for compatibility)
 -- This view provides compatibility with queries expecting a 'name' column
+-- Field: name (from profiles.name or profiles.full_name)
 CREATE OR REPLACE VIEW user_profiles AS
 SELECT 
     user_id as id,
@@ -89,21 +90,44 @@ SELECT
     user_id
 FROM profiles;
 
--- Step 4: Update existing profiles that have NULL names (backfill)
+-- Step 4: Create or replace brand_memberships_with_names view
+-- This view joins brand_memberships with profiles to show user_name
+-- Field: user_name (from profiles.name or profiles.full_name)
+CREATE OR REPLACE VIEW brand_memberships_with_names AS
+SELECT 
+    bm.id,
+    bm.brand_id,
+    bm.user_id,
+    COALESCE(p.name, p.full_name) as user_name,
+    bm.role,
+    bm.created_at
+FROM brand_memberships bm
+LEFT JOIN profiles p ON bm.user_id = p.user_id;
+
+-- Step 5: Update existing profiles that have NULL names (backfill)
 UPDATE profiles p
 SET 
     name = COALESCE(p.name, p.full_name),
     full_name = COALESCE(p.full_name, p.name)
 WHERE p.name IS NULL OR p.full_name IS NULL;
 
--- Step 5: The user_profiles view can be joined via user_id
+-- Step 6: The user_profiles view can be joined via user_id
 -- Queries like `user_profiles!inner(name)` work because Supabase can match user_id
 -- brand_memberships.user_id -> user_profiles.user_id (through the view)
 
--- Step 6: Grant permissions on the view
+-- Step 7: Grant permissions on the views
 GRANT SELECT ON user_profiles TO authenticated;
 GRANT SELECT ON user_profiles TO anon;
+GRANT SELECT ON brand_memberships_with_names TO authenticated;
+GRANT SELECT ON brand_memberships_with_names TO anon;
 
--- Step 7: Update the trigger function comment for clarity
+-- Step 8: Update the trigger function comment for clarity
 COMMENT ON FUNCTION public.handle_new_user_with_brand() IS 
 'Creates user profile and brand on signup. Populates both full_name and name columns for compatibility.';
+
+-- Step 9: Add comments for clarity
+COMMENT ON VIEW user_profiles IS 
+'View of profiles with name field (mapped from full_name). Use this for queries expecting a name column.';
+
+COMMENT ON VIEW brand_memberships_with_names IS 
+'View of brand_memberships joined with profiles. Field: user_name (from profiles.name or profiles.full_name).';
