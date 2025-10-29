@@ -1,5 +1,7 @@
--- Fix profiles name field and trigger
--- This migration fixes the issue where user names aren't being populated in profiles
+/*
+Fix profiles name field and trigger
+This migration fixes the issue where user names aren't being populated in profiles
+*/
 
 -- Step 1: Add name column to profiles if it doesn't exist (in case it was renamed from full_name)
 DO $$ 
