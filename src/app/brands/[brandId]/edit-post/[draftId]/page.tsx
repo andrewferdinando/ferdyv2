@@ -272,15 +272,27 @@ export default function EditPostPage() {
       }
 
       // Check each asset has at least one active tag
-      const assetsWithoutTags = (assetsData || []).filter((asset: any) => {
-        const activeTags = (asset.asset_tags || []).filter(
-          (at: any) => at.tags && at.tags.is_active
-        )
-        return activeTags.length === 0
-      })
+      interface AssetWithTags {
+        id: string
+        asset_tags?: Array<{
+          tag_id: string
+          tags?: {
+            id: string
+            is_active: boolean
+          } | null
+        }>
+      }
+
+      const assetsWithoutTags = (assetsData || []) as AssetWithTags[]
+        .filter((asset) => {
+          const activeTags = (asset.asset_tags || []).filter(
+            (at) => at.tags && at.tags.is_active
+          )
+          return activeTags.length === 0
+        })
 
       if (assetsWithoutTags.length > 0) {
-        const assetIdsWithoutTags = assetsWithoutTags.map((a: any) => a.id)
+        const assetIdsWithoutTags = assetsWithoutTags.map((a) => a.id)
         alert(
           `Cannot save this post. The following assets do not have tags:\n\n` +
           `${assetIdsWithoutTags.join(', ')}\n\n` +

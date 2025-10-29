@@ -61,19 +61,41 @@ export function useAssets(brandId: string) {
 
       // Generate signed URLs and process tags for each asset
       console.log('📦 Assets from database:', data)
+      
+      interface AssetFromDB {
+        id: string
+        brand_id: string
+        title: string
+        storage_path: string
+        aspect_ratio: string
+        crop_windows?: Record<string, unknown>
+        width?: number
+        height?: number
+        created_at: string
+        asset_tags?: Array<{
+          tag_id: string
+          tags?: {
+            id: string
+            name: string
+            kind: 'subcategory' | 'custom'
+            is_active: boolean
+          } | null
+        }>
+      }
+
       const assetsWithUrls = await Promise.all(
-        (data || []).map(async (asset: any) => {
+        (data || []).map(async (asset: AssetFromDB) => {
           // Use public URL instead of signed URL for now
           const { getPublicUrl } = await import('@/lib/storage/getPublicUrl')
           const publicUrl = getPublicUrl(asset.storage_path)
           
           // Process tags from asset_tags join
           const assetTags: Tag[] = (asset.asset_tags || [])
-            .filter((at: any) => at.tags && at.tags.is_active) // Only include active tags
-            .map((at: any) => ({
-              id: at.tags.id,
-              name: at.tags.name,
-              kind: at.tags.kind
+            .filter((at) => at.tags && at.tags.is_active) // Only include active tags
+            .map((at) => ({
+              id: at.tags!.id,
+              name: at.tags!.name,
+              kind: at.tags!.kind
             }))
           
           const tagIds = assetTags.map((tag: Tag) => tag.id)
@@ -164,17 +186,38 @@ export function useAssets(brandId: string) {
       }
 
       // Process tags similar to fetchAssets
+      interface AssetFromDB {
+        id: string
+        brand_id: string
+        title: string
+        storage_path: string
+        aspect_ratio: string
+        crop_windows?: Record<string, unknown>
+        width?: number
+        height?: number
+        created_at: string
+        asset_tags?: Array<{
+          tag_id: string
+          tags?: {
+            id: string
+            name: string
+            kind: 'subcategory' | 'custom'
+            is_active: boolean
+          } | null
+        }>
+      }
+
       const assetsWithUrls = await Promise.all(
-        (data || []).map(async (asset: any) => {
+        (data || []).map(async (asset: AssetFromDB) => {
           const { getPublicUrl } = await import('@/lib/storage/getPublicUrl')
           const publicUrl = getPublicUrl(asset.storage_path)
           
           const assetTags: Tag[] = (asset.asset_tags || [])
-            .filter((at: any) => at.tags && at.tags.is_active)
-            .map((at: any) => ({
-              id: at.tags.id,
-              name: at.tags.name,
-              kind: at.tags.kind
+            .filter((at) => at.tags && at.tags.is_active)
+            .map((at) => ({
+              id: at.tags!.id,
+              name: at.tags!.name,
+              kind: at.tags!.kind
             }))
           
           return { 

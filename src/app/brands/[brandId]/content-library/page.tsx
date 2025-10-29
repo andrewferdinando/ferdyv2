@@ -19,7 +19,7 @@ interface CropData {
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
-  const { assets, loading, error, refetch, saveAssetTags, fetchAssetsNeedingTags } = useAssets(brandId)
+  const { assets, loading, error, refetch, saveAssetTags } = useAssets(brandId)
   const { deleteAsset, deleting } = useDeleteAsset()
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')

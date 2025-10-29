@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useTags, Tag } from '@/hooks/useTags'
-import { supabase } from '@/lib/supabase-browser'
+import { useTags } from '@/hooks/useTags'
 
 interface TagSelectorProps {
   brandId: string
