@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 export interface Brand {
   id: string;
   name: string;
+  website_url?: string | null;
   country_code?: string | null;
   timezone: string;
   created_at: string;
