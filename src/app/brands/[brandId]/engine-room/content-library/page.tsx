@@ -29,7 +29,7 @@ export default function ContentLibraryPage() {
   // Filter assets based on tab and search
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      asset.tags.some(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()))
     
     if (activeTab === 'ready') {
       return asset.tags.length > 0 && matchesSearch
