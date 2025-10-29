@@ -318,7 +318,7 @@ export default function ContentLibraryPage() {
 }
 
 // Asset Detail View Component for Needs Attention tab
-function AssetDetailView({ asset, originalAssetData, onBack, onUpdate }: { 
+function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, saveAssetTags }: { 
   asset: Asset; 
   originalAssetData: Asset | null; 
   onBack: () => void; 
