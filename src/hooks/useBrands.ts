@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-interface Brand {
+export interface Brand {
   id: string;
   name: string;
+  country_code?: string | null;
   timezone: string;
   created_at: string;
   updated_at: string;
