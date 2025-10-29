@@ -129,8 +129,13 @@ export function useAssets(brandId: string) {
   }
 
   // Helper function to save asset tags to asset_tags table
+  // Note: brand_id and created_at are handled by database triggers
   const saveAssetTags = async (assetId: string, tagIds: string[]) => {
     try {
+      // Get current user for created_by field
+      const { data: { user } } = await supabase.auth.getUser()
+      const createdBy = user?.id || null
+
       // First, delete existing tags for this asset
       await supabase
         .from('asset_tags')
@@ -138,10 +143,13 @@ export function useAssets(brandId: string) {
         .eq('asset_id', assetId)
 
       // Then, insert new tags
+      // Only send asset_id, tag_id, and created_by
+      // brand_id and created_at are automatically set by database triggers
       if (tagIds.length > 0) {
         const assetTagsToInsert = tagIds.map(tagId => ({
           asset_id: assetId,
-          tag_id: tagId
+          tag_id: tagId,
+          ...(createdBy && { created_by: createdBy })
         }))
 
         const { error: insertError } = await supabase
