@@ -78,7 +78,7 @@ export default function CategoriesPage() {
   const { categories, loading, createCategory, refetch } = useCategories(brandId)
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
-  const { rules, loading: rulesLoading, deleteRule } = useScheduleRules(brandId)
+  const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
@@ -546,6 +546,8 @@ export default function CategoriesPage() {
             setCategoryForNewRule('')
             // Refetch subcategories to show the newly created one
             refetchSubcategories()
+            // Also refresh schedule rules so Post Framework updates immediately
+            refetchRules()
           }}
         />
 

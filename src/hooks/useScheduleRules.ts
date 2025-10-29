@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface ScheduleRule {
@@ -49,42 +49,42 @@ export function useScheduleRules(brandId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchRules = useCallback(async () => {
     if (!brandId) return;
 
-    const fetchRules = async () => {
-      if (!supabase) {
-        console.log('useScheduleRules: Supabase client not available');
-        setLoading(false);
-        return;
-      }
+    if (!supabase) {
+      console.log('useScheduleRules: Supabase client not available');
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
-        setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-        const { data, error } = await supabase
-          .from('schedule_rules')
-          .select(`
-            *,
-            categories(name),
-            subcategories(name, detail, url, default_hashtags)
-          `)
-          .eq('brand_id', brandId)
-          .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('schedule_rules')
+        .select(`
+          *,
+          categories(name),
+          subcategories(name, detail, url, default_hashtags)
+        `)
+        .eq('brand_id', brandId)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        setRules(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch schedule rules');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRules();
+      setRules(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch schedule rules');
+    } finally {
+      setLoading(false);
+    }
   }, [brandId]);
+
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
 
   const upsertRule = async (ruleData: Partial<ScheduleRule>) => {
     if (!supabase) {
@@ -160,9 +160,6 @@ export function useScheduleRules(brandId: string) {
     error,
     upsertRule,
     deleteRule,
-    refetch: () => {
-      setLoading(true);
-      setRules([]);
-    }
+    refetch: fetchRules
   };
 }
