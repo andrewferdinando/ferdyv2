@@ -44,6 +44,7 @@ export default function CategoriesPage() {
   const brandId = params.brandId as string
   const [activeTab, setActiveTab] = useState('categories')
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('')
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [categoryName, setCategoryName] = useState('')
@@ -129,15 +130,7 @@ export default function CategoriesPage() {
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
-              {isAdmin && !selectedCategory && (
-                <button
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
-                >
-                  <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Category
-                </button>
-              )}
+              {/* Add Category button removed per request */}
             </div>
           </div>
 
@@ -199,17 +192,7 @@ export default function CategoriesPage() {
                           <p className="text-gray-600 text-sm">Manage sub-categories for this category</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => {
-                          setEditingSubcategory(null)
-                          setEditingScheduleRule(null)
-                          setIsSubcategoryModalOpen(true)
-                        }}
-                        className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                      >
-                        <PlusIcon className="w-4 h-4 mr-2" />
-                        Add Sub-category
-                      </button>
+                      {/* Add Sub Category button removed per request */}
                     </div>
 
                     <div className="bg-white rounded-lg border border-gray-200">
@@ -351,35 +334,24 @@ export default function CategoriesPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Post Framework</h3>
-                    <p className="text-gray-600 text-sm">Active scheduling rules across all categories</p>
+                    {/* Removed subtitle per request */}
                   </div>
                   {isAdmin && (
                     <div className="flex items-center space-x-3">
+                      {/* Subcategory filter */}
                       <select
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                        value={categoryForNewRule}
-                        onChange={(e) => setCategoryForNewRule(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-4 py-2 text-sm h-10 w-64"
+                        value={subcategoryFilter}
+                        onChange={(e) => setSubcategoryFilter(e.target.value)}
                       >
-                        <option value="">Select category</option>
-                        {categories?.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
+                        <option value="">Filter by Sub Category</option>
+                        {Array.from(new Map((rules || []).filter(r => r.is_active).map(r => [r.subcategory_id, r.subcategories?.name || ''])).entries())
+                          .filter(([id, name]) => id && name)
+                          .map(([id, name]) => (
+                            <option key={id as string} value={id as string}>{name as string}</option>
+                          ))}
                       </select>
-                      <button
-                        onClick={() => {
-                          if (!categoryForNewRule) {
-                            alert('Please select a category first')
-                            return
-                          }
-                          setEditingSubcategory(null)
-                          setEditingScheduleRule(null)
-                          setIsSubcategoryModalOpen(true)
-                        }}
-                        className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                      >
-                        <PlusIcon className="w-4 h-4 mr-2" />
-                        Add Subcategory & Rule
-                      </button>
+                      {/* Add Sub Category button and related category selector removed per request */}
                     </div>
                   )}
                 </div>
@@ -400,13 +372,15 @@ export default function CategoriesPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategory</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {(rules || []).filter(r => r.is_active).map((rule) => {
+                          {(rules || [])
+                            .filter(r => r.is_active)
+                            .filter(r => !subcategoryFilter || r.subcategory_id === subcategoryFilter)
+                            .map((rule) => {
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const nthMap: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' }
@@ -435,21 +409,12 @@ export default function CategoriesPage() {
                               }
                             }
 
-                            let timeLabel = ''
-                            if (rule.frequency === 'specific') {
-                              const times = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
-                              timeLabel = times.join(', ')
-                            } else {
-                              timeLabel = typeof rule.time_of_day === 'string' ? rule.time_of_day : ''
-                            }
-
                             return (
                               <tr key={rule.id}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.categories?.name || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.subcategories?.name || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{daysDates || '-'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{timeLabel || '-'}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                   <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
                                 </td>
