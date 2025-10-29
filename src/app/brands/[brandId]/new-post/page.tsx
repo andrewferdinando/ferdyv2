@@ -262,13 +262,12 @@ export default function NewPostPage() {
         }>
       }
 
-      const assetsWithoutTags = (assetsData || []) as AssetWithTags[]
-        .filter((asset) => {
-          const activeTags = (asset.asset_tags || []).filter(
-            (at) => at.tags && at.tags.is_active
-          )
-          return activeTags.length === 0
-        })
+      const assetsWithoutTags = ((assetsData || []) as AssetWithTags[]).filter((asset) => {
+        const activeTags = (asset.asset_tags || []).filter(
+          (at) => at.tags && at.tags.is_active
+        )
+        return activeTags.length === 0
+      })
 
       if (assetsWithoutTags.length > 0) {
         const assetIdsWithoutTags = assetsWithoutTags.map((a) => a.id)
