@@ -12,18 +12,25 @@ interface ScheduleRule {
   tone: string;
   hashtag_rule: Record<string, unknown>;
   image_tag_rule: Record<string, unknown>;
-  frequency: 'daily' | 'weekly' | 'monthly';
+  // Support all four frequency options
+  frequency: 'daily' | 'weekly' | 'monthly' | 'specific';
   times_per_week: number;
   days_of_week: number[];
-  day_of_month: number;
+  day_of_month: number | number[];
   nth_week: number;
   weekday: number;
-  time_of_day: string;
+  // Can be a single time string or array (for specific date/range)
+  time_of_day: string | string[];
   channels: string[];
   timezone: string;
   is_active: boolean;
   first_run_month: string;
   last_run_month: string;
+  // Specific date/range fields
+  start_date?: string | null;
+  end_date?: string | null;
+  days_before?: number[] | null;
+  days_during?: number[] | null;
   created_at: string;
   updated_at: string;
   categories: {

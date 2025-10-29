@@ -8,6 +8,7 @@ import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
 import { useSubcategories } from '@/hooks/useSubcategories'
 import { useUserRole } from '@/hooks/useUserRole'
+import { useScheduleRules } from '@/hooks/useScheduleRules'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
 import Modal from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
@@ -46,6 +47,7 @@ export default function CategoriesPage() {
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [categoryName, setCategoryName] = useState('')
+  const [categoryForNewRule, setCategoryForNewRule] = useState<string>('')
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[], channels?: string[]} | null>(null)
   const [editingScheduleRule, setEditingScheduleRule] = useState<{
@@ -69,6 +71,7 @@ export default function CategoriesPage() {
   const { categories, loading, createCategory, refetch } = useCategories(brandId)
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
+  const { rules, loading: rulesLoading, deleteRule } = useScheduleRules(brandId)
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
@@ -344,9 +347,186 @@ export default function CategoriesPage() {
                 )}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Next Month Preview</h3>
-                <p className="text-gray-600">Content scheduled for next month will appear here.</p>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Post Framework</h3>
+                    <p className="text-gray-600 text-sm">Active scheduling rules across all categories</p>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center space-x-3">
+                      <select
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        value={categoryForNewRule}
+                        onChange={(e) => setCategoryForNewRule(e.target.value)}
+                      >
+                        <option value="">Select category</option>
+                        {categories?.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          if (!categoryForNewRule) {
+                            alert('Please select a category first')
+                            return
+                          }
+                          setEditingSubcategory(null)
+                          setEditingScheduleRule(null)
+                          setIsSubcategoryModalOpen(true)
+                        }}
+                        className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                      >
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        Add Subcategory & Rule
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200">
+                  {rulesLoading ? (
+                    <div className="p-6">
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+                      </div>
+                    </div>
+                  ) : (rules || []).filter(r => r.is_active).length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead>
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategory</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {(rules || []).filter(r => r.is_active).map((rule) => {
+                            const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
+                            const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
+                            const nthMap: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' }
+
+                            const freqLabel = rule.frequency === 'daily' ? 'Daily'
+                              : rule.frequency === 'weekly' ? 'Weekly'
+                              : rule.frequency === 'monthly' ? 'Monthly'
+                              : 'Specific Date/Range'
+
+                            let daysDates = ''
+                            if (rule.frequency === 'weekly' && rule.days_of_week && rule.days_of_week.length) {
+                              daysDates = rule.days_of_week.map(d => dayNames[d] || '').filter(Boolean).join(', ')
+                            } else if (rule.frequency === 'monthly') {
+                              if (Array.isArray(rule.day_of_month) && rule.day_of_month.length) {
+                                daysDates = rule.day_of_month.join(', ')
+                              } else if (!Array.isArray(rule.day_of_month) && rule.nth_week && rule.weekday) {
+                                daysDates = `${nthMap[rule.nth_week] || rule.nth_week} ${weekdayNames[rule.weekday] || ''}`
+                              }
+                            } else if (rule.frequency === 'specific') {
+                              const start = rule.start_date ? new Date(rule.start_date) : null
+                              const end = rule.end_date ? new Date(rule.end_date) : null
+                              if (start && end) {
+                                const sameDay = start.toDateString() === end.toDateString()
+                                const fmt = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+                                daysDates = sameDay ? fmt.format(start) : `${fmt.format(start)} → ${fmt.format(end)}`
+                              }
+                            }
+
+                            let timeLabel = ''
+                            if (rule.frequency === 'specific') {
+                              const times = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
+                              timeLabel = times.join(', ')
+                            } else {
+                              timeLabel = typeof rule.time_of_day === 'string' ? rule.time_of_day : ''
+                            }
+
+                            return (
+                              <tr key={rule.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.categories?.name || ''}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.subcategories?.name || ''}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{daysDates || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{timeLabel || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => {
+                                        // Prefill edit data from rule
+                                        setEditingSubcategory({
+                                          id: rule.subcategory_id,
+                                          name: rule.subcategories?.name || '',
+                                          detail: rule.subcategories?.detail,
+                                          url: rule.subcategories?.url,
+                                          hashtags: rule.subcategories?.default_hashtags || [],
+                                          channels: rule.channels || []
+                                        })
+
+                                        // Map schedule rule for form
+                                        const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
+                                        const mappedRule = {
+                                          id: rule.id,
+                                          frequency: rule.frequency,
+                                          timeOfDay: timesArray[0] || '',
+                                          timesOfDay: timesArray,
+                                          daysOfWeek: (rule.days_of_week || []).map((d: number) => {
+                                            const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
+                                            return dayMap[d] || ''
+                                          }).filter(Boolean),
+                                          daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
+                                          nthWeek: rule.nth_week,
+                                          weekday: rule.weekday,
+                                          channels: rule.channels || [],
+                                          isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
+                                          startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
+                                          endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
+                                          daysBefore: rule.days_before || [],
+                                          daysDuring: rule.days_during || [],
+                                          timezone: rule.timezone || 'Pacific/Auckland'
+                                        }
+                                        setEditingScheduleRule(mappedRule)
+                                        setSelectedCategory({ id: rule.category_id, name: rule.categories?.name || '' })
+                                        setIsSubcategoryModalOpen(true)
+                                      }}
+                                      className="text-gray-400 hover:text-gray-600"
+                                    >
+                                      <EditIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        if (confirm(`Remove scheduling rule for "${rule.subcategories?.name || 'subcategory'}"?`)) {
+                                          try {
+                                            await deleteRule(rule.id)
+                                          } catch (err) {
+                                            alert('Failed to delete rule')
+                                          }
+                                        }
+                                      }}
+                                      className="text-gray-400 hover:text-red-600"
+                                    >
+                                      <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-6">
+                      <div className="text-center py-12">
+                        <p className="text-gray-500">No active schedule rules yet. Create one to get started.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -361,7 +541,7 @@ export default function CategoriesPage() {
             setEditingScheduleRule(null)
           }}
           brandId={brandId}
-          categoryId={selectedCategory?.id}
+          categoryId={activeTab === 'categories' ? selectedCategory?.id : (categoryForNewRule || selectedCategory?.id)}
           editingSubcategory={editingSubcategory || undefined}
           editingScheduleRule={editingScheduleRule || undefined}
           onSuccess={() => {
@@ -369,6 +549,7 @@ export default function CategoriesPage() {
             setIsSubcategoryModalOpen(false)
             setEditingSubcategory(null)
             setEditingScheduleRule(null)
+            setCategoryForNewRule('')
             // Refetch subcategories to show the newly created one
             refetchSubcategories()
           }}
