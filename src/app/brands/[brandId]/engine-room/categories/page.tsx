@@ -39,6 +39,12 @@ const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
 export default function CategoriesPage() {
   const params = useParams()
   const brandId = params.brandId as string
@@ -130,7 +136,15 @@ export default function CategoriesPage() {
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
-              {/* Add Category button removed per request */}
+              {isAdmin && !selectedCategory && (
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Add Category
+                </button>
+              )}
             </div>
           </div>
 
@@ -192,7 +206,17 @@ export default function CategoriesPage() {
                           <p className="text-gray-600 text-sm">Manage sub-categories for this category</p>
                         </div>
                       </div>
-                      {/* Add Sub Category button removed per request */}
+                      <button 
+                        onClick={() => {
+                          setEditingSubcategory(null)
+                          setEditingScheduleRule(null)
+                          setIsSubcategoryModalOpen(true)
+                        }}
+                        className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
+                      >
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        Add Sub Category
+                      </button>
                     </div>
 
                     <div className="bg-white rounded-lg border border-gray-200">
@@ -339,18 +363,23 @@ export default function CategoriesPage() {
                   {isAdmin && (
                     <div className="flex items-center space-x-3">
                       {/* Subcategory filter */}
-                      <select
-                        className="border border-gray-300 rounded-lg px-4 py-2 text-sm h-10 w-64"
-                        value={subcategoryFilter}
-                        onChange={(e) => setSubcategoryFilter(e.target.value)}
-                      >
-                        <option value="">Filter by Sub Category</option>
-                        {Array.from(new Map((rules || []).filter(r => r.is_active).map(r => [r.subcategory_id, r.subcategories?.name || ''])).entries())
-                          .filter(([id, name]) => id && name)
-                          .map(([id, name]) => (
-                            <option key={id as string} value={id as string}>{name as string}</option>
-                          ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          className="border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm h-10 w-64 appearance-none bg-white focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none"
+                          value={subcategoryFilter}
+                          onChange={(e) => setSubcategoryFilter(e.target.value)}
+                        >
+                          <option value="">Filter by Sub Category</option>
+                          {Array.from(new Map((rules || []).filter(r => r.is_active).map(r => [r.subcategory_id, r.subcategories?.name || ''])).entries())
+                            .filter(([id, name]) => id && name)
+                            .map(([id, name]) => (
+                              <option key={id as string} value={id as string}>{name as string}</option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                          <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                        </div>
+                      </div>
                       {/* Add Sub Category button and related category selector removed per request */}
                     </div>
                   )}
