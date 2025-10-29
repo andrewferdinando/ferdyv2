@@ -81,9 +81,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Step 3: Create a view user_profiles if it doesn't exist (maps full_name to name for compatibility)
 -- This view provides compatibility with queries expecting a 'name' column
 -- Field: name (from profiles.name or profiles.full_name)
--- First, drop if it exists as a table or view
-DROP VIEW IF EXISTS user_profiles CASCADE;
+-- First, drop if it exists as a table (must be dropped before view can be created)
+-- Order matters: drop table first, then view
 DROP TABLE IF EXISTS user_profiles CASCADE;
+DROP VIEW IF EXISTS user_profiles CASCADE;
 
 CREATE VIEW user_profiles AS
 SELECT 
