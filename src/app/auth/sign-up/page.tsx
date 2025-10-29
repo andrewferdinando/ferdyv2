@@ -171,20 +171,28 @@ export default function SignUpPage() {
 
       // After successful sign-up, create the brand in Supabase
       if (authData.user && !authError) {
-        const { error: brandError } = await supabase
+        const brandInsertData = {
+          name: brandData.name,
+          website_url: brandData.website_url,
+          country_code: brandData.country_code,
+          timezone: brandData.timezone
+        }
+
+        console.log('Creating brand with data:', brandInsertData)
+        console.log('Country code value:', brandData.country_code)
+
+        const { data: brandDataResult, error: brandError } = await supabase
           .from('brands')
-          .insert({
-            name: brandData.name,
-            website_url: brandData.website_url,
-            country_code: brandData.country_code,
-            timezone: brandData.timezone,
-            created_by: authData.user.id
-          })
+          .insert(brandInsertData)
+          .select()
 
         if (brandError) {
           console.error('Error creating brand:', brandError)
-          // Don't fail the whole sign-up process if brand creation fails
+          // Show error to user but don't fail the whole sign-up process
           // The user can still sign in and the brand might be created via trigger
+          setError(`Account created but brand creation failed: ${brandError.message}. Please contact support.`)
+        } else {
+          console.log('Brand created successfully:', brandDataResult)
         }
       }
 
