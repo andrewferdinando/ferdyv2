@@ -262,7 +262,7 @@ export default function NewPostPage() {
         }>
       }
 
-      const assetsWithoutTags = ((assetsData || []) as AssetWithTags[]).filter((asset) => {
+      const assetsWithoutTags = ((assetsData || []) as unknown as AssetWithTags[]).filter((asset) => {
         const activeTags = (asset.asset_tags || []).filter(
           (at) => at.tags && at.tags.is_active
         )
