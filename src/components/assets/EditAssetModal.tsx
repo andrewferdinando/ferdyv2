@@ -3,18 +3,16 @@
 import { useState, useEffect } from 'react'
 import { Asset } from '@/hooks/assets/useAssets'
 import { useUpdateAsset } from '@/hooks/assets/useUpdateAsset'
+import TagSelector from '@/components/assets/TagSelector'
 
 interface EditAssetModalProps {
   asset: Asset | null
   isOpen: boolean
   onClose: () => void
   onSave: () => void
+  brandId: string
+  saveAssetTags: (assetId: string, tagIds: string[]) => Promise<void>
 }
-
-const availableTags = [
-  'Student Discount', 'Happy Hour Special', 'Corporate Team Building',
-  'Weekend Special', 'Family Package', 'Birthday Party', 'Holiday Special', 'Summer Promotion'
-]
 
 const aspectRatios = [
   { value: 'original', label: 'Original' },
@@ -23,9 +21,9 @@ const aspectRatios = [
   { value: '1.91:1', label: '1.91:1 Landscape' }
 ]
 
-export default function EditAssetModal({ asset, isOpen, onClose, onSave }: EditAssetModalProps) {
+export default function EditAssetModal({ asset, isOpen, onClose, onSave, brandId, saveAssetTags }: EditAssetModalProps) {
   const [title, setTitle] = useState('')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [aspectRatio, setAspectRatio] = useState('original')
   const [cropWindows, setCropWindows] = useState('')
   const { updateAsset, updating } = useUpdateAsset()
@@ -33,22 +31,19 @@ export default function EditAssetModal({ asset, isOpen, onClose, onSave }: EditA
   useEffect(() => {
     if (asset) {
       setTitle(asset.title)
-      setSelectedTags(asset.tags || [])
+      setSelectedTagIds(asset.tag_ids || [])
       setAspectRatio(asset.aspect_ratio || 'original')
       setCropWindows(asset.crop_windows ? JSON.stringify(asset.crop_windows, null, 2) : '')
     }
   }, [asset])
 
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    )
-  }
-
   const handleSave = async () => {
     if (!asset) return
+
+    if (selectedTagIds.length === 0) {
+      alert('Please select at least one tag')
+      return
+    }
 
     try {
       let parsedCropWindows = null
@@ -66,11 +61,12 @@ export default function EditAssetModal({ asset, isOpen, onClose, onSave }: EditA
         brandId: asset.brand_id,
         updates: {
           title: title.trim() || asset.title,
-          tags: selectedTags,
           aspect_ratio: aspectRatio,
           crop_windows: parsedCropWindows
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+          // Save tags separately to asset_tags table
+          await saveAssetTags(asset.id, selectedTagIds)
           onSave()
           onClose()
         },
@@ -144,21 +140,12 @@ export default function EditAssetModal({ asset, isOpen, onClose, onSave }: EditA
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tags
             </label>
-            <div className="grid grid-cols-2 gap-1">
-              {availableTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                    selectedTags.includes(tag)
-                      ? 'bg-[#6366F1] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
+            <TagSelector
+              brandId={brandId}
+              selectedTagIds={selectedTagIds}
+              onTagsChange={setSelectedTagIds}
+              required
+            />
           </div>
 
           {/* Crop Windows (Optional) */}
