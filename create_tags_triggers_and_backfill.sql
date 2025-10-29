@@ -15,21 +15,20 @@ BEGIN
   
   ELSIF TG_OP = 'UPDATE' THEN
     -- Update the tag name when subcategory name changes
+    -- First, try to update existing tag
     UPDATE tags
     SET name = NEW.name,
         updated_at = NOW()
     WHERE brand_id = NEW.brand_id
       AND kind = 'subcategory'
-      AND name = OLD.name
-      AND id IN (
-        -- Find tag by matching subcategory name pattern or by some other means
-        -- Since we don't have a direct foreign key, we'll match by name and brand
-        SELECT id FROM tags 
-        WHERE brand_id = NEW.brand_id 
-          AND kind = 'subcategory'
-          AND name = OLD.name
-        LIMIT 1
-      );
+      AND name = OLD.name;
+    
+    -- If no tag exists (e.g., tag was deleted or never existed), create a new one
+    IF NOT FOUND THEN
+      INSERT INTO tags (brand_id, name, kind, is_active, created_at)
+      VALUES (NEW.brand_id, NEW.name, 'subcategory', true, NOW())
+      ON CONFLICT DO NOTHING;
+    END IF;
     
     RETURN NEW;
   
