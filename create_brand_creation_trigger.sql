@@ -18,8 +18,9 @@ BEGIN
     v_brand_timezone := new.raw_user_meta_data->>'brand_timezone';
     
     -- Create profile first
+    -- Use 'name' metadata key (matches sign-up page) and map to full_name column
     INSERT INTO public.profiles (user_id, full_name)
-    VALUES (new.id, new.raw_user_meta_data->>'full_name');
+    VALUES (new.id, new.raw_user_meta_data->>'name');
     
     -- Create brand if brand data is provided
     IF v_brand_name IS NOT NULL THEN
