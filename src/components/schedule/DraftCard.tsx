@@ -204,18 +204,13 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
         if (draft.post_job_id) {
           query = query.eq('post_job_id', draft.post_job_id);
         } else if (draft.scheduled_for) {
-          // Group within a wider window and prefer NZT exact match if available
-          if (draft.scheduled_for_nzt) {
-            query = query.eq('scheduled_for_nzt', draft.scheduled_for_nzt);
-          } else {
-            const center = new Date(draft.scheduled_for);
-            const before = new Date(center.getTime() - 15 * 60 * 1000).toISOString();
-            const after = new Date(center.getTime() + 15 * 60 * 1000).toISOString();
-            query = query.gte('scheduled_for', before).lte('scheduled_for', after);
-          }
+          // Group by time window around scheduled_for (handles automation rows per-channel skews)
+          const center = new Date(draft.scheduled_for);
+          const before = new Date(center.getTime() - 60 * 60 * 1000).toISOString();
+          const after = new Date(center.getTime() + 60 * 60 * 1000).toISOString();
+          query = query.gte('scheduled_for', before).lte('scheduled_for', after);
         }
-        // limit to framework siblings to avoid unrelated matches
-        query = query.eq('schedule_source', 'framework');
+        // Do not restrict schedule_source; some automated rows may have NULL here
         const { data, error } = await query;
         if (error) return;
         const all: string[] = [];
