@@ -8,7 +8,7 @@ import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
-import { useScheduleCards } from '@/hooks/useScheduleCards';
+import { useScheduleCards, type ScheduleCardRow } from '@/hooks/useScheduleCards';
 
 // Type definitions
 interface Draft {
@@ -283,7 +283,7 @@ function DraftsTab({ drafts, loading, onUpdate }: DraftsTabProps) {
 
 // Scheduled Tab Component
 interface ScheduledTabProps {
-  scheduled: ScheduledPost[];
+  scheduled: ScheduleCardRow[];
   loading: boolean;
   onUpdate: () => void;
 }
@@ -321,11 +321,11 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
 
   return (
     <div className="space-y-4">
-      {scheduled.map((row: any, idx: number) => (
+      {scheduled.map((row: ScheduleCardRow, idx: number) => (
         <div key={`${row.scheduled_for}-${idx}`} className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-start justify-between">
             <div className="flex flex-wrap gap-2">
-              {(row.channels || []).map((ch: string) => (
+              {(row.channels || []).map((ch) => (
                 <ChannelBadge key={ch} ch={ch} />
               ))}
             </div>
