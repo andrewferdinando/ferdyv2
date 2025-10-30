@@ -196,12 +196,17 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   useEffect(() => {
     const fetchSiblings = async () => {
       try {
-        if (!draft.scheduled_for) return;
-        const { data, error } = await supabase
+        if (!draft.post_job_id && !draft.scheduled_for) return;
+        let query = supabase
           .from('drafts')
           .select('channel, channels')
-          .eq('brand_id', draft.brand_id)
-          .eq('scheduled_for', draft.scheduled_for);
+          .eq('brand_id', draft.brand_id);
+        if (draft.post_job_id) {
+          query = query.eq('post_job_id', draft.post_job_id);
+        } else if (draft.scheduled_for) {
+          query = query.eq('scheduled_for', draft.scheduled_for);
+        }
+        const { data, error } = await query;
         if (error) return;
         const all: string[] = [];
         (data || []).forEach((row: { channel: string; channels?: string[] }) => {
@@ -219,7 +224,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
       } catch {}
     };
     fetchSiblings();
-  }, [draft.brand_id, draft.scheduled_for]);
+  }, [draft.brand_id, draft.post_job_id, draft.scheduled_for]);
 
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
