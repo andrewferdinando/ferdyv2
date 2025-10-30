@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -79,6 +79,118 @@ export default function CategoriesPage() {
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
   const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
+
+  const [pushing, setPushing] = useState(false)
+
+  const bannerCopyNZ = useMemo(() => {
+    // Compute next auto-run date in Pacific/Auckland
+    try {
+      const now = new Date()
+      const nzNow = new Date(now.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }))
+      const year = nzNow.getFullYear()
+      const month = nzNow.getMonth() // 0-based
+      const day = nzNow.getDate()
+
+      // If today is after the 15th in NZ, show month-after-next created on next month's 15th
+      const createMonthIndex = day > 15 ? month + 1 : month
+      const targetMonthIndex = day > 15 ? month + 2 : month + 1
+
+      const createDate = new Date(year, createMonthIndex, 15)
+      const targetMonthDate = new Date(year, targetMonthIndex, 1)
+
+      const monthName = targetMonthDate.toLocaleString('en-NZ', { month: 'long' })
+      const createMonthName = createDate.toLocaleString('en-NZ', { month: 'long' })
+
+      return `${monthName} posts will be created on ${createMonthName} 15th.`
+    } catch (e) {
+      return ''
+    }
+  }, [])
+
+  const selectImageForSubcategory = async (brandId: string, subcategoryId: string): Promise<string | null> => {
+    // Step 1: fetch tags for subcategory
+    const { data: tags, error: tagsErr } = await supabase
+      .from('tags')
+      .select('id')
+      .eq('subcategory_id', subcategoryId)
+    if (tagsErr) return null
+    const tagIds = (tags || []).map(t => t.id)
+
+    if (tagIds.length > 0) {
+      // Step 2: fetch asset_ids via assets_tags
+      const { data: assetTagRows, error: atErr } = await supabase
+        .from('assets_tags')
+        .select('asset_id')
+        .in('tag_id', tagIds)
+      if (!atErr) {
+        const assetIds = (assetTagRows || []).map(r => r.asset_id)
+        if (assetIds.length > 0) {
+          // Step 3: fetch random active asset for brand from those ids
+          const { data: match, error: matchErr } = await supabase
+            .from('assets')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('is_active', true)
+            .in('id', assetIds)
+            .order('random()')
+            .limit(1)
+          if (!matchErr && match && match.length > 0) {
+            return match[0].id
+          }
+        }
+      }
+    }
+
+    // Fallback: any random active asset for brand
+    const { data: fallback, error: fbErr } = await supabase
+      .from('assets')
+      .select('id')
+      .eq('brand_id', brandId)
+      .eq('is_active', true)
+      .order('random()')
+      .limit(1)
+    if (!fbErr && fallback && fallback.length > 0) return fallback[0].id
+    return null
+  }
+
+  const handlePushToDrafts = async () => {
+    if (pushing) return
+    setPushing(true)
+    try {
+      // Trigger RPC to create drafts
+      const { data, error } = await supabase.rpc('rpc_push_framework_to_drafts', {
+        p_brand_id: brandId
+      })
+      if (error) throw error
+
+      // Assign images and placeholder copy to returned drafts if provided
+      const createdDrafts: Array<{ id: string, subcategory_id: string }> = Array.isArray(data) ? data : []
+      for (const draft of createdDrafts) {
+        const imageId = await selectImageForSubcategory(brandId, draft.subcategory_id)
+        if (imageId) {
+          await supabase
+            .from('drafts')
+            .update({ asset_ids: [imageId], copy: 'Post copy coming soon…' })
+            .eq('id', draft.id)
+        } else {
+          await supabase
+            .from('drafts')
+            .update({ copy: 'Post copy coming soon…' })
+            .eq('id', draft.id)
+        }
+      }
+
+      // Refresh data
+      await refetchRules()
+      // Simple toast
+      alert('Drafts created from framework.')
+    } catch (err) {
+      console.error('Push to drafts failed', err)
+      alert('Failed to create drafts. Please try again.')
+    } finally {
+      setPushing(false)
+    }
+  }
 
   const tabs = [
     { id: 'categories', name: 'Categories' },
@@ -362,6 +474,12 @@ export default function CategoriesPage() {
                   </div>
                   {isAdmin && (
                     <div className="flex items-center space-x-3">
+                      {/* Banner */}
+                      {bannerCopyNZ && (
+                        <div className="hidden sm:block px-3 py-2 bg-[#EEF2FF] text-[#6366F1] text-sm rounded-lg">
+                          {bannerCopyNZ}
+                        </div>
+                      )}
                       {/* Subcategory filter */}
                       <div className="relative">
                         <select
@@ -380,6 +498,14 @@ export default function CategoriesPage() {
                           <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                         </div>
                       </div>
+                      {/* Push to Drafts */}
+                      <button
+                        onClick={handlePushToDrafts}
+                        disabled={pushing}
+                        className={`inline-flex items-center px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${pushing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
+                      >
+                        {pushing ? 'Pushing…' : 'Push to Drafts Now'}
+                      </button>
                       {/* Add Sub Category button and related category selector removed per request */}
                     </div>
                   )}
