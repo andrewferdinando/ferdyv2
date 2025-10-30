@@ -192,13 +192,18 @@ export default function CategoriesPage() {
         if (!fetchError && !targetsError && newDrafts && newDrafts.length > 0 && targets) {
           // Match drafts to subcategories via scheduled_for
           for (const draft of newDrafts) {
-            const target = targets.find((t: any) => 
+            interface FrameworkTarget {
+              subcategory_id: string
+              scheduled_at: string
+              frequency: string
+            }
+            const target = (targets as FrameworkTarget[]).find((t) => 
               new Date(t.scheduled_at).getTime() === new Date(draft.scheduled_for).getTime()
             )
 
             if (target?.subcategory_id) {
               const imageId = await selectImageForSubcategory(brandId, target.subcategory_id)
-              const updates: any = {}
+              const updates: Partial<{ copy: string; asset_ids: string[] }> = {}
               if (imageId) {
                 updates.asset_ids = [imageId]
               }
