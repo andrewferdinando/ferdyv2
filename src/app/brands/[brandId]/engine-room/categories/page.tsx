@@ -83,23 +83,33 @@ export default function CategoriesPage() {
   const [pushing, setPushing] = useState(false)
 
   const bannerCopyNZ = useMemo(() => {
-    // Compute next auto-run date in Pacific/Auckland
+    // Compute next auto-run date in Pacific/Auckland using Intl parts to avoid Invalid Date
     try {
-      const now = new Date()
-      const nzNow = new Date(now.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }))
-      const year = nzNow.getFullYear()
-      const month = nzNow.getMonth() // 0-based
-      const day = nzNow.getDate()
+      const parts = new Intl.DateTimeFormat('en-NZ', {
+        timeZone: 'Pacific/Auckland',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      }).formatToParts(new Date())
 
-      // If today is after the 15th in NZ, show month-after-next created on next month's 15th
-      const createMonthIndex = day > 15 ? month + 1 : month
-      const targetMonthIndex = day > 15 ? month + 2 : month + 1
+      const get = (type: string) => Number(parts.find(p => p.type === type)?.value || '0')
+      let year = get('year')
+      let month = get('month') - 1 // 0-based
+      const day = get('day')
 
-      const createDate = new Date(year, createMonthIndex, 15)
-      const targetMonthDate = new Date(year, targetMonthIndex, 1)
+      // If after the 15th NZT, create next month for the month-after-next
+      let createMonthIndex = day > 15 ? month + 1 : month
+      let createYear = year
+      if (createMonthIndex > 11) { createMonthIndex -= 1  // will add back below safely
+      }
 
-      const monthName = targetMonthDate.toLocaleString('en-NZ', { month: 'long' })
-      const createMonthName = createDate.toLocaleString('en-NZ', { month: 'long' })
+      let targetMonthIndex = day > 15 ? month + 2 : month + 1
+      let targetYear = year
+      while (targetMonthIndex > 11) { targetMonthIndex -= 12; targetYear += 1 }
+      while (createMonthIndex > 11) { createMonthIndex -= 12; createYear += 1 }
+
+      const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(new Date(targetYear, targetMonthIndex, 1))
+      const createMonthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(new Date(createYear, createMonthIndex, 15))
 
       return `${monthName} posts will be created on ${createMonthName} 15th.`
     } catch (e) {
@@ -248,7 +258,7 @@ export default function CategoriesPage() {
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
-              {isAdmin && !selectedCategory && (
+              {isAdmin && !selectedCategory && activeTab === 'categories' && (
                 <button
                   onClick={() => setIsCategoryModalOpen(true)}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
@@ -467,6 +477,7 @@ export default function CategoriesPage() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Row 1: Title + Filter */}
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Post Framework</h3>
@@ -474,12 +485,6 @@ export default function CategoriesPage() {
                   </div>
                   {isAdmin && (
                     <div className="flex items-center space-x-3">
-                      {/* Banner */}
-                      {bannerCopyNZ && (
-                        <div className="hidden sm:block px-3 py-2 bg-[#EEF2FF] text-[#6366F1] text-sm rounded-lg">
-                          {bannerCopyNZ}
-                        </div>
-                      )}
                       {/* Subcategory filter */}
                       <div className="relative">
                         <select
@@ -498,7 +503,21 @@ export default function CategoriesPage() {
                           <ChevronDownIcon className="w-4 h-4 text-gray-500" />
                         </div>
                       </div>
-                      {/* Push to Drafts */}
+                    </div>
+                  )}
+                </div>
+
+                {/* Row 2: Banner + Push Button */}
+                {isAdmin && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="w-full">
+                      {bannerCopyNZ && (
+                        <div className="px-3 py-2 bg-[#EEF2FF] text-[#6366F1] text-sm rounded-lg inline-block">
+                          {bannerCopyNZ}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 ml-4">
                       <button
                         onClick={handlePushToDrafts}
                         disabled={pushing}
@@ -506,10 +525,9 @@ export default function CategoriesPage() {
                       >
                         {pushing ? 'Pushing…' : 'Push to Drafts Now'}
                       </button>
-                      {/* Add Sub Category button and related category selector removed per request */}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="bg-white rounded-lg border border-gray-200">
                   {rulesLoading ? (
