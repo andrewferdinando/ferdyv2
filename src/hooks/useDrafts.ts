@@ -170,7 +170,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
                 }
               }
 
-              const updates: Record<string, any> = {};
+              const updates: Partial<Pick<Draft, 'copy' | 'asset_ids'>> = {};
               if (!d.copy || d.copy.trim() === '') {
                 updates.copy = 'Post copy coming soon…';
               }
