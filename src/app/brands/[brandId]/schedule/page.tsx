@@ -164,7 +164,7 @@ export default function SchedulePage() {
       case 'scheduled':
         return (
           <ScheduledTab 
-            scheduled={cards} 
+            scheduled={scheduled} 
             loading={scheduledLoading} 
             onUpdate={refetchScheduled}
           />
