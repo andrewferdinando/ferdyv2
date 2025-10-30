@@ -133,7 +133,7 @@ export default function SchedulePage() {
 
   const tabs: Tab[] = [
     { id: 'drafts', name: 'Drafts', count: drafts.length },
-    { id: 'scheduled', name: 'Scheduled', count: scheduled.length },
+    { id: 'scheduled', name: 'Scheduled', count: cards.length },
     { id: 'published', name: 'Published', count: published.length }
   ];
 
