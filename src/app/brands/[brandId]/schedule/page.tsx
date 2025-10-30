@@ -8,6 +8,7 @@ import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
+import { useScheduleCards } from '@/hooks/useScheduleCards';
 
 // Type definitions
 interface Draft {
@@ -127,7 +128,7 @@ export default function SchedulePage() {
 
   // Fetch data for all tabs
   const { drafts, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId, 'pending,generated,ready');
-  const { scheduled, loading: scheduledLoading, refetch: refetchScheduled } = useScheduled(brandId);
+  const { cards, loading: scheduledLoading, refetch: refetchScheduled } = useScheduleCards(brandId);
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
 
   const tabs: Tab[] = [
@@ -287,6 +288,14 @@ interface ScheduledTabProps {
   onUpdate: () => void;
 }
 
+function ChannelBadge({ ch }: { ch: string }) {
+  return (
+    <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs text-gray-700 bg-white">
+      {ch}
+    </span>
+  );
+}
+
 function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
   if (loading) {
     return (
@@ -312,8 +321,19 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
 
   return (
     <div className="space-y-4">
-      {scheduled.map((post) => (
-        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status="scheduled" />
+      {scheduled.map((row: any) => (
+        <div key={`${row.scheduled_for}-${row.subcategory_id}`} className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-start justify-between">
+            <div className="flex flex-wrap gap-2">
+              {(row.channels || []).map((ch: string) => (
+                <ChannelBadge key={ch} ch={ch} />
+              ))}
+            </div>
+            <div className="text-sm text-gray-500">
+              {new Date(row.scheduled_for).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+            </div>
+          </div>
+        </div>
       ))}
     </div>
   );
