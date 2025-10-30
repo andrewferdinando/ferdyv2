@@ -172,8 +172,52 @@ export default function CategoriesPage() {
       })
       if (error) throw error
 
-      // Assign images and placeholder copy to returned drafts if provided
-      if (Array.isArray(data)) {
+      // If RPC returns a number (row count), fetch the newly created drafts and backfill
+      if (typeof data === 'number' && data > 0) {
+        // Fetch all framework targets to map scheduled_for -> subcategory_id
+        const { data: targets, error: targetsError } = await supabase
+          .rpc('rpc_framework_targets', { p_brand_id: brandId })
+
+        // Fetch framework drafts created in the last minute (for this brand) to backfill
+        const { data: newDrafts, error: fetchError } = await supabase
+          .from('drafts')
+          .select('id, scheduled_for')
+          .eq('brand_id', brandId)
+          .eq('schedule_source', 'framework')
+          .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Last 60 seconds
+          .is('copy', null)
+          .order('created_at', { ascending: false })
+          .limit(data)
+
+        if (!fetchError && !targetsError && newDrafts && newDrafts.length > 0 && targets) {
+          // Match drafts to subcategories via scheduled_for
+          for (const draft of newDrafts) {
+            const target = targets.find((t: any) => 
+              new Date(t.scheduled_at).getTime() === new Date(draft.scheduled_for).getTime()
+            )
+
+            if (target?.subcategory_id) {
+              const imageId = await selectImageForSubcategory(brandId, target.subcategory_id)
+              const updates: any = {}
+              if (imageId) {
+                updates.asset_ids = [imageId]
+              }
+              updates.copy = 'Post copy coming soon…'
+              await supabase
+                .from('drafts')
+                .update(updates)
+                .eq('id', draft.id)
+            } else {
+              // Fallback: just set copy
+              await supabase
+                .from('drafts')
+                .update({ copy: 'Post copy coming soon…' })
+                .eq('id', draft.id)
+            }
+          }
+        }
+      } else if (Array.isArray(data)) {
+        // Legacy: RPC returned array of drafts
         const createdDrafts: Array<{ id: string, subcategory_id: string }> = data
         for (const draft of createdDrafts) {
           const imageId = await selectImageForSubcategory(brandId, draft.subcategory_id)
