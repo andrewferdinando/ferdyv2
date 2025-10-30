@@ -476,14 +476,7 @@ export default function CategoriesPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Row 1: Title + Filter */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Post Framework</h3>
-                    {/* Removed subtitle per request */}
-                  </div>
-                  {/* No subcategory filter on Post Framework per request */}
-                </div>
+                {/* Title removed per request */}
 
                 {/* Row 2: Banner + Push Button */}
                 {isAdmin && (
