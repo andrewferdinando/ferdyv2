@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase-browser';
 
 export interface ScheduleCardRow {
   brand_id: string;
-  subcategory_id: string;
   scheduled_for: string; // UTC timestamp
   channels: string[] | null;
   channel_count: number;
@@ -27,7 +26,7 @@ export function useScheduleCards(brandId: string) {
         setError(null);
         const { data, error } = await supabase
           .from('schedule_cards')
-          .select('brand_id, subcategory_id, scheduled_for, channels, channel_count')
+          .select('brand_id, scheduled_for, channels, channel_count')
           .eq('brand_id', brandId)
           .order('scheduled_for', { ascending: true });
         if (error) throw error;
@@ -49,7 +48,7 @@ export function useScheduleCards(brandId: string) {
     try {
       const { data, error } = await supabase
         .from('schedule_cards')
-        .select('brand_id, subcategory_id, scheduled_for, channels, channel_count')
+        .select('brand_id, scheduled_for, channels, channel_count')
         .eq('brand_id', brandId)
         .order('scheduled_for', { ascending: true });
       if (error) throw error;

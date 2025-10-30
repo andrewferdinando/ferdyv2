@@ -321,8 +321,8 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
 
   return (
     <div className="space-y-4">
-      {scheduled.map((row: any) => (
-        <div key={`${row.scheduled_for}-${row.subcategory_id}`} className="bg-white rounded-xl border border-gray-200 p-5">
+      {scheduled.map((row: any, idx: number) => (
+        <div key={`${row.scheduled_for}-${idx}`} className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-start justify-between">
             <div className="flex flex-wrap gap-2">
               {(row.channels || []).map((ch: string) => (
