@@ -110,7 +110,7 @@ export default function CategoriesPage() {
       const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(new Date(targetYear, targetMonthIndex, 1))
       const createMonthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(new Date(createYear, createMonthIndex, 15))
 
-      return `${monthName} posts will be created on ${createMonthName} 15th.`
+      return `${monthName} posts will be pushed to Drafts on ${createMonthName} 15th.`
     } catch (e) {
       return ''
     }
