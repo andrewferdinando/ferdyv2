@@ -173,26 +173,29 @@ export default function CategoriesPage() {
       if (error) throw error
 
       // Assign images and placeholder copy to returned drafts if provided
-      const createdDrafts: Array<{ id: string, subcategory_id: string }> = Array.isArray(data) ? data : []
-      for (const draft of createdDrafts) {
-        const imageId = await selectImageForSubcategory(brandId, draft.subcategory_id)
-        if (imageId) {
-          await supabase
-            .from('drafts')
-            .update({ asset_ids: [imageId], copy: 'Post copy coming soon…' })
-            .eq('id', draft.id)
-        } else {
-          await supabase
-            .from('drafts')
-            .update({ copy: 'Post copy coming soon…' })
-            .eq('id', draft.id)
+      if (Array.isArray(data)) {
+        const createdDrafts: Array<{ id: string, subcategory_id: string }> = data
+        for (const draft of createdDrafts) {
+          const imageId = await selectImageForSubcategory(brandId, draft.subcategory_id)
+          if (imageId) {
+            await supabase
+              .from('drafts')
+              .update({ asset_ids: [imageId], copy: 'Post copy coming soon…' })
+              .eq('id', draft.id)
+          } else {
+            await supabase
+              .from('drafts')
+              .update({ copy: 'Post copy coming soon…' })
+              .eq('id', draft.id)
+          }
         }
       }
 
       // Refresh data
       await refetchRules()
-      // Simple toast
-      alert('Drafts created from framework.')
+      // Simple toast – support numeric count or array
+      const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : undefined)
+      alert(count !== undefined ? `Drafts created from framework: ${count}` : 'Drafts created from framework.')
     } catch (err) {
       console.error('Push to drafts failed', err)
       alert('Failed to create drafts. Please try again.')
