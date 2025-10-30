@@ -9,6 +9,7 @@ interface Draft {
   brand_id: string;
   post_job_id: string;
   channel: string;
+  channels?: string[]; // optional array form from framework
   copy: string;
   hashtags: string[];
   asset_ids: string[];
@@ -80,7 +81,9 @@ export function useDrafts(brandId: string, statusFilter?: string) {
           // query = query.not('post_jobs', 'is', null).in('post_jobs.status', statusFilter.split(','));
         }
 
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query
+          .order('scheduled_for', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: true });
 
         console.log('useDrafts: Query result:', { data, error });
         console.log('useDrafts: Raw data length:', data?.length || 0);
@@ -162,7 +165,6 @@ export function useDrafts(brandId: string, statusFilter?: string) {
                   .from('assets')
                   .select('id')
                   .eq('brand_id', d.brand_id)
-                  .eq('is_active', true)
                   .order('random()')
                   .limit(1);
                 if (fallback && fallback.length > 0) {
@@ -192,7 +194,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
               .select('*')
               .eq('brand_id', brandId)
               .eq('approved', false)
-              .order('created_at', { ascending: false });
+              .order('scheduled_for', { ascending: true, nullsFirst: false })
+              .order('created_at', { ascending: true });
             const { data: refreshed } = await refetchQuery;
             const refreshedWithAssets = await Promise.all((refreshed || []).map(async (draft) => {
               if (draft.asset_ids && draft.asset_ids.length > 0) {

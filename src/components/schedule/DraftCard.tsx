@@ -181,11 +181,14 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   };
 
   // Parse channels (handle null, single channel, and comma-separated channels)
-  const channels = draft.channel
+  const channelsFromString = draft.channel
     ? (draft.channel.includes(',')
         ? draft.channel.split(',').map(c => c.trim()).filter(Boolean)
         : [draft.channel])
     : [];
+  const channels = Array.isArray((draft as any).channels) && (draft as any).channels.length > 0
+    ? ((draft as any).channels as string[])
+    : channelsFromString;
 
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
