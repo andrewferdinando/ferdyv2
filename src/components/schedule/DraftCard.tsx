@@ -111,6 +111,7 @@ interface DraftCardProps {
     brand_id: string;
     post_job_id: string;
     channel: string;
+    channels?: string[];
     copy: string;
     hashtags: string[];
     asset_ids: string[];
@@ -186,8 +187,8 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
         ? draft.channel.split(',').map(c => c.trim()).filter(Boolean)
         : [draft.channel])
     : [];
-  const channels = Array.isArray((draft as any).channels) && (draft as any).channels.length > 0
-    ? ((draft as any).channels as string[])
+  const channels = Array.isArray(draft.channels) && draft.channels.length > 0
+    ? draft.channels
     : channelsFromString;
 
   // Allow approval without connected social accounts (APIs will be integrated later)
