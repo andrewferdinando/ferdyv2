@@ -50,7 +50,6 @@ export default function CategoriesPage() {
   const brandId = params.brandId as string
   const [activeTab, setActiveTab] = useState('categories')
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
-  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('')
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [categoryName, setCategoryName] = useState('')
@@ -75,7 +74,7 @@ export default function CategoriesPage() {
     timezone?: string
   } | null>(null)
   
-  const { categories, loading, createCategory, refetch } = useCategories(brandId)
+  const { categories, loading, createCategory } = useCategories(brandId)
   const { subcategories, loading: subcategoriesLoading, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
   const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
@@ -93,8 +92,8 @@ export default function CategoriesPage() {
       }).formatToParts(new Date())
 
       const get = (type: string) => Number(parts.find(p => p.type === type)?.value || '0')
-      let year = get('year')
-      let month = get('month') - 1 // 0-based
+      const year = get('year')
+      const month = get('month') - 1 // 0-based
       const day = get('day')
 
       // If after the 15th NZT, create next month for the month-after-next
@@ -483,28 +482,7 @@ export default function CategoriesPage() {
                     <h3 className="text-lg font-semibold text-gray-900">Post Framework</h3>
                     {/* Removed subtitle per request */}
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center space-x-3">
-                      {/* Subcategory filter */}
-                      <div className="relative">
-                        <select
-                          className="border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm h-10 w-64 appearance-none bg-white focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none"
-                          value={subcategoryFilter}
-                          onChange={(e) => setSubcategoryFilter(e.target.value)}
-                        >
-                          <option value="">Filter by Sub Category</option>
-                          {Array.from(new Map((rules || []).filter(r => r.is_active).map(r => [r.subcategory_id, r.subcategories?.name || ''])).entries())
-                            .filter(([id, name]) => id && name)
-                            .map(([id, name]) => (
-                              <option key={id as string} value={id as string}>{name as string}</option>
-                            ))}
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                          <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* No subcategory filter on Post Framework per request */}
                 </div>
 
                 {/* Row 2: Banner + Push Button */}
@@ -552,7 +530,6 @@ export default function CategoriesPage() {
                         <tbody className="divide-y divide-gray-200">
                           {(rules || [])
                             .filter(r => r.is_active)
-                            .filter(r => !subcategoryFilter || r.subcategory_id === subcategoryFilter)
                             .map((rule) => {
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
