@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 
@@ -22,6 +22,9 @@ interface Draft {
   schedule_source?: 'manual' | 'auto';
   scheduled_by?: string;
   publish_status?: string;
+  // Optional linkage from framework
+  category_id?: string;
+  subcategory_id?: string;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -42,6 +45,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const backfillingRef = useRef(false);
 
   useEffect(() => {
     if (!brandId) {
@@ -116,6 +120,95 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
         setDrafts(draftsWithAssets);
         console.log('useDrafts: Set drafts:', draftsWithAssets?.length || 0, 'items');
+
+        // Backfill any drafts missing copy or assets (framework-created without client post-processing)
+        const needsBackfill = (data || []).filter(d => (!d.copy || d.copy.trim() === '') || !d.asset_ids || d.asset_ids.length === 0);
+        if (needsBackfill.length > 0 && !backfillingRef.current) {
+          backfillingRef.current = true;
+          try {
+            await Promise.all(needsBackfill.map(async (d) => {
+              // Select image by subcategory tag when available; else fallback to any random active asset
+              let chosenAssetId: string | null = null;
+              if (d.subcategory_id) {
+                const { data: tags } = await supabase
+                  .from('tags')
+                  .select('id')
+                  .eq('subcategory_id', d.subcategory_id);
+                const tagIds = (tags || []).map(t => t.id);
+                if (tagIds.length > 0) {
+                  const { data: assetTagRows } = await supabase
+                    .from('assets_tags')
+                    .select('asset_id')
+                    .in('tag_id', tagIds);
+                  const assetIds = (assetTagRows || []).map(r => r.asset_id);
+                  if (assetIds.length > 0) {
+                    const { data: match } = await supabase
+                      .from('assets')
+                      .select('id')
+                      .eq('brand_id', d.brand_id)
+                      .eq('is_active', true)
+                      .in('id', assetIds)
+                      .order('random()')
+                      .limit(1);
+                    if (match && match.length > 0) {
+                      chosenAssetId = match[0].id;
+                    }
+                  }
+                }
+              }
+
+              if (!chosenAssetId) {
+                const { data: fallback } = await supabase
+                  .from('assets')
+                  .select('id')
+                  .eq('brand_id', d.brand_id)
+                  .eq('is_active', true)
+                  .order('random()')
+                  .limit(1);
+                if (fallback && fallback.length > 0) {
+                  chosenAssetId = fallback[0].id;
+                }
+              }
+
+              const updates: Record<string, any> = {};
+              if (!d.copy || d.copy.trim() === '') {
+                updates.copy = 'Post copy coming soon…';
+              }
+              if (chosenAssetId && (!d.asset_ids || d.asset_ids.length === 0)) {
+                updates.asset_ids = [chosenAssetId];
+              }
+
+              if (Object.keys(updates).length > 0) {
+                await supabase
+                  .from('drafts')
+                  .update(updates)
+                  .eq('id', d.id);
+              }
+            }));
+
+            // Refetch to load updated assets/copy
+            const refetchQuery = supabase
+              .from('drafts')
+              .select('*')
+              .eq('brand_id', brandId)
+              .eq('approved', false)
+              .order('created_at', { ascending: false });
+            const { data: refreshed } = await refetchQuery;
+            const refreshedWithAssets = await Promise.all((refreshed || []).map(async (draft) => {
+              if (draft.asset_ids && draft.asset_ids.length > 0) {
+                const { data: assetsData } = await supabase
+                  .from('assets')
+                  .select('id, title, storage_path, aspect_ratio')
+                  .in('id', draft.asset_ids);
+                return { ...draft, assets: assetsData || [] };
+              }
+              return { ...draft, assets: [] };
+            }));
+            setDrafts(refreshedWithAssets);
+          } finally {
+            backfillingRef.current = false;
+          }
+        }
       } catch (err) {
         console.error('useDrafts: Error fetching drafts:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
