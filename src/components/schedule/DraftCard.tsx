@@ -148,6 +148,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);
+  const [siblingChannels, setSiblingChannels] = useState<string[]>([]);
   const copyRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
@@ -187,9 +188,38 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
         ? draft.channel.split(',').map(c => c.trim()).filter(Boolean)
         : [draft.channel])
     : [];
-  const channels = Array.isArray(draft.channels) && draft.channels.length > 0
+  const baseChannels = Array.isArray(draft.channels) && draft.channels.length > 0
     ? draft.channels
     : channelsFromString;
+  const channels = Array.from(new Set([...(baseChannels || []), ...(siblingChannels || [])]));
+
+  useEffect(() => {
+    const fetchSiblings = async () => {
+      try {
+        if (!draft.scheduled_for) return;
+        const { data, error } = await supabase
+          .from('drafts')
+          .select('channel, channels')
+          .eq('brand_id', draft.brand_id)
+          .eq('scheduled_for', draft.scheduled_for);
+        if (error) return;
+        const all: string[] = [];
+        (data || []).forEach((row: { channel: string; channels?: string[] }) => {
+          if (Array.isArray(row.channels) && row.channels.length > 0) {
+            all.push(...row.channels);
+          } else if (row.channel) {
+            if (row.channel.includes(',')) {
+              all.push(...row.channel.split(',').map(c => c.trim()).filter(Boolean));
+            } else {
+              all.push(row.channel);
+            }
+          }
+        });
+        setSiblingChannels(Array.from(new Set(all)));
+      } catch {}
+    };
+    fetchSiblings();
+  }, [draft.brand_id, draft.scheduled_for]);
 
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
