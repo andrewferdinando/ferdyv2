@@ -180,13 +180,15 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
-  // Parse channels (handle both single channel and comma-separated channels)
-  const channels = draft.channel.includes(',') 
-    ? draft.channel.split(',').map(c => c.trim())
-    : [draft.channel];
+  // Parse channels (handle null, single channel, and comma-separated channels)
+  const channels = draft.channel
+    ? (draft.channel.includes(',')
+        ? draft.channel.split(',').map(c => c.trim()).filter(Boolean)
+        : [draft.channel])
+    : [];
 
   // Allow approval without connected social accounts (APIs will be integrated later)
-  const canApprove = draft.copy && draft.asset_ids.length > 0;
+  const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
 
   const formatDateTime = (dateString: string) => {
     if (!brand?.timezone) {
@@ -307,7 +309,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                   paddingRight: showSeeMore ? '4rem' : '0',
                 }}
               >
-                {draft.copy}
+                {draft.copy || 'Post copy coming soon…'}
               </div>
               {/* "See more" link - only shown when content exceeds 2 lines */}
               {showSeeMore && (
