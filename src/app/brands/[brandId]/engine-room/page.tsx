@@ -21,8 +21,8 @@ export default function BrandEngineRoomPage() {
       ),
     },
     {
-      title: 'Categories & Post Frequency',
-      description: 'Define content categories and post structure templates.',
+      title: 'Categories',
+      description: 'Define content categories and post frequency.',
       href: `/brands/${brandId}/engine-room/categories`,
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@ export default function BrandEngineRoomPage() {
     },
     {
       title: 'Integrations',
-      description: 'Connect social media accounts and third-party services.',
+      description: 'Connect your social media accounts.',
       href: `/brands/${brandId}/engine-room/integrations`,
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

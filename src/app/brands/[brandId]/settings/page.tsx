@@ -50,15 +50,15 @@ export default function SettingsPage() {
       actionText: 'Open',
     },
     {
-      title: 'Categories & Post Frequency',
-      description: 'Define content categories and post structure templates.',
+      title: 'Categories',
+      description: 'Define content categories and post frequency.',
       href: `/brands/${brandId}/categories`,
       icon: CategoriesIcon,
       actionText: 'Open',
     },
     {
       title: 'Integrations',
-      description: 'Connect social media accounts and third-party services.',
+      description: 'Connect your social media accounts.',
       href: `/brands/${brandId}/integrations`,
       icon: IntegrationsIcon,
       actionText: 'Open',
