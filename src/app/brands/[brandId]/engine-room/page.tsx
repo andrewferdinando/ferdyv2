@@ -12,7 +12,7 @@ export default function BrandEngineRoomPage() {
   const settingsCards = [
     {
       title: 'Content Library',
-      description: 'Manage your media assets, templates, and reusable content pieces.',
+      description: 'Tag and re-size your content.',
       href: `/brands/${brandId}/engine-room/content-library`,
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -44,7 +44,7 @@ export default function SettingsPage() {
   const settingsCards = [
     {
       title: 'Content Library',
-      description: 'Manage your media assets, templates, and reusable content pieces.',
+      description: 'Tag and re-size your content.',
       href: `/brands/${brandId}/content-library`,
       icon: ContentLibraryIcon,
       actionText: 'Open',
