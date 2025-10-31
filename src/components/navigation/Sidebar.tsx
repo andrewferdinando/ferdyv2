@@ -49,7 +49,40 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const router = useRouter();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { brands, loading: brandsLoading } = useBrands();
+
+  // Check if user is super admin
+  useEffect(() => {
+    const checkSuperAdmin = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsSuperAdmin(false);
+          return;
+        }
+
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error checking super admin status:', error);
+          setIsSuperAdmin(false);
+          return;
+        }
+
+        setIsSuperAdmin(profile?.role === 'super_admin');
+      } catch (error) {
+        console.error('Error checking super admin status:', error);
+        setIsSuperAdmin(false);
+      }
+    };
+
+    checkSuperAdmin();
+  }, []);
 
   // Initialize selectedBrandId from URL or localStorage
   useEffect(() => {
@@ -204,18 +237,20 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
             <span className="font-medium text-sm">Account</span>
           </Link>
           
-          <Link
-            href={superAdminItem.href}
-            onClick={handleNavigationClick}
-            className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-              superAdminItem.active
-                ? 'bg-[#EEF2FF] text-[#6366F1]'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <superAdminItem.icon className="w-5 h-5" />
-            <span className="font-medium text-sm">{superAdminItem.name}</span>
-          </Link>
+          {isSuperAdmin && (
+            <Link
+              href={superAdminItem.href}
+              onClick={handleNavigationClick}
+              className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+                superAdminItem.active
+                  ? 'bg-[#EEF2FF] text-[#6366F1]'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <superAdminItem.icon className="w-5 h-5" />
+              <span className="font-medium text-sm">{superAdminItem.name}</span>
+            </Link>
+          )}
           
           <button
             onClick={handleSignOut}
