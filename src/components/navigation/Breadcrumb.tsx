@@ -101,6 +101,8 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         label = 'Team';
       } else if (segment === 'billing') {
         label = 'Billing';
+      } else if (segment === 'brand') {
+        label = 'Brand Settings';
       }
 
       // Don't make the last segment a link (current page)
