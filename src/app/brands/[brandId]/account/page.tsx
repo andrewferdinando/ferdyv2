@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
-import Breadcrumb from '@/components/navigation/Breadcrumb';
 
 export default function AccountSettingsPage() {
   const params = useParams();
@@ -68,11 +67,6 @@ export default function AccountSettingsPage() {
         <div className="flex-1 overflow-auto bg-gray-50">
           <div className="p-4 sm:p-6 lg:p-10">
             <div className="max-w-4xl mx-auto">
-              {/* Breadcrumb */}
-              <div className="mb-6">
-                <Breadcrumb />
-              </div>
-
               {/* Header */}
               <div className="mb-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Account Settings</h1>
