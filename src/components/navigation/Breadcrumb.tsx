@@ -89,10 +89,18 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         label = 'Automated Monthly Posts';
       } else if (segment === 'account') {
         label = 'Account';
+      } else if (segment === 'settings') {
+        label = 'Settings';
       } else if (segment === 'categories') {
         label = 'Categories';
       } else if (segment === 'integrations') {
         label = 'Integrations';
+      } else if (segment === 'profile') {
+        label = 'Profile';
+      } else if (segment === 'team') {
+        label = 'Team';
+      } else if (segment === 'billing') {
+        label = 'Billing';
       }
 
       // Don't make the last segment a link (current page)

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
+import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { supabase } from '@/lib/supabase-browser';
 
 export default function BillingPage() {
@@ -105,17 +106,13 @@ export default function BillingPage() {
         <div className="flex-1 overflow-auto bg-gray-50">
           <div className="p-4 sm:p-6 lg:p-10">
             <div className="max-w-4xl mx-auto">
+              {/* Breadcrumb */}
+              <div className="mb-6">
+                <Breadcrumb />
+              </div>
+
               {/* Header */}
               <div className="mb-8">
-                <button
-                  onClick={() => router.back()}
-                  className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back to Account Settings
-                </button>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Billing</h1>
                 <p className="text-gray-600 mt-1 text-sm">Manage your subscription and billing information</p>
               </div>
