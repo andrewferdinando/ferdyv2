@@ -117,49 +117,71 @@ export default function CategoriesPage() {
   }, [])
 
   const selectImageForSubcategory = async (brandId: string, subcategoryId: string): Promise<string | null> => {
-    // Step 1: fetch tags for subcategory
-    const { data: tags, error: tagsErr } = await supabase
-      .from('tags')
-      .select('id')
-      .eq('subcategory_id', subcategoryId)
-    if (tagsErr) return null
-    const tagIds = (tags || []).map(t => t.id)
+    try {
+      // Step 1: fetch tags for subcategory
+      const { data: tags, error: tagsErr } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('subcategory_id', subcategoryId)
+      if (tagsErr) {
+        console.error(`Error fetching tags for subcategory ${subcategoryId}:`, tagsErr)
+        // Continue to fallback
+      }
+      const tagIds = (tags || []).map((t: { id: string }) => t.id)
 
-    if (tagIds.length > 0) {
-      // Step 2: fetch asset_ids via assets_tags
-      const { data: assetTagRows, error: atErr } = await supabase
-        .from('assets_tags')
-        .select('asset_id')
-        .in('tag_id', tagIds)
-      if (!atErr) {
-        const assetIds = (assetTagRows || []).map(r => r.asset_id)
-        if (assetIds.length > 0) {
-          // Step 3: fetch random active asset for brand from those ids
-          const { data: match, error: matchErr } = await supabase
-            .from('assets')
-            .select('id')
-            .eq('brand_id', brandId)
-            .eq('is_active', true)
-            .in('id', assetIds)
-            .order('random()')
-            .limit(1)
-          if (!matchErr && match && match.length > 0) {
-            return match[0].id
+      if (tagIds.length > 0) {
+        // Step 2: fetch asset_ids via asset_tags
+        const { data: assetTagRows, error: atErr } = await supabase
+          .from('asset_tags')
+          .select('asset_id')
+          .in('tag_id', tagIds)
+        if (atErr) {
+          console.error(`Error fetching asset_tags for tagIds [${tagIds.join(',')}]:`, atErr)
+          // Continue to fallback
+        } else {
+          const assetIds = (assetTagRows || []).map((r: { asset_id: string }) => r.asset_id)
+          if (assetIds.length > 0) {
+            // Step 3: fetch random active asset for brand from those ids
+            const { data: match, error: matchErr } = await supabase
+              .from('assets')
+              .select('id')
+              .eq('brand_id', brandId)
+              .eq('is_active', true)
+              .in('id', assetIds)
+              .order('random()')
+              .limit(1)
+            if (matchErr) {
+              console.error(`Error fetching tagged asset for brand ${brandId}:`, matchErr)
+            } else if (match && match.length > 0) {
+              console.log(`Found tagged image ${match[0].id} for subcategory ${subcategoryId}`)
+              return match[0].id
+            }
           }
         }
       }
-    }
 
-    // Fallback: any random active asset for brand
-    const { data: fallback, error: fbErr } = await supabase
-      .from('assets')
-      .select('id')
-      .eq('brand_id', brandId)
-      .eq('is_active', true)
-      .order('random()')
-      .limit(1)
-    if (!fbErr && fallback && fallback.length > 0) return fallback[0].id
-    return null
+      // Fallback: any random active asset for brand
+      const { data: fallback, error: fbErr } = await supabase
+        .from('assets')
+        .select('id')
+        .eq('brand_id', brandId)
+        .eq('is_active', true)
+        .order('random()')
+        .limit(1)
+      if (fbErr) {
+        console.error(`Error fetching fallback asset for brand ${brandId}:`, fbErr)
+        return null
+      }
+      if (fallback && fallback.length > 0) {
+        console.log(`Using fallback image ${fallback[0].id} for subcategory ${subcategoryId}`)
+        return fallback[0].id
+      }
+      console.warn(`No assets found for brand ${brandId}`)
+      return null
+    } catch (err) {
+      console.error(`Unexpected error in selectImageForSubcategory:`, err)
+      return null
+    }
   }
 
   const handlePushToDrafts = async () => {
@@ -231,17 +253,23 @@ export default function CategoriesPage() {
               }
               if (imageId) {
                 updates.asset_ids = [imageId]
+                console.log(`Assigned image ${imageId} to draft ${draft.id} for subcategory ${target.subcategory_id}`)
+              } else {
+                console.warn(`No image found for draft ${draft.id} (subcategory ${target.subcategory_id})`)
               }
               if (subcat?.default_hashtags && subcat.default_hashtags.length > 0) {
                 updates.hashtags = subcat.default_hashtags
               }
-              const { error: updateError } = await supabase
+              const { error: updateError, data: updateData } = await supabase
                 .from('drafts')
                 .update(updates)
                 .eq('id', draft.id)
+                .select('id, asset_ids, hashtags, copy')
               
               if (updateError) {
                 console.error(`Failed to update draft ${draft.id}:`, updateError)
+              } else {
+                console.log(`Updated draft ${draft.id}:`, updateData?.[0])
               }
             } else {
               // Fallback: just set copy
