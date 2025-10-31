@@ -141,60 +141,41 @@ export default function CategoriesPage() {
         } else {
           const assetIds = (assetTagRows || []).map((r: { asset_id: string }) => r.asset_id)
           if (assetIds.length > 0) {
-            // Step 3: fetch random active asset for brand from those ids
-            // Use a random offset instead of order('random()') which may not be supported
-            const { count } = await supabase
+            // Step 3: fetch all matching active assets for brand and pick one randomly
+            const { data: matches, error: matchErr } = await supabase
               .from('assets')
-              .select('id', { count: 'exact', head: true })
+              .select('id')
               .eq('brand_id', brandId)
               .eq('is_active', true)
               .in('id', assetIds)
-            
-            if (count && count > 0) {
-              const randomOffset = Math.floor(Math.random() * count)
-              const { data: match, error: matchErr } = await supabase
-                .from('assets')
-                .select('id')
-                .eq('brand_id', brandId)
-                .eq('is_active', true)
-                .in('id', assetIds)
-                .range(randomOffset, randomOffset)
-                .limit(1)
-              if (matchErr) {
-                console.error(`Error fetching tagged asset for brand ${brandId}:`, matchErr)
-              } else if (match && match.length > 0) {
-                console.log(`Found tagged image ${match[0].id} for subcategory ${subcategoryId}`)
-                return match[0].id
-              }
+            if (matchErr) {
+              console.error(`Error fetching tagged asset for brand ${brandId}:`, matchErr, matchErr.message, matchErr.details)
+            } else if (matches && matches.length > 0) {
+              const randomIndex = Math.floor(Math.random() * matches.length)
+              const selected = matches[randomIndex]
+              console.log(`Found tagged image ${selected.id} for subcategory ${subcategoryId}`)
+              return selected.id
             }
           }
         }
       }
 
       // Fallback: any random active asset for brand
-      const { count: fallbackCount } = await supabase
+      const { data: fallbackAssets, error: fbErr } = await supabase
         .from('assets')
-        .select('id', { count: 'exact', head: true })
+        .select('id')
         .eq('brand_id', brandId)
         .eq('is_active', true)
       
-      if (fallbackCount && fallbackCount > 0) {
-        const randomOffset = Math.floor(Math.random() * fallbackCount)
-        const { data: fallback, error: fbErr } = await supabase
-          .from('assets')
-          .select('id')
-          .eq('brand_id', brandId)
-          .eq('is_active', true)
-          .range(randomOffset, randomOffset)
-          .limit(1)
-        if (fbErr) {
-          console.error(`Error fetching fallback asset for brand ${brandId}:`, fbErr, fbErr.message, fbErr.details, fbErr.hint)
-          return null
-        }
-        if (fallback && fallback.length > 0) {
-          console.log(`Using fallback image ${fallback[0].id} for subcategory ${subcategoryId}`)
-          return fallback[0].id
-        }
+      if (fbErr) {
+        console.error(`Error fetching fallback asset for brand ${brandId}:`, fbErr, fbErr.message, fbErr.details, fbErr.hint)
+        return null
+      }
+      if (fallbackAssets && fallbackAssets.length > 0) {
+        const randomIndex = Math.floor(Math.random() * fallbackAssets.length)
+        const selected = fallbackAssets[randomIndex]
+        console.log(`Using fallback image ${selected.id} for subcategory ${subcategoryId}`)
+        return selected.id
       }
       console.warn(`No assets found for brand ${brandId}`)
       return null
