@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useCallback, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import Breadcrumb from '@/components/navigation/Breadcrumb'
@@ -13,6 +13,7 @@ import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleF
 import Modal from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { supabase } from '@/lib/supabase-browser'
+import { useToast } from '@/components/ui/ToastProvider'
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -47,7 +48,9 @@ const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 export default function CategoriesPage() {
   const params = useParams()
+  const router = useRouter()
   const brandId = params.brandId as string
+  const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState('categories')
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
@@ -371,12 +374,24 @@ export default function CategoriesPage() {
       // Re-check if drafts exist to update banner and button
       await checkExistingDrafts()
       
-      // Simple toast – support numeric count or array
+      // Show success toast with navigation option
       const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : undefined)
-      alert(count !== undefined ? `Drafts created from framework: ${count}` : 'Drafts created from framework.')
+      showToast({
+        title: 'Drafts created from framework',
+        message: 'Your posts have been successfully pushed to Drafts.',
+        type: 'success',
+        duration: 4000,
+        actionLabel: 'View Drafts',
+        onAction: () => router.push(`/brands/${brandId}/schedule`)
+      })
     } catch (err) {
       console.error('Push to drafts failed', err)
-      alert('Failed to create drafts. Please try again.')
+      showToast({
+        title: 'Something went wrong',
+        message: "We couldn't push drafts right now. Please try again.",
+        type: 'error',
+        duration: 4000
+      })
     } finally {
       setPushing(false)
     }
@@ -389,12 +404,22 @@ export default function CategoriesPage() {
 
   const handleCreateCategory = async () => {
     if (!categoryName.trim()) {
-      alert('Please enter a category name')
+      showToast({
+        title: 'Category name required',
+        message: 'Please enter a category name',
+        type: 'error',
+        duration: 3000
+      })
       return
     }
 
     if (!brandId) {
-      alert('Brand ID is missing')
+      showToast({
+        title: 'Something went wrong',
+        message: 'Brand ID is missing',
+        type: 'error',
+        duration: 3000
+      })
       return
     }
 
@@ -406,7 +431,12 @@ export default function CategoriesPage() {
       // Categories will be automatically updated via local state in createCategory
     } catch (error) {
       console.error('Error creating category:', error)
-      alert('Failed to create category. Please try again.')
+      showToast({
+        title: 'Failed to create category',
+        message: 'Please try again.',
+        type: 'error',
+        duration: 3000
+      })
     } finally {
       setIsCreatingCategory(false)
     }
@@ -629,7 +659,12 @@ export default function CategoriesPage() {
                                               // Subcategories will refresh automatically via useEffect
                                             } catch (error) {
                                               console.error('Error deleting subcategory:', error)
-                                              alert('Failed to delete subcategory. Please try again.')
+                                              showToast({
+                                                title: 'Failed to delete subcategory',
+                                                message: 'Please try again.',
+                                                type: 'error',
+                                                duration: 3000
+                                              })
                                             }
                                           }
                                         }}
@@ -792,7 +827,12 @@ export default function CategoriesPage() {
                                           try {
                                             await deleteRule(rule.id)
                                           } catch (err) {
-                                            alert('Failed to delete rule')
+                                            showToast({
+                                              title: 'Failed to delete rule',
+                                              message: 'Please try again.',
+                                              type: 'error',
+                                              duration: 3000
+                                            })
                                           }
                                         }
                                       }}

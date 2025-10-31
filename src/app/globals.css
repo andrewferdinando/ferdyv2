@@ -25,3 +25,26 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Toast animations */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOutSlide {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
