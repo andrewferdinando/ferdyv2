@@ -142,39 +142,59 @@ export default function CategoriesPage() {
           const assetIds = (assetTagRows || []).map((r: { asset_id: string }) => r.asset_id)
           if (assetIds.length > 0) {
             // Step 3: fetch random active asset for brand from those ids
-            const { data: match, error: matchErr } = await supabase
+            // Use a random offset instead of order('random()') which may not be supported
+            const { count } = await supabase
               .from('assets')
-              .select('id')
+              .select('id', { count: 'exact', head: true })
               .eq('brand_id', brandId)
               .eq('is_active', true)
               .in('id', assetIds)
-              .order('random()')
-              .limit(1)
-            if (matchErr) {
-              console.error(`Error fetching tagged asset for brand ${brandId}:`, matchErr)
-            } else if (match && match.length > 0) {
-              console.log(`Found tagged image ${match[0].id} for subcategory ${subcategoryId}`)
-              return match[0].id
+            
+            if (count && count > 0) {
+              const randomOffset = Math.floor(Math.random() * count)
+              const { data: match, error: matchErr } = await supabase
+                .from('assets')
+                .select('id')
+                .eq('brand_id', brandId)
+                .eq('is_active', true)
+                .in('id', assetIds)
+                .range(randomOffset, randomOffset)
+                .limit(1)
+              if (matchErr) {
+                console.error(`Error fetching tagged asset for brand ${brandId}:`, matchErr)
+              } else if (match && match.length > 0) {
+                console.log(`Found tagged image ${match[0].id} for subcategory ${subcategoryId}`)
+                return match[0].id
+              }
             }
           }
         }
       }
 
       // Fallback: any random active asset for brand
-      const { data: fallback, error: fbErr } = await supabase
+      const { count: fallbackCount } = await supabase
         .from('assets')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .eq('brand_id', brandId)
         .eq('is_active', true)
-        .order('random()')
-        .limit(1)
-      if (fbErr) {
-        console.error(`Error fetching fallback asset for brand ${brandId}:`, fbErr)
-        return null
-      }
-      if (fallback && fallback.length > 0) {
-        console.log(`Using fallback image ${fallback[0].id} for subcategory ${subcategoryId}`)
-        return fallback[0].id
+      
+      if (fallbackCount && fallbackCount > 0) {
+        const randomOffset = Math.floor(Math.random() * fallbackCount)
+        const { data: fallback, error: fbErr } = await supabase
+          .from('assets')
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('is_active', true)
+          .range(randomOffset, randomOffset)
+          .limit(1)
+        if (fbErr) {
+          console.error(`Error fetching fallback asset for brand ${brandId}:`, fbErr, fbErr.message, fbErr.details, fbErr.hint)
+          return null
+        }
+        if (fallback && fallback.length > 0) {
+          console.log(`Using fallback image ${fallback[0].id} for subcategory ${subcategoryId}`)
+          return fallback[0].id
+        }
       }
       console.warn(`No assets found for brand ${brandId}`)
       return null
@@ -604,7 +624,7 @@ export default function CategoriesPage() {
                           {bannerCopyNZ}
                         </div>
                       )}
-                    </div>
+                  </div>
                     <div className="flex-shrink-0 ml-4">
                       <button
                         onClick={handlePushToDrafts}
@@ -614,8 +634,8 @@ export default function CategoriesPage() {
                         {pushing ? 'Pushing…' : 'Push to Drafts Now'}
                       </button>
                     </div>
-                  </div>
-                )}
+                    </div>
+                  )}
 
                 <div className="bg-white rounded-lg border border-gray-200">
                   {rulesLoading ? (
