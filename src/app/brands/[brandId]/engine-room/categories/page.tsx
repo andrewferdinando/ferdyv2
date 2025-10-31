@@ -178,48 +178,85 @@ export default function CategoriesPage() {
         const { data: targets, error: targetsError } = await supabase
           .rpc('rpc_framework_targets', { p_brand_id: brandId })
 
-        // Fetch framework drafts created in the last minute (for this brand) to backfill
+        // Fetch schedule rules to get subcategory defaults
+        const { data: rules, error: rulesError } = await supabase
+          .from('schedule_rules')
+          .select('subcategory_id')
+          .eq('brand_id', brandId)
+          .eq('is_active', true)
+
+        // Fetch subcategories for hashtags
+        const { data: subcategories, error: subcatsError } = await supabase
+          .from('subcategories')
+          .select('id, default_hashtags')
+          .in('id', (rules || []).map((r: { subcategory_id: string }) => r.subcategory_id))
+
+        // Fetch framework drafts created in the last 2 minutes (for this brand) to backfill
         const { data: newDrafts, error: fetchError } = await supabase
           .from('drafts')
           .select('id, scheduled_for')
           .eq('brand_id', brandId)
           .eq('schedule_source', 'framework')
-          .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Last 60 seconds
-          .is('copy', null)
+          .gte('created_at', new Date(Date.now() - 120000).toISOString()) // Last 2 minutes
+          .or('copy.is.null,asset_ids.is.null') // Either missing copy or images
           .order('created_at', { ascending: false })
           .limit(data)
 
-        if (!fetchError && !targetsError && newDrafts && newDrafts.length > 0 && targets) {
-          // Match drafts to subcategories via scheduled_for
+        if (!fetchError && !targetsError && !rulesError && !subcatsError && newDrafts && newDrafts.length > 0 && targets) {
+          interface FrameworkTarget {
+            subcategory_id: string
+            scheduled_at: string
+            frequency: string
+          }
+          interface Subcategory {
+            id: string
+            default_hashtags: string[] | null
+          }
+          const subcatsMap = new Map<string, Subcategory>()
+          ;(subcategories as Subcategory[] || []).forEach(sc => subcatsMap.set(sc.id, sc))
+
+          // Match drafts to subcategories via scheduled_for (with 5-second tolerance)
           for (const draft of newDrafts) {
-            interface FrameworkTarget {
-              subcategory_id: string
-              scheduled_at: string
-              frequency: string
-            }
-            const target = (targets as FrameworkTarget[]).find((t) => 
-              new Date(t.scheduled_at).getTime() === new Date(draft.scheduled_for).getTime()
-            )
+            const draftTime = new Date(draft.scheduled_for).getTime()
+            const target = (targets as FrameworkTarget[]).find((t) => {
+              const targetTime = new Date(t.scheduled_at).getTime()
+              return Math.abs(targetTime - draftTime) < 5000 // 5 second tolerance
+            })
 
             if (target?.subcategory_id) {
+              const subcat = subcatsMap.get(target.subcategory_id)
               const imageId = await selectImageForSubcategory(brandId, target.subcategory_id)
-              const updates: Partial<{ copy: string; asset_ids: string[] }> = {}
+              const updates: Partial<{ copy: string; asset_ids: string[]; hashtags: string[] }> = {
+                copy: 'Post copy coming soon…'
+              }
               if (imageId) {
                 updates.asset_ids = [imageId]
               }
-              updates.copy = 'Post copy coming soon…'
-              await supabase
+              if (subcat?.default_hashtags && subcat.default_hashtags.length > 0) {
+                updates.hashtags = subcat.default_hashtags
+              }
+              const { error: updateError } = await supabase
                 .from('drafts')
                 .update(updates)
                 .eq('id', draft.id)
+              
+              if (updateError) {
+                console.error(`Failed to update draft ${draft.id}:`, updateError)
+              }
             } else {
               // Fallback: just set copy
-              await supabase
+              const { error: updateError } = await supabase
                 .from('drafts')
                 .update({ copy: 'Post copy coming soon…' })
                 .eq('id', draft.id)
+              
+              if (updateError) {
+                console.error(`Failed to update draft ${draft.id}:`, updateError)
+              }
             }
           }
+        } else {
+          console.error('Backfill skipped:', { fetchError, targetsError, rulesError, subcatsError, newDraftsCount: newDrafts?.length, targetsCount: targets?.length })
         }
       } else if (Array.isArray(data)) {
         // Legacy: RPC returned array of drafts
