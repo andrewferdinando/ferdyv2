@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -80,9 +80,68 @@ export default function CategoriesPage() {
   const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
 
   const [pushing, setPushing] = useState(false)
+  const [draftsAlreadyExist, setDraftsAlreadyExist] = useState<boolean | null>(null)
+  const [frameworkWindow, setFrameworkWindow] = useState<{ start_date: string; end_date: string } | null>(null)
+
+  // Check if drafts already exist for the current framework month
+  const checkExistingDrafts = useCallback(async () => {
+    if (!brandId) return
+
+    try {
+      // Get the framework window dates
+      const { data: window, error: windowError } = await supabase
+        .rpc('rpc_next_framework_window', { p_brand_id: brandId })
+
+      if (windowError || !window || window.length === 0) {
+        console.error('Error fetching framework window:', windowError)
+        setDraftsAlreadyExist(false)
+        return
+      }
+
+      const { start_date, end_date } = window[0]
+      setFrameworkWindow({ start_date, end_date })
+
+      // Check for existing framework drafts in that date range
+      const { count, error: countError } = await supabase
+        .from('drafts')
+        .select('id', { count: 'exact', head: true })
+        .eq('brand_id', brandId)
+        .eq('schedule_source', 'framework')
+        .gte('scheduled_for', start_date)
+        .lte('scheduled_for', end_date)
+
+      if (countError) {
+        console.error('Error checking existing drafts:', countError)
+        setDraftsAlreadyExist(false)
+        return
+      }
+
+      setDraftsAlreadyExist((count || 0) > 0)
+    } catch (err) {
+      console.error('Error in checkExistingDrafts:', err)
+      setDraftsAlreadyExist(false)
+    }
+  }, [brandId])
+
+  useEffect(() => {
+    if (activeTab === 'nextMonth') {
+      checkExistingDrafts()
+    }
+  }, [activeTab, checkExistingDrafts])
 
   const bannerCopyNZ = useMemo(() => {
-    // Compute next auto-run date in Pacific/Auckland using Intl parts to avoid Invalid Date
+    // If we know drafts exist, show "have been pushed" message
+    if (draftsAlreadyExist === true && frameworkWindow) {
+      try {
+        const targetDate = new Date(frameworkWindow.start_date)
+        const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(targetDate)
+        return `${monthName} posts have been pushed to Drafts.`
+      } catch (e) {
+        return 'Drafts have been pushed for this month.'
+      }
+    }
+
+    // Otherwise show the standard "will be pushed" message
     try {
       const parts = new Intl.DateTimeFormat('en-NZ', {
         timeZone: 'Pacific/Auckland',
@@ -114,7 +173,7 @@ export default function CategoriesPage() {
     } catch (e) {
       return ''
     }
-  }, [])
+  }, [draftsAlreadyExist, frameworkWindow])
 
   const selectImageForSubcategory = async (brandId: string, subcategoryId: string): Promise<string | null> => {
     try {
@@ -308,6 +367,10 @@ export default function CategoriesPage() {
 
       // Refresh data
       await refetchRules()
+      
+      // Re-check if drafts exist to update banner and button
+      await checkExistingDrafts()
+      
       // Simple toast – support numeric count or array
       const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : undefined)
       alert(count !== undefined ? `Drafts created from framework: ${count}` : 'Drafts created from framework.')
@@ -609,8 +672,8 @@ export default function CategoriesPage() {
                     <div className="flex-shrink-0 ml-4">
                       <button
                         onClick={handlePushToDrafts}
-                        disabled={pushing}
-                        className={`inline-flex items-center px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${pushing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
+                        disabled={pushing || draftsAlreadyExist === true}
+                        className={`inline-flex items-center px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
                       >
                         {pushing ? 'Pushing…' : 'Push to Drafts Now'}
                       </button>
