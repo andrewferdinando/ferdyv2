@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: text === "PONG", text });
     }
     return NextResponse.json({ error: "Unknown task" }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "OpenAI API error";
     return NextResponse.json(
-      { error: error.message || "OpenAI API error" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
