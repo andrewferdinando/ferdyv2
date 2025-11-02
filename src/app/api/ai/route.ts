@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
+// Force dynamic rendering - this route must run at request time
+export const dynamic = 'force-dynamic';
+
 // Lazy initialization - only creates client when needed
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY;
