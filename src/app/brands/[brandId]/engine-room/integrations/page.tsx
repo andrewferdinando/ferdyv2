@@ -75,13 +75,6 @@ const socialProviders: SocialProvider[] = [
     description: 'Connect your Instagram business account'
   },
   {
-    id: 'twitter',
-    name: 'Twitter/X',
-    icon: 'twitter',
-    color: '#000000',
-    description: 'Connect your Twitter/X account'
-  },
-  {
     id: 'linkedin',
     name: 'LinkedIn',
     icon: 'linkedin',
@@ -110,8 +103,6 @@ const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; cla
         return <FacebookIcon className={iconClass} />;
       case 'instagram':
         return <InstagramIcon className={iconClass} />;
-      case 'twitter':
-        return <TwitterIcon className={iconClass} />;
       case 'linkedin':
         return <LinkedInIcon className={iconClass} />;
       case 'tiktok':
