@@ -976,6 +976,14 @@ export default function CategoriesPage() {
             </form>
           </div>
         </Modal>
+
+        {/* Push to Drafts Progress Modal */}
+        {showProgressModal && (
+          <DraftsPushProgressModal 
+            estimatedMs={60000} 
+            onClose={() => setShowProgressModal(false)}
+          />
+        )}
       </AppLayout>
     </RequireAuth>
   )
