@@ -32,10 +32,10 @@ BEGIN
     END IF;
 
     -- Loop through framework targets from rpc_framework_targets function
-    -- We use a temporary table to store the results from the function
+    -- Only consider future targets to avoid creating duplicates
     FOR v_target IN
         SELECT * FROM rpc_framework_targets(p_brand_id)
-        WHERE scheduled_at > now() - INTERVAL '1 hour'  -- Only consider future or very recent targets
+        WHERE scheduled_at > now()  -- Only future targets (no past or recent past)
     LOOP
         v_scheduled_at := v_target.scheduled_at;
         v_subcategory_id := v_target.subcategory_id;  -- Get subcategory_id from rpc_framework_targets result

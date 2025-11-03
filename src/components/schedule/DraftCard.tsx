@@ -217,10 +217,11 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
         if (draft.post_job_id) {
           query = query.eq('post_job_id', draft.post_job_id);
         } else if (draft.scheduled_for) {
-          // Group by time window around scheduled_for (handles automation rows per-channel skews)
+          // Group by tight time window around scheduled_for (handles automation rows per-channel skews)
+          // Use a 5-second tolerance to match drafts created for the same scheduled time
           const center = new Date(draft.scheduled_for);
-          const before = new Date(center.getTime() - 60 * 60 * 1000).toISOString();
-          const after = new Date(center.getTime() + 60 * 60 * 1000).toISOString();
+          const before = new Date(center.getTime() - 5 * 1000).toISOString();
+          const after = new Date(center.getTime() + 5 * 1000).toISOString();
           query = query.gte('scheduled_for', before).lte('scheduled_for', after);
         }
         // Do not restrict schedule_source; some automated rows may have NULL here
