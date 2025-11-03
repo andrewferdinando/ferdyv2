@@ -2,6 +2,10 @@ import OpenAI from "openai";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// Type helper for Supabase client - accepts any valid Supabase client type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdminClient = SupabaseClient<any, "public", any>;
+
 // Schema for the expected JSON response from OpenAI brand summary
 const brandSummarySchema = z.object({
   name: z.string().optional(),
@@ -55,7 +59,7 @@ async function withRetry<T>(
 }
 
 export async function generatePostCopyFromContext(
-  supabaseAdmin: SupabaseClient<Record<string, unknown>, "public", Record<string, unknown>>,
+  supabaseAdmin: SupabaseAdminClient,
   client: OpenAI,
   payload: PostCopyPayload
 ): Promise<string[]> {
