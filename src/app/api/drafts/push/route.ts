@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { processBatchCopyGeneration, type DraftCopyInput } from "@/app/api/jobs/generate-copy/route";
+import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
