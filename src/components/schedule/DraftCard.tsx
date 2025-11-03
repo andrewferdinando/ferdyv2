@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase-browser';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatDateTimeLocal } from '@/lib/utils/timezone';
+import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
 
 // Helper component for draft images
 function DraftImage({ asset }: { asset: { id: string; title: string; storage_path: string; aspect_ratio: string } }) {
@@ -125,6 +126,8 @@ interface DraftCardProps {
     schedule_source?: 'manual' | 'auto';
     scheduled_by?: string;
     publish_status?: string;
+    category_id?: string;
+    subcategory_id?: string;
     post_jobs?: {
       id: string;
       scheduled_at: string;
@@ -132,6 +135,7 @@ interface DraftCardProps {
       scheduled_tz: string;
       status: string;
       target_month: string;
+      schedule_rule_id?: string;
     };
     assets?: {
       id: string;
@@ -149,6 +153,10 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const [isLoading, setIsLoading] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);
   const [siblingChannels, setSiblingChannels] = useState<string[]>([]);
+  const [categoryName, setCategoryName] = useState<string>('Uncategorized');
+  const [subcategoryName, setSubcategoryName] = useState<string | undefined>(undefined);
+  const [frequency, setFrequency] = useState<FrequencyInput | undefined>(undefined);
+  const [eventWindow, setEventWindow] = useState<{ start: string; end: string } | undefined>(undefined);
   const copyRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
@@ -230,6 +238,142 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     };
     fetchSiblings();
   }, [draft.brand_id, draft.post_job_id, draft.scheduled_for]);
+
+  // Fetch category/subcategory names and schedule rule data
+  useEffect(() => {
+    const fetchContextData = async () => {
+      try {
+        // Fetch category name
+        if (draft.category_id) {
+          const { data: categoryData } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('id', draft.category_id)
+            .single();
+          if (categoryData) {
+            setCategoryName(categoryData.name || 'Uncategorized');
+          }
+        }
+
+        // Fetch subcategory name
+        if (draft.subcategory_id) {
+          const { data: subcategoryData } = await supabase
+            .from('subcategories')
+            .select('name')
+            .eq('id', draft.subcategory_id)
+            .single();
+          if (subcategoryData) {
+            setSubcategoryName(subcategoryData.name);
+          }
+        }
+
+        // Fetch schedule rule via post_job -> schedule_rule_id
+        let scheduleRuleId: string | null = null;
+        if (draft.post_job_id) {
+          const { data: postJobData } = await supabase
+            .from('post_jobs')
+            .select('schedule_rule_id')
+            .eq('id', draft.post_job_id)
+            .single();
+          if (postJobData?.schedule_rule_id) {
+            scheduleRuleId = postJobData.schedule_rule_id;
+          }
+        }
+
+        // If we have a schedule rule, fetch it and convert to FrequencyInput
+        if (scheduleRuleId) {
+          const { data: ruleData } = await supabase
+            .from('schedule_rules')
+            .select('frequency, days_of_week, day_of_month, time_of_day, start_date, end_date, days_before, days_during')
+            .eq('id', scheduleRuleId)
+            .single();
+
+          if (ruleData) {
+            const freq: FrequencyInput | undefined = (() => {
+              switch (ruleData.frequency) {
+                case 'daily':
+                  return { kind: 'daily' };
+                
+                case 'weekly': {
+                  const daysOfWeek = (ruleData.days_of_week as number[]) || [];
+                  const timeOfDay = Array.isArray(ruleData.time_of_day) 
+                    ? ruleData.time_of_day[0] 
+                    : (ruleData.time_of_day as string | undefined);
+                  return {
+                    kind: 'weekly',
+                    daysOfWeek,
+                    time: timeOfDay || undefined,
+                  };
+                }
+
+                case 'monthly': {
+                  const daysOfMonth = Array.isArray(ruleData.day_of_month)
+                    ? ruleData.day_of_month
+                    : (ruleData.day_of_month ? [ruleData.day_of_month] : []);
+                  const timeOfDay = Array.isArray(ruleData.time_of_day)
+                    ? ruleData.time_of_day[0]
+                    : (ruleData.time_of_day as string | undefined);
+                  return {
+                    kind: 'monthly',
+                    daysOfMonth,
+                    time: timeOfDay || undefined,
+                  };
+                }
+
+                case 'specific': {
+                  if (ruleData.start_date) {
+                    const startDate = new Date(ruleData.start_date).toISOString();
+                    const endDate = ruleData.end_date ? new Date(ruleData.end_date).toISOString() : startDate;
+                    
+                    // Check if it's a range or single date
+                    if (ruleData.end_date && ruleData.end_date !== ruleData.start_date) {
+                      // Range
+                      const daysDuring = (ruleData.days_during as number[] | null) || [];
+                      const offsetDays = daysDuring.length > 0 ? daysDuring[0] : undefined;
+                      setEventWindow({ start: startDate, end: endDate });
+                      return {
+                        kind: 'rangeDuring',
+                        start: startDate,
+                        end: endDate,
+                        offsetDays,
+                      };
+                    } else {
+                      // Single date with days_before
+                      const daysBefore = (ruleData.days_before as number[] | null) || [];
+                      if (daysBefore.length > 0 && draft.scheduled_for) {
+                        const scheduledDate = new Date(draft.scheduled_for);
+                        const anchorDate = new Date(ruleData.start_date);
+                        const diffTime = anchorDate.getTime() - scheduledDate.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return {
+                          kind: 'offsetDate',
+                          anchorDate: anchorDate.toISOString(),
+                          offsetDays: diffDays,
+                        };
+                      }
+                      return {
+                        kind: 'oneOff',
+                        date: startDate,
+                      };
+                    }
+                  }
+                  return undefined;
+                }
+
+                default:
+                  return undefined;
+              }
+            })();
+            setFrequency(freq);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching context data:', error);
+      }
+    };
+
+    fetchContextData();
+  }, [draft.category_id, draft.subcategory_id, draft.post_job_id, draft.scheduled_for]);
 
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
@@ -384,6 +528,18 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                   </span>
                 ))}
               </div>
+            )}
+
+            {/* Post Context Bar */}
+            {brand?.timezone && (
+              <PostContextBar
+                categoryName={categoryName}
+                subcategoryName={subcategoryName}
+                frequency={frequency}
+                brandTimezone={brand.timezone}
+                scheduledFor={draft.scheduled_for || draft.post_jobs?.scheduled_at}
+                eventWindow={eventWindow}
+              />
             )}
 
             {/* Footer */}
