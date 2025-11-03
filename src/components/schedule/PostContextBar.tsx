@@ -185,7 +185,7 @@ export default function PostContextBar({
   return (
     <div
       role="contentinfo"
-      className={`mt-4 pt-3 border-t border-gray-200 bg-gray-50/50 ${className}`}
+      className={`pt-4 border-t border-gray-200 bg-gray-50/50 ${className}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         {/* Category Pill */}

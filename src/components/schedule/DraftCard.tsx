@@ -243,32 +243,12 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   useEffect(() => {
     const fetchContextData = async () => {
       try {
-        // Fetch category name
-        if (draft.category_id) {
-          const { data: categoryData } = await supabase
-            .from('categories')
-            .select('name')
-            .eq('id', draft.category_id)
-            .single();
-          if (categoryData) {
-            setCategoryName(categoryData.name || 'Uncategorized');
-          }
-        }
-
-        // Fetch subcategory name
-        if (draft.subcategory_id) {
-          const { data: subcategoryData } = await supabase
-            .from('subcategories')
-            .select('name')
-            .eq('id', draft.subcategory_id)
-            .single();
-          if (subcategoryData) {
-            setSubcategoryName(subcategoryData.name);
-          }
-        }
+        let categoryIdToFetch: string | null = draft.category_id || null;
+        let subcategoryIdToFetch: string | null = draft.subcategory_id || null;
+        let scheduleRuleId: string | null = null;
 
         // Fetch schedule rule via post_job -> schedule_rule_id
-        let scheduleRuleId: string | null = null;
+        // Also get category/subcategory from schedule_rules if not in draft
         if (draft.post_job_id) {
           const { data: postJobData } = await supabase
             .from('post_jobs')
@@ -280,15 +260,24 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
           }
         }
 
-        // If we have a schedule rule, fetch it and convert to FrequencyInput
+        // If we have a schedule rule, fetch it (includes category/subcategory)
         if (scheduleRuleId) {
           const { data: ruleData } = await supabase
             .from('schedule_rules')
-            .select('frequency, days_of_week, day_of_month, time_of_day, start_date, end_date, days_before, days_during')
+            .select('category_id, subcategory_id, frequency, days_of_week, day_of_month, time_of_day, start_date, end_date, days_before, days_during')
             .eq('id', scheduleRuleId)
             .single();
 
           if (ruleData) {
+            // Use category/subcategory from schedule_rule if not in draft
+            if (!categoryIdToFetch && ruleData.category_id) {
+              categoryIdToFetch = ruleData.category_id;
+            }
+            if (!subcategoryIdToFetch && ruleData.subcategory_id) {
+              subcategoryIdToFetch = ruleData.subcategory_id;
+            }
+
+            // Convert to FrequencyInput
             const freq: FrequencyInput | undefined = (() => {
               switch (ruleData.frequency) {
                 case 'daily':
@@ -365,6 +354,30 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
               }
             })();
             setFrequency(freq);
+          }
+        }
+
+        // Fetch category name
+        if (categoryIdToFetch) {
+          const { data: categoryData } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('id', categoryIdToFetch)
+            .single();
+          if (categoryData) {
+            setCategoryName(categoryData.name || 'Uncategorized');
+          }
+        }
+
+        // Fetch subcategory name
+        if (subcategoryIdToFetch) {
+          const { data: subcategoryData } = await supabase
+            .from('subcategories')
+            .select('name')
+            .eq('id', subcategoryIdToFetch)
+            .single();
+          if (subcategoryData) {
+            setSubcategoryName(subcategoryData.name);
           }
         }
       } catch (error) {
@@ -530,20 +543,8 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
               </div>
             )}
 
-            {/* Post Context Bar */}
-            {brand?.timezone && (
-              <PostContextBar
-                categoryName={categoryName}
-                subcategoryName={subcategoryName}
-                frequency={frequency}
-                brandTimezone={brand.timezone}
-                scheduledFor={draft.scheduled_for || draft.post_jobs?.scheduled_at}
-                eventWindow={eventWindow}
-              />
-            )}
-
             {/* Footer */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
                 {/* Date/Time */}
                 <div className="flex items-center text-gray-500">
@@ -607,6 +608,18 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                 </button>
               </div>
             </div>
+
+            {/* Post Context Bar - At the very bottom of the card */}
+            {brand?.timezone && (
+              <PostContextBar
+                categoryName={categoryName}
+                subcategoryName={subcategoryName}
+                frequency={frequency}
+                brandTimezone={brand.timezone}
+                scheduledFor={draft.scheduled_for || draft.post_jobs?.scheduled_at}
+                eventWindow={eventWindow}
+              />
+            )}
           </div>
         </div>
       </div>
