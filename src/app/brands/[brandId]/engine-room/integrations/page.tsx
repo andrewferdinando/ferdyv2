@@ -93,15 +93,17 @@ const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; cla
   
   // Render SVG component based on icon name
   const renderSVG = () => {
+    // Add text-white to ensure icons are white on colored backgrounds
+    const whiteIconClass = `${iconClass} text-white`;
     switch (iconName) {
       case 'facebook':
-        return <FacebookIcon className={iconClass} />;
+        return <FacebookIcon className={whiteIconClass} />;
       case 'instagram':
-        return <InstagramIcon className={iconClass} />;
+        return <InstagramIcon className={whiteIconClass} />;
       case 'linkedin':
-        return <LinkedInIcon className={iconClass} />;
+        return <LinkedInIcon className={whiteIconClass} />;
       case 'tiktok':
-        return <TikTokIcon className={iconClass} />;
+        return <TikTokIcon className={whiteIconClass} />;
       default:
         return null;
     }
@@ -203,7 +205,7 @@ export default function IntegrationsPage() {
               <div key={provider.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 <div className="mb-4">
                   <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-white"
                     style={{ backgroundColor: provider.color }}
                   >
                     {renderSocialIcon(provider.icon, "w-10 h-10")}
