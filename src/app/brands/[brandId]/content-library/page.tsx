@@ -220,13 +220,13 @@ export default function ContentLibraryPage() {
             {activeTab === 'ready' && (
               <div className="mb-6">
                 <div className="relative w-full max-w-md">
-                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search content..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 px-3 py-2 pl-12 border border-gray-300 rounded-lg text-sm focus:border-[#6366F1] focus:ring-4 focus:ring-[#EEF2FF] focus:outline-none transition-all duration-150"
+                    className="w-full h-10 px-3 py-2.5 pl-12 border border-gray-300 rounded-lg text-sm leading-normal focus:border-[#6366F1] focus:ring-4 focus:ring-[#EEF2FF] focus:outline-none transition-all duration-150"
                   />
                 </div>
               </div>
