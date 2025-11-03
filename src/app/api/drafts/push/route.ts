@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
               event_date: eventDate,
               days_until_event: daysUntil(eventDate),
             },
-            prompt: d.copy_prompt ?? `Write copy for this post`,
+            prompt: `Write copy for this post`,
             options: {
               length: "short",
               emoji: "none",
