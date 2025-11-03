@@ -55,11 +55,11 @@ async function withRetry<T>(
 }
 
 export async function generatePostCopyFromContext(
-  supabaseAdmin: SupabaseClient<any, "public", any>,
+  supabaseAdmin: SupabaseClient<Record<string, unknown>, "public", Record<string, unknown>>,
   client: OpenAI,
   payload: PostCopyPayload
 ): Promise<string[]> {
-  const { brandId, platform = "instagram", prompt, variants = 1, max_tokens = 120 } = payload;
+  const { brandId, prompt, variants = 1, max_tokens = 120 } = payload;
 
   // 1) Load brand summary
   const { data: brand, error: brandError } = await supabaseAdmin

@@ -201,73 +201,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Use ?task=ping to test" }, { status: 400 });
 }
 
-// Generate post copy using OpenAI
-async function generatePostCopy(
-  brandSummary: z.infer<typeof brandSummarySchema> | null,
-  prompt: string,
-  platform: string
-): Promise<string[]> {
-  const client = getClient();
-
-  // Build brand context from summary
-  let brandContext = "";
-  if (brandSummary) {
-    const parts: string[] = [];
-    if (brandSummary.name) parts.push(`Brand: ${brandSummary.name}`);
-    if (brandSummary.what_they_sell) parts.push(`What they sell: ${brandSummary.what_they_sell}`);
-    if (brandSummary.target_audience) parts.push(`Target audience: ${brandSummary.target_audience}`);
-    if (brandSummary.tone_of_voice) parts.push(`Tone of voice: ${brandSummary.tone_of_voice}`);
-    if (brandSummary.brand_values && brandSummary.brand_values.length > 0) {
-      parts.push(`Brand values: ${brandSummary.brand_values.join(", ")}`);
-    }
-    brandContext = parts.join("\n");
-  }
-
-  const systemPrompt = brandContext
-    ? `You are a social media copywriter. Write engaging, on-brand social media posts for ${platform}.
-
-Brand Context:
-${brandContext}
-
-Follow the brand's tone of voice and values. Write posts that resonate with their target audience.`
-    : `You are a social media copywriter. Write engaging social media posts for ${platform}.`;
-
-  const userPrompt = `Write a social media post based on this prompt: "${prompt}"
-
-The post should be complete, engaging, and suitable for ${platform}.`;
-
-  try {
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: userPrompt,
-        },
-      ],
-      temperature: 0.7,
-      n: 3, // Request 3 different completions (variants)
-    });
-
-    // Extract variants from all choices
-    const variants = completion.choices
-      .map((choice) => choice.message?.content?.trim())
-      .filter((text): text is string => Boolean(text));
-
-    if (variants.length === 0) {
-      throw new Error("No variants generated from OpenAI");
-    }
-
-    return variants;
-  } catch (error) {
-    throw new Error(`Failed to generate post copy: ${error instanceof Error ? error.message : "Unknown error"}`);
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
   const body = await req.json().catch(() => ({}));
@@ -430,7 +363,7 @@ export async function POST(req: NextRequest) {
                 },
               })
               .eq("id", payload.draftId);
-          } catch (updateError) {
+          } catch {
             // Gracefully handle if copy_status/copy_model/copy_meta columns don't exist
             // Just update copy field
             await supabaseAdmin

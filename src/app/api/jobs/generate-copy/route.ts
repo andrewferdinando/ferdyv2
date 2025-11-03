@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
               },
             })
             .eq("id", draft.draftId);
-        } catch (updateError) {
+        } catch {
           // Gracefully handle if copy_status/copy_model/copy_meta columns don't exist
           // Just update copy field
           await supabaseAdmin

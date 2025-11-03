@@ -107,12 +107,26 @@ export async function POST(req: NextRequest) {
     }
 
     // Build payload for generate-copy endpoint
+    interface DraftRow {
+      id: string;
+      brand_id: string;
+      scheduled_for: string | null;
+      schedule_source: string | null;
+      copy: string | null;
+    }
+
     const payload = {
       brandId,
       drafts: insertedDrafts
-        .filter(d => !d.copy || d.copy.trim().length === 0 || d.copy === 'Post copy coming soon…')
-        .map((d: any) => {
+        .filter((d): d is DraftRow => {
+          const copy = d.copy;
+          return !copy || copy.trim().length === 0 || copy === 'Post copy coming soon…';
+        })
+        .map((d) => {
           // Match draft to target via scheduled_for (same logic as client)
+          if (!d.scheduled_for) {
+            throw new Error(`Draft ${d.id} missing scheduled_for`);
+          }
           const draftTime = new Date(d.scheduled_for).getTime();
           const target = (targets as FrameworkTarget[] | null)?.find((t) => {
             const targetTime = new Date(t.scheduled_at).getTime();
