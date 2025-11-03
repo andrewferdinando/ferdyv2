@@ -6,6 +6,7 @@ import { generatePostCopyFromContext, type PostCopyPayload } from "@/lib/postCop
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Lazy initialization - only creates client when needed
+// Note: OPENAI_API_KEY must be set in Vercel environment variables
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
