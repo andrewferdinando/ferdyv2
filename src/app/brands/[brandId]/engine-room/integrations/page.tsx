@@ -91,21 +91,21 @@ const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; cla
   const iconClass = `${className} object-contain`;
   const iconPath = `/social-icons/${iconName}.png`;
   
-  // Render SVG component based on icon name - always use white for SVG fallback
+  // Render SVG component based on icon name
   const renderSVG = () => {
-    const whiteIconClass = `${iconClass} text-white`;
-    switch (iconName) {
-      case 'facebook':
-        return <FacebookIcon className={whiteIconClass} />;
-      case 'instagram':
-        return <InstagramIcon className={whiteIconClass} />;
-      case 'linkedin':
-        return <LinkedInIcon className={whiteIconClass} />;
-      case 'tiktok':
-        return <TikTokIcon className={whiteIconClass} />;
-      default:
-        return null;
+    // TikTok should be visible on white background (no white color), others use white for colored backgrounds
+    if (iconName === 'tiktok') {
+      return <TikTokIcon className={iconClass} />;
     }
+    // For Facebook, Instagram, LinkedIn - use white for colored backgrounds (but we removed backgrounds, so they should be visible)
+    // Since we removed colored backgrounds, use default color instead of white
+    return (
+      <>
+        {iconName === 'facebook' && <FacebookIcon className={iconClass} />}
+        {iconName === 'instagram' && <InstagramIcon className={iconClass} />}
+        {iconName === 'linkedin' && <LinkedInIcon className={iconClass} />}
+      </>
+    );
   };
 
   // Try to use image file first for all platforms, fallback to white SVG if image fails
@@ -243,18 +243,30 @@ export default function IntegrationsPage() {
         </div>
 
         {/* Requirements Section */}
-        <div className="bg-gray-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Connection Requirements</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-xl font-semibold text-gray-950 mb-6 leading-tight">Connection Requirements</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Facebook & Instagram</h4>
-              <p><strong>Facebook:</strong> Requires a Facebook Page and appropriate permissions</p>
-              <p><strong>Instagram:</strong> Requires Instagram Business Account connected to Facebook Page</p>
+              <h4 className="text-base font-semibold text-gray-950 mb-3 leading-tight">Facebook & Instagram</h4>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <span className="font-semibold text-gray-950">Facebook:</span> Requires a Facebook Page and appropriate permissions
+                </p>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <span className="font-semibold text-gray-950">Instagram:</span> Requires Instagram Business Account connected to Facebook Page
+                </p>
+              </div>
             </div>
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Other Platforms</h4>
-              <p><strong>LinkedIn:</strong> Requires LinkedIn Company Page admin access</p>
-              <p><strong>TikTok:</strong> Requires TikTok Business Account</p>
+              <h4 className="text-base font-semibold text-gray-950 mb-3 leading-tight">Other Platforms</h4>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <span className="font-semibold text-gray-950">LinkedIn:</span> Requires LinkedIn Company Page admin access
+                </p>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <span className="font-semibold text-gray-950">TikTok:</span> Requires TikTok Business Account
+                </p>
+              </div>
             </div>
           </div>
         </div>
