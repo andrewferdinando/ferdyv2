@@ -115,7 +115,7 @@ BEGIN
             LIMIT 1;
 
             IF v_draft_id IS NULL THEN
-                -- Create draft with subcategory_id
+                -- Create draft with subcategory_id (category_id is not stored in drafts, only subcategory_id)
                 INSERT INTO drafts (
                     brand_id,
                     post_job_id,
@@ -126,7 +126,6 @@ BEGIN
                     publish_status,
                     approved,
                     created_at,
-                    category_id,      -- Include category_id
                     subcategory_id   -- Include subcategory_id from rpc_framework_targets
                 ) VALUES (
                     p_brand_id,
@@ -138,7 +137,6 @@ BEGIN
                     'pending',
                     false,
                     now(),
-                    v_category_id,    -- Use category_id from rpc_framework_targets
                     v_subcategory_id  -- Use subcategory_id from rpc_framework_targets
                 );
                 v_count := v_count + 1;
