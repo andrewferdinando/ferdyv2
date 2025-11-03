@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { processBatchCopyGeneration, type DraftCopyInput } from "@/app/api/jobs/generate-copy/route";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -161,41 +162,30 @@ export async function POST(req: NextRequest) {
 
     // Only trigger if there are drafts that need copy
     if (payload.drafts.length > 0) {
-      // Use an absolute URL so it works locally & in production
-      // In production, try to use Vercel's URL or fallback to localhost
-      let base = process.env.NEXT_PUBLIC_BASE_URL;
-      if (!base && process.env.VERCEL_URL) {
-        base = `https://${process.env.VERCEL_URL}`;
-      }
-      if (!base) {
-        base = typeof window === "undefined" ? `http://localhost:3000` : window.location.origin;
-      }
-
       try {
-        console.log(`Triggering copy generation for ${payload.drafts.length} drafts, base URL: ${base}`);
-        const res = await fetch(`${base}/api/jobs/generate-copy`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        console.log(`Triggering copy generation for ${payload.drafts.length} drafts`);
+        
+        // Call the batch processing function directly (no HTTP fetch needed)
+        const draftsInput: DraftCopyInput[] = payload.drafts.map(d => ({
+          draftId: d.draftId,
+          subcategory: d.subcategory,
+          schedule: d.schedule,
+          prompt: d.prompt,
+          options: d.options,
+        }));
 
-        if (!res.ok) {
-          const errorText = await res.text().catch(() => "Unknown error");
-          throw new Error(`Generate-copy endpoint returned ${res.status}: ${errorText}`);
-        }
-
-        const json = await res.json().catch(() => ({}));
-        console.log("Generate-copy job triggered:", json);
+        const result = await processBatchCopyGeneration(brandId, draftsInput);
+        console.log("Copy generation completed:", result);
 
         return NextResponse.json({
           ok: true,
-          message: "Drafts created and copy generation triggered",
+          message: "Drafts created and copy generation completed",
           draftCount,
           copyGenerationTriggered: true,
-          copyJobResult: json,
+          copyJobResult: result,
         });
       } catch (err) {
-        console.error("Failed to trigger generate-copy job:", err);
+        console.error("Failed to generate copy:", err);
         // Still return success - drafts were created, just copy generation failed
         return NextResponse.json({
           ok: true,
