@@ -36,17 +36,21 @@ export async function POST(req: NextRequest) {
     const { brandId } = validationResult.data;
 
     // Call the RPC function to create drafts
+    console.log(`Calling rpc_push_framework_to_drafts for brand ${brandId}`);
     const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
       'rpc_push_framework_to_drafts',
       { p_brand_id: brandId }
     );
 
     if (rpcError) {
+      console.error('RPC error:', rpcError);
       return NextResponse.json(
         { error: "Failed to create drafts", details: rpcError.message },
         { status: 500 }
       );
     }
+
+    console.log('RPC result:', { rpcResult, type: typeof rpcResult });
 
     // Determine how many drafts were created
     const draftCount = typeof rpcResult === 'number' ? rpcResult : (Array.isArray(rpcResult) ? rpcResult.length : 0);
@@ -79,8 +83,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch framework targets to map scheduled_for -> subcategory_id (same as client does)
-    const { data: targets } = await supabaseAdmin
+    const { data: targets, error: targetsError } = await supabaseAdmin
       .rpc('rpc_framework_targets', { p_brand_id: brandId });
+    
+    if (targetsError) {
+      console.error('Error fetching framework targets:', targetsError);
+      // Continue without targets - drafts will still be created but without subcategory mapping
+    }
 
     // Fetch schedule rules to get frequency and subcategory mapping
     const { data: scheduleRules } = await supabaseAdmin
@@ -121,14 +130,12 @@ export async function POST(req: NextRequest) {
       drafts: insertedDrafts
         .filter((d): d is DraftRow => {
           const copy = d.copy;
-          return !copy || copy.trim().length === 0 || copy === 'Post copy coming soon…';
+          return (!copy || copy.trim().length === 0 || copy === 'Post copy coming soon…') && d.scheduled_for !== null;
         })
         .map((d) => {
           // Match draft to target via scheduled_for (same logic as client)
-          if (!d.scheduled_for) {
-            throw new Error(`Draft ${d.id} missing scheduled_for`);
-          }
-          const draftTime = new Date(d.scheduled_for).getTime();
+          // We've already filtered out null scheduled_for above, so this is safe
+          const draftTime = new Date(d.scheduled_for!).getTime();
           const target = (targets as FrameworkTarget[] | null)?.find((t) => {
             const targetTime = new Date(t.scheduled_at).getTime();
             return Math.abs(targetTime - draftTime) < 5000; // 5 second tolerance
