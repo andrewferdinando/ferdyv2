@@ -38,12 +38,19 @@ BEGIN
         WHERE scheduled_at > now() - INTERVAL '1 hour'  -- Only consider future or very recent targets
     LOOP
         v_scheduled_at := v_target.scheduled_at;
-        v_category_id := v_target.category_id;
         v_subcategory_id := v_target.subcategory_id;  -- Get subcategory_id from rpc_framework_targets result
-        v_rule_id := v_target.schedule_rule_id;  -- May be null if not linked to a schedule rule
+        
+        -- Get category_id from subcategory if we have a subcategory_id
+        v_category_id := NULL;
+        IF v_subcategory_id IS NOT NULL THEN
+            SELECT category_id INTO v_category_id
+            FROM subcategories
+            WHERE id = v_subcategory_id;
+        END IF;
 
         -- Find schedule rule for this subcategory if we have one
         v_schedule_rule := NULL;
+        v_rule_id := NULL;
         IF v_subcategory_id IS NOT NULL THEN
             SELECT id, channels INTO v_schedule_rule
             FROM schedule_rules
