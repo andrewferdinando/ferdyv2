@@ -203,12 +203,11 @@ export default function CategoriesPage() {
         } else {
           const assetIds = (assetTagRows || []).map((r: { asset_id: string }) => r.asset_id)
           if (assetIds.length > 0) {
-            // Step 3: fetch all matching active assets for brand and pick one randomly
+            // Step 3: fetch all matching assets for brand and pick one randomly
             const { data: matches, error: matchErr } = await supabase
               .from('assets')
               .select('id')
               .eq('brand_id', brandId)
-              .eq('is_active', true)
               .in('id', assetIds)
             if (matchErr) {
               console.error(`Error fetching tagged asset for brand ${brandId}:`, matchErr, matchErr.message, matchErr.details)
@@ -222,12 +221,11 @@ export default function CategoriesPage() {
         }
       }
 
-      // Fallback: any random active asset for brand
+      // Fallback: any random asset for brand
       const { data: fallbackAssets, error: fbErr } = await supabase
         .from('assets')
         .select('id')
         .eq('brand_id', brandId)
-        .eq('is_active', true)
       
       if (fbErr) {
         console.error(`Error fetching fallback asset for brand ${brandId}:`, fbErr, fbErr.message, fbErr.details, fbErr.hint)
