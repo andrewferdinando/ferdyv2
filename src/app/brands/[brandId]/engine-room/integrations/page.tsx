@@ -205,12 +205,7 @@ export default function IntegrationsPage() {
             return (
               <div key={provider.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 <div className="mb-4">
-                  <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-white"
-                    style={{ backgroundColor: provider.color }}
-                  >
-                    {renderSocialIcon(provider.icon, "w-10 h-10")}
-                  </div>
+                  {renderSocialIcon(provider.icon, "w-10 h-10")}
                 </div>
                 <h3 className="font-medium text-gray-800 mb-2">{provider.name}</h3>
                 <p className="text-gray-500 text-sm mb-4">{provider.description}</p>
