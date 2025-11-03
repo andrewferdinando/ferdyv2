@@ -251,11 +251,25 @@ export default function CategoriesPage() {
     if (pushing) return
     setPushing(true)
     try {
-      // Trigger RPC to create drafts
-      const { data, error } = await supabase.rpc('rpc_push_framework_to_drafts', {
-        p_brand_id: brandId
+      // Call API route that creates drafts and triggers copy generation
+      const res = await fetch('/api/drafts/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId })
       })
-      if (error) throw error
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to push drafts')
+      }
+      
+      const result = await res.json()
+      const data = result.draftCount || 0
+      
+      // Log copy generation result if available
+      if (result.copyGenerationTriggered) {
+        console.log('Copy generation triggered:', result.copyJobResult)
+      }
 
       // If RPC returns a number (row count), fetch the newly created drafts and backfill
       if (typeof data === 'number' && data > 0) {
