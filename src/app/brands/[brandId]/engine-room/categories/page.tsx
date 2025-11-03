@@ -290,14 +290,14 @@ export default function CategoriesPage() {
           .select('id, default_hashtags')
           .in('id', (rules || []).map((r: { subcategory_id: string }) => r.subcategory_id))
 
-        // Fetch framework drafts created in the last 2 minutes (for this brand) to backfill
+        // Fetch framework drafts created in the last 2 minutes (for this brand) to backfill images and copy
+        // We need to fetch ALL drafts (not filter by copy/images) so we can assign images even if copy already exists
         const { data: newDrafts, error: fetchError } = await supabase
           .from('drafts')
-          .select('id, scheduled_for')
+          .select('id, scheduled_for, copy, asset_ids')
           .eq('brand_id', brandId)
           .eq('schedule_source', 'framework')
           .gte('created_at', new Date(Date.now() - 120000).toISOString()) // Last 2 minutes
-          .or('copy.is.null,asset_ids.is.null') // Either missing copy or images
           .order('created_at', { ascending: false })
           .limit(data)
 
@@ -325,38 +325,54 @@ export default function CategoriesPage() {
             if (target?.subcategory_id) {
               const subcat = subcatsMap.get(target.subcategory_id)
               const imageId = await selectImageForSubcategory(brandId, target.subcategory_id)
-              const updates: Partial<{ copy: string; asset_ids: string[]; hashtags: string[] }> = {
-                copy: 'Post copy coming soon…'
+              const updates: Partial<{ copy: string; asset_ids: string[]; hashtags: string[] }> = {}
+              
+              // Only set placeholder copy if copy is missing or still placeholder
+              // Don't overwrite AI-generated copy
+              const needsCopy = !draft.copy || draft.copy.trim() === '' || draft.copy === 'Post copy coming soon…'
+              if (needsCopy) {
+                updates.copy = 'Post copy coming soon…'
               }
-              if (imageId) {
+              
+              // Assign image if missing
+              if (imageId && (!draft.asset_ids || draft.asset_ids.length === 0)) {
                 updates.asset_ids = [imageId]
                 console.log(`Assigned image ${imageId} to draft ${draft.id} for subcategory ${target.subcategory_id}`)
-              } else {
+              } else if (!imageId) {
                 console.warn(`No image found for draft ${draft.id} (subcategory ${target.subcategory_id})`)
               }
+              
+              // Assign hashtags if missing
               if (subcat?.default_hashtags && subcat.default_hashtags.length > 0) {
                 updates.hashtags = subcat.default_hashtags
               }
-              const { error: updateError, data: updateData } = await supabase
-                .from('drafts')
-                .update(updates)
-                .eq('id', draft.id)
-                .select('id, asset_ids, hashtags, copy')
               
-              if (updateError) {
-                console.error(`Failed to update draft ${draft.id}:`, updateError)
-              } else {
-                console.log(`Updated draft ${draft.id}:`, updateData?.[0])
+              // Update if there are updates to make
+              if (Object.keys(updates).length > 0) {
+                const { error: updateError, data: updateData } = await supabase
+                  .from('drafts')
+                  .update(updates)
+                  .eq('id', draft.id)
+                  .select('id, asset_ids, hashtags, copy')
+                
+                if (updateError) {
+                  console.error(`Failed to update draft ${draft.id}:`, updateError)
+                } else {
+                  console.log(`Updated draft ${draft.id}:`, updateData?.[0])
+                }
               }
             } else {
-              // Fallback: just set copy
-              const { error: updateError } = await supabase
-                .from('drafts')
-                .update({ copy: 'Post copy coming soon…' })
-                .eq('id', draft.id)
-              
-              if (updateError) {
-                console.error(`Failed to update draft ${draft.id}:`, updateError)
+              // Fallback: just set placeholder copy if needed
+              const needsCopy = !draft.copy || draft.copy.trim() === '' || draft.copy === 'Post copy coming soon…'
+              if (needsCopy) {
+                const { error: updateError } = await supabase
+                  .from('drafts')
+                  .update({ copy: 'Post copy coming soon…' })
+                  .eq('id', draft.id)
+                
+                if (updateError) {
+                  console.error(`Failed to update draft ${draft.id}:`, updateError)
+                }
               }
             }
           }
