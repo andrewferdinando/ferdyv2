@@ -33,7 +33,7 @@ function useProgressTimer(estimatedMs = 60000) {
 }
 
 export default function DraftsPushProgressModal({ estimatedMs = 60000, onClose }: DraftsPushProgressModalProps) {
-  const { progress, setProgress, elapsed } = useProgressTimer(estimatedMs)
+  const { progress, elapsed } = useProgressTimer(estimatedMs)
 
   const step = React.useMemo(() => {
     if (progress >= 70) return 4 // Finalising
@@ -57,7 +57,7 @@ export default function DraftsPushProgressModal({ estimatedMs = 60000, onClose }
       >
         <h2 className="text-lg font-semibold mb-1 text-gray-950">Generating your drafts…</h2>
         <p className="text-sm text-gray-500 mb-4">
-          You can keep working — we'll let you know when it's done.
+          You can keep working — we&apos;ll let you know when it&apos;s done.
         </p>
 
         {/* Progress */}

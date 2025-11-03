@@ -6,15 +6,6 @@ import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateC
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-// Helper function to calculate days until event
-function daysUntil(dateStr?: string): number | undefined {
-  if (!dateStr) return undefined;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const d = new Date(dateStr + "T00:00:00");
-  return Math.max(0, Math.ceil((d.getTime() - today.getTime()) / 86400000));
-}
-
 // Request body schema
 const pushDraftsSchema = z.object({
   brandId: z.string().uuid(),
