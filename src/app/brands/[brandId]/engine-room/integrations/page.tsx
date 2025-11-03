@@ -97,23 +97,47 @@ const socialProviders: SocialProvider[] = [
   }
 ];
 
+// Social Icon Component with image fallback to SVG
+const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; className?: string }) => {
+  const [useImage, setUseImage] = React.useState(true);
+  const iconClass = `${className} object-contain`;
+  const iconPath = `/social-icons/${iconName}.png`;
+  
+  // Render SVG component based on icon name
+  const renderSVG = () => {
+    switch (iconName) {
+      case 'facebook':
+        return <FacebookIcon className={iconClass} />;
+      case 'instagram':
+        return <InstagramIcon className={iconClass} />;
+      case 'twitter':
+        return <TwitterIcon className={iconClass} />;
+      case 'linkedin':
+        return <LinkedInIcon className={iconClass} />;
+      case 'tiktok':
+        return <TikTokIcon className={iconClass} />;
+      default:
+        return null;
+    }
+  };
+
+  if (useImage) {
+    return (
+      <img 
+        src={iconPath} 
+        alt={iconName}
+        className={iconClass}
+        onError={() => setUseImage(false)}
+      />
+    );
+  }
+  
+  return renderSVG();
+};
+
 // Function to render the appropriate icon
 const renderSocialIcon = (iconName: string, className: string = "w-6 h-6") => {
-  const iconClass = `${className} object-contain`;
-  switch (iconName) {
-    case 'facebook':
-      return <FacebookIcon className={iconClass} />;
-    case 'instagram':
-      return <InstagramIcon className={iconClass} />;
-    case 'twitter':
-      return <TwitterIcon className={iconClass} />;
-    case 'linkedin':
-      return <LinkedInIcon className={iconClass} />;
-    case 'tiktok':
-      return <TikTokIcon className={iconClass} />;
-    default:
-      return null;
-  }
+  return <SocialIcon iconName={iconName} className={className} />;
 };
 
 export default function IntegrationsPage() {
@@ -190,17 +214,17 @@ export default function IntegrationsPage() {
             const isConnected = accounts.some(account => account.provider.toLowerCase() === provider.id);
             
             return (
-              <div key={provider.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center justify-center">
-                <div className="mb-3 flex items-center justify-center">
+              <div key={provider.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                <div className="mb-4">
                   <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white flex-shrink-0"
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: provider.color }}
                   >
                     {renderSocialIcon(provider.icon, "w-10 h-10")}
                   </div>
                 </div>
-                <h3 className="font-medium text-gray-800 mb-2 text-center">{provider.name}</h3>
-                <p className="text-gray-500 text-sm mb-4 text-center">{provider.description}</p>
+                <h3 className="font-medium text-gray-800 mb-2">{provider.name}</h3>
+                <p className="text-gray-500 text-sm mb-4">{provider.description}</p>
 
                 {isConnected ? (
                   <div className="w-full space-y-3">
