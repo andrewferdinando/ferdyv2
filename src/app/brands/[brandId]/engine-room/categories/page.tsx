@@ -14,6 +14,7 @@ import Modal from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
+import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressModal'
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -83,6 +84,7 @@ export default function CategoriesPage() {
   const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
 
   const [pushing, setPushing] = useState(false)
+  const [showProgressModal, setShowProgressModal] = useState(false)
   const [draftsAlreadyExist, setDraftsAlreadyExist] = useState<boolean | null>(null)
   const [frameworkWindow, setFrameworkWindow] = useState<{ start_date: string; end_date: string } | null>(null)
 
@@ -248,6 +250,7 @@ export default function CategoriesPage() {
   const handlePushToDrafts = async () => {
     if (pushing) return
     setPushing(true)
+    setShowProgressModal(true)
     try {
       // Call API route that creates drafts and triggers copy generation
       const res = await fetch('/api/drafts/push', {
@@ -422,6 +425,7 @@ export default function CategoriesPage() {
       })
     } finally {
       setPushing(false)
+      setShowProgressModal(false)
     }
   }
 
@@ -736,8 +740,11 @@ export default function CategoriesPage() {
                       <button
                         onClick={handlePushToDrafts}
                         disabled={pushing || draftsAlreadyExist === true}
-                        className={`inline-flex items-center px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
                       >
+                        {pushing && (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                        )}
                         {pushing ? 'Pushing…' : 'Push to Drafts Now'}
                       </button>
                     </div>
