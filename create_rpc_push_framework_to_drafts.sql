@@ -20,7 +20,7 @@ DECLARE
     v_subcategory_id uuid;
     v_draft_id uuid;
     v_post_job_id uuid;
-    v_channel text;
+    v_channel text;  -- Will store comma-separated channels string
     v_schedule_rule RECORD;
     v_channels text[];
 BEGIN
@@ -74,19 +74,27 @@ BEGIN
             v_channels := v_schedule_rule.channels;
         END IF;
 
-        -- For each channel
-        FOREACH v_channel IN ARRAY v_channels
-        LOOP
-            -- Check if a post_job already exists for this specific scheduled_at and channel
+        -- Convert channels array to comma-separated string for storage
+        v_channel := array_to_string(v_channels, ',');
+
+        -- Check if a draft already exists for this scheduled_at time
+        SELECT id INTO v_draft_id
+        FROM drafts
+        WHERE brand_id = p_brand_id
+          AND scheduled_for = v_scheduled_at
+          AND schedule_source = 'framework'
+        LIMIT 1;
+
+        IF v_draft_id IS NULL THEN
+            -- Check if a post_job already exists for this scheduled_at time
             SELECT id INTO v_post_job_id
             FROM post_jobs
             WHERE brand_id = p_brand_id
               AND scheduled_at = v_scheduled_at
-              AND channel = v_channel
             LIMIT 1;
 
             IF v_post_job_id IS NULL THEN
-                -- Create post_job
+                -- Create post_job with all channels as comma-separated string
                 INSERT INTO post_jobs (
                     brand_id,
                     schedule_rule_id,
@@ -99,7 +107,7 @@ BEGIN
                 ) VALUES (
                     p_brand_id,
                     v_rule_id,
-                    v_channel,
+                    v_channel,  -- Store all channels as comma-separated string
                     v_target_month,
                     v_scheduled_at,
                     v_scheduled_local,
@@ -108,40 +116,32 @@ BEGIN
                 ) RETURNING id INTO v_post_job_id;
             END IF;
 
-            -- Check if a draft already exists for this post_job
-            SELECT id INTO v_draft_id
-            FROM drafts
-            WHERE post_job_id = v_post_job_id
-            LIMIT 1;
-
-            IF v_draft_id IS NULL THEN
-                -- Create draft with subcategory_id (category_id is not stored in drafts, only subcategory_id)
-                INSERT INTO drafts (
-                    brand_id,
-                    post_job_id,
-                    channel,
-                    scheduled_for,
-                    scheduled_for_nzt,
-                    schedule_source,
-                    publish_status,
-                    approved,
-                    created_at,
-                    subcategory_id   -- Include subcategory_id from rpc_framework_targets
-                ) VALUES (
-                    p_brand_id,
-                    v_post_job_id,
-                    v_channel,
-                    v_scheduled_at,
-                    v_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'Pacific/Auckland',  -- NZT conversion
-                    'framework',
-                    'pending',
-                    false,
-                    now(),
-                    v_subcategory_id  -- Use subcategory_id from rpc_framework_targets
-                );
-                v_count := v_count + 1;
-            END IF;
-        END LOOP;
+            -- Create ONE draft per scheduled time with all channels stored as comma-separated string
+            INSERT INTO drafts (
+                brand_id,
+                post_job_id,
+                channel,
+                scheduled_for,
+                scheduled_for_nzt,
+                schedule_source,
+                publish_status,
+                approved,
+                created_at,
+                subcategory_id   -- Include subcategory_id from rpc_framework_targets
+            ) VALUES (
+                p_brand_id,
+                v_post_job_id,
+                v_channel,  -- Store all channels as comma-separated string (e.g., "instagram,facebook,linkedin")
+                v_scheduled_at,
+                v_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'Pacific/Auckland',  -- NZT conversion
+                'framework',
+                'pending',
+                false,
+                now(),
+                v_subcategory_id  -- Use subcategory_id from rpc_framework_targets
+            );
+            v_count := v_count + 1;
+        END IF;
     END LOOP;
 
     RETURN v_count;
@@ -153,4 +153,4 @@ GRANT EXECUTE ON FUNCTION rpc_push_framework_to_drafts(uuid) TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION rpc_push_framework_to_drafts(uuid) IS 
-    'Creates drafts from rpc_framework_targets results for a brand. Includes subcategory_id from the framework targets. Returns the count of drafts created.';
+    'Creates ONE draft per scheduled time with all channels stored as comma-separated string. Includes subcategory_id from the framework targets. Returns the count of drafts created.';
