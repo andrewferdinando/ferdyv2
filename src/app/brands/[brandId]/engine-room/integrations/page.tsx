@@ -91,7 +91,7 @@ const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; cla
   const iconClass = `${className} object-contain`;
   const iconPath = `/social-icons/${iconName}.png`;
   
-  // Render SVG component based on icon name - always use white for SVG
+  // Render SVG component based on icon name - always use white for SVG fallback
   const renderSVG = () => {
     const whiteIconClass = `${iconClass} text-white`;
     switch (iconName) {
@@ -108,8 +108,8 @@ const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; cla
     }
   };
 
-  // For TikTok, try to use image first; for others, use SVG directly (white versions)
-  if (iconName === 'tiktok' && useImage) {
+  // Try to use image file first for all platforms, fallback to white SVG if image fails
+  if (useImage) {
     return (
       <img 
         src={iconPath} 
@@ -120,7 +120,7 @@ const SocialIcon = ({ iconName, className = "w-6 h-6" }: { iconName: string; cla
     );
   }
   
-  // For Facebook, Instagram, LinkedIn - use white SVG directly
+  // Fallback to white SVG if image fails to load
   return renderSVG();
 };
 
