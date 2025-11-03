@@ -165,7 +165,7 @@ export async function generatePostCopyFromContext(
   }
 
   // 8) Build hashtags instruction
-  let hashtagsInstruction = payload.hashtags?.mode || "auto";
+  let hashtagsInstruction: string = payload.hashtags?.mode || "auto";
   if (payload.hashtags?.mode === "list" && payload.hashtags?.list) {
     hashtagsInstruction = `list: ${payload.hashtags.list.slice(0, 5).join(", ")}`;
   }
