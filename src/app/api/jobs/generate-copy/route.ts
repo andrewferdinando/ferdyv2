@@ -82,23 +82,36 @@ export async function POST(req: NextRequest) {
     let failed = 0;
 
     // Process each draft
+    console.log(`Processing ${drafts.length} drafts for brand ${brandId}`);
     for (const draft of drafts) {
       try {
         // Check if copy_status is already "complete" - skip if so
-        const { data: existingDraft } = await supabaseAdmin
+        const { data: existingDraft, error: fetchDraftError } = await supabaseAdmin
           .from("drafts")
           .select("copy_status, copy")
           .eq("id", draft.draftId)
           .single();
 
+        if (fetchDraftError) {
+          console.error(`Error fetching draft ${draft.draftId}:`, fetchDraftError);
+          throw new Error(`Failed to fetch draft: ${fetchDraftError.message}`);
+        }
+
         // Skip if already complete (check both copy_status and copy field)
+        // Also check if copy is just the placeholder text
+        const hasRealCopy = existingDraft?.copy && 
+          existingDraft.copy.trim().length > 0 && 
+          existingDraft.copy !== 'Post copy coming soon…';
         if (
           existingDraft?.copy_status === "complete" ||
-          (existingDraft?.copy && existingDraft.copy.trim().length > 0)
+          hasRealCopy
         ) {
+          console.log(`Skipping draft ${draft.draftId} - already has copy`);
           skipped++;
           continue;
         }
+
+        console.log(`Generating copy for draft ${draft.draftId}`);
 
         // Set copy_status to "pending"
         try {
@@ -140,7 +153,7 @@ export async function POST(req: NextRequest) {
 
         // Save result to drafts
         try {
-          await supabaseAdmin
+          const { error: updateError } = await supabaseAdmin
             .from("drafts")
             .update({
               copy: variants[0],
@@ -160,13 +173,24 @@ export async function POST(req: NextRequest) {
               },
             })
             .eq("id", draft.draftId);
-        } catch {
-          // Gracefully handle if copy_status/copy_model/copy_meta columns don't exist
-          // Just update copy field
-          await supabaseAdmin
-            .from("drafts")
-            .update({ copy: variants[0] })
-            .eq("id", draft.draftId);
+
+          if (updateError) {
+            console.log(`Update with metadata failed for draft ${draft.draftId}, trying simple update:`, updateError);
+            // Gracefully handle if copy_status/copy_model/copy_meta columns don't exist
+            // Just update copy field
+            const { error: simpleUpdateError } = await supabaseAdmin
+              .from("drafts")
+              .update({ copy: variants[0] })
+              .eq("id", draft.draftId);
+            
+            if (simpleUpdateError) {
+              throw new Error(`Failed to update draft: ${simpleUpdateError.message}`);
+            }
+          }
+          
+          console.log(`Successfully saved copy for draft ${draft.draftId}`);
+        } catch (updateErr) {
+          throw new Error(`Failed to save copy: ${updateErr instanceof Error ? updateErr.message : "Unknown error"}`);
         }
 
         processed++;

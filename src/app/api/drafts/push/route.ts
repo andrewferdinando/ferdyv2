@@ -162,16 +162,27 @@ export async function POST(req: NextRequest) {
     // Only trigger if there are drafts that need copy
     if (payload.drafts.length > 0) {
       // Use an absolute URL so it works locally & in production
-      const base =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (typeof window === "undefined" ? `http://localhost:3000` : window.location.origin);
+      // In production, try to use Vercel's URL or fallback to localhost
+      let base = process.env.NEXT_PUBLIC_BASE_URL;
+      if (!base && process.env.VERCEL_URL) {
+        base = `https://${process.env.VERCEL_URL}`;
+      }
+      if (!base) {
+        base = typeof window === "undefined" ? `http://localhost:3000` : window.location.origin;
+      }
 
       try {
+        console.log(`Triggering copy generation for ${payload.drafts.length} drafts, base URL: ${base}`);
         const res = await fetch(`${base}/api/jobs/generate-copy`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => "Unknown error");
+          throw new Error(`Generate-copy endpoint returned ${res.status}: ${errorText}`);
+        }
 
         const json = await res.json().catch(() => ({}));
         console.log("Generate-copy job triggered:", json);
