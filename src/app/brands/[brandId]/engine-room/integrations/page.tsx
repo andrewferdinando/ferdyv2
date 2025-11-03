@@ -189,44 +189,40 @@ export default function IntegrationsPage() {
             const isConnected = accounts.some(account => account.provider.toLowerCase() === provider.id);
             
             return (
-              <div key={provider.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md hover:border-gray-300 transition-all">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center text-white"
-                      style={{ backgroundColor: provider.color }}
-                    >
-                      {renderSocialIcon(provider.icon, "w-7 h-7")}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{provider.name}</h3>
-                      <p className="text-sm text-gray-500">{provider.description}</p>
-                    </div>
+              <div key={provider.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center justify-center">
+                <div className="mb-3 flex items-center justify-center">
+                  <div 
+                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white flex-shrink-0"
+                    style={{ backgroundColor: provider.color }}
+                  >
+                    {renderSocialIcon(provider.icon, "w-10 h-10")}
                   </div>
                 </div>
+                <h3 className="font-medium text-gray-800 mb-2 text-center">{provider.name}</h3>
+                <p className="text-gray-500 text-sm mb-4 text-center">{provider.description}</p>
 
                 {isConnected ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                  <div className="w-full space-y-3">
+                    <div className="flex items-center justify-center">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Connected
                       </span>
-                      <button
-                        onClick={() => {
-                          const account = accounts.find(acc => acc.provider.toLowerCase() === provider.id);
-                          if (account) handleDisconnect(account.id);
-                        }}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6366F1] transition-colors"
-                      >
-                        <UnlinkIcon className="w-4 h-4 mr-1" />
-                        Disconnect
-                      </button>
                     </div>
+                    <button
+                      onClick={() => {
+                        const account = accounts.find(acc => acc.provider.toLowerCase() === provider.id);
+                        if (account) handleDisconnect(account.id);
+                      }}
+                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6366F1] transition-colors"
+                    >
+                      <UnlinkIcon className="w-4 h-4 mr-1" />
+                      Disconnect
+                    </button>
                   </div>
                 ) : (
                   <button
                     onClick={() => handleConnect(provider.id)}
-                    className="w-full inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6366F1] transition-all"
+                    className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all"
                   >
                     <LinkIcon className="w-4 h-4 mr-2" />
                     Connect

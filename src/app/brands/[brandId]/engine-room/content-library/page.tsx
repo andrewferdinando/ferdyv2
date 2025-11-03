@@ -16,6 +16,13 @@ interface CropData {
   y: number
 }
 
+// Search Icon Component
+const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
 export default function ContentLibraryPage() {
   const params = useParams()
   const brandId = params.brandId as string
@@ -218,14 +225,14 @@ export default function ContentLibraryPage() {
             {/* Search */}
             {activeTab === 'ready' && (
               <div className="mb-6">
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">🔍</div>
+                <div className="relative w-full max-w-md">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <input
                     type="text"
                     placeholder="Search content..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none focus:border-transparent"
                   />
                 </div>
               </div>
