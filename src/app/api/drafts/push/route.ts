@@ -148,13 +148,12 @@ export async function POST(req: NextRequest) {
             schedule: {
               frequency: rule?.frequency ?? target?.frequency ?? "weekly",
               event_date: eventDate,
-              days_until_event: daysUntil(eventDate),
             },
             prompt: `Write copy for this post`,
             options: {
-              length: "short",
-              emoji: "none",
-              hashtags: { mode: "auto" },
+              length: "short" as const,
+              emoji: "none" as const,
+              hashtags: { mode: "auto" as const },
             },
           };
         }),
@@ -166,10 +165,14 @@ export async function POST(req: NextRequest) {
         console.log(`Triggering copy generation for ${payload.drafts.length} drafts`);
         
         // Call the batch processing function directly (no HTTP fetch needed)
+        // Map to DraftCopyInput format (exclude days_until_event from schedule)
         const draftsInput: DraftCopyInput[] = payload.drafts.map(d => ({
           draftId: d.draftId,
           subcategory: d.subcategory,
-          schedule: d.schedule,
+          schedule: d.schedule ? {
+            frequency: d.schedule.frequency,
+            event_date: d.schedule.event_date,
+          } : undefined,
           prompt: d.prompt,
           options: d.options,
         }));
