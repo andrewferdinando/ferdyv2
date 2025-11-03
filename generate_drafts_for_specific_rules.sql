@@ -140,7 +140,8 @@ BEGIN
                 schedule_source,
                 publish_status,
                 approved,
-                created_at
+                created_at,
+                subcategory_id
               )
               VALUES (
                 v_rule.brand_id,
@@ -152,7 +153,8 @@ BEGIN
                 'auto',
                 'pending',
                 false,
-                v_current_time
+                v_current_time,
+                v_rule.subcategory_id  -- Include subcategory_id from schedule_rule
               );
               
               v_created_count := v_created_count + 1;
@@ -254,7 +256,8 @@ BEGIN
               schedule_source,
               publish_status,
               approved,
-              created_at
+              created_at,
+              subcategory_id
             )
             VALUES (
               v_rule.brand_id,
@@ -266,7 +269,8 @@ BEGIN
               'auto',
               'pending',
               false,
-              v_current_time
+              v_current_time,
+              v_rule.subcategory_id  -- Include subcategory_id from schedule_rule
             );
             
             v_created_count := v_created_count + 1;

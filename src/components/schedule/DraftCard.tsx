@@ -128,6 +128,9 @@ interface DraftCardProps {
     publish_status?: string;
     category_id?: string;
     subcategory_id?: string;
+    // From drafts_with_labels view
+    category_name?: string;
+    subcategory_name?: string;
     post_jobs?: {
       id: string;
       scheduled_at: string;
@@ -153,8 +156,6 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const [isLoading, setIsLoading] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);
   const [siblingChannels, setSiblingChannels] = useState<string[]>([]);
-  const [categoryName, setCategoryName] = useState<string>('Uncategorized');
-  const [subcategoryName, setSubcategoryName] = useState<string | undefined>(undefined);
   const [frequency, setFrequency] = useState<FrequencyInput | undefined>(undefined);
   const [eventWindow, setEventWindow] = useState<{ start: string; end: string } | undefined>(undefined);
   const copyRef = useRef<HTMLDivElement>(null);
@@ -162,6 +163,10 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts } = useSocialAccounts(draft.brand_id);
   const { brand } = useBrand(draft.brand_id); // Fetch brand for timezone
+  
+  // Get category/subcategory names from draft (from drafts_with_labels view)
+  const categoryName = draft.category_name || 'Uncategorized';
+  const subcategoryName = draft.subcategory_name;
 
   // Check if content exceeds 2 lines
   useEffect(() => {
@@ -239,16 +244,13 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     fetchSiblings();
   }, [draft.brand_id, draft.post_job_id, draft.scheduled_for]);
 
-  // Fetch category/subcategory names and schedule rule data
+  // Fetch schedule rule data for frequency (category/subcategory comes from view)
   useEffect(() => {
     const fetchContextData = async () => {
       try {
-        let categoryIdToFetch: string | null = draft.category_id || null;
-        let subcategoryIdToFetch: string | null = draft.subcategory_id || null;
         let scheduleRuleId: string | null = null;
 
         // Fetch schedule rule via post_job -> schedule_rule_id
-        // Also get category/subcategory from schedule_rules if not in draft
         if (draft.post_job_id) {
           const { data: postJobData } = await supabase
             .from('post_jobs')
@@ -260,23 +262,15 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
           }
         }
 
-        // If we have a schedule rule, fetch it (includes category/subcategory)
+        // If we have a schedule rule, fetch it for frequency
         if (scheduleRuleId) {
           const { data: ruleData } = await supabase
             .from('schedule_rules')
-            .select('category_id, subcategory_id, frequency, days_of_week, day_of_month, time_of_day, start_date, end_date, days_before, days_during')
+            .select('frequency, days_of_week, day_of_month, time_of_day, start_date, end_date, days_before, days_during')
             .eq('id', scheduleRuleId)
             .single();
 
           if (ruleData) {
-            // Use category/subcategory from schedule_rule if not in draft
-            if (!categoryIdToFetch && ruleData.category_id) {
-              categoryIdToFetch = ruleData.category_id;
-            }
-            if (!subcategoryIdToFetch && ruleData.subcategory_id) {
-              subcategoryIdToFetch = ruleData.subcategory_id;
-            }
-
             // Convert to FrequencyInput
             const freq: FrequencyInput | undefined = (() => {
               switch (ruleData.frequency) {
@@ -356,37 +350,13 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
             setFrequency(freq);
           }
         }
-
-        // Fetch category name
-        if (categoryIdToFetch) {
-          const { data: categoryData } = await supabase
-            .from('categories')
-            .select('name')
-            .eq('id', categoryIdToFetch)
-            .single();
-          if (categoryData) {
-            setCategoryName(categoryData.name || 'Uncategorized');
-          }
-        }
-
-        // Fetch subcategory name
-        if (subcategoryIdToFetch) {
-          const { data: subcategoryData } = await supabase
-            .from('subcategories')
-            .select('name')
-            .eq('id', subcategoryIdToFetch)
-            .single();
-          if (subcategoryData) {
-            setSubcategoryName(subcategoryData.name);
-          }
-        }
       } catch (error) {
         console.error('Error fetching context data:', error);
       }
     };
 
     fetchContextData();
-  }, [draft.category_id, draft.subcategory_id, draft.post_job_id, draft.scheduled_for]);
+  }, [draft.post_job_id, draft.scheduled_for]);
 
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);

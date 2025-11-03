@@ -26,6 +26,9 @@ interface Draft {
   // Optional linkage from framework
   category_id?: string;
   subcategory_id?: string;
+  // From drafts_with_labels view
+  category_name?: string;
+  subcategory_name?: string;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -67,9 +70,9 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setLoading(true);
         setError(null);
 
-        // Fetch drafts first - exclude approved drafts (they should be in scheduled tab)
+        // Fetch drafts with category/subcategory names from view
         const query = supabase
-          .from('drafts')
+          .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
           .eq('approved', false); // Only show non-approved drafts
@@ -190,7 +193,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
             // Refetch to load updated assets/copy
             const refetchQuery = supabase
-              .from('drafts')
+              .from('drafts_with_labels')
               .select('*')
               .eq('brand_id', brandId)
               .eq('approved', false)
@@ -322,9 +325,9 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     setError(null);
     
     try {
-        // Fetch drafts first - exclude approved drafts (they should be in scheduled tab)
+        // Fetch drafts with category/subcategory names from view
         const query = supabase
-          .from('drafts')
+          .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
           .eq('approved', false); // Only show non-approved drafts

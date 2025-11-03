@@ -22,6 +22,9 @@ interface ScheduledPost {
   schedule_source?: 'manual' | 'auto';
   scheduled_by?: string;
   publish_status?: string;
+  // From drafts_with_labels view
+  category_name?: string;
+  subcategory_name?: string;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -58,7 +61,7 @@ export function useScheduled(brandId: string) {
         setError(null);
 
         const { data, error } = await supabase
-          .from('drafts')
+          .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
           .eq('approved', true)
@@ -116,7 +119,7 @@ export function useScheduled(brandId: string) {
         setError(null);
 
         const { data, error } = await supabase
-          .from('drafts')
+          .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
           .eq('approved', true)

@@ -1,0 +1,34 @@
+-- Update rpc_push_framework_to_drafts to set subcategory_id on insert
+-- 
+-- IMPORTANT: This function must be updated in Supabase to include subcategory_id
+-- 
+-- The function should be updated to include subcategory_id from framework_targets or schedule_rules
+-- when inserting drafts. The key is to always carry the subcategory from the source (rule/framework) 
+-- into drafts.subcategory_id at insert time.
+--
+-- Example update pattern:
+--
+-- In the INSERT INTO drafts statement, add subcategory_id:
+--
+-- INSERT INTO drafts (
+--     id, brand_id, scheduled_for, channel, schedule_source, 
+--     subcategory_id, ...  -- Add this column
+-- )
+-- SELECT 
+--     gen_random_uuid(), 
+--     f.brand_id, 
+--     slot.scheduled_for, 
+--     slot.channel, 
+--     'framework',
+--     f.subcategory_id,  -- Add this from framework_targets or schedule_rules
+--     ...
+-- FROM framework_targets f
+-- JOIN generated_slots slot ON slot.framework_id = f.id
+-- ...
+--
+-- If framework_targets has subcategory_id, use f.subcategory_id
+-- If schedule_rules has subcategory_id, join and use r.subcategory_id
+--
+-- NOTE: The backfill SQL in add_subcategory_id_to_drafts.sql will handle existing drafts,
+-- but new drafts created after this update should include subcategory_id at insert time.
+
