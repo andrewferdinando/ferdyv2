@@ -99,17 +99,18 @@ const socialProviders: SocialProvider[] = [
 
 // Function to render the appropriate icon
 const renderSocialIcon = (iconName: string, className: string = "w-6 h-6") => {
+  const iconClass = `${className} object-contain`;
   switch (iconName) {
     case 'facebook':
-      return <FacebookIcon className={className} />;
+      return <FacebookIcon className={iconClass} />;
     case 'instagram':
-      return <InstagramIcon className={className} />;
+      return <InstagramIcon className={iconClass} />;
     case 'twitter':
-      return <TwitterIcon className={className} />;
+      return <TwitterIcon className={iconClass} />;
     case 'linkedin':
-      return <LinkedInIcon className={className} />;
+      return <LinkedInIcon className={iconClass} />;
     case 'tiktok':
-      return <TikTokIcon className={className} />;
+      return <TikTokIcon className={iconClass} />;
     default:
       return null;
   }
