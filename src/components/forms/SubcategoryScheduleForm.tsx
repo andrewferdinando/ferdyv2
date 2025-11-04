@@ -665,6 +665,10 @@ export function SubcategoryScheduleForm({
                 throw new Error('At least one channel is required for all occurrences')
               }
               
+              // For single dates (no end_date), set end_date to start_date to satisfy constraint
+              // The constraint requires: end_date IS NOT NULL OR (days_during IS NOT NULL AND cardinality > 0)
+              const endDate = occ.end_date || occ.start_date
+              
               return {
                 brand_id: brandId,
                 subcategory_id: subcategoryId,
@@ -672,7 +676,7 @@ export function SubcategoryScheduleForm({
                 name: `${subcategoryData.name} – Specific`,
                 frequency: 'specific' as const,
                 start_date: occ.start_date,
-                end_date: occ.end_date || null,
+                end_date: endDate, // Must be NOT NULL for constraint - use start_date if null
                 time_of_day: timesOfDay, // Must be non-empty array for specific frequency
                 channels: occ.channels, // Must be non-empty array for specific frequency
                 timezone: occ.timezone || brand?.timezone || 'Pacific/Auckland',
@@ -681,7 +685,7 @@ export function SubcategoryScheduleForm({
                 hashtag_rule: null,
                 image_tag_rule: null,
                 days_before: [], // Empty array instead of null
-                days_during: null // null is fine for single dates
+                days_during: null // null is fine when end_date is set
               }
             })
 
