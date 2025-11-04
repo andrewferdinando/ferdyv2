@@ -673,15 +673,15 @@ export function SubcategoryScheduleForm({
                 frequency: 'specific' as const,
                 start_date: occ.start_date,
                 end_date: occ.end_date || null,
-                time_of_day: timesOfDay,
-                channels: occ.channels,
+                time_of_day: timesOfDay, // Must be non-empty array for specific frequency
+                channels: occ.channels, // Must be non-empty array for specific frequency
                 timezone: occ.timezone || brand?.timezone || 'Pacific/Auckland',
                 is_active: true,
                 tone: null,
                 hashtag_rule: null,
                 image_tag_rule: null,
-                days_before: null,
-                days_during: null
+                days_before: [], // Empty array instead of null
+                days_during: null // null is fine for single dates
               }
             })
 
