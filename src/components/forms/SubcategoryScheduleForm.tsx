@@ -159,6 +159,7 @@ export function SubcategoryScheduleForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [hashtagInput, setHashtagInput] = useState('')
   const [draftOccurrences, setDraftOccurrences] = useState<Array<{
+    id: string
     frequency: 'date' | 'date_range'
     start_date: string
     end_date: string | null
@@ -400,14 +401,30 @@ export function SubcategoryScheduleForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Form submitted, validating...')
+    console.log('Form state:', {
+      subcategoryName: subcategoryData.name,
+      channels: subcategoryData.channels,
+      frequency: scheduleData.frequency,
+      draftOccurrences: draftOccurrences.length,
+      currentSubcategoryId,
+      isFormValid: isFormValid
+    })
     
     if (!validateForm()) {
       console.log('Form validation failed')
+      setErrors({ submit: 'Please fill in all required fields' })
+      return
+    }
+
+    if (!isFormValid) {
+      console.log('Form is not valid according to isFormValid')
+      setErrors({ submit: 'Please fill in all required fields' })
       return
     }
 
     console.log('Form validation passed, starting save...')
     setIsLoading(true)
+    setErrors({}) // Clear any previous errors
 
     try {
       // Save subcategory
@@ -624,35 +641,41 @@ export function SubcategoryScheduleForm({
       console.log('Successfully saved subcategory and schedule rule')
 
       // Save draft occurrences if any were added
+      // Only save occurrences that are new (have draft- IDs), not ones that already exist
       if (scheduleData.frequency === 'specific' && draftOccurrences.length > 0) {
         try {
-          const occurrenceInserts = draftOccurrences.map(occ => ({
-            brand_id: brandId,
-            subcategory_id: subcategoryId,
-            category_id: categoryId || null,
-            name: `${subcategoryData.name} – Specific`,
-            frequency: 'specific' as const,
-            start_date: occ.start_date,
-            end_date: occ.end_date,
-            time_of_day: occ.times_of_day,
-            channels: occ.channels,
-            timezone: occ.timezone,
-            is_active: true,
-            tone: null,
-            hashtag_rule: null,
-            image_tag_rule: null
-          }))
+          // Filter to only new occurrences (draft- IDs) - these don't exist in DB yet
+          const newOccurrences = draftOccurrences.filter(occ => occ.id.startsWith('draft-'))
+          
+          if (newOccurrences.length > 0) {
+            const occurrenceInserts = newOccurrences.map(occ => ({
+              brand_id: brandId,
+              subcategory_id: subcategoryId,
+              category_id: categoryId || null,
+              name: `${subcategoryData.name} – Specific`,
+              frequency: 'specific' as const,
+              start_date: occ.start_date,
+              end_date: occ.end_date,
+              time_of_day: occ.times_of_day,
+              channels: occ.channels,
+              timezone: occ.timezone,
+              is_active: true,
+              tone: null,
+              hashtag_rule: null,
+              image_tag_rule: null
+            }))
 
-          const { error: occurrencesError } = await supabase
-            .from('schedule_rules')
-            .insert(occurrenceInserts)
+            const { error: occurrencesError } = await supabase
+              .from('schedule_rules')
+              .insert(occurrenceInserts)
 
-          if (occurrencesError) {
-            console.error('Error saving occurrences:', occurrencesError)
-            throw new Error(`Failed to save occurrences: ${occurrencesError.message}`)
+            if (occurrencesError) {
+              console.error('Error saving occurrences:', occurrencesError)
+              throw new Error(`Failed to save occurrences: ${occurrencesError.message}`)
+            }
+
+            console.log(`Successfully saved ${newOccurrences.length} occurrence(s)`)
           }
-
-          console.log(`Successfully saved ${draftOccurrences.length} occurrence(s)`)
         } catch (occurrencesError) {
           console.error('Error saving occurrences:', occurrencesError)
           // Don't throw - subcategory is already saved, just log the error
@@ -1114,9 +1137,10 @@ export function SubcategoryScheduleForm({
                       }
                     }}
                     onOccurrencesChange={(occurrences) => {
-                      // Collect all occurrences (both draft and saved)
+                      // Collect all occurrences with their IDs
                       // This allows validation to pass when editing existing subcategory with occurrences
                       const allOccurrences = occurrences.map(o => ({
+                        id: o.id,
                         frequency: o.frequency,
                         start_date: o.start_date,
                         end_date: o.end_date,
