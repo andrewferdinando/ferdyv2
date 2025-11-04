@@ -846,18 +846,16 @@ export default function CategoriesPage() {
                                   <td className="px-6 py-4 text-sm text-gray-900 font-medium">{subcategoryName}</td>
                                   <td className="px-6 py-4 text-sm text-gray-900">Specific Date/Range</td>
                                   <td className="px-6 py-4 text-sm">
-                                    <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-2 items-center">
                                       {upcoming.slice(0, 3).map((occ) => (
-                                        <div key={occ.id} className="flex items-center gap-2">
-                                          <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
-                                            {formatDateRange(occ.start_date, occ.end_date)}
-                                          </span>
-                                        </div>
+                                        <span key={occ.id} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                          {formatDateRange(occ.start_date, occ.end_date)}
+                                        </span>
                                       ))}
                                       {upcoming.length > 3 && (
-                                        <div className="text-xs text-gray-500">
+                                        <span className="text-xs text-gray-500">
                                           +{upcoming.length - 3} more
-                                        </div>
+                                        </span>
                                       )}
                                       {past.length > 0 && (
                                         <details className="mt-2">
