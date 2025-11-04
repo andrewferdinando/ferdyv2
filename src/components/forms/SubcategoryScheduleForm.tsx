@@ -676,13 +676,30 @@ export function SubcategoryScheduleForm({
 
     // Check specific frequency requirements
     if (scheduleData.frequency === 'specific') {
-      if (!scheduleData.startDate) return false
-      if (scheduleData.isDateRange && !scheduleData.endDate) return false
-      if (scheduleData.timesOfDay.length === 0) return false
+      // For 'specific' frequency, allow saving if:
+      // 1. Old form fields are filled (startDate, timesOfDay), OR
+      // 2. There are draft occurrences from EventOccurrencesManager, OR
+      // 3. Editing existing subcategory (existing occurrences are loaded separately)
+      const hasOldFormData = scheduleData.startDate && scheduleData.timesOfDay.length > 0
+      const hasDraftOccurrences = draftOccurrences.length > 0
+      const isEditingExisting = !!currentSubcategoryId
+      
+      // If using old form, validate it properly
+      if (hasOldFormData) {
+        if (scheduleData.isDateRange && !scheduleData.endDate) {
+          return false
+        }
+        return true
+      }
+      
+      // If not using old form, require either draft occurrences or existing subcategory
+      if (!hasDraftOccurrences && !isEditingExisting) {
+        return false
+      }
     }
 
     return true
-  }, [subcategoryData, scheduleData])
+  }, [subcategoryData, scheduleData, draftOccurrences, currentSubcategoryId])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}>
@@ -1097,18 +1114,20 @@ export function SubcategoryScheduleForm({
                       }
                     }}
                     onOccurrencesChange={(occurrences) => {
-                      // Collect draft occurrences (filter out saved ones)
-                      const drafts = occurrences
-                        .filter(o => o.id.startsWith('draft-'))
-                        .map(o => ({
-                          frequency: o.frequency,
-                          start_date: o.start_date,
-                          end_date: o.end_date,
-                          times_of_day: o.times_of_day,
-                          channels: o.channels,
-                          timezone: o.timezone
-                        }))
-                      setDraftOccurrences(drafts)
+                      // Collect all occurrences (both draft and saved)
+                      // This allows validation to pass when editing existing subcategory with occurrences
+                      const allOccurrences = occurrences.map(o => ({
+                        frequency: o.frequency,
+                        start_date: o.start_date,
+                        end_date: o.end_date,
+                        times_of_day: o.times_of_day,
+                        channels: o.channels,
+                        timezone: o.timezone
+                      }))
+                      setDraftOccurrences(allOccurrences)
+                      
+                      // Also update currentSubcategoryId if we have occurrences but no ID yet
+                      // (This handles the case where occurrences are added but subcategory hasn't been saved yet)
                     }}
                   />
                 </div>
