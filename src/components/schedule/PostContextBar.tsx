@@ -99,7 +99,7 @@ function formatFrequency(
   brandTimezone: string,
   scheduledFor?: string,
   eventWindow?: { start: string; end: string }
-): string | null {
+): string | React.ReactNode | null {
   if (!frequency) return null;
 
   switch (frequency.kind) {
@@ -125,24 +125,54 @@ function formatFrequency(
     }
 
     case "monthly": {
-      let result = "Monthly";
       if (frequency.daysOfMonth && frequency.daysOfMonth.length > 0) {
-        const daysStr = frequency.daysOfMonth
-          .sort((a, b) => a - b)
-          .map(day => formatOrdinal(day))
-          .join(", ");
-        if (frequency.time) {
-          // Format time: remove seconds and replace @ with "at"
-          const formattedTime = formatTimeString(frequency.time);
-          result += ` (${daysStr} at ${formattedTime})`;
-        } else {
-          result += ` (${daysStr})`;
+        const sortedDays = [...frequency.daysOfMonth].sort((a, b) => a - b);
+        const formattedDays = sortedDays.map(day => formatOrdinal(day));
+        
+        // Determine which day to highlight based on scheduledFor
+        let highlightedDay: number | null = null;
+        if (scheduledFor && brandTimezone) {
+          try {
+            const scheduledDate = new Date(scheduledFor);
+            const scheduledDateStr = scheduledDate.toLocaleDateString('en-CA', { timeZone: brandTimezone });
+            const dayOfMonth = parseInt(scheduledDateStr.split('-')[2], 10);
+            if (sortedDays.includes(dayOfMonth)) {
+              highlightedDay = dayOfMonth;
+            }
+          } catch (e) {
+            // If date parsing fails, don't highlight
+          }
         }
+        
+        const formattedTime = frequency.time ? formatTimeString(frequency.time) : null;
+        
+        // Return JSX with highlighted date
+        return (
+          <span>
+            Monthly (
+            {formattedDays.map((dayStr, index) => {
+              const dayNum = sortedDays[index];
+              const isHighlighted = highlightedDay === dayNum;
+              return (
+                <React.Fragment key={dayNum}>
+                  {index > 0 && ', '}
+                  <span
+                    className={isHighlighted ? 'font-semibold text-[#6366F1] bg-[#EEF2FF] px-1.5 py-0.5 rounded' : ''}
+                  >
+                    {dayStr}
+                  </span>
+                </React.Fragment>
+              );
+            })}
+            {formattedTime && ` at ${formattedTime}`}
+            )
+          </span>
+        );
       } else if (frequency.time) {
         const formattedTime = formatTimeString(frequency.time);
-        result += ` at ${formattedTime}`;
+        return `Monthly at ${formattedTime}`;
       }
-      return result;
+      return "Monthly";
     }
 
     case "oneOff": {
@@ -248,7 +278,7 @@ export default function PostContextBar({
         {frequencyText && (
           <div className="flex items-center gap-1.5 text-gray-500 text-xs">
             <ClockIcon className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-            <span>{frequencyText}</span>
+            {typeof frequencyText === 'string' ? <span>{frequencyText}</span> : frequencyText}
           </div>
         )}
       </div>
