@@ -62,6 +62,7 @@ export function EventOccurrencesManager({
 
   useEffect(() => {
     fetchOccurrences()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId, subcategoryId])
 
   const fetchOccurrences = async () => {

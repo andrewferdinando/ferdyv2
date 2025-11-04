@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -808,7 +808,7 @@ export default function CategoriesPage() {
                               }
                             }
 
-                            const rows: JSX.Element[] = []
+                            const rows: React.ReactElement[] = []
 
                             // Render event groups (one row per subcategory with all occurrences)
                             eventGroups.forEach((groupRules, subcategoryId) => {
