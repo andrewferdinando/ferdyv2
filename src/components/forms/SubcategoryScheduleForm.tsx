@@ -689,16 +689,26 @@ export function SubcategoryScheduleForm({
               }
             })
 
-            const { error: occurrencesError } = await supabase
+            console.log('Attempting to insert occurrences:', occurrenceInserts)
+            
+            const { error: occurrencesError, data } = await supabase
               .from('schedule_rules')
               .insert(occurrenceInserts)
+              .select()
 
             if (occurrencesError) {
-              console.error('Error saving occurrences:', occurrencesError)
-              throw new Error(`Failed to save occurrences: ${occurrencesError.message}`)
+              console.error('Error saving occurrences:', {
+                error: occurrencesError,
+                code: occurrencesError.code,
+                message: occurrencesError.message,
+                details: occurrencesError.details,
+                hint: occurrencesError.hint,
+                occurrences: occurrenceInserts
+              })
+              throw new Error(`Failed to save occurrences: ${occurrencesError.message || occurrencesError.code || 'Unknown error'}`)
             }
 
-            console.log(`Successfully saved ${newOccurrences.length} occurrence(s)`)
+            console.log(`Successfully saved ${newOccurrences.length} occurrence(s):`, data)
           }
         } catch (occurrencesError) {
           console.error('Error saving occurrences:', occurrencesError)
@@ -709,8 +719,16 @@ export function SubcategoryScheduleForm({
       onSuccess()
       onClose()
     } catch (error) {
-      console.error('Error saving subcategory and schedule rule:', error)
-      setErrors({ submit: `Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}` })
+      console.error('Error saving subcategory and schedule rule:', {
+        error,
+        errorType: error?.constructor?.name,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (typeof error === 'string' ? error : 'Unknown error')
+      setErrors({ submit: `Failed to save: ${errorMessage}` })
     } finally {
       setIsLoading(false)
     }
