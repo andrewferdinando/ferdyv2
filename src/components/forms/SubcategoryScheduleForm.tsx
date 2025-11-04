@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useBrand } from '@/hooks/useBrand'
 import { EventOccurrencesManager } from './EventOccurrencesManager'
+import { useCategories } from '@/hooks/useCategories'
 
 interface SubcategoryData {
   name: string
@@ -59,6 +60,8 @@ interface SubcategoryScheduleFormProps {
     channels: string[]
   }
   onSuccess: () => void
+  categories?: Array<{ id: string; name: string }>  // For category selection
+  onCreateCategory?: (name: string) => Promise<{ id: string; name: string }>  // For creating new category
 }
 
 const DAYS_OF_WEEK = [
@@ -101,13 +104,29 @@ export function SubcategoryScheduleForm({
   isOpen,
   onClose,
   brandId,
-  categoryId,
+  categoryId: initialCategoryId,
   editingSubcategory,
   editingScheduleRule,
-  onSuccess
+  onSuccess,
+  categories: externalCategories,
+  onCreateCategory: externalCreateCategory
 }: SubcategoryScheduleFormProps) {
   // Fetch brand for timezone
   const { brand } = useBrand(brandId)
+  
+  // Fetch categories if not provided
+  const { categories: hookCategories, createCategory: hookCreateCategory } = useCategories(brandId)
+  const categories = externalCategories || hookCategories || []
+  const createCategory = externalCreateCategory || (async (name: string) => {
+    const result = await hookCreateCategory(name, brandId)
+    return { id: result.id, name: result.name }
+  })
+  
+  // Category selection state
+  const [categoryMode, setCategoryMode] = useState<'existing' | 'new'>('existing')
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(initialCategoryId)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
 
   // Track the current subcategory ID (for EventOccurrencesManager)
   const [currentSubcategoryId, setCurrentSubcategoryId] = useState<string | null>(
@@ -427,6 +446,40 @@ export function SubcategoryScheduleForm({
     setErrors({}) // Clear any previous errors
 
     try {
+      // Handle category creation/selection first (only for new subcategories)
+      let finalCategoryId = initialCategoryId
+      
+      if (!editingSubcategory) {
+        if (categoryMode === 'new') {
+          if (!newCategoryName.trim()) {
+            setErrors({ submit: 'Category name is required' })
+            setIsLoading(false)
+            return
+          }
+          setIsCreatingCategory(true)
+          try {
+            const newCategory = await createCategory(newCategoryName.trim())
+            finalCategoryId = newCategory.id
+            setSelectedCategoryId(newCategory.id)
+          } catch (err) {
+            console.error('Failed to create category:', err)
+            setErrors({ submit: 'Failed to create category. Please try again.' })
+            setIsLoading(false)
+            setIsCreatingCategory(false)
+            return
+          } finally {
+            setIsCreatingCategory(false)
+          }
+        } else {
+          if (!selectedCategoryId) {
+            setErrors({ submit: 'Please select a category' })
+            setIsLoading(false)
+            return
+          }
+          finalCategoryId = selectedCategoryId
+        }
+      }
+
       // Save subcategory
       let subcategoryId: string
 
@@ -462,7 +515,7 @@ export function SubcategoryScheduleForm({
           .from('subcategories')
           .insert({
             brand_id: brandId,
-            category_id: categoryId,
+            category_id: finalCategoryId,
             name: subcategoryData.name,
             detail: subcategoryData.detail || null,
             url: subcategoryData.url || null,
@@ -495,7 +548,7 @@ export function SubcategoryScheduleForm({
       const baseRuleData = {
         brand_id: brandId,
         subcategory_id: subcategoryId,
-        category_id: categoryId || null,
+        category_id: finalCategoryId || null,
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
         frequency: scheduleData.frequency,
         channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
@@ -672,7 +725,7 @@ export function SubcategoryScheduleForm({
               return {
                 brand_id: brandId,
                 subcategory_id: subcategoryId,
-                category_id: categoryId || null,
+                category_id: finalCategoryId || null,
                 name: `${subcategoryData.name} – Specific`,
                 frequency: 'specific' as const,
                 start_date: occ.start_date,
@@ -767,9 +820,67 @@ export function SubcategoryScheduleForm({
   }, [subcategoryData, scheduleData, draftOccurrences, currentSubcategoryId])
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Subcategory & Schedule Rule' : 'Create Subcategory & Schedule Rule'}>
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Framework Item' : 'Add Framework Item'}>
       <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Card: Category */}
+          {!editingSubcategory && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Category</h3>
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={categoryMode === 'existing'}
+                      onChange={() => {
+                        setCategoryMode('existing')
+                        setNewCategoryName('')
+                      }}
+                      className="mr-2"
+                    />
+                    <span>Use existing</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={categoryMode === 'new'}
+                      onChange={() => {
+                        setCategoryMode('new')
+                        setSelectedCategoryId(undefined)
+                      }}
+                      className="mr-2"
+                    />
+                    <span>Create new</span>
+                  </label>
+                </div>
+                
+                {categoryMode === 'existing' ? (
+                  <FormField label="Category" required>
+                    <select
+                      value={selectedCategoryId || ''}
+                      onChange={(e) => setSelectedCategoryId(e.target.value || undefined)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </FormField>
+                ) : (
+                  <FormField label="Category Name" required>
+                    <Input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Enter category name"
+                    />
+                  </FormField>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Card A: Subcategory */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Subcategory</h3>

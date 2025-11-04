@@ -6,12 +6,9 @@ import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
-import { useSubcategories } from '@/hooks/useSubcategories'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useScheduleRules } from '@/hooks/useScheduleRules'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
-import Modal from '@/components/ui/Modal'
-import { Input } from '@/components/ui/Input'
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
 import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressModal'
@@ -52,13 +49,7 @@ export default function CategoriesPage() {
   const router = useRouter()
   const brandId = params.brandId as string
   const { showToast } = useToast()
-  const [activeTab, setActiveTab] = useState('categories')
-  const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null)
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
-  const [categoryName, setCategoryName] = useState('')
-  const [categoryForNewRule, setCategoryForNewRule] = useState<string>('')
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[], channels?: string[]} | null>(null)
   const [editingScheduleRule, setEditingScheduleRule] = useState<{
     id: string
@@ -79,7 +70,6 @@ export default function CategoriesPage() {
   } | null>(null)
   
   const { categories, loading, createCategory } = useCategories(brandId)
-  const { subcategories, loading: subcategoriesLoading, deleteSubcategory, refetch: refetchSubcategories } = useSubcategories(brandId, selectedCategory?.id || null)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
   const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
 
@@ -129,10 +119,8 @@ export default function CategoriesPage() {
   }, [brandId])
 
   useEffect(() => {
-    if (activeTab === 'nextMonth') {
-      checkExistingDrafts()
-    }
-  }, [activeTab, checkExistingDrafts])
+    checkExistingDrafts()
+  }, [checkExistingDrafts])
 
   const bannerCopyNZ = useMemo(() => {
     // If we know drafts exist, show "have been pushed" message
@@ -429,50 +417,6 @@ export default function CategoriesPage() {
     }
   }
 
-  const tabs = [
-    { id: 'categories', name: 'Categories' },
-    { id: 'nextMonth', name: 'Post Framework' },
-  ]
-
-  const handleCreateCategory = async () => {
-    if (!categoryName.trim()) {
-      showToast({
-        title: 'Category name required',
-        message: 'Please enter a category name',
-        type: 'error',
-        duration: 3000
-      })
-      return
-    }
-
-    if (!brandId) {
-      showToast({
-        title: 'Something went wrong',
-        message: 'Brand ID is missing',
-        type: 'error',
-        duration: 3000
-      })
-      return
-    }
-
-    setIsCreatingCategory(true)
-    try {
-      await createCategory(categoryName.trim(), brandId)
-      setCategoryName('')
-      setIsCategoryModalOpen(false)
-      // Categories will be automatically updated via local state in createCategory
-    } catch (error) {
-      console.error('Error creating category:', error)
-      showToast({
-        title: 'Failed to create category',
-        message: 'Please try again.',
-        type: 'error',
-        duration: 3000
-      })
-    } finally {
-      setIsCreatingCategory(false)
-    }
-  }
 
   if (loading || roleLoading) {
     return (
@@ -497,281 +441,73 @@ export default function CategoriesPage() {
                 <div className="mb-4">
                   <Breadcrumb />
                 </div>
-                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories & Post Frequency</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Framework</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
-              {isAdmin && !selectedCategory && activeTab === 'categories' && (
+              {isAdmin && (
                 <button
-                  onClick={() => setIsCategoryModalOpen(true)}
+                  onClick={() => {
+                    setEditingSubcategory(null)
+                    setEditingScheduleRule(null)
+                    setIsSubcategoryModalOpen(true)
+                  }}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Category
+                  Add Framework Item
                 </button>
               )}
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
-            <div className="flex space-x-8">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-[#6366F1] text-[#6366F1]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {tab.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
-            {activeTab === 'categories' ? (
-              <div className="space-y-6">
-                {!selectedCategory ? (
-                  /* Categories List */
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {categories?.map((category) => (
-                      <div
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category)}
-                        className="bg-white rounded-lg border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                      >
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{category.name}</h3>
-                        <p className="text-gray-600 text-sm">Click to manage sub-categories</p>
-                      </div>
-                    ))}
-                    {(!categories || categories.length === 0) && (
-                      <div className="col-span-full text-center py-12">
-                        <p className="text-gray-500">No categories available. Contact your administrator.</p>
+            <div className="space-y-6">
+              {/* Row 2: Banner + Push Button */}
+              {isAdmin && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="w-full">
+                    {bannerCopyNZ && (
+                      <div className="px-3 py-2 bg-[#EEF2FF] text-[#6366F1] text-sm rounded-lg inline-block">
+                        {bannerCopyNZ}
                       </div>
                     )}
                   </div>
-                ) : (
-                  /* Subcategories for Selected Category */
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={() => setSelectedCategory(null)}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          <ArrowLeftIcon className="w-5 h-5" />
-                        </button>
-                        <div>
-                          <h2 className="text-xl font-semibold text-gray-900">{selectedCategory.name}</h2>
-                          <p className="text-gray-600 text-sm">Manage sub-categories for this category</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setEditingSubcategory(null)
-                          setEditingScheduleRule(null)
-                          setIsSubcategoryModalOpen(true)
-                        }}
-                        className="inline-flex items-center px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors"
-                      >
-                        <PlusIcon className="w-4 h-4 mr-2" />
-                        Add Sub Category
-                      </button>
-                    </div>
-
-                    <div className="bg-white rounded-lg border border-gray-200">
-                      {subcategoriesLoading ? (
-                        <div className="p-6">
-                          <div className="flex items-center justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
-                          </div>
-                        </div>
-                      ) : subcategories.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead>
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SUBCATEGORY NAME</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {subcategories.map((subcategory) => (
-                                <tr key={subcategory.id}>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{subcategory.name}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <div className="flex space-x-2">
-                                      <button 
-                                        onClick={async () => {
-                                          setEditingSubcategory({
-                                            id: subcategory.id,
-                                            name: subcategory.name,
-                                            detail: subcategory.detail,
-                                            url: subcategory.url,
-                                            hashtags: subcategory.hashtags,
-                                            channels: subcategory.channels
-                                          })
-                                          
-                                          // Fetch associated schedule rule
-                                          const { data: scheduleRule } = await supabase
-                                            .from('schedule_rules')
-                                            .select('*')
-                                            .eq('brand_id', brandId)
-                                            .eq('subcategory_id', subcategory.id)
-                                            .eq('is_active', true)
-                                            .single()
-                                          
-                                          if (scheduleRule) {
-                                            // Map database fields to form format
-                                            // Handle time_of_day (can be single value for daily/weekly/monthly or array for specific)
-                                            let timeOfDayValue = ''
-                                            let timesOfDayArray: string[] = []
-                                            
-                                            if (Array.isArray(scheduleRule.time_of_day)) {
-                                              // time_of_day is an array (specific frequency)
-                                              timesOfDayArray = scheduleRule.time_of_day
-                                              timeOfDayValue = timesOfDayArray.length > 0 ? timesOfDayArray[0] : ''
-                                            } else if (typeof scheduleRule.time_of_day === 'string') {
-                                              // time_of_day is a single string (daily/weekly/monthly)
-                                              timeOfDayValue = scheduleRule.time_of_day
-                                              timesOfDayArray = timeOfDayValue ? [timeOfDayValue] : []
-                                            }
-                                            
-                                            const mappedRule = {
-                                              id: scheduleRule.id,
-                                              frequency: scheduleRule.frequency,
-                                              timeOfDay: timeOfDayValue || '',  // Ensure it's always a string, never undefined
-                                              timesOfDay: timesOfDayArray,
-                                              daysOfWeek: scheduleRule.days_of_week 
-                                                ? (Array.isArray(scheduleRule.days_of_week) 
-                                                    ? scheduleRule.days_of_week 
-                                                    : [scheduleRule.days_of_week] // Backward compatibility: wrap single value in array
-                                                  ).map((d: number) => {
-                                                    const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
-                                                    return dayMap[d] || ''
-                                                  }).filter(Boolean)
-                                                : [],
-                                              daysOfMonth: scheduleRule.day_of_month 
-                                                ? (Array.isArray(scheduleRule.day_of_month) 
-                                                    ? scheduleRule.day_of_month 
-                                                    : [scheduleRule.day_of_month] // Backward compatibility: wrap single value in array
-                                                  )
-                                                : [],
-                                              nthWeek: scheduleRule.nth_week,
-                                              weekday: scheduleRule.weekday,
-                                              channels: scheduleRule.channels || [],
-                                              // Specific date/range fields
-                                              isDateRange: scheduleRule.end_date && scheduleRule.end_date !== scheduleRule.start_date,
-                                              startDate: scheduleRule.start_date ? new Date(scheduleRule.start_date).toISOString().split('T')[0] : '',
-                                              endDate: scheduleRule.end_date ? new Date(scheduleRule.end_date).toISOString().split('T')[0] : '',
-                                              daysBefore: scheduleRule.days_before || [],
-                                              daysDuring: scheduleRule.days_during || [],
-                                              timezone: scheduleRule.timezone || 'Pacific/Auckland'
-                                            }
-                                            setEditingScheduleRule(mappedRule)
-                                          } else {
-                                            setEditingScheduleRule(null)
-                                          }
-                                          
-                                          setIsSubcategoryModalOpen(true)
-                                        }}
-                                        className="text-gray-400 hover:text-gray-600"
-                                      >
-                                        <EditIcon className="w-4 h-4" />
-                                      </button>
-                                      <button 
-                                        onClick={async () => {
-                                          if (confirm(`Are you sure you want to delete "${subcategory.name}"?`)) {
-                                            try {
-                                              await deleteSubcategory(subcategory.id)
-                                              // Subcategories will refresh automatically via useEffect
-                                            } catch (error) {
-                                              console.error('Error deleting subcategory:', error)
-                                              showToast({
-                                                title: 'Failed to delete subcategory',
-                                                message: 'Please try again.',
-                                                type: 'error',
-                                                duration: 3000
-                                              })
-                                            }
-                                          }
-                                        }}
-                                        className="text-gray-400 hover:text-red-600"
-                                      >
-                                        <TrashIcon className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="p-6">
-                          <div className="text-center py-12">
-                            <p className="text-gray-500">No sub-categories yet. Create one to get started.</p>
-                          </div>
-                        </div>
+                  <div className="flex-shrink-0 ml-4">
+                    <button
+                      onClick={handlePushToDrafts}
+                      disabled={pushing || draftsAlreadyExist === true}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
+                    >
+                      {pushing && (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
                       )}
+                      {pushing ? 'Pushing…' : 'Push to Drafts Now'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-lg border border-gray-200">
+                {rulesLoading ? (
+                  <div className="p-6">
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
                     </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Title removed per request */}
-
-                {/* Row 2: Banner + Push Button */}
-                {isAdmin && (
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="w-full">
-                      {bannerCopyNZ && (
-                        <div className="px-3 py-2 bg-[#EEF2FF] text-[#6366F1] text-sm rounded-lg inline-block">
-                          {bannerCopyNZ}
-                        </div>
-                      )}
-                  </div>
-                    <div className="flex-shrink-0 ml-4">
-                      <button
-                        onClick={handlePushToDrafts}
-                        disabled={pushing || draftsAlreadyExist === true}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
-                      >
-                        {pushing && (
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
-                        )}
-                        {pushing ? 'Pushing…' : 'Push to Drafts Now'}
-                      </button>
-                    </div>
-                    </div>
-                  )}
-
-                <div className="bg-white rounded-lg border border-gray-200">
-                  {rulesLoading ? (
-                    <div className="p-6">
-                      <div className="flex items-center justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
-                      </div>
-                    </div>
-                  ) : (rules || []).filter(r => r.is_active).length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead>
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategory</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
+                ) : (rules || []).filter(r => r.is_active).length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead>
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategory</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
                           {(() => {
                             const activeRules = (rules || []).filter(r => r.is_active)
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
@@ -808,104 +544,6 @@ export default function CategoriesPage() {
                               }
                             }
 
-                            const rows: React.ReactElement[] = []
-
-                            // Render event groups (one row per subcategory with all occurrences)
-                            eventGroups.forEach((groupRules, subcategoryId) => {
-                              const firstRule = groupRules[0]
-                              const subcategoryName = firstRule.subcategories?.name || ''
-                              const categoryName = firstRule.categories?.name || ''
-                              
-                              // Sort occurrences by start_date
-                              const sortedOccurrences = [...groupRules].sort((a, b) => {
-                                const aDate = a.start_date ? new Date(a.start_date).getTime() : 0
-                                const bDate = b.start_date ? new Date(b.start_date).getTime() : 0
-                                return aDate - bDate
-                              })
-
-                              // Separate upcoming and past
-                              const now = new Date()
-                              const upcoming = sortedOccurrences.filter(r => {
-                                const end = r.end_date || r.start_date
-                                return end ? new Date(end) >= now : false
-                              })
-                              const past = sortedOccurrences.filter(r => {
-                                const end = r.end_date || r.start_date
-                                return end ? new Date(end) < now : false
-                              })
-
-                              // Get times and channels from first occurrence (they should be consistent)
-                              const times = Array.isArray(firstRule.time_of_day) 
-                                ? firstRule.time_of_day 
-                                : (firstRule.time_of_day ? [firstRule.time_of_day] : [])
-                              const channels = firstRule.channels || []
-
-                              rows.push(
-                                <tr key={`event-group-${subcategoryId}`}>
-                                  <td className="px-6 py-4 text-sm text-gray-900">{categoryName}</td>
-                                  <td className="px-6 py-4 text-sm text-gray-900 font-medium">{subcategoryName}</td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">Specific Date/Range</td>
-                                  <td className="px-6 py-4 text-sm">
-                                    <div className="flex flex-wrap gap-2 items-center">
-                                      {upcoming.slice(0, 3).map((occ) => (
-                                        <span key={occ.id} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
-                                          {formatDateRange(occ.start_date, occ.end_date)}
-                                        </span>
-                                      ))}
-                                      {upcoming.length > 3 && (
-                                        <span className="text-xs text-gray-500">
-                                          +{upcoming.length - 3} more
-                                        </span>
-                                      )}
-                                      {past.length > 0 && (
-                                        <details className="mt-2">
-                                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                            View all dates ({sortedOccurrences.length} total, {past.length} past)
-                                          </summary>
-                                          <div className="mt-2 space-y-1 pl-4">
-                                            {sortedOccurrences.map((occ) => {
-                                              const isPast = (() => {
-                                                const end = occ.end_date || occ.start_date
-                                                return end ? new Date(end) < now : false
-                                              })()
-                                              return (
-                                                <div key={occ.id} className={`text-xs ${isPast ? 'text-gray-400' : 'text-gray-700'}`}>
-                                                  {formatDateRange(occ.start_date, occ.end_date)}
-                                                </div>
-                                              )
-                                            })}
-                                          </div>
-                                        </details>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm">
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-gray-500">
-                                    <button
-                                      onClick={() => {
-                                        setEditingSubcategory({
-                                          id: firstRule.subcategory_id,
-                                          name: subcategoryName,
-                                          detail: firstRule.subcategories?.detail,
-                                          url: firstRule.subcategories?.url,
-                                          hashtags: firstRule.subcategories?.default_hashtags || [],
-                                          channels: channels
-                                        })
-                                        setSelectedCategory({ id: firstRule.category_id, name: categoryName })
-                                        setIsSubcategoryModalOpen(true)
-                                      }}
-                                      className="text-gray-400 hover:text-gray-600"
-                                      title="Edit subcategory"
-                                    >
-                                      <EditIcon className="w-4 h-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              )
-                            })
-
                             // Helper to format ordinal numbers (1st, 2nd, 3rd, etc.)
                             const formatOrdinal = (num: number): string => {
                               const suffix = ['th', 'st', 'nd', 'rd']
@@ -913,122 +551,293 @@ export default function CategoriesPage() {
                               return num + (suffix[(v - 20) % 10] || suffix[v] || suffix[0])
                             }
 
-                            // Render other rules (daily, weekly, monthly) as before
-                            otherRules.forEach((rule) => {
-                              const freqLabel = rule.frequency === 'daily' ? 'Daily'
-                                : rule.frequency === 'weekly' ? 'Weekly'
-                                : rule.frequency === 'monthly' ? 'Monthly'
-                                : 'Specific Date/Range'
+                            // Group all rules by category
+                            interface CategoryGroup {
+                              categoryId: string
+                              categoryName: string
+                              subcategories: Array<{
+                                subcategoryId: string
+                                subcategoryName: string
+                                isEvent: boolean
+                                eventRules?: typeof eventRules
+                                regularRule?: typeof otherRules[0]
+                              }>
+                            }
 
-                              // Build pills for days/dates
-                              let daysDatesPills: React.ReactElement[] = []
+                            const categoryMap = new Map<string, CategoryGroup>()
+
+                            // Add event groups
+                            eventGroups.forEach((groupRules, subcategoryId) => {
+                              const firstRule = groupRules[0]
+                              const categoryId = firstRule.category_id || 'uncategorized'
+                              const categoryName = firstRule.categories?.name || 'Uncategorized'
                               
-                              if (rule.frequency === 'weekly' && rule.days_of_week && rule.days_of_week.length) {
-                                daysDatesPills = rule.days_of_week
-                                  .map(d => dayNames[d])
-                                  .filter(Boolean)
-                                  .map((dayName, idx) => (
-                                    <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
-                                      {dayName}
-                                    </span>
-                                  ))
-                              } else if (rule.frequency === 'monthly') {
-                                if (Array.isArray(rule.day_of_month) && rule.day_of_month.length) {
-                                  daysDatesPills = rule.day_of_month.map((day, idx) => (
-                                    <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
-                                      {formatOrdinal(day)}
-                                    </span>
-                                  ))
-                                } else if (!Array.isArray(rule.day_of_month) && rule.nth_week && rule.weekday) {
-                                  daysDatesPills = [
-                                    <span key="0" className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
-                                      {nthMap[rule.nth_week] || rule.nth_week} {weekdayNames[rule.weekday] || ''}
-                                    </span>
-                                  ]
-                                }
-                              } else if (rule.frequency === 'daily') {
-                                // For daily, show "Daily" or empty
-                                daysDatesPills = []
+                              if (!categoryMap.has(categoryId)) {
+                                categoryMap.set(categoryId, {
+                                  categoryId,
+                                  categoryName,
+                                  subcategories: []
+                                })
                               }
+                              
+                              const group = categoryMap.get(categoryId)!
+                              group.subcategories.push({
+                                subcategoryId,
+                                subcategoryName: firstRule.subcategories?.name || '',
+                                isEvent: true,
+                                eventRules: groupRules
+                              })
+                            })
 
+                            // Add regular rules
+                            otherRules.forEach((rule) => {
+                              const categoryId = rule.category_id || 'uncategorized'
+                              const categoryName = rule.categories?.name || 'Uncategorized'
+                              
+                              if (!categoryMap.has(categoryId)) {
+                                categoryMap.set(categoryId, {
+                                  categoryId,
+                                  categoryName,
+                                  subcategories: []
+                                })
+                              }
+                              
+                              const group = categoryMap.get(categoryId)!
+                              group.subcategories.push({
+                                subcategoryId: rule.subcategory_id,
+                                subcategoryName: rule.subcategories?.name || '',
+                                isEvent: false,
+                                regularRule: rule
+                              })
+                            })
+
+                            // Sort categories A-Z
+                            const sortedCategories = Array.from(categoryMap.values()).sort((a, b) => 
+                              a.categoryName.localeCompare(b.categoryName)
+                            )
+
+                            const rows: React.ReactElement[] = []
+
+                            // Render each category with section header
+                            sortedCategories.forEach((categoryGroup) => {
+                              // Sort subcategories A-Z within category
+                              categoryGroup.subcategories.sort((a, b) => 
+                                a.subcategoryName.localeCompare(b.subcategoryName)
+                              )
+
+                              // Category section header
                               rows.push(
-                                <tr key={rule.id}>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.categories?.name || ''}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.subcategories?.name || ''}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
-                                  <td className="px-6 py-4 text-sm">
-                                    <div className="flex flex-wrap gap-2">
-                                      {daysDatesPills.length > 0 ? daysDatesPills : <span className="text-gray-400">-</span>}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <div className="flex space-x-2">
-                                      <button
-                                        onClick={() => {
-                                          setEditingSubcategory({
-                                            id: rule.subcategory_id,
-                                            name: rule.subcategories?.name || '',
-                                            detail: rule.subcategories?.detail,
-                                            url: rule.subcategories?.url,
-                                            hashtags: rule.subcategories?.default_hashtags || [],
-                                            channels: rule.channels || []
-                                          })
-
-                                          const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
-                                          const mappedRule = {
-                                            id: rule.id,
-                                            frequency: rule.frequency,
-                                            timeOfDay: timesArray[0] || '',
-                                            timesOfDay: timesArray,
-                                            daysOfWeek: (rule.days_of_week || []).map((d: number) => {
-                                              const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
-                                              return dayMap[d] || ''
-                                            }).filter(Boolean),
-                                            daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
-                                            nthWeek: rule.nth_week,
-                                            weekday: rule.weekday,
-                                            channels: rule.channels || [],
-                                            isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
-                                            startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
-                                            endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
-                                            daysBefore: rule.days_before || [],
-                                            daysDuring: rule.days_during || [],
-                                            timezone: rule.timezone || 'Pacific/Auckland'
-                                          }
-                                          setEditingScheduleRule(mappedRule)
-                                          setSelectedCategory({ id: rule.category_id, name: rule.categories?.name || '' })
-                                          setIsSubcategoryModalOpen(true)
-                                        }}
-                                        className="text-gray-400 hover:text-gray-600"
-                                      >
-                                        <EditIcon className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={async () => {
-                                          if (confirm(`Remove scheduling rule for "${rule.subcategories?.name || 'subcategory'}"?`)) {
-                                            try {
-                                              await deleteRule(rule.id)
-                                            } catch (err) {
-                                              showToast({
-                                                title: 'Failed to delete rule',
-                                                message: 'Please try again.',
-                                                type: 'error',
-                                                duration: 3000
-                                              })
-                                            }
-                                          }
-                                        }}
-                                        className="text-gray-400 hover:text-red-600"
-                                      >
-                                        <TrashIcon className="w-4 h-4" />
-                                      </button>
-                                    </div>
+                                <tr key={`category-header-${categoryGroup.categoryId}`} className="bg-gray-50">
+                                  <td colSpan={5} className="px-6 py-3">
+                                    <h3 className="text-sm font-semibold text-gray-900">{categoryGroup.categoryName}</h3>
                                   </td>
                                 </tr>
                               )
+
+                              // Render subcategories
+                              categoryGroup.subcategories.forEach((subcat) => {
+                                if (subcat.isEvent && subcat.eventRules) {
+                                  const groupRules = subcat.eventRules
+                                  const firstRule = groupRules[0]
+                                  
+                                  // Sort occurrences by start_date
+                                  const sortedOccurrences = [...groupRules].sort((a, b) => {
+                                    const aDate = a.start_date ? new Date(a.start_date).getTime() : 0
+                                    const bDate = b.start_date ? new Date(b.start_date).getTime() : 0
+                                    return aDate - bDate
+                                  })
+
+                                  // Separate upcoming and past
+                                  const now = new Date()
+                                  const upcoming = sortedOccurrences.filter(r => {
+                                    const end = r.end_date || r.start_date
+                                    return end ? new Date(end) >= now : false
+                                  })
+                                  const past = sortedOccurrences.filter(r => {
+                                    const end = r.end_date || r.start_date
+                                    return end ? new Date(end) < now : false
+                                  })
+
+                                  const channels = firstRule.channels || []
+
+                                  rows.push(
+                                    <tr key={`event-group-${subcat.subcategoryId}`}>
+                                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{subcat.subcategoryName}</td>
+                                      <td className="px-6 py-4 text-sm text-gray-900">Specific Date/Range</td>
+                                      <td className="px-6 py-4 text-sm">
+                                        <div className="flex flex-wrap gap-2 items-center">
+                                          {upcoming.slice(0, 3).map((occ) => (
+                                            <span key={occ.id} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                              {formatDateRange(occ.start_date, occ.end_date)}
+                                            </span>
+                                          ))}
+                                          {upcoming.length > 3 && (
+                                            <span className="text-xs text-gray-500">
+                                              +{upcoming.length - 3} more
+                                            </span>
+                                          )}
+                                          {past.length > 0 && (
+                                            <details className="mt-2">
+                                              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                                View all dates ({sortedOccurrences.length} total, {past.length} past)
+                                              </summary>
+                                              <div className="mt-2 space-y-1 pl-4">
+                                                {sortedOccurrences.map((occ) => {
+                                                  const isPast = (() => {
+                                                    const end = occ.end_date || occ.start_date
+                                                    return end ? new Date(end) < now : false
+                                                  })()
+                                                  return (
+                                                    <div key={occ.id} className={`text-xs ${isPast ? 'text-gray-400' : 'text-gray-700'}`}>
+                                                      {formatDateRange(occ.start_date, occ.end_date)}
+                                                    </div>
+                                                  )
+                                                })}
+                                              </div>
+                                            </details>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-6 py-4 text-sm">
+                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-gray-500">
+                                        <button
+                                          onClick={() => {
+                                            setEditingSubcategory({
+                                              id: firstRule.subcategory_id,
+                                              name: subcat.subcategoryName,
+                                              detail: firstRule.subcategories?.detail,
+                                              url: firstRule.subcategories?.url,
+                                              hashtags: firstRule.subcategories?.default_hashtags || [],
+                                              channels: channels
+                                            })
+                                            setIsSubcategoryModalOpen(true)
+                                          }}
+                                          className="text-gray-400 hover:text-gray-600"
+                                          title="Edit subcategory"
+                                        >
+                                          <EditIcon className="w-4 h-4" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  )
+                                } else if (subcat.regularRule) {
+                                  const rule = subcat.regularRule
+                                  const freqLabel = rule.frequency === 'daily' ? 'Daily'
+                                    : rule.frequency === 'weekly' ? 'Weekly'
+                                    : rule.frequency === 'monthly' ? 'Monthly'
+                                    : 'Specific Date/Range'
+
+                                  // Build pills for days/dates
+                                  let daysDatesPills: React.ReactElement[] = []
+                                  
+                                  if (rule.frequency === 'weekly' && rule.days_of_week && rule.days_of_week.length) {
+                                    daysDatesPills = rule.days_of_week
+                                      .map(d => dayNames[d])
+                                      .filter(Boolean)
+                                      .map((dayName, idx) => (
+                                        <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                          {dayName}
+                                        </span>
+                                      ))
+                                  } else if (rule.frequency === 'monthly') {
+                                    if (Array.isArray(rule.day_of_month) && rule.day_of_month.length) {
+                                      daysDatesPills = rule.day_of_month.map((day, idx) => (
+                                        <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                          {formatOrdinal(day)}
+                                        </span>
+                                      ))
+                                    } else if (!Array.isArray(rule.day_of_month) && rule.nth_week && rule.weekday) {
+                                      daysDatesPills = [
+                                        <span key="0" className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                          {nthMap[rule.nth_week] || rule.nth_week} {weekdayNames[rule.weekday] || ''}
+                                        </span>
+                                      ]
+                                    }
+                                  } else if (rule.frequency === 'daily') {
+                                    // For daily, show "Daily" or empty
+                                    daysDatesPills = []
+                                  }
+
+                                  rows.push(
+                                    <tr key={rule.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{subcat.subcategoryName}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
+                                      <td className="px-6 py-4 text-sm">
+                                        <div className="flex flex-wrap gap-2">
+                                          {daysDatesPills.length > 0 ? daysDatesPills : <span className="text-gray-400">-</span>}
+                                        </div>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <div className="flex space-x-2">
+                                          <button
+                                            onClick={() => {
+                                              setEditingSubcategory({
+                                                id: rule.subcategory_id,
+                                                name: rule.subcategories?.name || '',
+                                                detail: rule.subcategories?.detail,
+                                                url: rule.subcategories?.url,
+                                                hashtags: rule.subcategories?.default_hashtags || [],
+                                                channels: rule.channels || []
+                                              })
+
+                                              const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
+                                              const mappedRule = {
+                                                id: rule.id,
+                                                frequency: rule.frequency,
+                                                timeOfDay: timesArray[0] || '',
+                                                timesOfDay: timesArray,
+                                                daysOfWeek: (rule.days_of_week || []).map((d: number) => {
+                                                  const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
+                                                  return dayMap[d] || ''
+                                                }).filter(Boolean),
+                                                daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
+                                                nthWeek: rule.nth_week,
+                                                weekday: rule.weekday,
+                                                channels: rule.channels || [],
+                                                isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
+                                                startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
+                                                endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
+                                                daysBefore: rule.days_before || [],
+                                                daysDuring: rule.days_during || [],
+                                                timezone: rule.timezone || 'Pacific/Auckland'
+                                              }
+                                              setEditingScheduleRule(mappedRule)
+                                              setIsSubcategoryModalOpen(true)
+                                            }}
+                                            className="text-gray-400 hover:text-gray-600"
+                                          >
+                                            <EditIcon className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={async () => {
+                                              if (confirm(`Remove scheduling rule for "${rule.subcategories?.name || 'subcategory'}"?`)) {
+                                                try {
+                                                  await deleteRule(rule.id)
+                                                } catch (err) {
+                                                  showToast({
+                                                    title: 'Failed to delete rule',
+                                                    message: 'Please try again.',
+                                                    type: 'error',
+                                                    duration: 3000
+                                                  })
+                                                }
+                                              }
+                                            }}
+                                            className="text-gray-400 hover:text-red-600"
+                                          >
+                                            <TrashIcon className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
+                                }
+                              })
                             })
 
                             return rows
@@ -1058,77 +867,22 @@ export default function CategoriesPage() {
             setEditingScheduleRule(null)
           }}
           brandId={brandId}
-          categoryId={activeTab === 'categories' ? selectedCategory?.id : (categoryForNewRule || selectedCategory?.id)}
           editingSubcategory={editingSubcategory || undefined}
           editingScheduleRule={editingScheduleRule || undefined}
+          categories={categories}
+          onCreateCategory={async (name: string) => {
+            const result = await createCategory(name, brandId)
+            return { id: result.id, name: result.name }
+          }}
           onSuccess={() => {
-            // Close modal and refresh subcategories
+            // Close modal and refresh
             setIsSubcategoryModalOpen(false)
             setEditingSubcategory(null)
             setEditingScheduleRule(null)
-            setCategoryForNewRule('')
-            // Refetch subcategories to show the newly created one
-            refetchSubcategories()
-            // Also refresh schedule rules so Post Framework updates immediately
+            // Refresh schedule rules so Post Framework updates immediately
             refetchRules()
           }}
         />
-
-        {/* Create Category Modal */}
-        <Modal
-          isOpen={isCategoryModalOpen}
-          onClose={() => {
-            setIsCategoryModalOpen(false)
-            setCategoryName('')
-          }}
-          maxWidth="md"
-          title="Create New Category"
-        >
-          <div className="p-6">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleCreateCategory()
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  value={categoryName}
-                  onChange={(e) => setCategoryName(e.target.value)}
-                  placeholder="e.g. Seasonal Events"
-                  required
-                  autoFocus
-                />
-                <p className="text-xs text-gray-500 mt-1">Example: Seasonal Events</p>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoryModalOpen(false)
-                    setCategoryName('')
-                  }}
-                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreatingCategory || !categoryName.trim()}
-                  className="px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isCreatingCategory ? 'Creating...' : 'Create Category'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
 
         {/* Push to Drafts Progress Modal */}
         {showProgressModal && (
