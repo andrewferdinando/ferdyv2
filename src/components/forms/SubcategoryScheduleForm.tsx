@@ -7,6 +7,7 @@ import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useBrand } from '@/hooks/useBrand'
+import { EventOccurrencesManager } from './EventOccurrencesManager'
 
 interface SubcategoryData {
   name: string
@@ -1023,6 +1024,21 @@ export function SubcategoryScheduleForm({
                       <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
                     </select>
                   </FormField>
+                </div>
+              )}
+
+              {/* Event Occurrences Manager - Show when frequency is 'specific' and subcategory exists */}
+              {scheduleData.frequency === 'specific' && editingSubcategory?.id && (
+                <div className="mt-6">
+                  <EventOccurrencesManager
+                    brandId={brandId}
+                    subcategoryId={editingSubcategory.id}
+                    brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
+                    onOccurrencesChanged={() => {
+                      // Refresh any parent components if needed
+                      onSuccess()
+                    }}
+                  />
                 </div>
               )}
 

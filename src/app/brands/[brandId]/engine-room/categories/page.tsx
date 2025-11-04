@@ -772,114 +772,242 @@ export default function CategoriesPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {(rules || [])
-                            .filter(r => r.is_active)
-                            .map((rule) => {
+                          {(() => {
+                            const activeRules = (rules || []).filter(r => r.is_active)
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const nthMap: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' }
 
-                            const freqLabel = rule.frequency === 'daily' ? 'Daily'
-                              : rule.frequency === 'weekly' ? 'Weekly'
-                              : rule.frequency === 'monthly' ? 'Monthly'
-                              : 'Specific Date/Range'
+                            // Separate specific (event) rules from others
+                            const eventRules = activeRules.filter(r => r.frequency === 'specific')
+                            const otherRules = activeRules.filter(r => r.frequency !== 'specific')
 
-                            let daysDates = ''
-                            if (rule.frequency === 'weekly' && rule.days_of_week && rule.days_of_week.length) {
-                              daysDates = rule.days_of_week.map(d => dayNames[d] || '').filter(Boolean).join(', ')
-                            } else if (rule.frequency === 'monthly') {
-                              if (Array.isArray(rule.day_of_month) && rule.day_of_month.length) {
-                                daysDates = rule.day_of_month.join(', ')
-                              } else if (!Array.isArray(rule.day_of_month) && rule.nth_week && rule.weekday) {
-                                daysDates = `${nthMap[rule.nth_week] || rule.nth_week} ${weekdayNames[rule.weekday] || ''}`
+                            // Group event rules by subcategory_id
+                            const eventGroups = new Map<string, typeof eventRules>()
+                            eventRules.forEach(rule => {
+                              const key = rule.subcategory_id || 'none'
+                              if (!eventGroups.has(key)) {
+                                eventGroups.set(key, [])
                               }
-                            } else if (rule.frequency === 'specific') {
-                              const start = rule.start_date ? new Date(rule.start_date) : null
-                              const end = rule.end_date ? new Date(rule.end_date) : null
-                              if (start && end) {
-                                const sameDay = start.toDateString() === end.toDateString()
-                                const fmt = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
-                                daysDates = sameDay ? fmt.format(start) : `${fmt.format(start)} → ${fmt.format(end)}`
+                              eventGroups.get(key)!.push(rule)
+                            })
+
+                            // Format date range helper
+                            const formatDateRange = (start: string | null, end: string | null) => {
+                              if (!start) return ''
+                              const startDate = new Date(start)
+                              const endDate = end ? new Date(end) : startDate
+                              const sameDay = startDate.toDateString() === endDate.toDateString()
+                              
+                              if (sameDay) {
+                                return startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                              } else {
+                                const startFmt = startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                const endFmt = endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                return `${startFmt}–${endFmt}`
                               }
                             }
 
-                            return (
-                              <tr key={rule.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.categories?.name || ''}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.subcategories?.name || ''}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{daysDates || '-'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  <div className="flex space-x-2">
+                            const rows: JSX.Element[] = []
+
+                            // Render event groups (one row per subcategory with all occurrences)
+                            eventGroups.forEach((groupRules, subcategoryId) => {
+                              const firstRule = groupRules[0]
+                              const subcategoryName = firstRule.subcategories?.name || ''
+                              const categoryName = firstRule.categories?.name || ''
+                              
+                              // Sort occurrences by start_date
+                              const sortedOccurrences = [...groupRules].sort((a, b) => {
+                                const aDate = a.start_date ? new Date(a.start_date).getTime() : 0
+                                const bDate = b.start_date ? new Date(b.start_date).getTime() : 0
+                                return aDate - bDate
+                              })
+
+                              // Separate upcoming and past
+                              const now = new Date()
+                              const upcoming = sortedOccurrences.filter(r => {
+                                const end = r.end_date || r.start_date
+                                return end ? new Date(end) >= now : false
+                              })
+                              const past = sortedOccurrences.filter(r => {
+                                const end = r.end_date || r.start_date
+                                return end ? new Date(end) < now : false
+                              })
+
+                              // Get times and channels from first occurrence (they should be consistent)
+                              const times = Array.isArray(firstRule.time_of_day) 
+                                ? firstRule.time_of_day 
+                                : (firstRule.time_of_day ? [firstRule.time_of_day] : [])
+                              const channels = firstRule.channels || []
+
+                              rows.push(
+                                <tr key={`event-group-${subcategoryId}`}>
+                                  <td className="px-6 py-4 text-sm text-gray-900">{categoryName}</td>
+                                  <td className="px-6 py-4 text-sm text-gray-900 font-medium">{subcategoryName}</td>
+                                  <td className="px-6 py-4 text-sm text-gray-900">Specific Date/Range</td>
+                                  <td className="px-6 py-4 text-sm">
+                                    <div className="space-y-2">
+                                      {upcoming.slice(0, 3).map((occ) => (
+                                        <div key={occ.id} className="flex items-center gap-2">
+                                          <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                            {formatDateRange(occ.start_date, occ.end_date)}
+                                          </span>
+                                          <span className="text-gray-500 text-xs">{times[0] || ''}</span>
+                                          <span className="text-gray-500 text-xs">
+                                            {channels.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join('+')}
+                                          </span>
+                                        </div>
+                                      ))}
+                                      {upcoming.length > 3 && (
+                                        <div className="text-xs text-gray-500">
+                                          +{upcoming.length - 3} more
+                                        </div>
+                                      )}
+                                      {past.length > 0 && (
+                                        <details className="mt-2">
+                                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                            View all dates ({sortedOccurrences.length} total, {past.length} past)
+                                          </summary>
+                                          <div className="mt-2 space-y-1 pl-4">
+                                            {sortedOccurrences.map((occ) => {
+                                              const isPast = (() => {
+                                                const end = occ.end_date || occ.start_date
+                                                return end ? new Date(end) < now : false
+                                              })()
+                                              return (
+                                                <div key={occ.id} className={`text-xs ${isPast ? 'text-gray-400' : 'text-gray-700'}`}>
+                                                  {formatDateRange(occ.start_date, occ.end_date)}
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        </details>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-sm">
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-gray-500">
                                     <button
                                       onClick={() => {
-                                        // Prefill edit data from rule
                                         setEditingSubcategory({
-                                          id: rule.subcategory_id,
-                                          name: rule.subcategories?.name || '',
-                                          detail: rule.subcategories?.detail,
-                                          url: rule.subcategories?.url,
-                                          hashtags: rule.subcategories?.default_hashtags || [],
-                                          channels: rule.channels || []
+                                          id: firstRule.subcategory_id,
+                                          name: subcategoryName,
+                                          detail: firstRule.subcategories?.detail,
+                                          url: firstRule.subcategories?.url,
+                                          hashtags: firstRule.subcategories?.default_hashtags || [],
+                                          channels: channels
                                         })
-
-                                        // Map schedule rule for form
-                                        const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
-                                        const mappedRule = {
-                                          id: rule.id,
-                                          frequency: rule.frequency,
-                                          timeOfDay: timesArray[0] || '',
-                                          timesOfDay: timesArray,
-                                          daysOfWeek: (rule.days_of_week || []).map((d: number) => {
-                                            const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
-                                            return dayMap[d] || ''
-                                          }).filter(Boolean),
-                                          daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
-                                          nthWeek: rule.nth_week,
-                                          weekday: rule.weekday,
-                                          channels: rule.channels || [],
-                                          isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
-                                          startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
-                                          endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
-                                          daysBefore: rule.days_before || [],
-                                          daysDuring: rule.days_during || [],
-                                          timezone: rule.timezone || 'Pacific/Auckland'
-                                        }
-                                        setEditingScheduleRule(mappedRule)
-                                        setSelectedCategory({ id: rule.category_id, name: rule.categories?.name || '' })
+                                        setSelectedCategory({ id: firstRule.category_id, name: categoryName })
                                         setIsSubcategoryModalOpen(true)
                                       }}
                                       className="text-gray-400 hover:text-gray-600"
+                                      title="Edit subcategory"
                                     >
                                       <EditIcon className="w-4 h-4" />
                                     </button>
-                                    <button
-                                      onClick={async () => {
-                                        if (confirm(`Remove scheduling rule for "${rule.subcategories?.name || 'subcategory'}"?`)) {
-                                          try {
-                                            await deleteRule(rule.id)
-                                          } catch (err) {
-                                            showToast({
-                                              title: 'Failed to delete rule',
-                                              message: 'Please try again.',
-                                              type: 'error',
-                                              duration: 3000
-                                            })
+                                  </td>
+                                </tr>
+                              )
+                            })
+
+                            // Render other rules (daily, weekly, monthly) as before
+                            otherRules.forEach((rule) => {
+                              const freqLabel = rule.frequency === 'daily' ? 'Daily'
+                                : rule.frequency === 'weekly' ? 'Weekly'
+                                : rule.frequency === 'monthly' ? 'Monthly'
+                                : 'Specific Date/Range'
+
+                              let daysDates = ''
+                              if (rule.frequency === 'weekly' && rule.days_of_week && rule.days_of_week.length) {
+                                daysDates = rule.days_of_week.map(d => dayNames[d] || '').filter(Boolean).join(', ')
+                              } else if (rule.frequency === 'monthly') {
+                                if (Array.isArray(rule.day_of_month) && rule.day_of_month.length) {
+                                  daysDates = rule.day_of_month.join(', ')
+                                } else if (!Array.isArray(rule.day_of_month) && rule.nth_week && rule.weekday) {
+                                  daysDates = `${nthMap[rule.nth_week] || rule.nth_week} ${weekdayNames[rule.weekday] || ''}`
+                                }
+                              }
+
+                              rows.push(
+                                <tr key={rule.id}>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.categories?.name || ''}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.subcategories?.name || ''}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{daysDates || '-'}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div className="flex space-x-2">
+                                      <button
+                                        onClick={() => {
+                                          setEditingSubcategory({
+                                            id: rule.subcategory_id,
+                                            name: rule.subcategories?.name || '',
+                                            detail: rule.subcategories?.detail,
+                                            url: rule.subcategories?.url,
+                                            hashtags: rule.subcategories?.default_hashtags || [],
+                                            channels: rule.channels || []
+                                          })
+
+                                          const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
+                                          const mappedRule = {
+                                            id: rule.id,
+                                            frequency: rule.frequency,
+                                            timeOfDay: timesArray[0] || '',
+                                            timesOfDay: timesArray,
+                                            daysOfWeek: (rule.days_of_week || []).map((d: number) => {
+                                              const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
+                                              return dayMap[d] || ''
+                                            }).filter(Boolean),
+                                            daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
+                                            nthWeek: rule.nth_week,
+                                            weekday: rule.weekday,
+                                            channels: rule.channels || [],
+                                            isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
+                                            startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
+                                            endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
+                                            daysBefore: rule.days_before || [],
+                                            daysDuring: rule.days_during || [],
+                                            timezone: rule.timezone || 'Pacific/Auckland'
                                           }
-                                        }
-                                      }}
-                                      className="text-gray-400 hover:text-red-600"
-                                    >
-                                      <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
+                                          setEditingScheduleRule(mappedRule)
+                                          setSelectedCategory({ id: rule.category_id, name: rule.categories?.name || '' })
+                                          setIsSubcategoryModalOpen(true)
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600"
+                                      >
+                                        <EditIcon className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          if (confirm(`Remove scheduling rule for "${rule.subcategories?.name || 'subcategory'}"?`)) {
+                                            try {
+                                              await deleteRule(rule.id)
+                                            } catch (err) {
+                                              showToast({
+                                                title: 'Failed to delete rule',
+                                                message: 'Please try again.',
+                                                type: 'error',
+                                                duration: 3000
+                                              })
+                                            }
+                                          }
+                                        }}
+                                        className="text-gray-400 hover:text-red-600"
+                                      >
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })
+
+                            return rows
+                          })()}
                         </tbody>
                       </table>
                     </div>
