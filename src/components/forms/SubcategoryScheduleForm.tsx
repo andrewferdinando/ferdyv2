@@ -109,6 +109,11 @@ export function SubcategoryScheduleForm({
   // Fetch brand for timezone
   const { brand } = useBrand(brandId)
 
+  // Track the current subcategory ID (for EventOccurrencesManager)
+  const [currentSubcategoryId, setCurrentSubcategoryId] = useState<string | null>(
+    editingSubcategory?.id || null
+  )
+
   // Subcategory state
   const [subcategoryData, setSubcategoryData] = useState<SubcategoryData>({
     name: '',
@@ -153,9 +158,13 @@ export function SubcategoryScheduleForm({
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [hashtagInput, setHashtagInput] = useState('')
+  const [subcategorySaved, setSubcategorySaved] = useState(false)
 
   // Initialize form with editing data
   useEffect(() => {
+    // Update currentSubcategoryId when editingSubcategory changes
+    setCurrentSubcategoryId(editingSubcategory?.id || null)
+
     if (editingSubcategory) {
       setSubcategoryData({
         name: editingSubcategory.name,
@@ -252,6 +261,7 @@ export function SubcategoryScheduleForm({
     setErrors({})
     setHashtagInput('')
     setNewTimeInput('')
+    setSubcategorySaved(false)
   }, [editingSubcategory, editingScheduleRule, isOpen])
 
   // Helper functions for specific date/range
@@ -443,6 +453,8 @@ export function SubcategoryScheduleForm({
           throw error
         }
         subcategoryId = data.id
+        // Update currentSubcategoryId so EventOccurrencesManager can work
+        setCurrentSubcategoryId(subcategoryId)
       }
 
       // Upsert schedule rule - one active rule per subcategory
@@ -603,8 +615,19 @@ export function SubcategoryScheduleForm({
       }
 
       console.log('Successfully saved subcategory and schedule rule')
-      onSuccess()
-      onClose()
+      setSubcategorySaved(true)
+      
+      // If frequency is 'specific', keep modal open to allow adding occurrences
+      // Otherwise, close the modal
+      if (scheduleData.frequency === 'specific') {
+        // Update editingSubcategory state so EventOccurrencesManager can work
+        // We'll keep the modal open and let user add occurrences
+        onSuccess() // Refresh the parent component
+        // Don't close the modal - let user add occurrences
+      } else {
+        onSuccess()
+        onClose()
+      }
     } catch (error) {
       console.error('Error saving subcategory and schedule rule:', error)
       setErrors({ submit: `Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}` })
@@ -1027,12 +1050,21 @@ export function SubcategoryScheduleForm({
                 </div>
               )}
 
+              {/* Success message when subcategory is saved */}
+              {subcategorySaved && scheduleData.frequency === 'specific' && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                  <p className="text-green-800 text-sm">
+                    ✓ Subcategory saved! You can now add event occurrences below.
+                  </p>
+                </div>
+              )}
+
               {/* Event Occurrences Manager - Show when frequency is 'specific' and subcategory exists */}
-              {scheduleData.frequency === 'specific' && editingSubcategory?.id && (
+              {scheduleData.frequency === 'specific' && currentSubcategoryId && (
                 <div className="mt-6">
                   <EventOccurrencesManager
                     brandId={brandId}
-                    subcategoryId={editingSubcategory.id}
+                    subcategoryId={currentSubcategoryId}
                     brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
                     onOccurrencesChanged={() => {
                       // Refresh any parent components if needed

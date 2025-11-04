@@ -20,7 +20,8 @@ DECLARE
     v_subcategory_id uuid;
     v_draft_id uuid;
     v_post_job_id uuid;
-    v_channel text;  -- Will store comma-separated channels string
+    v_channel text;  -- Will store comma-separated channels string for drafts
+    v_first_channel text;  -- Will store first channel for post_jobs (to satisfy CHECK constraint)
     v_schedule_rule RECORD;
     v_channels text[];
 BEGIN
@@ -33,9 +34,14 @@ BEGIN
 
     -- Loop through framework targets from rpc_framework_targets function
     -- Only consider future targets to avoid creating duplicates
+    -- Explicitly select columns to avoid ambiguity with frequency column
     FOR v_target IN
-        SELECT * FROM rpc_framework_targets(p_brand_id)
-        WHERE scheduled_at > now()  -- Only future targets (no past or recent past)
+        SELECT 
+            t.scheduled_at,
+            t.subcategory_id,
+            t.frequency
+        FROM rpc_framework_targets(p_brand_id) AS t
+        WHERE t.scheduled_at > now()  -- Only future targets (no past or recent past)
     LOOP
         v_scheduled_at := v_target.scheduled_at;
         v_subcategory_id := v_target.subcategory_id;  -- Get subcategory_id from rpc_framework_targets result
@@ -74,8 +80,12 @@ BEGIN
             v_channels := v_schedule_rule.channels;
         END IF;
 
-        -- Convert channels array to comma-separated string for storage
+        -- Convert channels array to comma-separated string for storage in drafts
         v_channel := array_to_string(v_channels, ',');
+        
+        -- Extract first channel for post_jobs (to satisfy CHECK constraint)
+        -- post_jobs.channel has a constraint that only allows single channel values: CHECK (channel IN ('facebook','instagram','tiktok','linkedin','x'))
+        v_first_channel := v_channels[1];  -- Get first channel from array
 
         -- Check if a draft already exists for this scheduled_at time
         SELECT id INTO v_draft_id
@@ -94,7 +104,8 @@ BEGIN
             LIMIT 1;
 
             IF v_post_job_id IS NULL THEN
-                -- Create post_job with all channels as comma-separated string
+                -- Create post_job with FIRST channel only (to satisfy CHECK constraint)
+                -- The constraint only allows single channel values, not comma-separated strings
                 INSERT INTO post_jobs (
                     brand_id,
                     schedule_rule_id,
@@ -107,7 +118,7 @@ BEGIN
                 ) VALUES (
                     p_brand_id,
                     v_rule_id,
-                    v_channel,  -- Store all channels as comma-separated string
+                    v_first_channel,  -- Use first channel only (satisfies CHECK constraint)
                     v_target_month,
                     v_scheduled_at,
                     v_scheduled_local,

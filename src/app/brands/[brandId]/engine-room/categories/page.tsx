@@ -852,10 +852,6 @@ export default function CategoriesPage() {
                                           <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
                                             {formatDateRange(occ.start_date, occ.end_date)}
                                           </span>
-                                          <span className="text-gray-500 text-xs">{times[0] || ''}</span>
-                                          <span className="text-gray-500 text-xs">
-                                            {channels.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join('+')}
-                                          </span>
                                         </div>
                                       ))}
                                       {upcoming.length > 3 && (
