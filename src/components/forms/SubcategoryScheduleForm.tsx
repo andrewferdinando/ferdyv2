@@ -648,22 +648,42 @@ export function SubcategoryScheduleForm({
           const newOccurrences = draftOccurrences.filter(occ => occ.id.startsWith('draft-'))
           
           if (newOccurrences.length > 0) {
-            const occurrenceInserts = newOccurrences.map(occ => ({
-              brand_id: brandId,
-              subcategory_id: subcategoryId,
-              category_id: categoryId || null,
-              name: `${subcategoryData.name} – Specific`,
-              frequency: 'specific' as const,
-              start_date: occ.start_date,
-              end_date: occ.end_date,
-              time_of_day: occ.times_of_day,
-              channels: occ.channels,
-              timezone: occ.timezone,
-              is_active: true,
-              tone: null,
-              hashtag_rule: null,
-              image_tag_rule: null
-            }))
+            const occurrenceInserts = newOccurrences.map(occ => {
+              // Ensure time_of_day is an array and not empty
+              const timesOfDay = Array.isArray(occ.times_of_day) && occ.times_of_day.length > 0
+                ? occ.times_of_day
+                : null
+              
+              // Validate required fields for specific frequency
+              if (!occ.start_date) {
+                throw new Error('Start date is required for all occurrences')
+              }
+              if (!timesOfDay || timesOfDay.length === 0) {
+                throw new Error('At least one time of day is required for all occurrences')
+              }
+              if (!occ.channels || occ.channels.length === 0) {
+                throw new Error('At least one channel is required for all occurrences')
+              }
+              
+              return {
+                brand_id: brandId,
+                subcategory_id: subcategoryId,
+                category_id: categoryId || null,
+                name: `${subcategoryData.name} – Specific`,
+                frequency: 'specific' as const,
+                start_date: occ.start_date,
+                end_date: occ.end_date || null,
+                time_of_day: timesOfDay,
+                channels: occ.channels,
+                timezone: occ.timezone || brand?.timezone || 'Pacific/Auckland',
+                is_active: true,
+                tone: null,
+                hashtag_rule: null,
+                image_tag_rule: null,
+                days_before: null,
+                days_during: null
+              }
+            })
 
             const { error: occurrencesError } = await supabase
               .from('schedule_rules')
