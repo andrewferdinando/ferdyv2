@@ -677,7 +677,7 @@ export function SubcategoryScheduleForm({
                 frequency: 'specific' as const,
                 start_date: occ.start_date,
                 end_date: endDate, // Must be NOT NULL for constraint - use start_date if null
-                times_of_day: timesOfDay, // Constraint checks times_of_day (not time_of_day)
+                time_of_day: timesOfDay, // Column is time_of_day (constraint may have typo)
                 channels: occ.channels, // Must be non-empty array for specific frequency
                 timezone: occ.timezone || brand?.timezone || 'Pacific/Auckland',
                 is_active: true,
