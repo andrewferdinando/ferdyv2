@@ -153,34 +153,41 @@ function formatFrequency(
 
     case "rangeDuring": {
       const { offsetDays } = frequency;
-      if (offsetDays !== undefined && offsetDays > 0) {
-        return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} during`;
-      }
       
-      // If scheduledFor and eventWindow are provided, check position
+      // Prioritize checking scheduled date position when we have both scheduledFor and eventWindow
       if (scheduledFor && eventWindow) {
-        const scheduledDate = new Date(scheduledFor);
-        const startDate = new Date(eventWindow.start);
-        const endDate = new Date(eventWindow.end);
+        // Convert dates to date-only strings in brand timezone for accurate comparison
+        const scheduledDateStr = new Date(scheduledFor).toLocaleDateString('en-CA', { timeZone: brandTimezone });
+        const startDateStr = new Date(eventWindow.start).toLocaleDateString('en-CA', { timeZone: brandTimezone });
+        const endDateStr = new Date(eventWindow.end).toLocaleDateString('en-CA', { timeZone: brandTimezone });
         
-        if (scheduledDate >= startDate && scheduledDate <= endDate) {
+        // Parse as dates for comparison (year, month, day only)
+        const [sy, sm, sd] = scheduledDateStr.split('-').map(Number);
+        const [sty, stm, std] = startDateStr.split('-').map(Number);
+        const [edy, edm, edd] = endDateStr.split('-').map(Number);
+        
+        const scheduledDay = new Date(sy, sm - 1, sd);
+        const startDay = new Date(sty, stm - 1, std);
+        const endDay = new Date(edy, edm - 1, edd);
+        
+        if (scheduledDay < startDay) {
+          // Before window - calculate days before
+          const daysBefore = diffDays(scheduledFor, eventWindow.start, brandTimezone);
+          return `${daysBefore} ${daysBefore === 1 ? 'day' : 'days'} before`;
+        } else if (scheduledDay > endDay) {
+          // After window - calculate days after
+          const daysAfter = diffDays(eventWindow.end, scheduledFor, brandTimezone);
+          return `${daysAfter} ${daysAfter === 1 ? 'day' : 'days'} after`;
+        } else {
           // Inside window - use "During" or offsetDays if provided
           if (offsetDays !== undefined && offsetDays > 0) {
             return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} during`;
           }
           return "During";
-        } else if (scheduledDate < startDate) {
-          // Before window
-          const daysBefore = diffDays(scheduledFor, eventWindow.start, brandTimezone);
-          return `${daysBefore} ${daysBefore === 1 ? 'day' : 'days'} before`;
-        } else {
-          // After window
-          const daysAfter = diffDays(eventWindow.end, scheduledFor, brandTimezone);
-          return `${daysAfter} ${daysAfter === 1 ? 'day' : 'days'} after`;
         }
       }
       
-      // Default fallback
+      // Fallback: if we don't have scheduledFor/eventWindow, use offsetDays if available
       if (offsetDays !== undefined && offsetDays > 0) {
         return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} during`;
       }
