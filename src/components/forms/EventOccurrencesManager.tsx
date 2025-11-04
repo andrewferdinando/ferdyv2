@@ -123,6 +123,17 @@ export function EventOccurrencesManager({
     setIsEditing(null)
   }
 
+  const resetFormWithDefaults = () => {
+    resetForm()
+    // If there are existing occurrences, default to the first one's values
+    if (occurrences.length > 0) {
+      const firstOccurrence = occurrences[0]
+      setTimesOfDay([...firstOccurrence.times_of_day])
+      setChannels([...firstOccurrence.channels])
+      setTimezone(firstOccurrence.timezone)
+    }
+  }
+
   const handleAddTime = () => {
     if (newTimeInput && !timesOfDay.includes(newTimeInput)) {
       setTimesOfDay([...timesOfDay, newTimeInput])
@@ -433,7 +444,7 @@ export function EventOccurrencesManager({
             <button
               type="button"
               onClick={() => {
-                resetForm()
+                resetFormWithDefaults()
                 setIsAddModalOpen(true)
               }}
               className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -442,7 +453,20 @@ export function EventOccurrencesManager({
             </button>
             <button
               type="button"
-              onClick={() => setIsBulkModalOpen(true)}
+              onClick={() => {
+                // Default bulk form to first occurrence's values if any exist
+                if (occurrences.length > 0) {
+                  const firstOccurrence = occurrences[0]
+                  setBulkTimesOfDay([...firstOccurrence.times_of_day])
+                  setBulkChannels([...firstOccurrence.channels])
+                } else {
+                  setBulkTimesOfDay([])
+                  setBulkChannels([])
+                }
+                setBulkInput('')
+                setBulkNewTimeInput('')
+                setIsBulkModalOpen(true)
+              }}
               className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
             >
               Add Multiple Dates
