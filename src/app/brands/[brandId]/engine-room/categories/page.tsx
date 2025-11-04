@@ -854,7 +854,6 @@ export default function CategoriesPage() {
                   )}
                 </div>
               </div>
-            )}
           </div>
         </div>
 
