@@ -793,7 +793,7 @@ export default function CategoriesPage() {
                             })
 
                             // Format date range helper
-                            const formatDateRange = (start: string | null, end: string | null) => {
+                            const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
                               if (!start) return ''
                               const startDate = new Date(start)
                               const endDate = end ? new Date(end) : startDate
