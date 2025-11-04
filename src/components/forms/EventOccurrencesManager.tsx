@@ -78,9 +78,9 @@ export function EventOccurrencesManager({
 
       if (error) throw error
 
-      const mapped = (data || []).map((rule) => ({
+      const mapped = (data || []).map((rule): EventOccurrence => ({
         id: rule.id,
-        frequency: rule.end_date && rule.end_date !== rule.start_date ? 'date_range' : 'date',
+        frequency: (rule.end_date && rule.end_date !== rule.start_date ? 'date_range' : 'date') as 'date' | 'date_range',
         start_date: rule.start_date,
         end_date: rule.end_date,
         times_of_day: Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : []),
