@@ -71,6 +71,21 @@ function formatDateInTimezone(dateStr: string, tz: string): string {
   });
 }
 
+// Utility: Format time string - remove seconds and ensure proper format
+function formatTimeString(timeStr: string): string {
+  // Handle formats like "19:53:00" or "19:53" or "19:53:00.000" or "@ 19:53:00"
+  // Remove any leading "@" or whitespace, then remove seconds
+  let cleaned = timeStr.trim();
+  if (cleaned.startsWith('@')) {
+    cleaned = cleaned.substring(1).trim();
+  }
+  const parts = cleaned.split(':');
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]}`;
+  }
+  return cleaned;
+}
+
 // Main frequency formatter
 function formatFrequency(
   frequency: FrequencyInput | undefined,
@@ -89,12 +104,15 @@ function formatFrequency(
       if (frequency.daysOfWeek && frequency.daysOfWeek.length > 0) {
         const dayList = formatDayList(frequency.daysOfWeek);
         if (frequency.time) {
-          result += ` (${dayList} @ ${frequency.time})`;
+          // Format time: remove seconds and replace @ with "at"
+          const formattedTime = formatTimeString(frequency.time);
+          result += ` (${dayList} at ${formattedTime})`;
         } else {
           result += ` (${dayList})`;
         }
       } else if (frequency.time) {
-        result += ` @ ${frequency.time}`;
+        const formattedTime = formatTimeString(frequency.time);
+        result += ` at ${formattedTime}`;
       }
       return result;
     }
@@ -104,12 +122,15 @@ function formatFrequency(
       if (frequency.daysOfMonth && frequency.daysOfMonth.length > 0) {
         const daysStr = frequency.daysOfMonth.sort((a, b) => a - b).join(", ");
         if (frequency.time) {
-          result += ` (${daysStr} @ ${frequency.time})`;
+          // Format time: remove seconds and replace @ with "at"
+          const formattedTime = formatTimeString(frequency.time);
+          result += ` (${daysStr} at ${formattedTime})`;
         } else {
           result += ` (${daysStr})`;
         }
       } else if (frequency.time) {
-        result += ` @ ${frequency.time}`;
+        const formattedTime = formatTimeString(frequency.time);
+        result += ` at ${formattedTime}`;
       }
       return result;
     }

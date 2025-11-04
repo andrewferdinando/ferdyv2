@@ -324,15 +324,59 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                     } else {
                       // Single date with days_before
                       const daysBefore = (ruleData.days_before as number[] | null) || [];
-                      if (daysBefore.length > 0 && draft.scheduled_for) {
+                      if (daysBefore.length > 0 && draft.scheduled_for && brand?.timezone) {
+                        // Find which days_before value was used by matching the scheduled date
+                        // Convert scheduled date to timezone-aware date string for comparison
                         const scheduledDate = new Date(draft.scheduled_for);
+                        const scheduledDateStr = scheduledDate.toLocaleDateString('en-CA', { timeZone: brand.timezone });
+                        
                         const anchorDate = new Date(ruleData.start_date);
-                        const diffTime = anchorDate.getTime() - scheduledDate.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const anchorDateStr = anchorDate.toLocaleDateString('en-CA', { timeZone: brand.timezone });
+                        const [yearA, monthA, dayA] = anchorDateStr.split('-').map(Number);
+                        const anchorDateInTz = new Date(yearA, monthA - 1, dayA);
+                        
+                        // Try each days_before value to find which one matches
+                        // Calculate the scheduled date's day components in brand timezone for comparison
+                        const [yearS, monthS, dayS] = scheduledDateStr.split('-').map(Number);
+                        const scheduledDayInTz = new Date(yearS, monthS - 1, dayS);
+                        
+                        let matchedDaysBefore: number | null = null;
+                        for (const db of daysBefore) {
+                          if (db < 0) continue;
+                          // Calculate what date this days_before would produce
+                          const calculatedDate = new Date(anchorDateInTz);
+                          calculatedDate.setDate(calculatedDate.getDate() - db);
+                          
+                          // Compare date components directly (year, month, day)
+                          if (calculatedDate.getFullYear() === scheduledDayInTz.getFullYear() &&
+                              calculatedDate.getMonth() === scheduledDayInTz.getMonth() &&
+                              calculatedDate.getDate() === scheduledDayInTz.getDate()) {
+                            matchedDaysBefore = db;
+                            break;
+                          }
+                        }
+                        
+                        // If we found a match, use it (negative because it's "before")
+                        if (matchedDaysBefore !== null) {
+                          return {
+                            kind: 'offsetDate',
+                            anchorDate: anchorDate.toISOString(),
+                            offsetDays: -matchedDaysBefore, // Negative for "days before"
+                          };
+                        }
+                        
+                        // Fallback: calculate offset if no match found
+                        // Use the scheduledDayInTz we already calculated above
+                        // Calculate days difference: scheduled - anchor
+                        // If scheduled is before anchor, result is negative (correct for "days before")
+                        // If scheduled is after anchor, result is positive (correct for "days after")
+                        const diffTime = scheduledDayInTz.getTime() - anchorDateInTz.getTime();
+                        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                        
                         return {
                           kind: 'offsetDate',
                           anchorDate: anchorDate.toISOString(),
-                          offsetDays: diffDays,
+                          offsetDays: diffDays, // Negative for "days before", positive for "days after"
                         };
                       }
                       return {
@@ -357,7 +401,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
     };
 
     fetchContextData();
-  }, [draft.post_job_id, draft.scheduled_for]);
+  }, [draft.post_job_id, draft.scheduled_for, brand?.timezone]);
 
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
