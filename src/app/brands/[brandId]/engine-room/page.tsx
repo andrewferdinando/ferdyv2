@@ -58,11 +58,14 @@ export default function BrandEngineRoomPage() {
           <div className="p-4 sm:p-6 lg:p-10">
             <div className="max-w-4xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {settingsCards.map((card, index) => (
+                {settingsCards.map((card, index) => {
+                  // Apply column positioning for Categories to be in the middle
+                  const colSpan = index === 1 ? 'md:col-start-2 lg:col-start-2' : ''
+                  return (
                   <a
                     key={index}
                     href={card.href}
-                    className="group bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full"
+                    className={`group bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full ${colSpan}`}
                   >
                     <div className="flex items-start space-x-4">
                       <div className="flex-shrink-0">
@@ -76,7 +79,8 @@ export default function BrandEngineRoomPage() {
                       </div>
                     </div>
                   </a>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>
