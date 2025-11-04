@@ -19,16 +19,18 @@ interface EventOccurrence {
 
 interface EventOccurrencesManagerProps {
   brandId: string
-  subcategoryId: string
+  subcategoryId: string | null  // null for new subcategories
   brandTimezone: string
   onOccurrencesChanged?: () => void
+  onOccurrencesChange?: (occurrences: EventOccurrence[]) => void  // Callback to pass occurrences to parent
 }
 
 export function EventOccurrencesManager({
   brandId,
   subcategoryId,
   brandTimezone,
-  onOccurrencesChanged
+  onOccurrencesChanged,
+  onOccurrencesChange
 }: EventOccurrencesManagerProps) {
   const [occurrences, setOccurrences] = useState<EventOccurrence[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,11 +63,24 @@ export function EventOccurrencesManager({
   ]
 
   useEffect(() => {
-    fetchOccurrences()
+    if (subcategoryId) {
+      fetchOccurrences()
+    } else {
+      // For new subcategories, just clear occurrences and set loading to false
+      setOccurrences([])
+      setLoading(false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId, subcategoryId])
 
+  // Notify parent when occurrences change
+  useEffect(() => {
+    onOccurrencesChange?.(occurrences)
+  }, [occurrences, onOccurrencesChange])
+
   const fetchOccurrences = async () => {
+    if (!subcategoryId) return
+    
     try {
       setLoading(true)
       const { data, error } = await supabase
@@ -180,33 +195,54 @@ export function EventOccurrencesManager({
     }
 
     try {
-      const payload = {
-        brand_id: brandId,
-        subcategory_id: subcategoryId,
-        frequency: 'specific',
-        start_date: startDate ? `${startDate}T00:00:00` : null,
+      const occurrence: EventOccurrence = {
+        id: isEditing?.id || `draft-${Date.now()}-${Math.random()}`,
+        frequency: isDateRange ? 'date_range' : 'date',
+        start_date: startDate ? `${startDate}T00:00:00` : '',
         end_date: isDateRange && endDate ? `${endDate}T23:59:59` : null,
-        time_of_day: timesOfDay.length > 0 ? timesOfDay : null,
+        times_of_day: timesOfDay,
         channels,
         timezone,
         is_active: true
       }
 
-      if (isEditing) {
-        await supabase
-          .from('schedule_rules')
-          .update(payload)
-          .eq('id', isEditing.id)
+      if (subcategoryId) {
+        // Save to database if subcategoryId exists
+        const payload = {
+          brand_id: brandId,
+          subcategory_id: subcategoryId,
+          frequency: 'specific',
+          start_date: occurrence.start_date,
+          end_date: occurrence.end_date,
+          time_of_day: occurrence.times_of_day,
+          channels: occurrence.channels,
+          timezone: occurrence.timezone,
+          is_active: true
+        }
+
+        if (isEditing) {
+          await supabase
+            .from('schedule_rules')
+            .update(payload)
+            .eq('id', isEditing.id)
+        } else {
+          await supabase
+            .from('schedule_rules')
+            .insert(payload)
+        }
+        await fetchOccurrences()
+        onOccurrencesChanged?.()
       } else {
-        await supabase
-          .from('schedule_rules')
-          .insert(payload)
+        // For new subcategories, just update local state
+        if (isEditing) {
+          setOccurrences(prev => prev.map(o => o.id === isEditing.id ? occurrence : o))
+        } else {
+          setOccurrences(prev => [...prev, occurrence])
+        }
       }
 
       resetForm()
       setIsAddModalOpen(false)
-      await fetchOccurrences()
-      onOccurrencesChanged?.()
     } catch (err) {
       console.error('Error saving occurrence:', err)
       alert('Failed to save occurrence')
@@ -226,28 +262,46 @@ export function EventOccurrencesManager({
 
     try {
       const parsed = parseBulkLines(bulkInput)
-      const inserts = parsed.map(p => ({
-        brand_id: brandId,
-        subcategory_id: subcategoryId,
-        frequency: 'specific',
-        start_date: `${p.start}T00:00:00`,
-        end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59` : null,
-        time_of_day: bulkTimesOfDay.length > 0 ? bulkTimesOfDay : null,
-        channels: bulkChannels,
-        timezone: brandTimezone,
-        is_active: true
-      }))
+      
+      if (subcategoryId) {
+        // Save to database if subcategoryId exists
+        const inserts = parsed.map(p => ({
+          brand_id: brandId,
+          subcategory_id: subcategoryId,
+          frequency: 'specific',
+          start_date: `${p.start}T00:00:00`,
+          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59` : null,
+          time_of_day: bulkTimesOfDay.length > 0 ? bulkTimesOfDay : null,
+          channels: bulkChannels,
+          timezone: brandTimezone,
+          is_active: true
+        }))
 
-      await supabase
-        .from('schedule_rules')
-        .insert(inserts)
+        await supabase
+          .from('schedule_rules')
+          .insert(inserts)
+
+        await fetchOccurrences()
+        onOccurrencesChanged?.()
+      } else {
+        // For new subcategories, just update local state
+        const newOccurrences: EventOccurrence[] = parsed.map((p, idx) => ({
+          id: `draft-${Date.now()}-${idx}-${Math.random()}`,
+          frequency: p.frequency,
+          start_date: `${p.start}T00:00:00`,
+          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59` : null,
+          times_of_day: bulkTimesOfDay,
+          channels: bulkChannels,
+          timezone: brandTimezone,
+          is_active: true
+        }))
+        setOccurrences(prev => [...prev, ...newOccurrences])
+      }
 
       setBulkInput('')
       setBulkTimesOfDay([])
       setBulkChannels([])
       setIsBulkModalOpen(false)
-      await fetchOccurrences()
-      onOccurrencesChanged?.()
     } catch (err) {
       console.error('Error bulk saving:', err)
       alert(err instanceof Error ? err.message : 'Failed to bulk save occurrences')
@@ -257,8 +311,11 @@ export function EventOccurrencesManager({
   const handleEdit = (occurrence: EventOccurrence) => {
     setIsEditing(occurrence)
     setIsDateRange(occurrence.frequency === 'date_range')
-    setStartDate(occurrence.start_date)
-    setEndDate(occurrence.end_date || '')
+    // Extract date part from timestamptz (YYYY-MM-DDTHH:MM:SS -> YYYY-MM-DD)
+    const startDatePart = occurrence.start_date.split('T')[0]
+    const endDatePart = occurrence.end_date ? occurrence.end_date.split('T')[0] : ''
+    setStartDate(startDatePart)
+    setEndDate(endDatePart)
     setTimesOfDay(occurrence.times_of_day)
     setChannels(occurrence.channels)
     setTimezone(occurrence.timezone)
@@ -267,22 +324,30 @@ export function EventOccurrencesManager({
 
   const handleDuplicate = async (occurrence: EventOccurrence) => {
     try {
-      await supabase
-        .from('schedule_rules')
-        .insert({
-          brand_id: brandId,
-          subcategory_id: subcategoryId,
-          frequency: 'specific',
-          start_date: occurrence.start_date,
-          end_date: occurrence.end_date,
-          time_of_day: occurrence.times_of_day,
-          channels: occurrence.channels,
-          timezone: occurrence.timezone,
-          is_active: true
-        })
+      const duplicated: EventOccurrence = {
+        ...occurrence,
+        id: `draft-${Date.now()}-${Math.random()}`
+      }
 
-      await fetchOccurrences()
-      onOccurrencesChanged?.()
+      if (subcategoryId) {
+        await supabase
+          .from('schedule_rules')
+          .insert({
+            brand_id: brandId,
+            subcategory_id: subcategoryId,
+            frequency: 'specific',
+            start_date: occurrence.start_date,
+            end_date: occurrence.end_date,
+            time_of_day: occurrence.times_of_day,
+            channels: occurrence.channels,
+            timezone: occurrence.timezone,
+            is_active: true
+          })
+        await fetchOccurrences()
+        onOccurrencesChanged?.()
+      } else {
+        setOccurrences(prev => [...prev, duplicated])
+      }
     } catch (err) {
       console.error('Error duplicating occurrence:', err)
       alert('Failed to duplicate occurrence')
@@ -293,13 +358,18 @@ export function EventOccurrencesManager({
     if (!confirm(`Archive this occurrence?`)) return
 
     try {
-      await supabase
-        .from('schedule_rules')
-        .update({ is_active: false })
-        .eq('id', occurrence.id)
-
-      await fetchOccurrences()
-      onOccurrencesChanged?.()
+      if (subcategoryId && !occurrence.id.startsWith('draft-')) {
+        // Only update in database if it's a saved occurrence
+        await supabase
+          .from('schedule_rules')
+          .update({ is_active: false })
+          .eq('id', occurrence.id)
+        await fetchOccurrences()
+        onOccurrencesChanged?.()
+      } else {
+        // For draft occurrences, just remove from local state
+        setOccurrences(prev => prev.filter(o => o.id !== occurrence.id))
+      }
     } catch (err) {
       console.error('Error archiving occurrence:', err)
       alert('Failed to archive occurrence')

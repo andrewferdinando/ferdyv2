@@ -158,7 +158,14 @@ export function SubcategoryScheduleForm({
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [hashtagInput, setHashtagInput] = useState('')
-  const [subcategorySaved, setSubcategorySaved] = useState(false)
+  const [draftOccurrences, setDraftOccurrences] = useState<Array<{
+    frequency: 'date' | 'date_range'
+    start_date: string
+    end_date: string | null
+    times_of_day: string[]
+    channels: string[]
+    timezone: string
+  }>>([])
 
   // Initialize form with editing data
   useEffect(() => {
@@ -261,7 +268,7 @@ export function SubcategoryScheduleForm({
     setErrors({})
     setHashtagInput('')
     setNewTimeInput('')
-    setSubcategorySaved(false)
+    setDraftOccurrences([])
   }, [editingSubcategory, editingScheduleRule, isOpen])
 
   // Helper functions for specific date/range
@@ -615,19 +622,45 @@ export function SubcategoryScheduleForm({
       }
 
       console.log('Successfully saved subcategory and schedule rule')
-      setSubcategorySaved(true)
-      
-      // If frequency is 'specific', keep modal open to allow adding occurrences
-      // Otherwise, close the modal
-      if (scheduleData.frequency === 'specific') {
-        // Update editingSubcategory state so EventOccurrencesManager can work
-        // We'll keep the modal open and let user add occurrences
-        // Don't call onSuccess yet - wait for user to close modal
-        // onSuccess() will be called when modal closes or when occurrences are changed
-      } else {
-        onSuccess()
-        onClose()
+
+      // Save draft occurrences if any were added
+      if (scheduleData.frequency === 'specific' && draftOccurrences.length > 0) {
+        try {
+          const occurrenceInserts = draftOccurrences.map(occ => ({
+            brand_id: brandId,
+            subcategory_id: subcategoryId,
+            category_id: categoryId || null,
+            name: `${subcategoryData.name} – Specific`,
+            frequency: 'specific' as const,
+            start_date: occ.start_date,
+            end_date: occ.end_date,
+            time_of_day: occ.times_of_day,
+            channels: occ.channels,
+            timezone: occ.timezone,
+            is_active: true,
+            tone: null,
+            hashtag_rule: null,
+            image_tag_rule: null
+          }))
+
+          const { error: occurrencesError } = await supabase
+            .from('schedule_rules')
+            .insert(occurrenceInserts)
+
+          if (occurrencesError) {
+            console.error('Error saving occurrences:', occurrencesError)
+            throw new Error(`Failed to save occurrences: ${occurrencesError.message}`)
+          }
+
+          console.log(`Successfully saved ${draftOccurrences.length} occurrence(s)`)
+        } catch (occurrencesError) {
+          console.error('Error saving occurrences:', occurrencesError)
+          // Don't throw - subcategory is already saved, just log the error
+        }
       }
+
+      onSuccess()
+      onClose()
     } catch (error) {
       console.error('Error saving subcategory and schedule rule:', error)
       setErrors({ submit: `Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}` })
@@ -1050,35 +1083,34 @@ export function SubcategoryScheduleForm({
                 </div>
               )}
 
-              {/* Success message when subcategory is saved */}
-              {subcategorySaved && scheduleData.frequency === 'specific' && (
-                <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-                  <p className="text-green-800 text-sm">
-                    ✓ Subcategory saved! You can now add event occurrences below.
-                  </p>
-                </div>
-              )}
-
               {/* Event Occurrences Manager - Show when frequency is 'specific' */}
               {scheduleData.frequency === 'specific' && (
                 <div className="mt-6">
-                  {currentSubcategoryId ? (
-                    <EventOccurrencesManager
-                      brandId={brandId}
-                      subcategoryId={currentSubcategoryId}
-                      brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
-                      onOccurrencesChanged={() => {
-                        // Refresh any parent components if needed
+                  <EventOccurrencesManager
+                    brandId={brandId}
+                    subcategoryId={currentSubcategoryId}
+                    brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
+                    onOccurrencesChanged={() => {
+                      // Refresh any parent components if needed
+                      if (currentSubcategoryId) {
                         onSuccess()
-                      }}
-                    />
-                  ) : (
-                    <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                      <p className="text-gray-600 text-sm">
-                        Save the subcategory first to add event occurrences.
-                      </p>
-                    </div>
-                  )}
+                      }
+                    }}
+                    onOccurrencesChange={(occurrences) => {
+                      // Collect draft occurrences (filter out saved ones)
+                      const drafts = occurrences
+                        .filter(o => o.id.startsWith('draft-'))
+                        .map(o => ({
+                          frequency: o.frequency,
+                          start_date: o.start_date,
+                          end_date: o.end_date,
+                          times_of_day: o.times_of_day,
+                          channels: o.channels,
+                          timezone: o.timezone
+                        }))
+                      setDraftOccurrences(drafts)
+                    }}
+                  />
                 </div>
               )}
 
@@ -1096,22 +1128,17 @@ export function SubcategoryScheduleForm({
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  if (subcategorySaved) {
-                    onSuccess() // Refresh parent when closing after save
-                  }
-                  onClose()
-                }}
+                onClick={onClose}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {subcategorySaved ? 'Done' : 'Cancel'}
+                Cancel
               </button>
               <button
                 type="submit"
-                disabled={!isFormValid || isLoading || (subcategorySaved && scheduleData.frequency === 'specific')}
+                disabled={!isFormValid || isLoading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Saving...' : subcategorySaved && scheduleData.frequency === 'specific' ? 'Saved' : 'Save'}
+                {isLoading ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
