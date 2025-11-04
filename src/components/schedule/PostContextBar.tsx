@@ -86,6 +86,13 @@ function formatTimeString(timeStr: string): string {
   return cleaned;
 }
 
+// Utility: Format number as ordinal (1st, 2nd, 3rd, 4th, etc.)
+function formatOrdinal(num: number): string {
+  const suffix = ['th', 'st', 'nd', 'rd'];
+  const v = num % 100;
+  return num + (suffix[(v - 20) % 10] || suffix[v] || suffix[0]);
+}
+
 // Main frequency formatter
 function formatFrequency(
   frequency: FrequencyInput | undefined,
@@ -120,7 +127,10 @@ function formatFrequency(
     case "monthly": {
       let result = "Monthly";
       if (frequency.daysOfMonth && frequency.daysOfMonth.length > 0) {
-        const daysStr = frequency.daysOfMonth.sort((a, b) => a - b).join(", ");
+        const daysStr = frequency.daysOfMonth
+          .sort((a, b) => a - b)
+          .map(day => formatOrdinal(day))
+          .join(", ");
         if (frequency.time) {
           // Format time: remove seconds and replace @ with "at"
           const formattedTime = formatTimeString(frequency.time);
