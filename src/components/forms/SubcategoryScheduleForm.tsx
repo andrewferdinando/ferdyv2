@@ -622,8 +622,8 @@ export function SubcategoryScheduleForm({
       if (scheduleData.frequency === 'specific') {
         // Update editingSubcategory state so EventOccurrencesManager can work
         // We'll keep the modal open and let user add occurrences
-        onSuccess() // Refresh the parent component
-        // Don't close the modal - let user add occurrences
+        // Don't call onSuccess yet - wait for user to close modal
+        // onSuccess() will be called when modal closes or when occurrences are changed
       } else {
         onSuccess()
         onClose()
@@ -1059,18 +1059,26 @@ export function SubcategoryScheduleForm({
                 </div>
               )}
 
-              {/* Event Occurrences Manager - Show when frequency is 'specific' and subcategory exists */}
-              {scheduleData.frequency === 'specific' && currentSubcategoryId && (
+              {/* Event Occurrences Manager - Show when frequency is 'specific' */}
+              {scheduleData.frequency === 'specific' && (
                 <div className="mt-6">
-                  <EventOccurrencesManager
-                    brandId={brandId}
-                    subcategoryId={currentSubcategoryId}
-                    brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
-                    onOccurrencesChanged={() => {
-                      // Refresh any parent components if needed
-                      onSuccess()
-                    }}
-                  />
+                  {currentSubcategoryId ? (
+                    <EventOccurrencesManager
+                      brandId={brandId}
+                      subcategoryId={currentSubcategoryId}
+                      brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
+                      onOccurrencesChanged={() => {
+                        // Refresh any parent components if needed
+                        onSuccess()
+                      }}
+                    />
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                      <p className="text-gray-600 text-sm">
+                        Save the subcategory first to add event occurrences.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1088,17 +1096,22 @@ export function SubcategoryScheduleForm({
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => {
+                  if (subcategorySaved) {
+                    onSuccess() // Refresh parent when closing after save
+                  }
+                  onClose()
+                }}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Cancel
+                {subcategorySaved ? 'Done' : 'Cancel'}
               </button>
               <button
                 type="submit"
-                disabled={!isFormValid || isLoading}
+                disabled={!isFormValid || isLoading || (subcategorySaved && scheduleData.frequency === 'specific')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Saving...' : 'Save'}
+                {isLoading ? 'Saving...' : subcategorySaved && scheduleData.frequency === 'specific' ? 'Saved' : 'Save'}
               </button>
             </div>
           </div>

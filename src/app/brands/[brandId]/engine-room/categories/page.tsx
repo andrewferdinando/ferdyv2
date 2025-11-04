@@ -908,6 +908,13 @@ export default function CategoriesPage() {
                               )
                             })
 
+                            // Helper to format ordinal numbers (1st, 2nd, 3rd, etc.)
+                            const formatOrdinal = (num: number): string => {
+                              const suffix = ['th', 'st', 'nd', 'rd']
+                              const v = num % 100
+                              return num + (suffix[(v - 20) % 10] || suffix[v] || suffix[0])
+                            }
+
                             // Render other rules (daily, weekly, monthly) as before
                             otherRules.forEach((rule) => {
                               const freqLabel = rule.frequency === 'daily' ? 'Daily'
@@ -915,15 +922,35 @@ export default function CategoriesPage() {
                                 : rule.frequency === 'monthly' ? 'Monthly'
                                 : 'Specific Date/Range'
 
-                              let daysDates = ''
+                              // Build pills for days/dates
+                              let daysDatesPills: React.ReactElement[] = []
+                              
                               if (rule.frequency === 'weekly' && rule.days_of_week && rule.days_of_week.length) {
-                                daysDates = rule.days_of_week.map(d => dayNames[d] || '').filter(Boolean).join(', ')
+                                daysDatesPills = rule.days_of_week
+                                  .map(d => dayNames[d])
+                                  .filter(Boolean)
+                                  .map((dayName, idx) => (
+                                    <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                      {dayName}
+                                    </span>
+                                  ))
                               } else if (rule.frequency === 'monthly') {
                                 if (Array.isArray(rule.day_of_month) && rule.day_of_month.length) {
-                                  daysDates = rule.day_of_month.join(', ')
+                                  daysDatesPills = rule.day_of_month.map((day, idx) => (
+                                    <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                      {formatOrdinal(day)}
+                                    </span>
+                                  ))
                                 } else if (!Array.isArray(rule.day_of_month) && rule.nth_week && rule.weekday) {
-                                  daysDates = `${nthMap[rule.nth_week] || rule.nth_week} ${weekdayNames[rule.weekday] || ''}`
+                                  daysDatesPills = [
+                                    <span key="0" className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                                      {nthMap[rule.nth_week] || rule.nth_week} {weekdayNames[rule.weekday] || ''}
+                                    </span>
+                                  ]
                                 }
+                              } else if (rule.frequency === 'daily') {
+                                // For daily, show "Daily" or empty
+                                daysDatesPills = []
                               }
 
                               rows.push(
@@ -931,7 +958,11 @@ export default function CategoriesPage() {
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.categories?.name || ''}</td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rule.subcategories?.name || ''}</td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{daysDates || '-'}</td>
+                                  <td className="px-6 py-4 text-sm">
+                                    <div className="flex flex-wrap gap-2">
+                                      {daysDatesPills.length > 0 ? daysDatesPills : <span className="text-gray-400">-</span>}
+                                    </div>
+                                  </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
                                   </td>
