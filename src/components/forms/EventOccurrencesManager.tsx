@@ -215,9 +215,13 @@ export function EventOccurrencesManager({
   }, [occurrences, onOccurrencesChange])
 
   const fetchOccurrences = async () => {
-    if (!subcategoryId) return
+    if (!subcategoryId) {
+      console.log('EventOccurrencesManager: No subcategoryId, skipping fetch')
+      return
+    }
     
     try {
+      console.log('EventOccurrencesManager: Fetching occurrences for subcategoryId:', subcategoryId)
       setLoading(true)
       const { data, error } = await supabase
         .from('schedule_rules')
@@ -228,7 +232,12 @@ export function EventOccurrencesManager({
         .is('archived_at', null) // Only fetch non-archived occurrences
         .order('start_date', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('EventOccurrencesManager: Error fetching occurrences:', error)
+        throw error
+      }
+
+      console.log('EventOccurrencesManager: Fetched occurrences:', data?.length || 0, 'items')
 
       const mapped = (data || []).map((rule): EventOccurrence => ({
         id: rule.id,
@@ -241,6 +250,7 @@ export function EventOccurrencesManager({
         is_active: rule.is_active ?? true
       }))
 
+      console.log('EventOccurrencesManager: Mapped occurrences:', mapped.length)
       setOccurrences(mapped)
     } catch (err) {
       console.error('Error fetching occurrences:', err)

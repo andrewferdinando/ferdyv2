@@ -213,7 +213,12 @@ export function SubcategoryScheduleForm({
   // Initialize form with editing data
   useEffect(() => {
     // Update currentSubcategoryId when editingSubcategory changes
-    setCurrentSubcategoryId(editingSubcategory?.id || null)
+    // This is critical for EventOccurrencesManager to fetch occurrences
+    const newSubcategoryId = editingSubcategory?.id || null
+    setCurrentSubcategoryId(newSubcategoryId)
+    
+    // If editing a subcategory with specific frequency, ensure frequency is set
+    // This is critical so EventOccurrencesManager renders and can fetch occurrences
 
     if (editingSubcategory) {
       setSubcategoryData({
