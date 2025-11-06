@@ -792,12 +792,17 @@ export function SubcategoryScheduleForm({
             throw new Error(`Failed to create schedule rule: ${error.message}`)
           }
         }
-      } catch (scheduleError) {
-        console.error('Schedule rule save failed:', scheduleError)
-        throw scheduleError  // Re-throw to trigger form error handling
-      }
+        } catch (scheduleError) {
+          console.error('Schedule rule save failed:', scheduleError)
+          throw scheduleError  // Re-throw to trigger form error handling
+        }
 
-      console.log('Successfully saved subcategory and schedule rule')
+        console.log('Successfully saved subcategory and schedule rule')
+      } else {
+        // When editing specific frequency, skip schedule rule update
+        // All scheduling is managed per-occurrence via EventOccurrencesManager
+        console.log('Skipping schedule rule update for specific frequency (editing mode)')
+      }
 
       // Save draft occurrences if any were added
       // Only save occurrences that are new (have draft- IDs), not ones that already exist
