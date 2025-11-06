@@ -896,13 +896,23 @@ export function SubcategoryScheduleForm({
 
     // Check specific frequency requirements
     if (scheduleData.frequency === 'specific') {
-      // For 'specific' frequency, allow saving if:
+      // When editing existing subcategory with specific frequency:
+      // - All scheduling is per-occurrence, so we only need subcategory fields (name, channels)
+      // - Occurrences are managed separately via EventOccurrencesManager
+      // - No need to validate startDate/timesOfDay when editing (those fields are hidden)
+      const isEditingExisting = !!editingSubcategory && !!currentSubcategoryId
+      
+      if (isEditingExisting) {
+        // When editing, only validate subcategory fields (name, channels)
+        // Occurrences are managed separately and don't need to be validated here
+        return true // Already validated name and channels above
+      }
+      
+      // For new subcategories with specific frequency:
       // 1. Old form fields are filled (startDate, timesOfDay), OR
-      // 2. There are draft occurrences from EventOccurrencesManager, OR
-      // 3. Editing existing subcategory (existing occurrences are loaded separately)
+      // 2. There are draft occurrences from EventOccurrencesManager
       const hasOldFormData = scheduleData.startDate && scheduleData.timesOfDay.length > 0
       const hasDraftOccurrences = draftOccurrences.length > 0
-      const isEditingExisting = !!currentSubcategoryId
       
       // If using old form, validate it properly
       if (hasOldFormData) {
@@ -912,10 +922,8 @@ export function SubcategoryScheduleForm({
         return true
       }
       
-      // If not using old form, require either draft occurrences or existing subcategory
-      if (!hasDraftOccurrences && !isEditingExisting) {
-        return false
-      }
+      // Otherwise, require draft occurrences
+      return hasDraftOccurrences
     }
 
     return true
