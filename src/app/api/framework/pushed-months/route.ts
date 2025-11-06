@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     
     const { data: drafts, error: draftsError } = await supabaseAdmin
       .from('drafts')
-      .select('scheduled_for')
+      .select('scheduled_for, schedule_source')
       .eq('brand_id', brandId)
       .eq('schedule_source', 'framework')
       .not('scheduled_for', 'is', null);
@@ -52,7 +52,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    console.log(`Found ${drafts?.length || 0} framework drafts for brand ${brandId}`);
+
     if (!drafts || drafts.length === 0) {
+      console.log('No framework drafts found, returning empty locked months');
       return NextResponse.json({ lockedMonths: [] });
     }
 
@@ -85,6 +88,8 @@ export async function GET(req: NextRequest) {
 
     // Convert Set to sorted array
     const lockedMonths = Array.from(monthSet).sort();
+
+    console.log(`Locked months for brand ${brandId}:`, lockedMonths);
 
     return NextResponse.json({ lockedMonths });
   } catch (error) {

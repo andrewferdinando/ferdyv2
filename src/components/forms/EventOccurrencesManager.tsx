@@ -75,15 +75,29 @@ export function EventOccurrencesManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId, subcategoryId])
 
-  // Fetch locked months on mount
+  // Fetch locked months on mount and when modal opens
   useEffect(() => {
     fetchLockedMonths()
   }, [brandId])
+
+  // Also fetch when add modal opens to ensure we have latest data
+  useEffect(() => {
+    if (isAddModalOpen) {
+      fetchLockedMonths()
+    }
+  }, [isAddModalOpen, brandId])
 
   // Calculate minDate and update when lockedMonths or brandTimezone changes
   useEffect(() => {
     calculateMinDate()
   }, [lockedMonths, brandTimezone])
+
+  // Debug: Log when minDate changes
+  useEffect(() => {
+    if (lockedMonths.length > 0) {
+      console.log('Locked months:', lockedMonths, 'Min date:', minDate)
+    }
+  }, [minDate, lockedMonths])
 
   // Notify parent when occurrences change
   useEffect(() => {
@@ -128,10 +142,11 @@ export function EventOccurrencesManager({
     try {
       const response = await fetch(`/api/framework/pushed-months?brandId=${brandId}`)
       if (!response.ok) {
-        console.error('Failed to fetch locked months')
+        console.error('Failed to fetch locked months:', response.status, response.statusText)
         return
       }
       const data = await response.json()
+      console.log('Locked months fetched:', data.lockedMonths)
       setLockedMonths(data.lockedMonths || [])
     } catch (err) {
       console.error('Error fetching locked months:', err)
@@ -764,9 +779,36 @@ export function EventOccurrencesManager({
               value={startDate}
               onChange={(e) => {
                 const selectedDate = e.target.value
-                // Only allow if not in locked month
-                if (!isDateLocked(selectedDate)) {
-                  setStartDate(selectedDate)
+                if (!selectedDate) {
+                  setStartDate('')
+                  return
+                }
+                
+                // First check if date is in a locked month
+                if (isDateLocked(selectedDate)) {
+                  alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                  setStartDate('')
+                  return
+                }
+                
+                // Check if date is before minDate
+                if (minDate && selectedDate < minDate) {
+                  alert(`Please select a date on or after ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                  setStartDate('')
+                  return
+                }
+                
+                setStartDate(selectedDate)
+              }}
+              onBlur={(e) => {
+                // Double-check on blur in case user typed manually
+                const selectedDate = e.target.value
+                if (selectedDate) {
+                  if (isDateLocked(selectedDate)) {
+                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                    setStartDate('')
+                    return
+                  }
                 }
               }}
               min={minDate}
@@ -774,7 +816,7 @@ export function EventOccurrencesManager({
             />
             {lockedMonths.length > 0 && minDate && (
               <p className="text-xs text-gray-500 mt-1">
-                Months with framework drafts are disabled. First available date: {new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                Months with framework drafts are disabled: {lockedMonths.join(', ')}. First available date: {new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             )}
             {lockedMonths.length > 0 && !minDate && (
@@ -791,9 +833,37 @@ export function EventOccurrencesManager({
                 value={endDate}
                 onChange={(e) => {
                   const selectedDate = e.target.value
-                  // Only allow if not in locked month
-                  if (!isDateLocked(selectedDate)) {
-                    setEndDate(selectedDate)
+                  if (!selectedDate) {
+                    setEndDate('')
+                    return
+                  }
+                  
+                  // First check if date is in a locked month
+                  if (isDateLocked(selectedDate)) {
+                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                    setEndDate('')
+                    return
+                  }
+                  
+                  // Check if date is before minDate or startDate
+                  const minAllowed = startDate || minDate
+                  if (minAllowed && selectedDate < minAllowed) {
+                    alert(`End date must be on or after ${startDate ? 'start date' : new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                    setEndDate('')
+                    return
+                  }
+                  
+                  setEndDate(selectedDate)
+                }}
+                onBlur={(e) => {
+                  // Double-check on blur in case user typed manually
+                  const selectedDate = e.target.value
+                  if (selectedDate) {
+                    if (isDateLocked(selectedDate)) {
+                      alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                      setEndDate('')
+                      return
+                    }
                   }
                 }}
                 min={startDate || minDate}
