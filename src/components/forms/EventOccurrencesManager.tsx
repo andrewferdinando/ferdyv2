@@ -102,6 +102,36 @@ export function EventOccurrencesManager({
     }
   }, [minDate, lockedMonths])
 
+  // Validate startDate whenever it changes (backup validation)
+  useEffect(() => {
+    if (startDate && lockedMonths.length > 0) {
+      console.log('Validating startDate:', startDate, 'isDateLocked:', isDateLocked(startDate))
+      if (isDateLocked(startDate)) {
+        console.log('Blocked via useEffect: Date is in locked month')
+        alert(`This date is in a locked month (${startDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+        setStartDate('')
+        if (startDateInputRef.current) {
+          startDateInputRef.current.value = ''
+        }
+      }
+    }
+  }, [startDate, lockedMonths])
+
+  // Validate endDate whenever it changes (backup validation)
+  useEffect(() => {
+    if (endDate && lockedMonths.length > 0) {
+      console.log('Validating endDate:', endDate, 'isDateLocked:', isDateLocked(endDate))
+      if (isDateLocked(endDate)) {
+        console.log('Blocked via useEffect: End date is in locked month')
+        alert(`This date is in a locked month (${endDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+        setEndDate('')
+        if (endDateInputRef.current) {
+          endDateInputRef.current.value = ''
+        }
+      }
+    }
+  }, [endDate, lockedMonths])
+
   // Notify parent when occurrences change
   useEffect(() => {
     onOccurrencesChange?.(occurrences)
@@ -249,7 +279,9 @@ export function EventOccurrencesManager({
     if (!dateStr) return false
     const [year, month] = dateStr.split('-').map(Number)
     const monthStr = `${year}-${String(month).padStart(2, '0')}`
-    return lockedMonths.includes(monthStr)
+    const isLocked = lockedMonths.includes(monthStr)
+    console.log('isDateLocked check:', { dateStr, year, month, monthStr, lockedMonths, isLocked })
+    return isLocked
   }
 
   const resetForm = () => {
@@ -831,47 +863,21 @@ export function EventOccurrencesManager({
               value={startDate}
               onChange={(e) => {
                 const selectedDate = e.target.value
-                console.log('Date selected:', selectedDate, 'Locked months:', lockedMonths, 'isDateLocked:', isDateLocked(selectedDate))
-                
-                if (!selectedDate) {
-                  setStartDate('')
-                  return
-                }
-                
-                // First check if date is in a locked month - this is the most important check
-                if (isDateLocked(selectedDate)) {
-                  console.log('Blocked: Date is in locked month')
-                  alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                  e.target.value = '' // Clear the input value directly
-                  setStartDate('')
-                  e.target.blur() // Remove focus to prevent re-selection
-                  return
-                }
-                
-                // Check if date is before minDate
-                if (minDate && selectedDate < minDate) {
-                  console.log('Blocked: Date is before minDate')
-                  alert(`Please select a date on or after ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
-                  e.target.value = ''
-                  setStartDate('')
-                  e.target.blur()
-                  return
-                }
-                
-                console.log('Date accepted:', selectedDate)
-                setStartDate(selectedDate)
+                console.log('onChange fired! Date selected:', selectedDate, 'Locked months:', lockedMonths)
+                setStartDate(selectedDate) // Always set it, validation happens in useEffect
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLInputElement
+                const selectedDate = target.value
+                console.log('onInput fired! Date:', selectedDate)
+                setStartDate(selectedDate) // Always set it, validation happens in useEffect
               }}
               onBlur={(e) => {
                 // Double-check on blur in case user typed manually
                 const selectedDate = e.target.value
+                console.log('onBlur fired! Date:', selectedDate)
                 if (selectedDate) {
-                  if (isDateLocked(selectedDate)) {
-                    console.log('Blocked onBlur: Date is in locked month')
-                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                    e.target.value = ''
-                    setStartDate('')
-                    return
-                  }
+                  setStartDate(selectedDate) // Update state, validation happens in useEffect
                 }
               }}
               min={minDate}
@@ -898,47 +904,20 @@ export function EventOccurrencesManager({
                 value={endDate}
                 onChange={(e) => {
                   const selectedDate = e.target.value
-                  console.log('End date selected:', selectedDate, 'isDateLocked:', isDateLocked(selectedDate))
-                  
-                  if (!selectedDate) {
-                    setEndDate('')
-                    return
-                  }
-                  
-                  // First check if date is in a locked month
-                  if (isDateLocked(selectedDate)) {
-                    console.log('Blocked: End date is in locked month')
-                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                    e.target.value = ''
-                    setEndDate('')
-                    e.target.blur()
-                    return
-                  }
-                  
-                  // Check if date is before minDate or startDate
-                  const minAllowed = startDate || minDate
-                  if (minAllowed && selectedDate < minAllowed) {
-                    alert(`End date must be on or after ${startDate ? 'start date' : new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
-                    e.target.value = ''
-                    setEndDate('')
-                    e.target.blur()
-                    return
-                  }
-                  
-                  console.log('End date accepted:', selectedDate)
-                  setEndDate(selectedDate)
+                  console.log('End date onChange fired! Date:', selectedDate)
+                  setEndDate(selectedDate) // Always set it, validation happens in useEffect
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLInputElement
+                  const selectedDate = target.value
+                  console.log('End date onInput fired! Date:', selectedDate)
+                  setEndDate(selectedDate) // Always set it, validation happens in useEffect
                 }}
                 onBlur={(e) => {
-                  // Double-check on blur in case user typed manually
                   const selectedDate = e.target.value
+                  console.log('End date onBlur fired! Date:', selectedDate)
                   if (selectedDate) {
-                    if (isDateLocked(selectedDate)) {
-                      console.log('Blocked onBlur: End date is in locked month')
-                      alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                      e.target.value = ''
-                      setEndDate('')
-                      return
-                    }
+                    setEndDate(selectedDate) // Update state, validation happens in useEffect
                   }
                 }}
                 min={startDate || minDate}
