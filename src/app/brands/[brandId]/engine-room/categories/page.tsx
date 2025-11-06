@@ -836,12 +836,29 @@ export default function CategoriesPage() {
                                                     .eq('subcategory_id', firstRule.subcategory_id)
 
                                                   // Delete the subcategory
-                                                  const { error } = await supabase
+                                                  // First verify it exists
+                                                  const { data: existingSubcat, error: checkError } = await supabase
                                                     .from('subcategories')
-                                                    .delete()
+                                                    .select('id, name, category_id')
                                                     .eq('id', firstRule.subcategory_id)
+                                                    .single()
 
-                                                  if (error) throw error
+                                                  if (checkError && checkError.code !== 'PGRST116') {
+                                                    // PGRST116 = not found, which is fine
+                                                    throw checkError
+                                                  }
+
+                                                  if (existingSubcat) {
+                                                    const { error } = await supabase
+                                                      .from('subcategories')
+                                                      .delete()
+                                                      .eq('id', firstRule.subcategory_id)
+
+                                                    if (error) {
+                                                      console.error('Failed to delete subcategory:', error)
+                                                      throw error
+                                                    }
+                                                  }
 
                                                   refetchRules()
                                                   showToast({
