@@ -246,7 +246,9 @@ export function EventOccurrencesManager({
           time_of_day: occurrence.times_of_day,
           channels: occurrence.channels,
           timezone: occurrence.timezone,
-          is_active: true
+          is_active: true,
+          days_before: [], // Empty array for specific frequency
+          days_during: null // null is fine when end_date is set
         }
 
         if (isEditing) {
