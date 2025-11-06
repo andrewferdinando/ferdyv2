@@ -219,6 +219,9 @@ export function EventOccurrencesManager({
       
       if (isDateRange && endDate) {
         endDateTz = `${endDate}T23:59:59Z`
+      } else if (!isDateRange && startDate) {
+        // For single-day events, set end_date to start_date to satisfy database constraint
+        endDateTz = startDateTz
       }
       
       const occurrence: EventOccurrence = {
@@ -247,14 +250,24 @@ export function EventOccurrencesManager({
         }
 
         if (isEditing) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('schedule_rules')
             .update(payload)
             .eq('id', isEditing.id)
+          
+          if (updateError) {
+            console.error('Error updating occurrence:', updateError)
+            throw updateError
+          }
         } else {
-          await supabase
+          const { error: insertError } = await supabase
             .from('schedule_rules')
             .insert(payload)
+          
+          if (insertError) {
+            console.error('Error inserting occurrence:', insertError)
+            throw insertError
+          }
         }
         await fetchOccurrences()
         onOccurrencesChanged?.()
