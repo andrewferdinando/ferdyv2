@@ -291,13 +291,16 @@ async function generateTimeSlots(rule: any, year: number, month: number, timezon
       const startDate = new Date(rule.start_date);
       const endDate = rule.end_date ? new Date(rule.end_date) : startDate;
       
-      // Target month boundaries in UTC
-      const monthStart = new Date(year, month - 1, 1);
-      const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+      // Target month boundaries - use UTC midnight for start and end of month
+      const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+      const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
       
       // Check if the occurrence overlaps with the target month
       // Overlap occurs if: start_date <= monthEnd AND end_date >= monthStart
-      if (startDate <= monthEnd && endDate >= monthStart) {
+      // If no overlap, skip this rule entirely
+      if (!(startDate <= monthEnd && endDate >= monthStart)) {
+        return slots; // No overlap, return empty slots
+      }
         // Determine which days of the range fall within the month
         const rangeStart = startDate > monthStart ? startDate : monthStart;
         const rangeEnd = endDate < monthEnd ? endDate : monthEnd;

@@ -219,9 +219,11 @@ function formatFrequency(
           const daysAfter = diffDays(eventWindow.end, scheduledFor, brandTimezone);
           return `${daysAfter} ${daysAfter === 1 ? 'day' : 'days'} after`;
         } else {
-          // Inside window - calculate actual days in the range
-          const duringDays = diffDays(eventWindow.start, eventWindow.end, brandTimezone) + 1;
-          return `${duringDays} ${duringDays === 1 ? 'day' : 'days'} during`;
+          // Inside window - calculate which day of the range this is (1-based)
+          // For example, if range is Dec 20-25 and post is Dec 22, it's day 3 of 6
+          const dayOfRange = diffDays(eventWindow.start, scheduledFor, brandTimezone) + 1;
+          const totalDays = diffDays(eventWindow.start, eventWindow.end, brandTimezone) + 1;
+          return `Day ${dayOfRange} of ${totalDays} during`;
         }
       }
       
