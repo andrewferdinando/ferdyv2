@@ -1108,15 +1108,23 @@ export function EventOccurrencesManager({
                   
                   if (selectedDate) {
                     const minAllowed = startDate || minDate
-                    if (minAllowed && selectedDate < minAllowed) {
-                      target.value = ''
-                      setEndDate('')
-                      return
+                    if (minAllowed) {
+                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
+                      const minAllowedObj = toDateAtNoonUTC(minAllowed)
+                      if (selectedDateObj < minAllowedObj) {
+                        target.value = ''
+                        setEndDate('')
+                        return
+                      }
                     }
-                    if (minDate && selectedDate < minDate) {
-                      target.value = ''
-                      setEndDate('')
-                      return
+                    if (minDate) {
+                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
+                      const minDateObj = toDateAtNoonUTC(minDate)
+                      if (selectedDateObj < minDateObj) {
+                        target.value = ''
+                        setEndDate('')
+                        return
+                      }
                     }
                     if (isDateLocked(selectedDate)) {
                       target.value = ''
@@ -1132,15 +1140,23 @@ export function EventOccurrencesManager({
                   
                   if (selectedDate) {
                     const minAllowed = startDate || minDate
-                    if (minAllowed && selectedDate < minAllowed) {
-                      e.target.value = ''
-                      setEndDate('')
-                      return
+                    if (minAllowed) {
+                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
+                      const minAllowedObj = toDateAtNoonUTC(minAllowed)
+                      if (selectedDateObj < minAllowedObj) {
+                        e.target.value = ''
+                        setEndDate('')
+                        return
+                      }
                     }
-                    if (minDate && selectedDate < minDate) {
-                      e.target.value = ''
-                      setEndDate('')
-                      return
+                    if (minDate) {
+                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
+                      const minDateObj = toDateAtNoonUTC(minDate)
+                      if (selectedDateObj < minDateObj) {
+                        e.target.value = ''
+                        setEndDate('')
+                        return
+                      }
                     }
                     if (isDateLocked(selectedDate)) {
                       e.target.value = ''
