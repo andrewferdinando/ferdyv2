@@ -6,11 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { occurrenceId: string } }
+  { params }: { params: Promise<{ occurrenceId: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { occurrenceId } = params
+    const { occurrenceId } = await params
     const body = await request.json()
 
     const {
@@ -75,11 +75,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { occurrenceId: string } }
+  { params }: { params: Promise<{ occurrenceId: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { occurrenceId } = params
+    const { occurrenceId } = await params
 
     // Soft delete by setting archived_at
     const { data, error } = await supabase

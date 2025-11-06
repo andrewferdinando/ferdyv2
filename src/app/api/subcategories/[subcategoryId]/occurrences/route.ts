@@ -6,11 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { subcategoryId: string } }
+  { params }: { params: Promise<{ subcategoryId: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { subcategoryId } = params
+    const { subcategoryId } = await params
 
     const { data, error } = await supabase
       .from('schedule_rules')
@@ -37,11 +37,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { subcategoryId: string } }
+  { params }: { params: Promise<{ subcategoryId: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { subcategoryId } = params
+    const { subcategoryId } = await params
     const body = await request.json()
 
     const {
