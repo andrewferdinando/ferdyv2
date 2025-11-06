@@ -795,24 +795,67 @@ export default function CategoriesPage() {
                                           </button>
                                           <button
                                             onClick={async () => {
-                                              if (confirm(`Remove all schedule rules for "${subcat.subcategoryName}"? This will delete all ${groupRules.length} occurrence(s).`)) {
+                                              if (confirm(`Delete entire subcategory "${subcat.subcategoryName}"? This will permanently delete the subcategory and all ${groupRules.length} occurrence(s), along with any associated drafts and posts.`)) {
                                                 try {
-                                                  // Delete all schedule rules for this subcategory with frequency='specific'
-                                                  const ruleIds = groupRules.map(r => r.id)
-                                                  for (const ruleId of ruleIds) {
-                                                    await deleteRule(ruleId)
+                                                  // Delete the entire subcategory (this will cascade delete schedule_rules, post_jobs, and drafts)
+                                                  const { supabase: supabaseClient } = await import('@/lib/supabase-browser')
+                                                  
+                                                  // Get all schedule_rule_ids for this subcategory
+                                                  const { data: scheduleRules } = await supabaseClient
+                                                    .from('schedule_rules')
+                                                    .select('id')
+                                                    .eq('subcategory_id', firstRule.subcategory_id)
+
+                                                  if (scheduleRules && scheduleRules.length > 0) {
+                                                    const ruleIds = scheduleRules.map(r => r.id)
+                                                    
+                                                    // Delete drafts first
+                                                    const { data: postJobs } = await supabaseClient
+                                                      .from('post_jobs')
+                                                      .select('id')
+                                                      .in('schedule_rule_id', ruleIds)
+
+                                                    if (postJobs && postJobs.length > 0) {
+                                                      const postJobIds = postJobs.map(j => j.id)
+                                                      await supabaseClient
+                                                        .from('drafts')
+                                                        .delete()
+                                                        .in('post_job_id', postJobIds)
+                                                    }
+
+                                                    // Delete post_jobs
+                                                    await supabaseClient
+                                                      .from('post_jobs')
+                                                      .delete()
+                                                      .in('schedule_rule_id', ruleIds)
                                                   }
+
+                                                  // Delete schedule_rules
+                                                  await supabaseClient
+                                                    .from('schedule_rules')
+                                                    .delete()
+                                                    .eq('subcategory_id', firstRule.subcategory_id)
+
+                                                  // Delete the subcategory
+                                                  const { error } = await supabaseClient
+                                                    .from('subcategories')
+                                                    .delete()
+                                                    .eq('id', firstRule.subcategory_id)
+
+                                                  if (error) throw error
+
                                                   refetchRules()
                                                   showToast({
                                                     title: 'Deleted',
-                                                    message: `Removed ${ruleIds.length} occurrence(s) for ${subcat.subcategoryName}`,
+                                                    message: `Deleted subcategory "${subcat.subcategoryName}" and all associated data`,
                                                     type: 'success',
                                                     duration: 3000
                                                   })
                                                 } catch (err) {
+                                                  console.error('Failed to delete subcategory:', err)
                                                   showToast({
-                                                    title: 'Failed to delete rules',
-                                                    message: 'Please try again.',
+                                                    title: 'Failed to delete subcategory',
+                                                    message: err instanceof Error ? err.message : 'Please try again.',
                                                     type: 'error',
                                                     duration: 3000
                                                   })
@@ -820,7 +863,7 @@ export default function CategoriesPage() {
                                               }
                                             }}
                                             className="text-gray-400 hover:text-red-600"
-                                            title="Delete all occurrences"
+                                            title="Delete entire subcategory"
                                           >
                                             <TrashIcon className="w-4 h-4" />
                                           </button>

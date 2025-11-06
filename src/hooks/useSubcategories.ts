@@ -132,25 +132,76 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
     try {
       setLoading(true) // Set loading to prevent multiple simultaneous deletes
       
-      // Soft-disable associated schedule_rules first (set is_active = false)
-      const { error: scheduleRuleError } = await supabase
+      // First, get all schedule_rule_ids for this subcategory
+      const { data: scheduleRules, error: fetchRulesError } = await supabase
         .from('schedule_rules')
-        .update({ is_active: false })
+        .select('id')
         .eq('subcategory_id', id)
-        .eq('is_active', true)
 
-      if (scheduleRuleError) {
-        console.warn('Failed to soft-disable schedule rules:', scheduleRuleError)
-        // Continue with subcategory deletion even if schedule rule update fails
+      if (fetchRulesError) {
+        console.warn('Failed to fetch schedule rules:', fetchRulesError)
       }
 
-      // Delete the subcategory
+      // Delete in order: drafts -> post_jobs -> schedule_rules -> subcategory
+      // This ensures foreign key constraints are satisfied
+      if (scheduleRules && scheduleRules.length > 0) {
+        const ruleIds = scheduleRules.map(r => r.id)
+        
+        // 1. Delete drafts that reference post_jobs with these schedule_rules
+        const { data: postJobs, error: fetchPostJobsError } = await supabase
+          .from('post_jobs')
+          .select('id')
+          .in('schedule_rule_id', ruleIds)
+
+        if (!fetchPostJobsError && postJobs && postJobs.length > 0) {
+          const postJobIds = postJobs.map(j => j.id)
+          
+          // Delete drafts first
+          const { error: draftsError } = await supabase
+            .from('drafts')
+            .delete()
+            .in('post_job_id', postJobIds)
+
+          if (draftsError) {
+            console.warn('Failed to delete drafts:', draftsError)
+            // Continue - some drafts might not exist
+          }
+
+          // 2. Delete post_jobs
+          const { error: postJobsError } = await supabase
+            .from('post_jobs')
+            .delete()
+            .in('schedule_rule_id', ruleIds)
+
+          if (postJobsError) {
+            console.warn('Failed to delete post_jobs:', postJobsError)
+            // Continue - some post_jobs might not exist
+          }
+        }
+
+        // 3. Hard delete all associated schedule_rules
+        const { error: scheduleRuleError } = await supabase
+          .from('schedule_rules')
+          .delete()
+          .eq('subcategory_id', id)
+
+        if (scheduleRuleError) {
+          console.warn('Failed to delete schedule rules:', scheduleRuleError)
+          // Continue with subcategory deletion
+        }
+      }
+
+      // 4. Delete the subcategory
       const { error } = await supabase
         .from('subcategories')
         .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        // If deletion fails, provide more context
+        console.error('Failed to delete subcategory:', error)
+        throw new Error(`Failed to delete subcategory: ${error.message}. There may be existing references preventing deletion.`)
+      }
 
       // Update local state by filtering out the deleted subcategory
       setSubcategories(prev => {
