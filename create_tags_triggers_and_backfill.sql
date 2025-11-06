@@ -17,8 +17,7 @@ BEGIN
     -- Update the tag name when subcategory name changes
     -- First, try to update existing tag
     UPDATE tags
-    SET name = NEW.name,
-        updated_at = NOW()
+    SET name = NEW.name
     WHERE brand_id = NEW.brand_id
       AND kind = 'subcategory'
       AND name = OLD.name;
@@ -35,8 +34,7 @@ BEGIN
   ELSIF TG_OP = 'DELETE' THEN
     -- Soft-delete (set is_active = false) the tag when subcategory is deleted
     UPDATE tags
-    SET is_active = false,
-        updated_at = NOW()
+    SET is_active = false
     WHERE brand_id = OLD.brand_id
       AND kind = 'subcategory'
       AND name = OLD.name;
