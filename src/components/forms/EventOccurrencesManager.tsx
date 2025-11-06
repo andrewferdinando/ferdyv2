@@ -315,8 +315,8 @@ export function EventOccurrencesManager({
         const newOccurrences: EventOccurrence[] = parsed.map((p, idx) => ({
           id: `draft-${Date.now()}-${idx}-${Math.random()}`,
           frequency: p.frequency,
-          start_date: `${p.start}T00:00:00`,
-          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59` : null,
+          start_date: `${p.start}T00:00:00Z`, // Use UTC explicitly
+          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59Z` : null, // Use UTC explicitly
           times_of_day: bulkTimesOfDay,
           channels: bulkChannels,
           timezone: brandTimezone,
