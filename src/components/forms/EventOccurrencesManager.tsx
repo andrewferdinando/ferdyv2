@@ -916,6 +916,8 @@ export function EventOccurrencesManager({
 
           <FormField label={isDateRange ? 'Start Date' : 'Date'} required>
             <input
+              id="specificDate"
+              name="specificDate"
               ref={startDateInputRef}
               type="date"
               value={startDate}
@@ -1024,7 +1026,15 @@ export function EventOccurrencesManager({
                 if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
                   console.log('BLOCKED: Manual typing prevented when locked months exist')
                   e.preventDefault()
-                  alert(`Please use the date picker. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                  alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                }
+              }}
+              onPaste={(e) => {
+                // Prevent pasting dates
+                if (lockedMonths.length > 0 && minDate) {
+                  console.log('BLOCKED: Pasting prevented when locked months exist')
+                  e.preventDefault()
+                  alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
                 }
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
@@ -1049,6 +1059,8 @@ export function EventOccurrencesManager({
           {isDateRange && (
             <FormField label="End Date" required>
               <input
+                id="specificEndDate"
+                name="specificEndDate"
                 ref={endDateInputRef}
                 type="date"
                 value={endDate}
