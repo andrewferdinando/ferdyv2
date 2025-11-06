@@ -452,8 +452,8 @@ export function EventOccurrencesManager({
 
     if (isDateRange) {
       if (!endDate || endDate < startDate) {
-        alert('End date must be after start date')
-        return
+      alert('End date must be after start date')
+      return
       }
       if (isDateLocked(endDate)) {
         alert('End date cannot be in a month that has already been pushed to drafts')
@@ -1023,15 +1023,39 @@ export function EventOccurrencesManager({
               readOnly={!lockedMonthsLoaded || (lockedMonths.length > 0 && minDate ? false : false)}
               // Debug: Log when input is rendered to verify type="date" is set
               onFocus={() => {
-                const el = document.querySelector('input[name="specificDate"]') as HTMLInputElement
+                // Try multiple queries to find the element
+                const elById = document.getElementById('specificDate') as HTMLInputElement
+                const elByName = document.querySelector('input[name="specificDate"]') as HTMLInputElement
+                const elByType = document.querySelector('input[type="date"]') as HTMLInputElement
+                const el = elById || elByName || elByType
+                
+                console.log('=== Date Input DOM Debug ===')
+                console.log('Element by ID:', elById)
+                console.log('Element by name:', elByName)
+                console.log('Element by type:', elByType)
+                console.log('Selected element:', el)
+                
                 if (el) {
-                  console.log('Date input DOM check:', {
+                  console.log('Element attributes:', {
                     type: el.type,
                     min: el.min,
                     value: el.value,
                     id: el.id,
-                    name: el.name
+                    name: el.name,
+                    outerHTML: el.outerHTML.substring(0, 200)
                   })
+                } else {
+                  console.error('ERROR: Date input element not found in DOM!')
+                  // Try to find all inputs in the modal
+                  const modal = document.querySelector('[role="dialog"]') || document.querySelector('.modal')
+                  if (modal) {
+                    const allInputs = modal.querySelectorAll('input')
+                    console.log('All inputs in modal:', Array.from(allInputs).map(inp => ({
+                      type: inp.type,
+                      name: inp.name,
+                      id: inp.id
+                    })))
+                  }
                 }
               }}
               onKeyDown={(e) => {
