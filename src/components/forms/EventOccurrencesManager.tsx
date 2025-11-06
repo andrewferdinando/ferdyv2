@@ -96,23 +96,6 @@ export function EventOccurrencesManager({
     calculateMinDate()
   }, [lockedMonths, lockedMonthsLoaded, brandTimezone])
 
-  // CRITICAL: Directly set min attribute on DOM element to ensure it's always applied
-  useEffect(() => {
-    if (startDateInputRef.current && minDate) {
-      startDateInputRef.current.setAttribute('min', minDate)
-      startDateInputRef.current.setAttribute('type', 'date')
-      console.log('Directly set min attribute on input:', minDate)
-    }
-  }, [minDate])
-
-  // Also set for end date input
-  useEffect(() => {
-    if (endDateInputRef.current && minDate) {
-      endDateInputRef.current.setAttribute('min', minDate)
-      endDateInputRef.current.setAttribute('type', 'date')
-    }
-  }, [minDate])
-
   // Debug: Log when minDate changes
   useEffect(() => {
     if (lockedMonths.length > 0) {
