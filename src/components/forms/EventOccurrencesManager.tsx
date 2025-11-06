@@ -52,7 +52,9 @@ export function EventOccurrencesManager({
   const [timesOfDay, setTimesOfDay] = useState<string[]>([])
   const [newTimeInput, setNewTimeInput] = useState('')
   const [channels, setChannels] = useState<string[]>([])
+  const [url, setUrl] = useState('')
   const [timezone, setTimezone] = useState(brandTimezone)
+  const [subcategoryUrl, setSubcategoryUrl] = useState<string | null>(null)
 
   // Bulk add state
   const [bulkInput, setBulkInput] = useState('')
@@ -71,13 +73,32 @@ export function EventOccurrencesManager({
   useEffect(() => {
     if (subcategoryId) {
       fetchOccurrences()
+      fetchSubcategoryUrl()
     } else {
       // For new subcategories, just clear occurrences and set loading to false
       setOccurrences([])
       setLoading(false)
+      setSubcategoryUrl(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId, subcategoryId])
+
+  const fetchSubcategoryUrl = async () => {
+    if (!subcategoryId) return
+    try {
+      const { data, error } = await supabase
+        .from('subcategories')
+        .select('url')
+        .eq('id', subcategoryId)
+        .single()
+
+      if (error) throw error
+      setSubcategoryUrl(data?.url || null)
+    } catch (err) {
+      console.error('Error fetching subcategory URL:', err)
+      setSubcategoryUrl(null)
+    }
+  }
 
   // Fetch locked months on mount and when modal opens
   useEffect(() => {
@@ -322,6 +343,7 @@ export function EventOccurrencesManager({
     setTimesOfDay([])
     setNewTimeInput('')
     setChannels([])
+    setUrl('')
     setTimezone(brandTimezone)
     setIsEditing(null)
   }
@@ -334,6 +356,10 @@ export function EventOccurrencesManager({
       setTimesOfDay([...firstOccurrence.times_of_day])
       setChannels([...firstOccurrence.channels])
       setTimezone(firstOccurrence.timezone)
+    }
+    // Default URL from subcategory
+    if (subcategoryUrl) {
+      setUrl(subcategoryUrl)
     }
   }
 
@@ -645,6 +671,10 @@ export function EventOccurrencesManager({
     setTimesOfDay(occurrence.times_of_day)
     setChannels(occurrence.channels)
     setTimezone(occurrence.timezone)
+    // URL is not stored per occurrence, so we'll use subcategory URL
+    if (subcategoryUrl) {
+      setUrl(subcategoryUrl)
+    }
     setIsAddModalOpen(true)
   }
 
@@ -1111,6 +1141,15 @@ export function EventOccurrencesManager({
                 </label>
               ))}
             </div>
+          </FormField>
+
+          <FormField label="URL">
+            <Input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com"
+            />
           </FormField>
 
           <FormField label="Timezone">
