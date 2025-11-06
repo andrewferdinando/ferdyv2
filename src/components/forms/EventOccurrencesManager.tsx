@@ -932,23 +932,28 @@ export function EventOccurrencesManager({
           </FormField>
 
           <FormField label={isDateRange ? 'Start Date' : 'Date'} required>
-            <input
-              id="specificDate"
-              name="specificDate"
-              ref={startDateInputRef}
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                const selectedDate = e.target.value
-                console.log('onChange fired! Date selected:', selectedDate, 'minDate:', minDate, 'Locked months:', lockedMonths)
-                
-                if (!selectedDate) {
-                  setStartDate('')
-                  return
-                }
-                
-                // STRICT validation using Date objects at noon UTC to avoid timezone rollbacks
-                if (minDate) {
+            {!lockedMonthsLoaded ? (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                Loading date restrictions...
+              </div>
+            ) : minDate ? (
+              <input
+                id="specificDate"
+                name="specificDate"
+                ref={startDateInputRef}
+                type="date"
+                min={minDate}
+                value={startDate}
+                onChange={(e) => {
+                  const selectedDate = e.target.value
+                  console.log('onChange fired! Date selected:', selectedDate, 'minDate:', minDate)
+                  
+                  if (!selectedDate) {
+                    setStartDate('')
+                    return
+                  }
+                  
+                  // STRICT validation using Date objects at noon UTC
                   const selectedDateObj = toDateAtNoonUTC(selectedDate)
                   const minDateObj = toDateAtNoonUTC(minDate)
                   
@@ -960,154 +965,43 @@ export function EventOccurrencesManager({
                     e.target.blur()
                     return
                   }
-                }
-                
-                if (isDateLocked(selectedDate)) {
-                  console.log('BLOCKED: Date is in locked month')
-                  alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                  e.target.value = ''
-                  setStartDate('')
-                  e.target.blur()
-                  return
-                }
-                
-                console.log('Date ACCEPTED:', selectedDate)
-                setStartDate(selectedDate)
-              }}
-              onInput={(e) => {
-                const target = e.target as HTMLInputElement
-                const selectedDate = target.value
-                console.log('onInput fired! Date:', selectedDate, 'minDate:', minDate)
-                
-                if (selectedDate) {
-                  // STRICT validation using Date objects at noon UTC
-                  if (minDate) {
-                    const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                    const minDateObj = toDateAtNoonUTC(minDate)
-                    
-                    if (selectedDateObj < minDateObj) {
-                      console.log('BLOCKED onInput: Date is before minDate')
-                      alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                      target.value = ''
-                      setStartDate('')
-                      return
-                    }
-                  }
                   
                   if (isDateLocked(selectedDate)) {
-                    console.log('BLOCKED onInput: Date is in locked month')
-                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                    target.value = ''
-                    setStartDate('')
-                    return
-                  }
-                  
-                  setStartDate(selectedDate)
-                }
-              }}
-              onBlur={(e) => {
-                const selectedDate = e.target.value
-                console.log('onBlur fired! Date:', selectedDate, 'minDate:', minDate)
-                
-                if (selectedDate) {
-                  // STRICT validation using Date objects at noon UTC
-                  if (minDate) {
-                    const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                    const minDateObj = toDateAtNoonUTC(minDate)
-                    
-                    if (selectedDateObj < minDateObj) {
-                      console.log('BLOCKED onBlur: Date is before minDate')
-                      alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                      e.target.value = ''
-                      setStartDate('')
-                      return
-                    }
-                  }
-                  
-                  if (isDateLocked(selectedDate)) {
-                    console.log('BLOCKED onBlur: Date is in locked month')
+                    console.log('BLOCKED: Date is in locked month')
                     alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
                     e.target.value = ''
                     setStartDate('')
+                    e.target.blur()
                     return
                   }
                   
+                  console.log('Date ACCEPTED:', selectedDate)
                   setStartDate(selectedDate)
-                }
-              }}
-              min={minDate || undefined}
-              disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
-              readOnly={!lockedMonthsLoaded || (lockedMonths.length > 0 && minDate ? false : false)}
-              // CRITICAL: Ensure type and min are always set as attributes
-              data-min-date={minDate || ''}
-              // Debug: Log when input is rendered to verify type="date" is set
-              onFocus={() => {
-                // Try multiple queries to find the element
-                const elById = document.getElementById('specificDate') as HTMLInputElement
-                const elByName = document.querySelector('input[name="specificDate"]') as HTMLInputElement
-                const elByType = document.querySelector('input[type="date"]') as HTMLInputElement
-                const el = elById || elByName || elByType
-                
-                console.log('=== Date Input DOM Debug ===')
-                console.log('Element by ID:', elById)
-                console.log('Element by name:', elByName)
-                console.log('Element by type:', elByType)
-                console.log('Selected element:', el)
-                
-                if (el) {
-                  console.log('Element attributes:', {
-                    type: el.type,
-                    min: el.min,
-                    value: el.value,
-                    id: el.id,
-                    name: el.name,
-                    outerHTML: el.outerHTML.substring(0, 200)
-                  })
-                } else {
-                  console.error('ERROR: Date input element not found in DOM!')
-                  // Try to find all inputs in the modal
-                  const modal = document.querySelector('[role="dialog"]') || document.querySelector('.modal')
-                  if (modal) {
-                    const allInputs = modal.querySelectorAll('input')
-                    console.log('All inputs in modal:', Array.from(allInputs).map(inp => ({
-                      type: inp.type,
-                      name: inp.name,
-                      id: inp.id
-                    })))
+                }}
+                onKeyDown={(e) => {
+                  // Prevent typing when locked months exist
+                  if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
+                    e.preventDefault()
+                    alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
                   }
-                }
-              }}
-              onKeyDown={(e) => {
-                // Prevent typing if we have locked months and minDate
-                if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
-                  console.log('BLOCKED: Manual typing prevented when locked months exist')
-                  e.preventDefault()
-                  alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                }
-              }}
-              onPaste={(e) => {
-                // Prevent pasting dates
-                if (lockedMonths.length > 0 && minDate) {
-                  console.log('BLOCKED: Pasting prevented when locked months exist')
-                  e.preventDefault()
-                  alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                }
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-            />
-            {!lockedMonthsLoaded && (
-              <p className="text-xs text-gray-500 mt-1">
-                Loading date restrictions...
-              </p>
+                }}
+                onPaste={(e) => {
+                  // Prevent pasting when locked months exist
+                  if (lockedMonths.length > 0 && minDate) {
+                    e.preventDefault()
+                    alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              />
+            ) : (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-amber-50 text-amber-700">
+                All upcoming months are already scheduled. Push a future month or contact an admin.
+              </div>
             )}
             {lockedMonthsLoaded && lockedMonths.length > 0 && minDate && (
               <p className="text-xs text-gray-500 mt-1">
-                Months with framework drafts are disabled: {lockedMonths.join(', ')}. First available date: {new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-            )}
-            {lockedMonthsLoaded && lockedMonths.length > 0 && !minDate && (
-              <p className="text-xs text-amber-600 mt-1">
-                All upcoming months are already scheduled. Push a future month or contact an admin.
+                Months with framework drafts are disabled: {lockedMonths.join(', ')}. First available date: {new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             )}
           </FormField>
