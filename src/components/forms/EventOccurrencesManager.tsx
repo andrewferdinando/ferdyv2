@@ -105,7 +105,20 @@ export function EventOccurrencesManager({
   // Validate startDate whenever it changes (backup validation)
   useEffect(() => {
     if (startDate && lockedMonths.length > 0) {
-      console.log('Validating startDate:', startDate, 'isDateLocked:', isDateLocked(startDate))
+      console.log('Validating startDate:', startDate, 'isDateLocked:', isDateLocked(startDate), 'minDate:', minDate)
+      
+      // Check if date is before minDate (which is the first day after latest locked month)
+      if (minDate && startDate < minDate) {
+        console.log('Blocked via useEffect: Date is before minDate (before first unlocked month)')
+        alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+        setStartDate('')
+        if (startDateInputRef.current) {
+          startDateInputRef.current.value = ''
+        }
+        return
+      }
+      
+      // Also check if date is in any locked month (double-check)
       if (isDateLocked(startDate)) {
         console.log('Blocked via useEffect: Date is in locked month')
         alert(`This date is in a locked month (${startDate.substring(0, 7)}). Please select a date from an unlocked month.`)
@@ -115,12 +128,25 @@ export function EventOccurrencesManager({
         }
       }
     }
-  }, [startDate, lockedMonths])
+  }, [startDate, lockedMonths, minDate])
 
   // Validate endDate whenever it changes (backup validation)
   useEffect(() => {
     if (endDate && lockedMonths.length > 0) {
-      console.log('Validating endDate:', endDate, 'isDateLocked:', isDateLocked(endDate))
+      console.log('Validating endDate:', endDate, 'isDateLocked:', isDateLocked(endDate), 'minDate:', minDate)
+      
+      // Check if date is before minDate (which is the first day after latest locked month)
+      if (minDate && endDate < minDate) {
+        console.log('Blocked via useEffect: End date is before minDate (before first unlocked month)')
+        alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+        setEndDate('')
+        if (endDateInputRef.current) {
+          endDateInputRef.current.value = ''
+        }
+        return
+      }
+      
+      // Also check if date is in any locked month (double-check)
       if (isDateLocked(endDate)) {
         console.log('Blocked via useEffect: End date is in locked month')
         alert(`This date is in a locked month (${endDate.substring(0, 7)}). Please select a date from an unlocked month.`)
@@ -130,7 +156,7 @@ export function EventOccurrencesManager({
         }
       }
     }
-  }, [endDate, lockedMonths])
+  }, [endDate, lockedMonths, minDate])
 
   // Notify parent when occurrences change
   useEffect(() => {
@@ -187,91 +213,44 @@ export function EventOccurrencesManager({
   }
 
   const calculateMinDate = () => {
-    // Get today's date in brand timezone
-    const now = new Date()
-    const todayInBrandTz = new Intl.DateTimeFormat('en-CA', {
-      timeZone: brandTimezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(now)
+    if (lockedMonths.length === 0) {
+      // No locked months - allow any date from today
+      const now = new Date()
+      const todayInBrandTz = new Intl.DateTimeFormat('en-CA', {
+        timeZone: brandTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(now)
+      setMinDate(todayInBrandTz)
+      setBlockedMaxDate('')
+      return
+    }
+
+    // Find the LATEST locked month (most recent/furthest in future)
+    const sortedLockedMonths = [...lockedMonths].sort()
+    const latestLockedMonth = sortedLockedMonths[sortedLockedMonths.length - 1]
     
-    const [todayYear, todayMonth] = todayInBrandTz.split('-').map(Number)
-    const todayMonthStr = `${todayYear}-${String(todayMonth).padStart(2, '0')}`
+    console.log('Latest locked month:', latestLockedMonth)
 
-    // Find the first unlocked month >= today
-    let foundUnlocked = false
-    let firstUnlockedYear = todayYear
-    let firstUnlockedMonth = todayMonth
-
-    // Check up to 2 years ahead
-    for (let yearOffset = 0; yearOffset < 2; yearOffset++) {
-      const checkYear = todayYear + yearOffset
-      const startMonth = yearOffset === 0 ? todayMonth : 1
-
-      for (let month = startMonth; month <= 12; month++) {
-        const monthStr = `${checkYear}-${String(month).padStart(2, '0')}`
-        
-        if (!lockedMonths.includes(monthStr)) {
-          // Found first unlocked month
-          firstUnlockedYear = checkYear
-          firstUnlockedMonth = month
-          setMinDate(`${checkYear}-${String(month).padStart(2, '0')}-01`)
-          foundUnlocked = true
-          break
-        }
-      }
-      
-      if (foundUnlocked) break
+    // Parse the latest locked month
+    const [lockedYear, lockedMonth] = latestLockedMonth.split('-').map(Number)
+    
+    // Calculate the first day of the month AFTER the latest locked month
+    let nextMonth = lockedMonth + 1
+    let nextYear = lockedYear
+    
+    if (nextMonth > 12) {
+      nextMonth = 1
+      nextYear = lockedYear + 1
     }
-
-    // Calculate blocked max date to prevent selecting locked months
-    // If there are locked months immediately after the first unlocked month,
-    // set max to the last day of the month BEFORE the first locked month
-    if (foundUnlocked && lockedMonths.length > 0) {
-      const firstUnlockedMonthStr = `${firstUnlockedYear}-${String(firstUnlockedMonth).padStart(2, '0')}`
-      
-      // Find locked months that come AFTER the first unlocked month
-      const lockedAfterFirst = lockedMonths
-        .filter(month => month > firstUnlockedMonthStr)
-        .sort()
-      
-      if (lockedAfterFirst.length > 0) {
-        // Get the first locked month after the first unlocked month
-        const firstLockedAfter = lockedAfterFirst[0]
-        const [lockedYear, lockedMonth] = firstLockedAfter.split('-').map(Number)
-        
-        // Set max to the last day of the month BEFORE the first locked month
-        // This blocks the locked month in the date picker UI
-        const prevMonth = lockedMonth === 1 ? 12 : lockedMonth - 1
-        const prevYear = lockedMonth === 1 ? lockedYear - 1 : lockedYear
-        const lastDay = new Date(prevYear, prevMonth, 0).getDate()
-        setBlockedMaxDate(`${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`)
-      } else {
-        // No locked months after first unlocked, check for locked months before
-        const lockedBeforeFirst = lockedMonths
-          .filter(month => month < firstUnlockedMonthStr)
-          .sort()
-        
-        if (lockedBeforeFirst.length > 0) {
-          // Get the last locked month before the first unlocked month
-          const lastLockedMonth = lockedBeforeFirst[lockedBeforeFirst.length - 1]
-          const [lockedYear, lockedMonth] = lastLockedMonth.split('-').map(Number)
-          const lastDay = new Date(lockedYear, lockedMonth, 0).getDate()
-          setBlockedMaxDate(`${lockedYear}-${String(lockedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`)
-        } else {
-          setBlockedMaxDate('')
-        }
-      }
-    } else {
-      setBlockedMaxDate('')
-    }
-
-    // If all months are locked, set minDate to empty string (will show warning)
-    if (!foundUnlocked) {
-      setMinDate('')
-      setBlockedMaxDate('')
-    }
+    
+    // Set minDate to the first day of the month after the latest locked month
+    const firstUnlockedMonthStart = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`
+    console.log('First unlocked month start (minDate):', firstUnlockedMonthStart)
+    
+    setMinDate(firstUnlockedMonthStart)
+    setBlockedMaxDate('') // No need for max date - minDate handles it
   }
 
   // Check if a date is in a locked month
