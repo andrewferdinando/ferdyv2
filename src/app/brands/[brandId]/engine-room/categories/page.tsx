@@ -529,10 +529,23 @@ export default function CategoriesPage() {
                             })
 
                             // Format date range helper with year detection
+                            // Helper to normalize date strings to UTC format
+                            const normalizeToUTC = (dateStr: string): string => {
+                              // If it already has timezone info (Z or +XX:XX), return as is
+                              if (dateStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+                                return dateStr
+                              }
+                              // Otherwise, append Z to treat as UTC
+                              return dateStr.endsWith('Z') ? dateStr : dateStr + 'Z'
+                            }
+                            
                             const formatDateRange = (start: string | null | undefined, end: string | null | undefined, occurrences: typeof eventRules, showYear: boolean = false) => {
                               if (!start) return ''
-                              const startDate = new Date(start)
-                              const endDate = end ? new Date(end) : startDate
+                              // Normalize to UTC before parsing to avoid timezone issues
+                              const normalizedStart = normalizeToUTC(start)
+                              const normalizedEnd = end ? normalizeToUTC(end) : normalizedStart
+                              const startDate = new Date(normalizedStart)
+                              const endDate = new Date(normalizedEnd)
                               const sameDay = startDate.getUTCDate() === endDate.getUTCDate() && 
                                              startDate.getUTCMonth() === endDate.getUTCMonth() && 
                                              startDate.getUTCFullYear() === endDate.getUTCFullYear()
@@ -540,7 +553,8 @@ export default function CategoriesPage() {
                               // Check if there are duplicate dates (same day/month, different year) in this subcategory
                               const allDates = occurrences.map(occ => {
                                 if (!occ.start_date) return null
-                                const date = new Date(occ.start_date)
+                                const normalized = normalizeToUTC(occ.start_date)
+                                const date = new Date(normalized)
                                 return {
                                   day: date.getUTCDate(),
                                   month: date.getUTCMonth(),
@@ -679,22 +693,22 @@ export default function CategoriesPage() {
                                   const groupRules = subcat.eventRules
                                   const firstRule = groupRules[0]
                                   
-                                  // Sort occurrences by start_date
+                                  // Sort occurrences by start_date (normalize to UTC for correct sorting)
                                   const sortedOccurrences = [...groupRules].sort((a, b) => {
-                                    const aDate = a.start_date ? new Date(a.start_date).getTime() : 0
-                                    const bDate = b.start_date ? new Date(b.start_date).getTime() : 0
+                                    const aDate = a.start_date ? new Date(normalizeToUTC(a.start_date)).getTime() : 0
+                                    const bDate = b.start_date ? new Date(normalizeToUTC(b.start_date)).getTime() : 0
                                     return aDate - bDate
                                   })
 
-                                  // Separate upcoming and past
+                                  // Separate upcoming and past (normalize to UTC for correct comparison)
                                   const now = new Date()
                                   const upcoming = sortedOccurrences.filter(r => {
                                     const end = r.end_date || r.start_date
-                                    return end ? new Date(end) >= now : false
+                                    return end ? new Date(normalizeToUTC(end)) >= now : false
                                   })
                                   const past = sortedOccurrences.filter(r => {
                                     const end = r.end_date || r.start_date
-                                    return end ? new Date(end) < now : false
+                                    return end ? new Date(normalizeToUTC(end)) < now : false
                                   })
 
                                   const channels = firstRule.channels || []

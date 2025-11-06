@@ -338,9 +338,37 @@ export function EventOccurrencesManager({
   const handleEdit = (occurrence: EventOccurrence) => {
     setIsEditing(occurrence)
     setIsDateRange(occurrence.frequency === 'date_range')
-    // Extract date part from timestamptz (YYYY-MM-DDTHH:MM:SS -> YYYY-MM-DD)
-    const startDatePart = occurrence.start_date.split('T')[0]
-    const endDatePart = occurrence.end_date ? occurrence.end_date.split('T')[0] : ''
+    // Normalize date strings to UTC format before parsing
+    const normalizeToUTC = (dateStr: string): string => {
+      if (dateStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+        return dateStr
+      }
+      return dateStr.endsWith('Z') ? dateStr : dateStr + 'Z'
+    }
+    
+    // Extract date part from timestamptz, ensuring UTC parsing
+    // Use UTC methods to avoid timezone conversion issues
+    let startDatePart = ''
+    let endDatePart = ''
+    
+    if (occurrence.start_date) {
+      const normalized = normalizeToUTC(occurrence.start_date)
+      const startDateObj = new Date(normalized)
+      const year = startDateObj.getUTCFullYear()
+      const month = String(startDateObj.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(startDateObj.getUTCDate()).padStart(2, '0')
+      startDatePart = `${year}-${month}-${day}`
+    }
+    
+    if (occurrence.end_date) {
+      const normalized = normalizeToUTC(occurrence.end_date)
+      const endDateObj = new Date(normalized)
+      const year = endDateObj.getUTCFullYear()
+      const month = String(endDateObj.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(endDateObj.getUTCDate()).padStart(2, '0')
+      endDatePart = `${year}-${month}-${day}`
+    }
+    
     setStartDate(startDatePart)
     setEndDate(endDatePart)
     setTimesOfDay(occurrence.times_of_day)
