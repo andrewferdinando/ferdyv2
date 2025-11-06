@@ -225,6 +225,7 @@ export function EventOccurrencesManager({
         .eq('brand_id', brandId)
         .eq('subcategory_id', subcategoryId)
         .eq('frequency', 'specific')
+        .is('archived_at', null) // Only fetch non-archived occurrences
         .order('start_date', { ascending: true })
 
       if (error) throw error
@@ -711,14 +712,14 @@ export function EventOccurrencesManager({
   }
 
   const handleArchive = async (occurrence: EventOccurrence) => {
-    if (!confirm(`Archive this occurrence?`)) return
+    if (!confirm(`Archive this occurrence? It will be hidden from the list but can be restored later.`)) return
 
     try {
       if (subcategoryId && !occurrence.id.startsWith('draft-')) {
-        // Only update in database if it's a saved occurrence
+        // Only update in database if it's a saved occurrence - use archived_at for soft delete
         await supabase
           .from('schedule_rules')
-          .update({ is_active: false })
+          .update({ archived_at: new Date().toISOString() })
           .eq('id', occurrence.id)
         await fetchOccurrences()
         onOccurrencesChanged?.()

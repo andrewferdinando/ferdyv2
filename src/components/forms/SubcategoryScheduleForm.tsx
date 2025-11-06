@@ -1200,8 +1200,8 @@ export function SubcategoryScheduleForm({
                 </div>
               )}
 
-              {/* Specific Date/Range Options */}
-              {scheduleData.frequency === 'specific' && (
+              {/* Specific Date/Range Options - Only show when creating new, not when editing existing */}
+              {scheduleData.frequency === 'specific' && !editingSubcategory && (
                 <div className="space-y-4 pl-4 border-l-2 border-gray-200">
                   {/* Date Type Toggle */}
                   <FormField label="Date Type">
@@ -1349,8 +1349,17 @@ export function SubcategoryScheduleForm({
               )}
 
               {/* Event Occurrences Manager - Show when frequency is 'specific' */}
+              {/* When editing, this is the PRIMARY interface - all scheduling is per-occurrence */}
               {scheduleData.frequency === 'specific' && (
-                <div className="mt-6">
+                <div className={editingSubcategory ? "mt-0" : "mt-6"}>
+                  {editingSubcategory && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Occurrence-based scheduling:</strong> For Specific frequency, all scheduling is managed per occurrence. 
+                        Use the controls below to add, edit, duplicate, or archive occurrences.
+                      </p>
+                    </div>
+                  )}
                   <EventOccurrencesManager
                     brandId={brandId}
                     subcategoryId={currentSubcategoryId}
