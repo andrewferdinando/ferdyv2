@@ -41,6 +41,10 @@ interface ScheduleRule {
     detail: string;
     url: string;
     default_hashtags: string[];
+    category_id?: string;
+    categories?: {
+      name: string;
+    };
   };
 }
 

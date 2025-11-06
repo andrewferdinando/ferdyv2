@@ -571,7 +571,7 @@ export default function CategoriesPage() {
                               const firstRule = groupRules[0]
                               // Get category_id from subcategory relationship (more reliable than schedule_rule.category_id)
                               // Subcategories always have a category_id, so this ensures correct categorization
-                              const subcategory = firstRule.subcategories as any
+                              const subcategory = firstRule.subcategories
                               const categoryId = subcategory?.category_id || firstRule.category_id || 'uncategorized'
                               // Get category name from subcategory's category relationship, or from direct categories join
                               const categoryName = subcategory?.categories?.name 
