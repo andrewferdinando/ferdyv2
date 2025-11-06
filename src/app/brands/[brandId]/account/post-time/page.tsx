@@ -26,7 +26,7 @@ export default function PostTimeSettingsPage() {
     try {
       const { data, error } = await supabase
         .from('brands')
-        .select('id, name, default_post_time')
+        .select('*')
         .eq('id', brandId)
         .single();
 
