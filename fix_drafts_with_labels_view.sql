@@ -7,23 +7,32 @@ CREATE OR REPLACE VIEW drafts_with_labels AS
 SELECT
   d.*,
   COALESCE(
-    s1.name,  -- Direct subcategory join
-    s2.name   -- Subcategory from schedule_rule via post_job
+    s_direct.name,      -- Direct subcategory join (preferred if subcategory_id is set)
+    s_via_rule.name     -- Subcategory from schedule_rule via post_job (fallback)
   ) AS subcategory_name,
   COALESCE(
-    c1.name,  -- Category from direct subcategory join
-    c2.name   -- Category from schedule_rule subcategory
+    c_direct.name,      -- Category from direct subcategory join (preferred)
+    c_via_rule.name     -- Category from schedule_rule subcategory (fallback)
   ) AS category_name
 FROM drafts d
--- Primary join: direct subcategory_id on draft
-LEFT JOIN subcategories s1 ON s1.id = d.subcategory_id
-LEFT JOIN categories c1 ON c1.id = s1.category_id
--- Fallback join: through post_jobs -> schedule_rules when subcategory_id is NULL
-LEFT JOIN post_jobs pj ON pj.id = d.post_job_id AND d.subcategory_id IS NULL
-LEFT JOIN schedule_rules sr ON sr.id = pj.schedule_rule_id AND pj.id = d.post_job_id
-LEFT JOIN subcategories s2 ON s2.id = sr.subcategory_id
-LEFT JOIN categories c2 ON c2.id = s2.category_id;
+-- Primary path: direct subcategory_id on draft
+LEFT JOIN subcategories s_direct ON s_direct.id = d.subcategory_id
+LEFT JOIN categories c_direct ON c_direct.id = s_direct.category_id
+-- Fallback path: through post_jobs -> schedule_rules
+LEFT JOIN post_jobs pj ON pj.id = d.post_job_id
+LEFT JOIN schedule_rules sr ON sr.id = pj.schedule_rule_id
+LEFT JOIN subcategories s_via_rule ON s_via_rule.id = sr.subcategory_id
+LEFT JOIN categories c_via_rule ON c_via_rule.id = s_via_rule.category_id;
 
 -- Grant access to the view
 GRANT SELECT ON drafts_with_labels TO authenticated;
+
+-- Also backfill any existing drafts that have NULL subcategory_id but have a post_job with schedule_rule
+UPDATE drafts d
+SET subcategory_id = sr.subcategory_id
+FROM post_jobs pj
+JOIN schedule_rules sr ON sr.id = pj.schedule_rule_id
+WHERE d.post_job_id = pj.id
+  AND d.subcategory_id IS NULL
+  AND sr.subcategory_id IS NOT NULL;
 
