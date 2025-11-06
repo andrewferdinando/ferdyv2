@@ -416,7 +416,9 @@ export function SubcategoryScheduleForm({
     }
 
     // Validate specific date/range fields
-    if (scheduleData.frequency === 'specific') {
+    // Only validate these when creating new (not editing existing subcategory)
+    // When editing, all scheduling is per-occurrence and managed separately
+    if (scheduleData.frequency === 'specific' && !editingSubcategory) {
       if (!scheduleData.startDate) {
         newErrors.startDate = 'Start date is required'
       }
