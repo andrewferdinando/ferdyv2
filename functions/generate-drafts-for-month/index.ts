@@ -336,36 +336,32 @@ async function generateTimeSlots(rule: any, year: number, month: number, timezon
       // Use normalized dates for accurate comparison
       const hasDirectOverlap = normalizedStartDate <= monthEnd && normalizedEndDate >= monthStart;
       
+      // For subcategories with multiple occurrences, ALWAYS check distance to ensure
+      // we're not processing an occurrence that's too far from the target month
+      // This prevents April/September occurrences from being processed for December
+      let daysFromTargetMonth = 0;
+      if (!hasDirectOverlap) {
+        // Calculate distance for non-overlapping occurrences
+        if (normalizedStartDate > monthEnd) {
+          // Occurrence is after target month
+          daysFromTargetMonth = Math.floor((normalizedStartDate.getTime() - monthEnd.getTime()) / (1000 * 60 * 60 * 24));
+        } else if (normalizedEndDate < monthStart) {
+          // Occurrence is before target month
+          daysFromTargetMonth = Math.floor((monthStart.getTime() - normalizedEndDate.getTime()) / (1000 * 60 * 60 * 24));
+        }
+        
+        // If occurrence is more than 60 days away, skip it entirely
+        // This is the key fix for multiple occurrences
+        if (daysFromTargetMonth > 60) {
+          return slots; // Too far from target month, skip this occurrence
+        }
+      }
+      
       // Check if days_before would create posts in the target month
       // Only check this if the occurrence itself doesn't overlap (to avoid processing
       // rules where days_before extend way beyond the target month)
       let hasDaysBeforeOverlap = false;
       if (!hasDirectOverlap && rule.days_before && Array.isArray(rule.days_before) && rule.days_before.length > 0) {
-        // IMPORTANT: For subcategories with multiple occurrences, we need to ensure we only
-        // process rules whose occurrence is actually relevant to the target month.
-        // Calculate the earliest possible post date from days_before
-        const maxDaysBefore = Math.max(...rule.days_before.filter(d => d >= 0));
-        const earliestPossiblePost = new Date(normalizedStartDate);
-        earliestPossiblePost.setDate(earliestPossiblePost.getDate() - maxDaysBefore);
-        
-        // Calculate how far the occurrence is from the target month
-        // If the occurrence start is AFTER the target month, calculate days after
-        // If the occurrence start is BEFORE the target month, calculate days before
-        let daysFromTargetMonth = 0;
-        if (normalizedStartDate > monthEnd) {
-          // Occurrence is after target month - calculate days after
-          daysFromTargetMonth = Math.floor((normalizedStartDate.getTime() - monthEnd.getTime()) / (1000 * 60 * 60 * 24));
-        } else if (normalizedEndDate < monthStart) {
-          // Occurrence is before target month - calculate days before
-          daysFromTargetMonth = Math.floor((monthStart.getTime() - normalizedEndDate.getTime()) / (1000 * 60 * 60 * 24));
-        }
-        
-        // If the occurrence is more than 60 days away from the target month, skip it
-        // This prevents processing April occurrences when generating December drafts, etc.
-        if (daysFromTargetMonth > 60) {
-          return slots; // Too far from target month, skip this occurrence entirely
-        }
-        
         // Now check if any days_before posts would fall in the target month
         for (const daysBefore of rule.days_before) {
           if (daysBefore < 0) continue;
