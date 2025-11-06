@@ -1021,6 +1021,19 @@ export function EventOccurrencesManager({
               min={minDate || undefined}
               disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
               readOnly={!lockedMonthsLoaded || (lockedMonths.length > 0 && minDate ? false : false)}
+              // Debug: Log when input is rendered to verify type="date" is set
+              onFocus={() => {
+                const el = document.querySelector('input[name="specificDate"]') as HTMLInputElement
+                if (el) {
+                  console.log('Date input DOM check:', {
+                    type: el.type,
+                    min: el.min,
+                    value: el.value,
+                    id: el.id,
+                    name: el.name
+                  })
+                }
+              }}
               onKeyDown={(e) => {
                 // Prevent typing if we have locked months and minDate
                 if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
