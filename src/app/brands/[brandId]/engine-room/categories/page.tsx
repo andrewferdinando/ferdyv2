@@ -798,10 +798,9 @@ export default function CategoriesPage() {
                                               if (confirm(`Delete entire subcategory "${subcat.subcategoryName}"? This will permanently delete the subcategory and all ${groupRules.length} occurrence(s), along with any associated drafts and posts.`)) {
                                                 try {
                                                   // Delete the entire subcategory (this will cascade delete schedule_rules, post_jobs, and drafts)
-                                                  const { supabase: supabaseClient } = await import('@/lib/supabase-browser')
-                                                  
+                                                  // Delete in order: drafts -> post_jobs -> schedule_rules -> subcategory
                                                   // Get all schedule_rule_ids for this subcategory
-                                                  const { data: scheduleRules } = await supabaseClient
+                                                  const { data: scheduleRules } = await supabase
                                                     .from('schedule_rules')
                                                     .select('id')
                                                     .eq('subcategory_id', firstRule.subcategory_id)
@@ -810,34 +809,34 @@ export default function CategoriesPage() {
                                                     const ruleIds = scheduleRules.map(r => r.id)
                                                     
                                                     // Delete drafts first
-                                                    const { data: postJobs } = await supabaseClient
+                                                    const { data: postJobs } = await supabase
                                                       .from('post_jobs')
                                                       .select('id')
                                                       .in('schedule_rule_id', ruleIds)
 
                                                     if (postJobs && postJobs.length > 0) {
                                                       const postJobIds = postJobs.map(j => j.id)
-                                                      await supabaseClient
+                                                      await supabase
                                                         .from('drafts')
                                                         .delete()
                                                         .in('post_job_id', postJobIds)
                                                     }
 
                                                     // Delete post_jobs
-                                                    await supabaseClient
+                                                    await supabase
                                                       .from('post_jobs')
                                                       .delete()
                                                       .in('schedule_rule_id', ruleIds)
                                                   }
 
                                                   // Delete schedule_rules
-                                                  await supabaseClient
+                                                  await supabase
                                                     .from('schedule_rules')
                                                     .delete()
                                                     .eq('subcategory_id', firstRule.subcategory_id)
 
                                                   // Delete the subcategory
-                                                  const { error } = await supabaseClient
+                                                  const { error } = await supabase
                                                     .from('subcategories')
                                                     .delete()
                                                     .eq('id', firstRule.subcategory_id)
