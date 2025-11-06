@@ -96,6 +96,23 @@ export function EventOccurrencesManager({
     calculateMinDate()
   }, [lockedMonths, lockedMonthsLoaded, brandTimezone])
 
+  // CRITICAL: Directly set min attribute on DOM element to ensure it's always applied
+  useEffect(() => {
+    if (startDateInputRef.current && minDate) {
+      startDateInputRef.current.setAttribute('min', minDate)
+      startDateInputRef.current.setAttribute('type', 'date')
+      console.log('Directly set min attribute on input:', minDate)
+    }
+  }, [minDate])
+
+  // Also set for end date input
+  useEffect(() => {
+    if (endDateInputRef.current && minDate) {
+      endDateInputRef.current.setAttribute('min', minDate)
+      endDateInputRef.current.setAttribute('type', 'date')
+    }
+  }, [minDate])
+
   // Debug: Log when minDate changes
   useEffect(() => {
     if (lockedMonths.length > 0) {
@@ -1021,6 +1038,8 @@ export function EventOccurrencesManager({
               min={minDate || undefined}
               disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
               readOnly={!lockedMonthsLoaded || (lockedMonths.length > 0 && minDate ? false : false)}
+              // CRITICAL: Ensure type and min are always set as attributes
+              data-min-date={minDate || ''}
               // Debug: Log when input is rendered to verify type="date" is set
               onFocus={() => {
                 // Try multiple queries to find the element
