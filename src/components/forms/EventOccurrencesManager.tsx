@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
@@ -46,6 +46,8 @@ export function EventOccurrencesManager({
   const [isDateRange, setIsDateRange] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const startDateInputRef = useRef<HTMLInputElement>(null)
+  const endDateInputRef = useRef<HTMLInputElement>(null)
   const [timesOfDay, setTimesOfDay] = useState<string[]>([])
   const [newTimeInput, setNewTimeInput] = useState('')
   const [channels, setChannels] = useState<string[]>([])
@@ -823,12 +825,13 @@ export function EventOccurrencesManager({
           </FormField>
 
           <FormField label={isDateRange ? 'Start Date' : 'Date'} required>
-            <Input
+            <input
+              ref={startDateInputRef}
               type="date"
               value={startDate}
               onChange={(e) => {
                 const selectedDate = e.target.value
-                console.log('Date selected:', selectedDate, 'Locked months:', lockedMonths, 'isDateLocked:', isDateLocked(selectedDate), 'blockedMaxDate:', blockedMaxDate)
+                console.log('Date selected:', selectedDate, 'Locked months:', lockedMonths, 'isDateLocked:', isDateLocked(selectedDate))
                 
                 if (!selectedDate) {
                   setStartDate('')
@@ -841,6 +844,7 @@ export function EventOccurrencesManager({
                   alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
                   e.target.value = '' // Clear the input value directly
                   setStartDate('')
+                  e.target.blur() // Remove focus to prevent re-selection
                   return
                 }
                 
@@ -850,26 +854,7 @@ export function EventOccurrencesManager({
                   alert(`Please select a date on or after ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
                   e.target.value = ''
                   setStartDate('')
-                  return
-                }
-                
-                // Check if date exceeds blockedMaxDate (which blocks locked months)
-                if (blockedMaxDate && selectedDate > blockedMaxDate) {
-                  // If date is after blockedMaxDate, check if it's in a locked month
-                  // If not locked, allow it (it's in a future unlocked month)
-                  if (!isDateLocked(selectedDate)) {
-                    console.log('Date accepted (after blockedMaxDate but not locked):', selectedDate)
-                    setStartDate(selectedDate)
-                    return
-                  }
-                }
-                
-                // Check if date is in blocked range (locked months before first unlocked)
-                if (blockedMaxDate && selectedDate <= blockedMaxDate) {
-                  console.log('Blocked: Date is in blocked range')
-                  alert(`This date is in a locked month. Please select a date from an unlocked month.`)
-                  e.target.value = ''
-                  setStartDate('')
+                  e.target.blur()
                   return
                 }
                 
@@ -881,12 +866,9 @@ export function EventOccurrencesManager({
                 const selectedDate = e.target.value
                 if (selectedDate) {
                   if (isDateLocked(selectedDate)) {
+                    console.log('Blocked onBlur: Date is in locked month')
                     alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                    setStartDate('')
-                    return
-                  }
-                  if (blockedMaxDate && selectedDate <= blockedMaxDate) {
-                    alert(`This date is in a locked month. Please select a date from an unlocked month.`)
+                    e.target.value = ''
                     setStartDate('')
                     return
                   }
@@ -894,17 +876,7 @@ export function EventOccurrencesManager({
               }}
               min={minDate}
               disabled={lockedMonths.length > 0 && !minDate}
-              onInput={(e) => {
-                // Also handle onInput for better browser compatibility
-                const target = e.target as HTMLInputElement
-                const selectedDate = target.value
-                if (selectedDate && isDateLocked(selectedDate)) {
-                  console.log('Blocked onInput: Date is in locked month')
-                  alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                  target.value = ''
-                  setStartDate('')
-                }
-              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
             {lockedMonths.length > 0 && minDate && (
               <p className="text-xs text-gray-500 mt-1">
@@ -920,11 +892,14 @@ export function EventOccurrencesManager({
 
           {isDateRange && (
             <FormField label="End Date" required>
-              <Input
+              <input
+                ref={endDateInputRef}
                 type="date"
                 value={endDate}
                 onChange={(e) => {
                   const selectedDate = e.target.value
+                  console.log('End date selected:', selectedDate, 'isDateLocked:', isDateLocked(selectedDate))
+                  
                   if (!selectedDate) {
                     setEndDate('')
                     return
@@ -932,8 +907,11 @@ export function EventOccurrencesManager({
                   
                   // First check if date is in a locked month
                   if (isDateLocked(selectedDate)) {
+                    console.log('Blocked: End date is in locked month')
                     alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                    e.target.value = ''
                     setEndDate('')
+                    e.target.blur()
                     return
                   }
                   
@@ -941,17 +919,13 @@ export function EventOccurrencesManager({
                   const minAllowed = startDate || minDate
                   if (minAllowed && selectedDate < minAllowed) {
                     alert(`End date must be on or after ${startDate ? 'start date' : new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                    e.target.value = ''
                     setEndDate('')
+                    e.target.blur()
                     return
                   }
                   
-                  // Check if date is in blocked range (locked months before first unlocked)
-                  if (blockedMaxDate && selectedDate <= blockedMaxDate) {
-                    alert(`This date is in a locked month. Please select a date from an unlocked month.`)
-                    setEndDate('')
-                    return
-                  }
-                  
+                  console.log('End date accepted:', selectedDate)
                   setEndDate(selectedDate)
                 }}
                 onBlur={(e) => {
@@ -959,20 +933,17 @@ export function EventOccurrencesManager({
                   const selectedDate = e.target.value
                   if (selectedDate) {
                     if (isDateLocked(selectedDate)) {
+                      console.log('Blocked onBlur: End date is in locked month')
                       alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                      setEndDate('')
-                      return
-                    }
-                    if (blockedMaxDate && selectedDate <= blockedMaxDate) {
-                      alert(`This date is in a locked month. Please select a date from an unlocked month.`)
+                      e.target.value = ''
                       setEndDate('')
                       return
                     }
                   }
                 }}
                 min={startDate || minDate}
-                max={blockedMaxDate || undefined}
                 disabled={lockedMonths.length > 0 && !minDate}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               />
             </FormField>
           )}
