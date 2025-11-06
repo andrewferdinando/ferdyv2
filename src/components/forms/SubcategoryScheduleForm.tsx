@@ -637,14 +637,18 @@ export function SubcategoryScheduleForm({
       }
 
       // Upsert schedule rule - one active rule per subcategory
-      // First, check if a rule already exists for this subcategory
-      const { data: existingRules } = await supabase
-        .from('schedule_rules')
-        .select('id')
-        .eq('brand_id', brandId)
-        .eq('subcategory_id', subcategoryId)
-        .eq('is_active', true)
-        .limit(1)
+      // SKIP this for specific frequency when editing - all scheduling is per-occurrence
+      const isEditingSpecificFrequency = editingSubcategory && scheduleData.frequency === 'specific'
+      
+      if (!isEditingSpecificFrequency) {
+        // First, check if a rule already exists for this subcategory
+        const { data: existingRules } = await supabase
+          .from('schedule_rules')
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('subcategory_id', subcategoryId)
+          .eq('is_active', true)
+          .limit(1)
 
       // Prepare base schedule rule data
       const baseRuleData = {
