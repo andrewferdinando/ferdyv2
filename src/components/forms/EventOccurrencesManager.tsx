@@ -39,6 +39,7 @@ export function EventOccurrencesManager({
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [isEditing, setIsEditing] = useState<EventOccurrence | null>(null)
   const [lockedMonths, setLockedMonths] = useState<string[]>([])
+  const [lockedMonthsLoaded, setLockedMonthsLoaded] = useState(false)
   const [minDate, setMinDate] = useState<string>('')
   const [blockedMaxDate, setBlockedMaxDate] = useState<string>('')
 
@@ -90,10 +91,10 @@ export function EventOccurrencesManager({
     }
   }, [isAddModalOpen, brandId])
 
-  // Calculate minDate and update when lockedMonths or brandTimezone changes
+  // Calculate minDate and update when lockedMonths, lockedMonthsLoaded, or brandTimezone changes
   useEffect(() => {
     calculateMinDate()
-  }, [lockedMonths, brandTimezone])
+  }, [lockedMonths, lockedMonthsLoaded, brandTimezone])
 
   // Debug: Log when minDate changes
   useEffect(() => {
@@ -102,9 +103,29 @@ export function EventOccurrencesManager({
     }
   }, [minDate, lockedMonths])
 
+  // Clear invalid dates when minDate changes (e.g., when locked months load)
+  useEffect(() => {
+    if (lockedMonthsLoaded && minDate) {
+      if (startDate && startDate < minDate) {
+        console.log('Clearing invalid startDate (before minDate):', startDate, 'minDate:', minDate)
+        setStartDate('')
+        if (startDateInputRef.current) {
+          startDateInputRef.current.value = ''
+        }
+      }
+      if (endDate && endDate < minDate) {
+        console.log('Clearing invalid endDate (before minDate):', endDate, 'minDate:', minDate)
+        setEndDate('')
+        if (endDateInputRef.current) {
+          endDateInputRef.current.value = ''
+        }
+      }
+    }
+  }, [minDate, lockedMonthsLoaded])
+
   // Validate startDate whenever it changes (backup validation)
   useEffect(() => {
-    if (startDate && lockedMonths.length > 0) {
+    if (startDate && lockedMonthsLoaded && lockedMonths.length > 0) {
       console.log('Validating startDate:', startDate, 'isDateLocked:', isDateLocked(startDate), 'minDate:', minDate)
       
       // Check if date is before minDate (which is the first day after latest locked month)
@@ -128,11 +149,11 @@ export function EventOccurrencesManager({
         }
       }
     }
-  }, [startDate, lockedMonths, minDate])
+  }, [startDate, lockedMonths, minDate, lockedMonthsLoaded])
 
   // Validate endDate whenever it changes (backup validation)
   useEffect(() => {
-    if (endDate && lockedMonths.length > 0) {
+    if (endDate && lockedMonthsLoaded && lockedMonths.length > 0) {
       console.log('Validating endDate:', endDate, 'isDateLocked:', isDateLocked(endDate), 'minDate:', minDate)
       
       // Check if date is before minDate (which is the first day after latest locked month)
@@ -156,7 +177,7 @@ export function EventOccurrencesManager({
         }
       }
     }
-  }, [endDate, lockedMonths, minDate])
+  }, [endDate, lockedMonths, minDate, lockedMonthsLoaded])
 
   // Notify parent when occurrences change
   useEffect(() => {
@@ -199,20 +220,30 @@ export function EventOccurrencesManager({
 
   const fetchLockedMonths = async () => {
     try {
+      setLockedMonthsLoaded(false) // Mark as loading
       const response = await fetch(`/api/framework/pushed-months?brandId=${brandId}`)
       if (!response.ok) {
         console.error('Failed to fetch locked months:', response.status, response.statusText)
+        setLockedMonthsLoaded(true) // Mark as loaded even on error
         return
       }
       const data = await response.json()
       console.log('Locked months fetched:', data.lockedMonths)
       setLockedMonths(data.lockedMonths || [])
+      setLockedMonthsLoaded(true) // Mark as loaded
     } catch (err) {
       console.error('Error fetching locked months:', err)
+      setLockedMonthsLoaded(true) // Mark as loaded even on error
     }
   }
 
   const calculateMinDate = () => {
+    // Don't calculate until locked months are loaded
+    if (!lockedMonthsLoaded) {
+      console.log('Waiting for locked months to load...')
+      return
+    }
+
     if (lockedMonths.length === 0) {
       // No locked months - allow any date from today
       const now = new Date()
@@ -222,6 +253,7 @@ export function EventOccurrencesManager({
         month: '2-digit',
         day: '2-digit',
       }).format(now)
+      console.log('No locked months, setting minDate to today:', todayInBrandTz)
       setMinDate(todayInBrandTz)
       setBlockedMaxDate('')
       return
@@ -923,15 +955,21 @@ export function EventOccurrencesManager({
                 }
               }}
               min={minDate || undefined}
-              disabled={lockedMonths.length > 0 && !minDate}
+              disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
+              readOnly={!lockedMonthsLoaded}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
-            {lockedMonths.length > 0 && minDate && (
+            {!lockedMonthsLoaded && (
+              <p className="text-xs text-gray-500 mt-1">
+                Loading date restrictions...
+              </p>
+            )}
+            {lockedMonthsLoaded && lockedMonths.length > 0 && minDate && (
               <p className="text-xs text-gray-500 mt-1">
                 Months with framework drafts are disabled: {lockedMonths.join(', ')}. First available date: {new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             )}
-            {lockedMonths.length > 0 && !minDate && (
+            {lockedMonthsLoaded && lockedMonths.length > 0 && !minDate && (
               <p className="text-xs text-amber-600 mt-1">
                 All upcoming months are already scheduled. Push a future month or contact an admin.
               </p>
@@ -1035,7 +1073,8 @@ export function EventOccurrencesManager({
                   }
                 }}
                 min={startDate || minDate || undefined}
-                disabled={lockedMonths.length > 0 && !minDate}
+                disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
+                readOnly={!lockedMonthsLoaded}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               />
             </FormField>
