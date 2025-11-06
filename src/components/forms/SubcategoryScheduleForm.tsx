@@ -510,6 +510,42 @@ export function SubcategoryScheduleForm({
         // Normalize hashtags before saving
         const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
         
+        // Check if a subcategory with this name already exists in this category
+        // (might be from a failed deletion or timing issue)
+        const { data: existingSubcat, error: checkError } = await supabase
+          .from('subcategories')
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('category_id', finalCategoryId)
+          .ilike('name', subcategoryData.name)
+          .maybeSingle()
+
+        if (checkError) {
+          console.warn('Error checking for existing subcategory:', checkError)
+        }
+
+        // If a subcategory with the same name exists, delete it first
+        // This handles cases where deletion didn't complete properly
+        if (existingSubcat) {
+          console.log('Found existing subcategory with same name, deleting it first:', existingSubcat.id)
+          // Delete associated schedule_rules first
+          await supabase
+            .from('schedule_rules')
+            .delete()
+            .eq('subcategory_id', existingSubcat.id)
+          
+          // Delete the existing subcategory
+          const { error: deleteError } = await supabase
+            .from('subcategories')
+            .delete()
+            .eq('id', existingSubcat.id)
+
+          if (deleteError) {
+            console.error('Failed to delete existing subcategory:', deleteError)
+            // Continue anyway - might be a different record
+          }
+        }
+        
         // Create new subcategory
         const { data, error } = await supabase
           .from('subcategories')
@@ -527,6 +563,10 @@ export function SubcategoryScheduleForm({
 
         if (error) {
           console.error('Subcategory insert error:', error)
+          // Provide more helpful error message
+          if (error.code === '23505') {
+            throw new Error(`A subcategory with the name "${subcategoryData.name}" already exists in this category. Please delete it first or use a different name.`)
+          }
           throw error
         }
         subcategoryId = data.id
