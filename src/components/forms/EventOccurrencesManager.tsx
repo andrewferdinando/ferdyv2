@@ -1008,131 +1008,71 @@ export function EventOccurrencesManager({
 
           {isDateRange && (
             <FormField label="End Date" required>
-              <input
-                id="specificEndDate"
-                name="specificEndDate"
-                ref={endDateInputRef}
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  const selectedDate = e.target.value
-                  console.log('End date onChange fired! Date:', selectedDate, 'minDate:', minDate)
-                  
-                  if (!selectedDate) {
-                    setEndDate('')
-                    return
-                  }
-                  
-                  // IMMEDIATE validation using Date objects at noon UTC
-                  const minAllowed = startDate || minDate
-                  if (minAllowed) {
-                    const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                    const minAllowedObj = toDateAtNoonUTC(minAllowed)
-                    if (selectedDateObj < minAllowedObj) {
-                      console.log('BLOCKED: End date is before minAllowed')
-                      alert(`End date must be on or after ${startDate ? 'start date' : new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                      e.target.value = ''
+              {!lockedMonthsLoaded ? (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                  Loading date restrictions...
+                </div>
+              ) : minDate ? (
+                <input
+                  id="specificEndDate"
+                  name="specificEndDate"
+                  ref={endDateInputRef}
+                  type="date"
+                  min={startDate || minDate}
+                  value={endDate}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value
+                    console.log('End date onChange fired! Date:', selectedDate, 'minDate:', minDate)
+                    
+                    if (!selectedDate) {
                       setEndDate('')
-                      e.target.blur()
                       return
                     }
-                  }
-                  
-                  if (minDate) {
-                    const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                    const minDateObj = toDateAtNoonUTC(minDate)
-                    if (selectedDateObj < minDateObj) {
-                      console.log('BLOCKED: End date is before minDate')
-                      alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                      e.target.value = ''
-                      setEndDate('')
-                      e.target.blur()
-                      return
-                    }
-                  }
-                  
-                  if (isDateLocked(selectedDate)) {
-                    console.log('BLOCKED: End date is in locked month')
-                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                    e.target.value = ''
-                    setEndDate('')
-                    e.target.blur()
-                    return
-                  }
-                  
-                  console.log('End date ACCEPTED:', selectedDate)
-                  setEndDate(selectedDate)
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLInputElement
-                  const selectedDate = target.value
-                  console.log('End date onInput fired! Date:', selectedDate)
-                  
-                  if (selectedDate) {
+                    
+                    // IMMEDIATE validation using Date objects at noon UTC
                     const minAllowed = startDate || minDate
                     if (minAllowed) {
                       const selectedDateObj = toDateAtNoonUTC(selectedDate)
                       const minAllowedObj = toDateAtNoonUTC(minAllowed)
                       if (selectedDateObj < minAllowedObj) {
-                        target.value = ''
-                        setEndDate('')
-                        return
-                      }
-                    }
-                    if (minDate) {
-                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                      const minDateObj = toDateAtNoonUTC(minDate)
-                      if (selectedDateObj < minDateObj) {
-                        target.value = ''
-                        setEndDate('')
-                        return
-                      }
-                    }
-                    if (isDateLocked(selectedDate)) {
-                      target.value = ''
-                      setEndDate('')
-                      return
-                    }
-                    setEndDate(selectedDate)
-                  }
-                }}
-                onBlur={(e) => {
-                  const selectedDate = e.target.value
-                  console.log('End date onBlur fired! Date:', selectedDate)
-                  
-                  if (selectedDate) {
-                    const minAllowed = startDate || minDate
-                    if (minAllowed) {
-                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                      const minAllowedObj = toDateAtNoonUTC(minAllowed)
-                      if (selectedDateObj < minAllowedObj) {
+                        console.log('BLOCKED: End date is before minAllowed')
+                        alert(`End date must be on or after ${startDate ? 'start date' : new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
                         e.target.value = ''
                         setEndDate('')
+                        e.target.blur()
                         return
                       }
                     }
-                    if (minDate) {
-                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                      const minDateObj = toDateAtNoonUTC(minDate)
-                      if (selectedDateObj < minDateObj) {
-                        e.target.value = ''
-                        setEndDate('')
-                        return
-                      }
-                    }
+                    
                     if (isDateLocked(selectedDate)) {
+                      console.log('BLOCKED: End date is in locked month')
+                      alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
                       e.target.value = ''
                       setEndDate('')
+                      e.target.blur()
                       return
                     }
+                    
+                    console.log('End date ACCEPTED:', selectedDate)
                     setEndDate(selectedDate)
-                  }
-                }}
-                min={startDate || minDate || undefined}
-                disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
-                readOnly={!lockedMonthsLoaded}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              />
+                  }}
+                  onKeyDown={(e) => {
+                    if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
+                      e.preventDefault()
+                    }
+                  }}
+                  onPaste={(e) => {
+                    if (lockedMonths.length > 0 && minDate) {
+                      e.preventDefault()
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                />
+              ) : (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-amber-50 text-amber-700">
+                  All upcoming months are already scheduled.
+                </div>
+              )}
             </FormField>
           )}
 
