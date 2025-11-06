@@ -40,6 +40,7 @@ export function EventOccurrencesManager({
   const [isEditing, setIsEditing] = useState<EventOccurrence | null>(null)
   const [lockedMonths, setLockedMonths] = useState<string[]>([])
   const [minDate, setMinDate] = useState<string>('')
+  const [blockedMaxDate, setBlockedMaxDate] = useState<string>('')
 
   // Form state for single occurrence
   const [isDateRange, setIsDateRange] = useState(false)
@@ -164,9 +165,12 @@ export function EventOccurrencesManager({
     }).format(now)
     
     const [todayYear, todayMonth] = todayInBrandTz.split('-').map(Number)
+    const todayMonthStr = `${todayYear}-${String(todayMonth).padStart(2, '0')}`
 
     // Find the first unlocked month >= today
     let foundUnlocked = false
+    let firstUnlockedYear = todayYear
+    let firstUnlockedMonth = todayMonth
 
     // Check up to 2 years ahead
     for (let yearOffset = 0; yearOffset < 2; yearOffset++) {
@@ -178,6 +182,8 @@ export function EventOccurrencesManager({
         
         if (!lockedMonths.includes(monthStr)) {
           // Found first unlocked month
+          firstUnlockedYear = checkYear
+          firstUnlockedMonth = month
           setMinDate(`${checkYear}-${String(month).padStart(2, '0')}-01`)
           foundUnlocked = true
           break
@@ -187,9 +193,48 @@ export function EventOccurrencesManager({
       if (foundUnlocked) break
     }
 
+    // Calculate blocked max date: last day of the last locked month before first unlocked month
+    // This prevents the browser date picker from showing locked months
+    if (foundUnlocked && lockedMonths.length > 0) {
+      const firstUnlockedMonthStr = `${firstUnlockedYear}-${String(firstUnlockedMonth).padStart(2, '0')}`
+      
+      // Find locked months that come BEFORE the first unlocked month
+      const lockedBeforeFirst = lockedMonths
+        .filter(month => month < firstUnlockedMonthStr)
+        .sort()
+      
+      if (lockedBeforeFirst.length > 0) {
+        // Get the last locked month before the first unlocked month
+        const lastLockedMonth = lockedBeforeFirst[lockedBeforeFirst.length - 1]
+        const [lockedYear, lockedMonth] = lastLockedMonth.split('-').map(Number)
+        
+        // Set max to the last day of that locked month
+        const lastDay = new Date(lockedYear, lockedMonth, 0).getDate()
+        setBlockedMaxDate(`${lockedYear}-${String(lockedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`)
+      } else {
+        // Check if there are locked months AFTER the first unlocked month
+        // If so, we need to block a range
+        const lockedAfterFirst = lockedMonths
+          .filter(month => month > firstUnlockedMonthStr)
+          .sort()
+        
+        if (lockedAfterFirst.length > 0) {
+          // There are locked months after the first unlocked month
+          // We can't use max to block them (would block everything after)
+          // So we'll rely on validation only
+          setBlockedMaxDate('')
+        } else {
+          setBlockedMaxDate('')
+        }
+      }
+    } else {
+      setBlockedMaxDate('')
+    }
+
     // If all months are locked, set minDate to empty string (will show warning)
     if (!foundUnlocked) {
       setMinDate('')
+      setBlockedMaxDate('')
     }
   }
 
@@ -779,25 +824,41 @@ export function EventOccurrencesManager({
               value={startDate}
               onChange={(e) => {
                 const selectedDate = e.target.value
+                console.log('Date selected:', selectedDate, 'Locked months:', lockedMonths, 'isDateLocked:', isDateLocked(selectedDate))
+                
                 if (!selectedDate) {
                   setStartDate('')
                   return
                 }
                 
-                // First check if date is in a locked month
+                // First check if date is in a locked month - this is the most important check
                 if (isDateLocked(selectedDate)) {
+                  console.log('Blocked: Date is in locked month')
                   alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                  e.target.value = '' // Clear the input value directly
                   setStartDate('')
                   return
                 }
                 
                 // Check if date is before minDate
                 if (minDate && selectedDate < minDate) {
+                  console.log('Blocked: Date is before minDate')
                   alert(`Please select a date on or after ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                  e.target.value = ''
                   setStartDate('')
                   return
                 }
                 
+                // Check if date is in blocked range (locked months before first unlocked)
+                if (blockedMaxDate && selectedDate <= blockedMaxDate) {
+                  console.log('Blocked: Date is in blocked range')
+                  alert(`This date is in a locked month. Please select a date from an unlocked month.`)
+                  e.target.value = ''
+                  setStartDate('')
+                  return
+                }
+                
+                console.log('Date accepted:', selectedDate)
                 setStartDate(selectedDate)
               }}
               onBlur={(e) => {
@@ -806,6 +867,11 @@ export function EventOccurrencesManager({
                 if (selectedDate) {
                   if (isDateLocked(selectedDate)) {
                     alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                    setStartDate('')
+                    return
+                  }
+                  if (blockedMaxDate && selectedDate <= blockedMaxDate) {
+                    alert(`This date is in a locked month. Please select a date from an unlocked month.`)
                     setStartDate('')
                     return
                   }
@@ -853,6 +919,13 @@ export function EventOccurrencesManager({
                     return
                   }
                   
+                  // Check if date is in blocked range (locked months before first unlocked)
+                  if (blockedMaxDate && selectedDate <= blockedMaxDate) {
+                    alert(`This date is in a locked month. Please select a date from an unlocked month.`)
+                    setEndDate('')
+                    return
+                  }
+                  
                   setEndDate(selectedDate)
                 }}
                 onBlur={(e) => {
@@ -861,6 +934,11 @@ export function EventOccurrencesManager({
                   if (selectedDate) {
                     if (isDateLocked(selectedDate)) {
                       alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                      setEndDate('')
+                      return
+                    }
+                    if (blockedMaxDate && selectedDate <= blockedMaxDate) {
+                      alert(`This date is in a locked month. Please select a date from an unlocked month.`)
                       setEndDate('')
                       return
                     }
