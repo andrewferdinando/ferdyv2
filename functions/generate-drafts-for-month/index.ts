@@ -285,6 +285,84 @@ async function generateTimeSlots(rule: any, year: number, month: number, timezon
         });
       }
     }
+  } else if (rule.frequency === 'specific') {
+    // For specific frequency, filter occurrences that overlap with the target month
+    if (rule.start_date) {
+      const startDate = new Date(rule.start_date);
+      const endDate = rule.end_date ? new Date(rule.end_date) : startDate;
+      
+      // Target month boundaries in UTC
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+      
+      // Check if the occurrence overlaps with the target month
+      // Overlap occurs if: start_date <= monthEnd AND end_date >= monthStart
+      if (startDate <= monthEnd && endDate >= monthStart) {
+        // Determine which days of the range fall within the month
+        const rangeStart = startDate > monthStart ? startDate : monthStart;
+        const rangeEnd = endDate < monthEnd ? endDate : monthEnd;
+        
+        // Process days_before if present
+        if (rule.days_before && Array.isArray(rule.days_before) && rule.days_before.length > 0) {
+          for (const daysBefore of rule.days_before) {
+            if (daysBefore < 0) continue;
+            const scheduledDate = new Date(startDate);
+            scheduledDate.setDate(scheduledDate.getDate() - daysBefore);
+            
+            // Only include if scheduled date falls within target month
+            if (scheduledDate >= monthStart && scheduledDate <= monthEnd) {
+              const timeArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : [rule.time_of_day];
+              for (const time of timeArray) {
+                if (time) {
+                  slots.push({
+                    date: scheduledDate.toISOString().substring(0, 10),
+                    time: time
+                  });
+                }
+              }
+            }
+          }
+        }
+        
+        // Process days_during if present (for date ranges)
+        if (rule.days_during && Array.isArray(rule.days_during) && rule.days_during.length > 0 && startDate < endDate) {
+          for (const dayOffset of rule.days_during) {
+            if (dayOffset < 0) continue;
+            const scheduledDate = new Date(startDate);
+            scheduledDate.setDate(scheduledDate.getDate() + dayOffset);
+            
+            // Only include if scheduled date is within the range and target month
+            if (scheduledDate >= rangeStart && scheduledDate <= rangeEnd && scheduledDate >= monthStart && scheduledDate <= monthEnd) {
+              const timeArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : [rule.time_of_day];
+              for (const time of timeArray) {
+                if (time) {
+                  slots.push({
+                    date: scheduledDate.toISOString().substring(0, 10),
+                    time: time
+                  });
+                }
+              }
+            }
+          }
+        }
+        
+        // If no days_before or days_during, schedule on the start_date if it's in the month
+        if ((!rule.days_before || rule.days_before.length === 0) && 
+            (!rule.days_during || rule.days_during.length === 0 || startDate >= endDate)) {
+          if (startDate >= monthStart && startDate <= monthEnd) {
+            const timeArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : [rule.time_of_day];
+            for (const time of timeArray) {
+              if (time) {
+                slots.push({
+                  date: startDate.toISOString().substring(0, 10),
+                  time: time
+                });
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   return slots;
@@ -356,7 +434,8 @@ async function generateDraftForJob(
         hashtags: generatedContent.hashtags,
         asset_ids: assetIds,
         generated_by: 'ai',
-        approved: false
+        approved: false,
+        subcategory_id: rule.subcategory_id || null  // Ensure subcategory_id is set for proper categorization
       })
       .select()
       .single();

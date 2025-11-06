@@ -219,15 +219,19 @@ function formatFrequency(
           const daysAfter = diffDays(eventWindow.end, scheduledFor, brandTimezone);
           return `${daysAfter} ${daysAfter === 1 ? 'day' : 'days'} after`;
         } else {
-          // Inside window - use "During" or offsetDays if provided
-          if (offsetDays !== undefined && offsetDays > 0) {
-            return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} during`;
-          }
-          return "During";
+          // Inside window - calculate actual days in the range
+          const duringDays = diffDays(eventWindow.start, eventWindow.end, brandTimezone) + 1;
+          return `${duringDays} ${duringDays === 1 ? 'day' : 'days'} during`;
         }
       }
       
-      // Fallback: if we don't have scheduledFor/eventWindow, use offsetDays if available
+      // Fallback: calculate from frequency start/end if available
+      if (frequency.start && frequency.end) {
+        const duringDays = diffDays(frequency.start, frequency.end, brandTimezone) + 1;
+        return `${duringDays} ${duringDays === 1 ? 'day' : 'days'} during`;
+      }
+      
+      // Final fallback: use offsetDays if provided (legacy support)
       if (offsetDays !== undefined && offsetDays > 0) {
         return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} during`;
       }

@@ -702,23 +702,76 @@ export default function CategoriesPage() {
                                         <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
-                                        <button
-                                          onClick={() => {
-                                            setEditingSubcategory({
-                                              id: firstRule.subcategory_id,
-                                              name: subcat.subcategoryName,
-                                              detail: firstRule.subcategories?.detail,
-                                              url: firstRule.subcategories?.url,
-                                              hashtags: firstRule.subcategories?.default_hashtags || [],
-                                              channels: channels
-                                            })
-                                            setIsSubcategoryModalOpen(true)
-                                          }}
-                                          className="text-gray-400 hover:text-gray-600"
-                                          title="Edit subcategory"
-                                        >
-                                          <EditIcon className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex space-x-2">
+                                          <button
+                                            onClick={() => {
+                                              setEditingSubcategory({
+                                                id: firstRule.subcategory_id,
+                                                name: subcat.subcategoryName,
+                                                detail: firstRule.subcategories?.detail,
+                                                url: firstRule.subcategories?.url,
+                                                hashtags: firstRule.subcategories?.default_hashtags || [],
+                                                channels: channels
+                                              })
+                                              // Set editingScheduleRule with frequency='specific' to trigger EventOccurrencesManager
+                                              // The EventOccurrencesManager will load all occurrences for this subcategory
+                                              const timesArray = firstRule.time_of_day 
+                                                ? (Array.isArray(firstRule.time_of_day) ? firstRule.time_of_day : [firstRule.time_of_day])
+                                                : []
+                                              setEditingScheduleRule({
+                                                id: firstRule.id, // Use first rule ID as placeholder
+                                                frequency: 'specific',
+                                                timeOfDay: timesArray[0] || '',
+                                                timesOfDay: timesArray,
+                                                daysOfWeek: [],
+                                                daysOfMonth: [],
+                                                channels: channels,
+                                                isDateRange: false,
+                                                startDate: '',
+                                                endDate: '',
+                                                daysBefore: firstRule.days_before || [],
+                                                daysDuring: firstRule.days_during || [],
+                                                timezone: firstRule.timezone || 'Pacific/Auckland'
+                                              })
+                                              setIsSubcategoryModalOpen(true)
+                                            }}
+                                            className="text-gray-400 hover:text-gray-600"
+                                            title="Edit subcategory"
+                                          >
+                                            <EditIcon className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={async () => {
+                                              if (confirm(`Remove all schedule rules for "${subcat.subcategoryName}"? This will delete all ${groupRules.length} occurrence(s).`)) {
+                                                try {
+                                                  // Delete all schedule rules for this subcategory with frequency='specific'
+                                                  const ruleIds = groupRules.map(r => r.id)
+                                                  for (const ruleId of ruleIds) {
+                                                    await deleteRule(ruleId)
+                                                  }
+                                                  refetchRules()
+                                                  showToast({
+                                                    title: 'Deleted',
+                                                    message: `Removed ${ruleIds.length} occurrence(s) for ${subcat.subcategoryName}`,
+                                                    type: 'success',
+                                                    duration: 3000
+                                                  })
+                                                } catch (err) {
+                                                  showToast({
+                                                    title: 'Failed to delete rules',
+                                                    message: 'Please try again.',
+                                                    type: 'error',
+                                                    duration: 3000
+                                                  })
+                                                }
+                                              }
+                                            }}
+                                            className="text-gray-400 hover:text-red-600"
+                                            title="Delete all occurrences"
+                                          >
+                                            <TrashIcon className="w-4 h-4" />
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
                                   )
