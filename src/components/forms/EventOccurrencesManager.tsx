@@ -193,36 +193,40 @@ export function EventOccurrencesManager({
       if (foundUnlocked) break
     }
 
-    // Calculate blocked max date: last day of the last locked month before first unlocked month
-    // This prevents the browser date picker from showing locked months
+    // Calculate blocked max date to prevent selecting locked months
+    // If there are locked months immediately after the first unlocked month,
+    // set max to the last day of the month BEFORE the first locked month
     if (foundUnlocked && lockedMonths.length > 0) {
       const firstUnlockedMonthStr = `${firstUnlockedYear}-${String(firstUnlockedMonth).padStart(2, '0')}`
       
-      // Find locked months that come BEFORE the first unlocked month
-      const lockedBeforeFirst = lockedMonths
-        .filter(month => month < firstUnlockedMonthStr)
+      // Find locked months that come AFTER the first unlocked month
+      const lockedAfterFirst = lockedMonths
+        .filter(month => month > firstUnlockedMonthStr)
         .sort()
       
-      if (lockedBeforeFirst.length > 0) {
-        // Get the last locked month before the first unlocked month
-        const lastLockedMonth = lockedBeforeFirst[lockedBeforeFirst.length - 1]
-        const [lockedYear, lockedMonth] = lastLockedMonth.split('-').map(Number)
+      if (lockedAfterFirst.length > 0) {
+        // Get the first locked month after the first unlocked month
+        const firstLockedAfter = lockedAfterFirst[0]
+        const [lockedYear, lockedMonth] = firstLockedAfter.split('-').map(Number)
         
-        // Set max to the last day of that locked month
-        const lastDay = new Date(lockedYear, lockedMonth, 0).getDate()
-        setBlockedMaxDate(`${lockedYear}-${String(lockedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`)
+        // Set max to the last day of the month BEFORE the first locked month
+        // This blocks the locked month in the date picker UI
+        const prevMonth = lockedMonth === 1 ? 12 : lockedMonth - 1
+        const prevYear = lockedMonth === 1 ? lockedYear - 1 : lockedYear
+        const lastDay = new Date(prevYear, prevMonth, 0).getDate()
+        setBlockedMaxDate(`${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`)
       } else {
-        // Check if there are locked months AFTER the first unlocked month
-        // If so, we need to block a range
-        const lockedAfterFirst = lockedMonths
-          .filter(month => month > firstUnlockedMonthStr)
+        // No locked months after first unlocked, check for locked months before
+        const lockedBeforeFirst = lockedMonths
+          .filter(month => month < firstUnlockedMonthStr)
           .sort()
         
-        if (lockedAfterFirst.length > 0) {
-          // There are locked months after the first unlocked month
-          // We can't use max to block them (would block everything after)
-          // So we'll rely on validation only
-          setBlockedMaxDate('')
+        if (lockedBeforeFirst.length > 0) {
+          // Get the last locked month before the first unlocked month
+          const lastLockedMonth = lockedBeforeFirst[lockedBeforeFirst.length - 1]
+          const [lockedYear, lockedMonth] = lastLockedMonth.split('-').map(Number)
+          const lastDay = new Date(lockedYear, lockedMonth, 0).getDate()
+          setBlockedMaxDate(`${lockedYear}-${String(lockedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`)
         } else {
           setBlockedMaxDate('')
         }
@@ -824,7 +828,7 @@ export function EventOccurrencesManager({
               value={startDate}
               onChange={(e) => {
                 const selectedDate = e.target.value
-                console.log('Date selected:', selectedDate, 'Locked months:', lockedMonths, 'isDateLocked:', isDateLocked(selectedDate))
+                console.log('Date selected:', selectedDate, 'Locked months:', lockedMonths, 'isDateLocked:', isDateLocked(selectedDate), 'blockedMaxDate:', blockedMaxDate)
                 
                 if (!selectedDate) {
                   setStartDate('')
@@ -847,6 +851,17 @@ export function EventOccurrencesManager({
                   e.target.value = ''
                   setStartDate('')
                   return
+                }
+                
+                // Check if date exceeds blockedMaxDate (which blocks locked months)
+                if (blockedMaxDate && selectedDate > blockedMaxDate) {
+                  // If date is after blockedMaxDate, check if it's in a locked month
+                  // If not locked, allow it (it's in a future unlocked month)
+                  if (!isDateLocked(selectedDate)) {
+                    console.log('Date accepted (after blockedMaxDate but not locked):', selectedDate)
+                    setStartDate(selectedDate)
+                    return
+                  }
                 }
                 
                 // Check if date is in blocked range (locked months before first unlocked)
@@ -879,6 +894,17 @@ export function EventOccurrencesManager({
               }}
               min={minDate}
               disabled={lockedMonths.length > 0 && !minDate}
+              onInput={(e) => {
+                // Also handle onInput for better browser compatibility
+                const target = e.target as HTMLInputElement
+                const selectedDate = target.value
+                if (selectedDate && isDateLocked(selectedDate)) {
+                  console.log('Blocked onInput: Date is in locked month')
+                  alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
+                  target.value = ''
+                  setStartDate('')
+                }
+              }}
             />
             {lockedMonths.length > 0 && minDate && (
               <p className="text-xs text-gray-500 mt-1">
@@ -945,6 +971,7 @@ export function EventOccurrencesManager({
                   }
                 }}
                 min={startDate || minDate}
+                max={blockedMaxDate || undefined}
                 disabled={lockedMonths.length > 0 && !minDate}
               />
             </FormField>
