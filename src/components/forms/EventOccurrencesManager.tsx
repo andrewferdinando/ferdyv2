@@ -206,11 +206,26 @@ export function EventOccurrencesManager({
     }
 
     try {
+      // Create timestamptz strings - use UTC explicitly to preserve the date correctly
+      // Date inputs are in YYYY-MM-DD format, we store as UTC midnight to avoid timezone conversion issues
+      let startDateTz = ''
+      let endDateTz: string | null = null
+      
+      if (startDate) {
+        // Store as UTC midnight to preserve the exact date
+        // The timezone field in the rule will be used when scheduling/generating posts
+        startDateTz = `${startDate}T00:00:00Z`
+      }
+      
+      if (isDateRange && endDate) {
+        endDateTz = `${endDate}T23:59:59Z`
+      }
+      
       const occurrence: EventOccurrence = {
         id: isEditing?.id || `draft-${Date.now()}-${Math.random()}`,
         frequency: isDateRange ? 'date_range' : 'date',
-        start_date: startDate ? `${startDate}T00:00:00` : '',
-        end_date: isDateRange && endDate ? `${endDate}T23:59:59` : null,
+        start_date: startDateTz,
+        end_date: endDateTz,
         times_of_day: timesOfDay,
         channels,
         timezone,
@@ -276,12 +291,13 @@ export function EventOccurrencesManager({
       
       if (subcategoryId) {
         // Save to database if subcategoryId exists
+        // Create timestamps that represent midnight in UTC to preserve the date correctly
         const inserts = parsed.map(p => ({
           brand_id: brandId,
           subcategory_id: subcategoryId,
           frequency: 'specific',
-          start_date: `${p.start}T00:00:00`,
-          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59` : null,
+          start_date: `${p.start}T00:00:00Z`, // Use UTC explicitly
+          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59Z` : null, // Use UTC explicitly
           time_of_day: bulkTimesOfDay.length > 0 ? bulkTimesOfDay : null,
           channels: bulkChannels,
           timezone: brandTimezone,

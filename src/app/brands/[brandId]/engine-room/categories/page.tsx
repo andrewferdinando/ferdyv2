@@ -528,19 +528,52 @@ export default function CategoriesPage() {
                               eventGroups.get(key)!.push(rule)
                             })
 
-                            // Format date range helper
-                            const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
+                            // Format date range helper with year detection
+                            const formatDateRange = (start: string | null | undefined, end: string | null | undefined, occurrences: typeof eventRules, showYear: boolean = false) => {
                               if (!start) return ''
                               const startDate = new Date(start)
                               const endDate = end ? new Date(end) : startDate
-                              const sameDay = startDate.toDateString() === endDate.toDateString()
+                              const sameDay = startDate.getUTCDate() === endDate.getUTCDate() && 
+                                             startDate.getUTCMonth() === endDate.getUTCMonth() && 
+                                             startDate.getUTCFullYear() === endDate.getUTCFullYear()
+                              
+                              // Check if there are duplicate dates (same day/month, different year) in this subcategory
+                              const allDates = occurrences.map(occ => {
+                                if (!occ.start_date) return null
+                                const date = new Date(occ.start_date)
+                                return {
+                                  day: date.getUTCDate(),
+                                  month: date.getUTCMonth(),
+                                  year: date.getUTCFullYear()
+                                }
+                              }).filter(Boolean) as Array<{ day: number; month: number; year: number }>
+                              
+                              const hasDuplicateDates = allDates.length > 1 && 
+                                allDates.some((d1, i) => 
+                                  allDates.some((d2, j) => 
+                                    i !== j && d1.day === d2.day && d1.month === d2.month && d1.year !== d2.year
+                                  )
+                                )
+                              
+                              // Use UTC methods to avoid timezone conversion issues
+                              const startDay = startDate.getUTCDate()
+                              const startMonth = startDate.getUTCMonth()
+                              const startYear = startDate.getUTCFullYear()
+                              const endDay = endDate.getUTCDate()
+                              const endMonth = endDate.getUTCMonth()
+                              const endYear = endDate.getUTCFullYear()
+                              
+                              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
                               
                               if (sameDay) {
-                                return startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                const dateStr = `${startDay} ${monthNames[startMonth]}`
+                                return showYear || hasDuplicateDates ? `${dateStr} ${startYear}` : dateStr
                               } else {
-                                const startFmt = startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                                const endFmt = endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                                return `${startFmt}–${endFmt}`
+                                const startFmt = `${startDay} ${monthNames[startMonth]}`
+                                const endFmt = `${endDay} ${monthNames[endMonth]}`
+                                const startStr = showYear || hasDuplicateDates ? `${startFmt} ${startYear}` : startFmt
+                                const endStr = showYear || hasDuplicateDates ? `${endFmt} ${endYear}` : endFmt
+                                return `${startStr}–${endStr}`
                               }
                             }
 
@@ -674,7 +707,7 @@ export default function CategoriesPage() {
                                         <div className="flex flex-wrap gap-2 items-center">
                                           {upcoming.slice(0, 3).map((occ) => (
                                             <span key={occ.id} className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
-                                              {formatDateRange(occ.start_date, occ.end_date)}
+                                              {formatDateRange(occ.start_date, occ.end_date, groupRules)}
                                             </span>
                                           ))}
                                           {upcoming.length > 3 && (
@@ -695,7 +728,7 @@ export default function CategoriesPage() {
                                                   })()
                                                   return (
                                                     <div key={occ.id} className={`text-xs ${isPast ? 'text-gray-400' : 'text-gray-700'}`}>
-                                                      {formatDateRange(occ.start_date, occ.end_date)}
+                                                      {formatDateRange(occ.start_date, occ.end_date, groupRules)}
                                                     </div>
                                                   )
                                                 })}
