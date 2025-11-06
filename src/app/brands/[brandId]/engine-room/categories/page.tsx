@@ -644,8 +644,14 @@ export default function CategoriesPage() {
 
                             // Add regular rules
                             otherRules.forEach((rule) => {
-                              const categoryId = rule.category_id || 'uncategorized'
-                              const categoryName = rule.categories?.name || 'Uncategorized'
+                              // Get category_id from subcategory relationship (more reliable than schedule_rule.category_id)
+                              // Subcategories always have a category_id, so this ensures correct categorization
+                              const subcategory = rule.subcategories
+                              const categoryId = subcategory?.category_id || rule.category_id || 'uncategorized'
+                              // Get category name from subcategory's category relationship, or from direct categories join
+                              const categoryName = subcategory?.categories?.name 
+                                || rule.categories?.name 
+                                || 'Uncategorized'
                               
                               if (!categoryMap.has(categoryId)) {
                                 categoryMap.set(categoryId, {

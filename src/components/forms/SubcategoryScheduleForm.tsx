@@ -488,6 +488,7 @@ export function SubcategoryScheduleForm({
         const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
         
         // Update existing subcategory
+        // IMPORTANT: Only update the specified fields, preserve category_id
         const { data, error } = await supabase
           .from('subcategories')
           .update({
@@ -496,6 +497,7 @@ export function SubcategoryScheduleForm({
             url: subcategoryData.url || null,
             default_hashtags: normalizedHashtags,
             channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
+            // NOTE: category_id is NOT included in update - it must be preserved
           })
           .eq('id', editingSubcategory.id)
           .select()
