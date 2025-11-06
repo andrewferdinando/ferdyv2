@@ -38,6 +38,8 @@ export function EventOccurrencesManager({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [isEditing, setIsEditing] = useState<EventOccurrence | null>(null)
+  const [lockedMonths, setLockedMonths] = useState<string[]>([])
+  const [minDate, setMinDate] = useState<string>('')
 
   // Form state for single occurrence
   const [isDateRange, setIsDateRange] = useState(false)
@@ -72,6 +74,16 @@ export function EventOccurrencesManager({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId, subcategoryId])
+
+  // Fetch locked months on mount
+  useEffect(() => {
+    fetchLockedMonths()
+  }, [brandId])
+
+  // Calculate minDate and update when lockedMonths or brandTimezone changes
+  useEffect(() => {
+    calculateMinDate()
+  }, [lockedMonths, brandTimezone])
 
   // Notify parent when occurrences change
   useEffect(() => {
@@ -110,6 +122,68 @@ export function EventOccurrencesManager({
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchLockedMonths = async () => {
+    try {
+      const response = await fetch(`/api/framework/pushed-months?brandId=${brandId}`)
+      if (!response.ok) {
+        console.error('Failed to fetch locked months')
+        return
+      }
+      const data = await response.json()
+      setLockedMonths(data.lockedMonths || [])
+    } catch (err) {
+      console.error('Error fetching locked months:', err)
+    }
+  }
+
+  const calculateMinDate = () => {
+    // Get today's date in brand timezone
+    const now = new Date()
+    const todayInBrandTz = new Intl.DateTimeFormat('en-CA', {
+      timeZone: brandTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now)
+    
+    const [todayYear, todayMonth] = todayInBrandTz.split('-').map(Number)
+
+    // Find the first unlocked month >= today
+    let foundUnlocked = false
+
+    // Check up to 2 years ahead
+    for (let yearOffset = 0; yearOffset < 2; yearOffset++) {
+      const checkYear = todayYear + yearOffset
+      const startMonth = yearOffset === 0 ? todayMonth : 1
+
+      for (let month = startMonth; month <= 12; month++) {
+        const monthStr = `${checkYear}-${String(month).padStart(2, '0')}`
+        
+        if (!lockedMonths.includes(monthStr)) {
+          // Found first unlocked month
+          setMinDate(`${checkYear}-${String(month).padStart(2, '0')}-01`)
+          foundUnlocked = true
+          break
+        }
+      }
+      
+      if (foundUnlocked) break
+    }
+
+    // If all months are locked, set minDate to empty string (will show warning)
+    if (!foundUnlocked) {
+      setMinDate('')
+    }
+  }
+
+  // Check if a date is in a locked month
+  const isDateLocked = (dateStr: string): boolean => {
+    if (!dateStr) return false
+    const [year, month] = dateStr.split('-').map(Number)
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`
+    return lockedMonths.includes(monthStr)
   }
 
   const resetForm = () => {
@@ -181,13 +255,27 @@ export function EventOccurrencesManager({
         // Match date range: "2026-04-12 to 2026-07-21" (case insensitive)
         const rangeMatch = line.match(/^(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})$/i)
         if (rangeMatch) {
-          return { frequency: 'date_range' as const, start: rangeMatch[1], end: rangeMatch[2] }
+          const start = rangeMatch[1]
+          const end = rangeMatch[2]
+          // Validate dates are not in locked months
+          if (isDateLocked(start)) {
+            throw new Error(`Start date ${start} is in a locked month`)
+          }
+          if (isDateLocked(end)) {
+            throw new Error(`End date ${end} is in a locked month`)
+          }
+          return { frequency: 'date_range' as const, start, end }
         }
         
         // Match single date: "2026-04-12"
         const dateMatch = line.match(/^(\d{4}-\d{2}-\d{2})$/)
         if (dateMatch) {
-          return { frequency: 'date' as const, start: dateMatch[1] }
+          const start = dateMatch[1]
+          // Validate date is not in locked month
+          if (isDateLocked(start)) {
+            throw new Error(`Date ${start} is in a locked month`)
+          }
+          return { frequency: 'date' as const, start }
         }
         
         throw new Error(`Unrecognized line: ${line}`)
@@ -200,9 +288,21 @@ export function EventOccurrencesManager({
       return
     }
 
-    if (isDateRange && (!endDate || endDate < startDate)) {
-      alert('End date must be after start date')
+    // Validate that dates are not in locked months
+    if (isDateLocked(startDate)) {
+      alert('Start date cannot be in a month that has already been pushed to drafts')
       return
+    }
+
+    if (isDateRange) {
+      if (!endDate || endDate < startDate) {
+        alert('End date must be after start date')
+        return
+      }
+      if (isDateLocked(endDate)) {
+        alert('End date cannot be in a month that has already been pushed to drafts')
+        return
+      }
     }
 
     try {
@@ -662,8 +762,26 @@ export function EventOccurrencesManager({
             <Input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                const selectedDate = e.target.value
+                // Only allow if not in locked month
+                if (!isDateLocked(selectedDate)) {
+                  setStartDate(selectedDate)
+                }
+              }}
+              min={minDate}
+              disabled={lockedMonths.length > 0 && !minDate}
             />
+            {lockedMonths.length > 0 && minDate && (
+              <p className="text-xs text-gray-500 mt-1">
+                Months with framework drafts are disabled. First available date: {new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+            {lockedMonths.length > 0 && !minDate && (
+              <p className="text-xs text-amber-600 mt-1">
+                All upcoming months are already scheduled. Push a future month or contact an admin.
+              </p>
+            )}
           </FormField>
 
           {isDateRange && (
@@ -671,8 +789,15 @@ export function EventOccurrencesManager({
               <Input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate}
+                onChange={(e) => {
+                  const selectedDate = e.target.value
+                  // Only allow if not in locked month
+                  if (!isDateLocked(selectedDate)) {
+                    setEndDate(selectedDate)
+                  }
+                }}
+                min={startDate || minDate}
+                disabled={lockedMonths.length > 0 && !minDate}
               />
             </FormField>
           )}
@@ -792,6 +917,11 @@ export function EventOccurrencesManager({
             <p className="text-xs text-gray-500 mt-1">
               Format: Single date (YYYY-MM-DD) or range (YYYY-MM-DD to YYYY-MM-DD)
             </p>
+            {lockedMonths.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                Note: Dates in locked months ({lockedMonths.join(', ')}) will be rejected.
+              </p>
+            )}
           </FormField>
 
           <FormField label="Default Times of Day" required>
