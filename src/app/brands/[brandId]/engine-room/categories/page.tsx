@@ -569,8 +569,14 @@ export default function CategoriesPage() {
                             // Add event groups
                             eventGroups.forEach((groupRules, subcategoryId) => {
                               const firstRule = groupRules[0]
-                              const categoryId = firstRule.category_id || 'uncategorized'
-                              const categoryName = firstRule.categories?.name || 'Uncategorized'
+                              // Get category_id from subcategory relationship (more reliable than schedule_rule.category_id)
+                              // Subcategories always have a category_id, so this ensures correct categorization
+                              const subcategory = firstRule.subcategories as any
+                              const categoryId = subcategory?.category_id || firstRule.category_id || 'uncategorized'
+                              // Get category name from subcategory's category relationship, or from direct categories join
+                              const categoryName = subcategory?.categories?.name 
+                                || firstRule.categories?.name 
+                                || 'Uncategorized'
                               
                               if (!categoryMap.has(categoryId)) {
                                 categoryMap.set(categoryId, {
