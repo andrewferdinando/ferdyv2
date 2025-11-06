@@ -292,15 +292,68 @@ async function generateTimeSlots(rule: any, year: number, month: number, timezon
       const endDate = rule.end_date ? new Date(rule.end_date) : startDate;
       
       // Target month boundaries - use UTC midnight for start and end of month
+      // Ensure we're comparing dates correctly by normalizing to UTC
       const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
       const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
       
+      // Normalize rule dates to UTC for accurate comparison
+      // Ensure start_date and end_date are treated as UTC timestamps
+      const normalizeToUTC = (dateStr: string): Date => {
+        // If date string doesn't have timezone info, treat as UTC
+        if (!dateStr.includes('Z') && !/[+-]\d{2}:\d{2}$/.test(dateStr)) {
+          return new Date(dateStr + 'Z');
+        }
+        return new Date(dateStr);
+      };
+      
+      const normalizedStartDate = normalizeToUTC(rule.start_date);
+      const normalizedEndDate = rule.end_date ? normalizeToUTC(rule.end_date) : normalizedStartDate;
+      
       // Check if the occurrence overlaps with the target month
       // Overlap occurs if: start_date <= monthEnd AND end_date >= monthStart
-      // If no overlap, skip this rule entirely
-      if (!(startDate <= monthEnd && endDate >= monthStart)) {
+      // Use normalized dates for accurate comparison
+      const hasDirectOverlap = normalizedStartDate <= monthEnd && normalizedEndDate >= monthStart;
+      
+      // Check if days_before would create posts in the target month
+      // Only check this if the occurrence itself doesn't overlap (to avoid processing
+      // rules where days_before extend way beyond the target month)
+      let hasDaysBeforeOverlap = false;
+      if (!hasDirectOverlap && rule.days_before && Array.isArray(rule.days_before) && rule.days_before.length > 0) {
+        // Only consider days_before if the occurrence is reasonably close to the target month
+        // (e.g., within 90 days) to avoid processing April rules when generating December drafts
+        const maxDaysBefore = Math.max(...rule.days_before.filter(d => d >= 0));
+        const earliestPossiblePost = new Date(normalizedStartDate);
+        earliestPossiblePost.setDate(earliestPossiblePost.getDate() - maxDaysBefore);
+        
+        // If the earliest possible post date is more than 60 days before the target month,
+        // skip this rule (it's likely for a different occurrence)
+        if (earliestPossiblePost < monthStart) {
+          const daysDiff = Math.floor((monthStart.getTime() - earliestPossiblePost.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff > 60) {
+            return slots; // Too far from target month, skip
+          }
+        }
+        
+        for (const daysBefore of rule.days_before) {
+          if (daysBefore < 0) continue;
+          const scheduledDate = new Date(normalizedStartDate);
+          scheduledDate.setDate(scheduledDate.getDate() - daysBefore);
+          // Check if this scheduled date falls within the target month
+          if (scheduledDate >= monthStart && scheduledDate <= monthEnd) {
+            hasDaysBeforeOverlap = true;
+            break;
+          }
+        }
+      }
+      
+      // If no direct overlap and no days_before overlap, skip this rule entirely
+      if (!hasDirectOverlap && !hasDaysBeforeOverlap) {
         return slots; // No overlap, return empty slots
       }
+      
+      // Use normalized dates for the rest of the processing
+      const startDate = normalizedStartDate;
+      const endDate = normalizedEndDate;
         // Determine which days of the range fall within the month
         const rangeStart = startDate > monthStart ? startDate : monthStart;
         const rangeEnd = endDate < monthEnd ? endDate : monthEnd;
