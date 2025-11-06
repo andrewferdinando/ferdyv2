@@ -219,6 +219,29 @@ export function SubcategoryScheduleForm({
     
     // If editing a subcategory with specific frequency, ensure frequency is set
     // This is critical so EventOccurrencesManager renders and can fetch occurrences
+    // If editingScheduleRule has frequency='specific', it will be set below
+    // If not, we need to check if the subcategory has any specific frequency occurrences
+    const checkAndSetSpecificFrequency = async () => {
+      if (newSubcategoryId && !editingScheduleRule) {
+        // Check if this subcategory has any specific frequency occurrences
+        const { data: specificRules } = await supabase
+          .from('schedule_rules')
+          .select('id, frequency')
+          .eq('subcategory_id', newSubcategoryId)
+          .eq('frequency', 'specific')
+          .is('archived_at', null)
+          .limit(1)
+        
+        if (specificRules && specificRules.length > 0) {
+          // This subcategory has specific frequency occurrences, set frequency to 'specific'
+          setScheduleData(prev => ({ ...prev, frequency: 'specific' }))
+        }
+      }
+    }
+    
+    if (editingSubcategory && !editingScheduleRule) {
+      checkAndSetSpecificFrequency()
+    }
 
     if (editingSubcategory) {
       setSubcategoryData({
