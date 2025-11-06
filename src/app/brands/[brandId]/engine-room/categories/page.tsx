@@ -738,7 +738,7 @@ export default function CategoriesPage() {
                                                 {sortedOccurrences.map((occ) => {
                                                   const isPast = (() => {
                                                     const end = occ.end_date || occ.start_date
-                                                    return end ? new Date(end) < now : false
+                                                    return end ? new Date(normalizeToUTC(end)) < now : false
                                                   })()
                                                   return (
                                                     <div key={occ.id} className={`text-xs ${isPast ? 'text-gray-400' : 'text-gray-700'}`}>
