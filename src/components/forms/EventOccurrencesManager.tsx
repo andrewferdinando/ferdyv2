@@ -104,24 +104,33 @@ export function EventOccurrencesManager({
   }, [minDate, lockedMonths])
 
   // Clear invalid dates when minDate changes (e.g., when locked months load)
+  // Use Date objects for proper comparison
   useEffect(() => {
     if (lockedMonthsLoaded && minDate) {
-      if (startDate && startDate < minDate) {
-        console.log('Clearing invalid startDate (before minDate):', startDate, 'minDate:', minDate)
-        setStartDate('')
-        if (startDateInputRef.current) {
-          startDateInputRef.current.value = ''
+      if (startDate) {
+        const startDateObj = new Date(startDate + 'T00:00:00')
+        const minDateObj = new Date(minDate + 'T00:00:00')
+        if (startDateObj < minDateObj) {
+          console.log('Clearing invalid startDate (before minDate):', startDate, 'minDate:', minDate)
+          setStartDate('')
+          if (startDateInputRef.current) {
+            startDateInputRef.current.value = ''
+          }
         }
       }
-      if (endDate && endDate < minDate) {
-        console.log('Clearing invalid endDate (before minDate):', endDate, 'minDate:', minDate)
-        setEndDate('')
-        if (endDateInputRef.current) {
-          endDateInputRef.current.value = ''
+      if (endDate) {
+        const endDateObj = new Date(endDate + 'T00:00:00')
+        const minDateObj = new Date(minDate + 'T00:00:00')
+        if (endDateObj < minDateObj) {
+          console.log('Clearing invalid endDate (before minDate):', endDate, 'minDate:', minDate)
+          setEndDate('')
+          if (endDateInputRef.current) {
+            endDateInputRef.current.value = ''
+          }
         }
       }
     }
-  }, [minDate, lockedMonthsLoaded])
+  }, [minDate, lockedMonthsLoaded, startDate, endDate])
 
   // Validate startDate whenever it changes (backup validation)
   useEffect(() => {
@@ -392,6 +401,33 @@ export function EventOccurrencesManager({
   }
 
   const handleSaveSingle = async () => {
+    // Server-side validation: reject any date before minDate
+    if (lockedMonthsLoaded && minDate) {
+      if (startDate) {
+        const startDateObj = new Date(startDate + 'T00:00:00')
+        const minDateObj = new Date(minDate + 'T00:00:00')
+        if (startDateObj < minDateObj) {
+          alert(`Invalid date: ${startDate} is before the first available date (${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}).`)
+          return
+        }
+        if (isDateLocked(startDate)) {
+          alert(`Invalid date: ${startDate} is in a locked month.`)
+          return
+        }
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate + 'T00:00:00')
+        const minDateObj = new Date(minDate + 'T00:00:00')
+        if (endDateObj < minDateObj) {
+          alert(`Invalid date: ${endDate} is before the first available date (${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}).`)
+          return
+        }
+        if (isDateLocked(endDate)) {
+          alert(`Invalid date: ${endDate} is in a locked month.`)
+          return
+        }
+      }
+    }
     if (!startDate || timesOfDay.length === 0 || channels.length === 0) {
       alert('Please fill in all required fields')
       return
@@ -881,14 +917,19 @@ export function EventOccurrencesManager({
                   return
                 }
                 
-                // IMMEDIATE validation - block before setting state
-                if (minDate && selectedDate < minDate) {
-                  console.log('BLOCKED: Date is before minDate')
-                  alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                  e.target.value = ''
-                  setStartDate('')
-                  e.target.blur()
-                  return
+                // STRICT validation using Date objects for proper comparison
+                if (minDate) {
+                  const selectedDateObj = new Date(selectedDate + 'T00:00:00')
+                  const minDateObj = new Date(minDate + 'T00:00:00')
+                  
+                  if (selectedDateObj < minDateObj) {
+                    console.log('BLOCKED: Date is before minDate', selectedDate, '<', minDate)
+                    alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                    e.target.value = ''
+                    setStartDate('')
+                    e.target.blur()
+                    return
+                  }
                 }
                 
                 if (isDateLocked(selectedDate)) {
@@ -909,13 +950,18 @@ export function EventOccurrencesManager({
                 console.log('onInput fired! Date:', selectedDate, 'minDate:', minDate)
                 
                 if (selectedDate) {
-                  // Immediate validation
-                  if (minDate && selectedDate < minDate) {
-                    console.log('BLOCKED onInput: Date is before minDate')
-                    alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                    target.value = ''
-                    setStartDate('')
-                    return
+                  // STRICT validation using Date objects
+                  if (minDate) {
+                    const selectedDateObj = new Date(selectedDate + 'T00:00:00')
+                    const minDateObj = new Date(minDate + 'T00:00:00')
+                    
+                    if (selectedDateObj < minDateObj) {
+                      console.log('BLOCKED onInput: Date is before minDate')
+                      alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                      target.value = ''
+                      setStartDate('')
+                      return
+                    }
                   }
                   
                   if (isDateLocked(selectedDate)) {
@@ -934,13 +980,18 @@ export function EventOccurrencesManager({
                 console.log('onBlur fired! Date:', selectedDate, 'minDate:', minDate)
                 
                 if (selectedDate) {
-                  // Immediate validation
-                  if (minDate && selectedDate < minDate) {
-                    console.log('BLOCKED onBlur: Date is before minDate')
-                    alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                    e.target.value = ''
-                    setStartDate('')
-                    return
+                  // STRICT validation using Date objects
+                  if (minDate) {
+                    const selectedDateObj = new Date(selectedDate + 'T00:00:00')
+                    const minDateObj = new Date(minDate + 'T00:00:00')
+                    
+                    if (selectedDateObj < minDateObj) {
+                      console.log('BLOCKED onBlur: Date is before minDate')
+                      alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                      e.target.value = ''
+                      setStartDate('')
+                      return
+                    }
                   }
                   
                   if (isDateLocked(selectedDate)) {
@@ -956,7 +1007,15 @@ export function EventOccurrencesManager({
               }}
               min={minDate || undefined}
               disabled={!lockedMonthsLoaded || (lockedMonths.length > 0 && !minDate)}
-              readOnly={!lockedMonthsLoaded}
+              readOnly={!lockedMonthsLoaded || (lockedMonths.length > 0 && minDate ? false : false)}
+              onKeyDown={(e) => {
+                // Prevent typing if we have locked months and minDate
+                if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
+                  console.log('BLOCKED: Manual typing prevented when locked months exist')
+                  e.preventDefault()
+                  alert(`Please use the date picker. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+                }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
             {!lockedMonthsLoaded && (
