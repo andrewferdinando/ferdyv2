@@ -336,33 +336,11 @@ async function generateTimeSlots(rule: any, year: number, month: number, timezon
       // Use normalized dates for accurate comparison
       const hasDirectOverlap = normalizedStartDate <= monthEnd && normalizedEndDate >= monthStart;
       
-      // For subcategories with multiple occurrences, ALWAYS check distance to ensure
-      // we're not processing an occurrence that's too far from the target month
-      // This prevents April/September occurrences from being processed for December
-      let daysFromTargetMonth = 0;
-      if (!hasDirectOverlap) {
-        // Calculate distance for non-overlapping occurrences
-        if (normalizedStartDate > monthEnd) {
-          // Occurrence is after target month
-          daysFromTargetMonth = Math.floor((normalizedStartDate.getTime() - monthEnd.getTime()) / (1000 * 60 * 60 * 24));
-        } else if (normalizedEndDate < monthStart) {
-          // Occurrence is before target month
-          daysFromTargetMonth = Math.floor((monthStart.getTime() - normalizedEndDate.getTime()) / (1000 * 60 * 60 * 24));
-        }
-        
-        // If occurrence is more than 60 days away, skip it entirely
-        // This is the key fix for multiple occurrences
-        if (daysFromTargetMonth > 60) {
-          return slots; // Too far from target month, skip this occurrence
-        }
-      }
-      
       // Check if days_before would create posts in the target month
-      // Only check this if the occurrence itself doesn't overlap (to avoid processing
-      // rules where days_before extend way beyond the target month)
+      // This allows posts scheduled before an occurrence to be generated
       let hasDaysBeforeOverlap = false;
       if (!hasDirectOverlap && rule.days_before && Array.isArray(rule.days_before) && rule.days_before.length > 0) {
-        // Now check if any days_before posts would fall in the target month
+        // Check if any days_before posts would fall in the target month
         for (const daysBefore of rule.days_before) {
           if (daysBefore < 0) continue;
           const scheduledDate = new Date(normalizedStartDate);
@@ -375,9 +353,11 @@ async function generateTimeSlots(rule: any, year: number, month: number, timezon
         }
       }
       
-      // If no direct overlap and no days_before overlap, skip this rule entirely
+      // CRITICAL: Only process rules where the occurrence date range overlaps the target month
+      // OR where days_before posts would fall in the target month
+      // If neither condition is true, this rule is for a different month - skip it entirely
       if (!hasDirectOverlap && !hasDaysBeforeOverlap) {
-        return slots; // No overlap, return empty slots
+        return slots; // No overlap with target month, skip this occurrence
       }
       
       // Use normalized dates for the rest of the processing
