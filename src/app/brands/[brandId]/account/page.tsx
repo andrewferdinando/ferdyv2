@@ -48,6 +48,18 @@ export default function AccountSettingsPage() {
       accessible: true // Will be checked on the individual page
     },
     {
+      id: 'post-time',
+      title: 'Post Time',
+      description: 'Set the default time that auto-populates when creating new subcategories',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      href: `/brands/${brandId}/account/post-time`,
+      accessible: true
+    },
+    {
       id: 'billing',
       title: 'Billing',
       description: 'Manage your subscription and billing information',

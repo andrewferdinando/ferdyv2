@@ -9,6 +9,7 @@ export interface Brand {
   website_url?: string | null;
   country_code?: string | null;
   timezone: string;
+  default_post_time?: string | null; // TIME format (HH:MM:SS)
   created_at: string;
   updated_at: string;
 }

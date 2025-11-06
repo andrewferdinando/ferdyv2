@@ -146,7 +146,7 @@ export function SubcategoryScheduleForm({
   // Default timezone to brand timezone, fallback to Pacific/Auckland
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
-    timeOfDay: '',
+    timeOfDay: '', // Will be auto-populated from brand.default_post_time if empty
     timesOfDay: [],
     daysOfWeek: [],
     daysOfMonth: [],
@@ -161,12 +161,35 @@ export function SubcategoryScheduleForm({
     timezone: brand?.timezone || 'Pacific/Auckland'  // Default to brand timezone
   })
 
-  // Update timezone when brand loads
+  // Update timezone and auto-populate timeOfDay when brand loads (only for new subcategories)
   useEffect(() => {
-    if (brand?.timezone && !editingScheduleRule) {
-      setScheduleData(prev => ({ ...prev, timezone: brand.timezone }))
+    if (brand && !editingScheduleRule && !editingSubcategory) {
+      setScheduleData(prev => {
+        const updates: Partial<ScheduleRuleData> = {}
+        
+        // Update timezone
+        if (brand.timezone && prev.timezone !== brand.timezone) {
+          updates.timezone = brand.timezone
+        }
+        
+        // Auto-populate timeOfDay from default_post_time if it's empty
+        if (brand.default_post_time && !prev.timeOfDay) {
+          const defaultTime = typeof brand.default_post_time === 'string' 
+            ? brand.default_post_time.substring(0, 5) // Extract HH:MM from HH:MM:SS
+            : ''
+          if (defaultTime) {
+            updates.timeOfDay = defaultTime
+          }
+        }
+        
+        // Only update if there are changes
+        if (Object.keys(updates).length > 0) {
+          return { ...prev, ...updates }
+        }
+        return prev
+      })
     }
-  }, [brand?.timezone, editingScheduleRule])
+  }, [brand?.timezone, brand?.default_post_time, editingScheduleRule, editingSubcategory])
 
   // Helper state for specific date inputs
   const [daysBeforeInput, setDaysBeforeInput] = useState('')
@@ -265,9 +288,16 @@ export function SubcategoryScheduleForm({
       setDaysBeforeInput((editingRule.daysBefore || []).join(','))
       setDaysDuringInput((editingRule.daysDuring || []).join(','))
     } else {
+      // Auto-populate timeOfDay from brand.default_post_time if available
+      const defaultTime = brand?.default_post_time 
+        ? (typeof brand.default_post_time === 'string' 
+            ? brand.default_post_time.substring(0, 5) // Extract HH:MM from HH:MM:SS
+            : '')
+        : ''
+      
       setScheduleData({
         frequency: 'weekly',
-        timeOfDay: '',
+        timeOfDay: defaultTime,
         timesOfDay: [],
         daysOfWeek: [],
         daysOfMonth: [],
@@ -279,7 +309,7 @@ export function SubcategoryScheduleForm({
         endDate: '',
         daysBefore: [],
         daysDuring: [],
-        timezone: 'Pacific/Auckland'
+        timezone: brand?.timezone || 'Pacific/Auckland'
       })
       setDaysBeforeInput('')
       setDaysDuringInput('')
