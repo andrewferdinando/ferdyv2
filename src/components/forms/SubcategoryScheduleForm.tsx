@@ -792,7 +792,7 @@ export function SubcategoryScheduleForm({
             throw new Error(`Failed to create schedule rule: ${error.message}`)
           }
         }
-        } catch (scheduleError) {
+      } catch (scheduleError) {
           console.error('Schedule rule save failed:', scheduleError)
           throw scheduleError  // Re-throw to trigger form error handling
         }
