@@ -8,7 +8,6 @@ import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
-import Breadcrumb from '@/components/navigation/Breadcrumb';
 
 // Type definitions
 interface Draft {
@@ -191,9 +190,6 @@ export default function SchedulePage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <div className="mb-4">
-                  <Breadcrumb />
-                </div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
                 <p className="text-gray-600 mt-1 text-sm">Manage your social media posts</p>
               </div>

@@ -4,7 +4,6 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
-import Breadcrumb from '@/components/navigation/Breadcrumb'
 import { useCategories } from '@/hooks/useCategories'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useScheduleRules } from '@/hooks/useScheduleRules'
@@ -438,9 +437,6 @@ export default function CategoriesPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="mb-4">
-                  <Breadcrumb />
-                </div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Framework</h1>
                 <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>

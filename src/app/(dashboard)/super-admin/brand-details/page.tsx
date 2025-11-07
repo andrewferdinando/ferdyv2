@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { Form, FormField, FormActions } from '@/components/ui/Form';
 import { Input, Textarea, Select } from '@/components/ui/Input';
-import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useState } from 'react';
 
 export default function BrandDetailsPage() {
@@ -62,7 +61,6 @@ export default function BrandDetailsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="mb-4">
-                <Breadcrumb />
               </div>
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Brand Details</h1>
             </div>
