@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import type { JSX } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
@@ -69,6 +70,88 @@ export function EventOccurrencesManager({
     { value: 'tiktok', label: 'TikTok' },
     { value: 'x', label: 'X (Twitter)' }
   ]
+
+const formatTimeDisplay = (time: string) => {
+  if (!time) return ''
+
+  const [hourStr, minuteStr = '00'] = time.split(':')
+  const hour = parseInt(hourStr, 10)
+  const minute = parseInt(minuteStr, 10)
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return time
+  }
+
+  const date = new Date()
+  date.setHours(hour, minute, 0, 0)
+
+  return new Intl.DateTimeFormat('en-NZ', {
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(date)
+}
+
+const FacebookIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <div className={`rounded bg-[#1877F2] flex items-center justify-center ${className}`}>
+    <span className="text-white text-[10px] font-bold">f</span>
+  </div>
+)
+
+const LinkedInIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <div className={`rounded bg-[#0A66C2] flex items-center justify-center ${className}`}>
+    <span className="text-white text-[10px] font-bold">in</span>
+  </div>
+)
+
+const InstagramIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <div className={`rounded bg-gradient-to-br from-[#833AB4] via-[#C13584] to-[#E1306C] flex items-center justify-center ${className}`}>
+    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.07 1.645.07 4.85s-.012 3.584-.07 4.85c-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07s-3.584-.012-4.85-.07c-3.251-.149-4.771-1.699-4.919-4.919-.058-1.265-.07-1.644-.07-4.85s.012-3.584.07-4.85c.149-3.227 1.664-4.771 4.919-4.919 1.266-.058 1.644-.07 4.85-.07zm0-2.163c-3.259 0-3.667.014-4.947.072C3.58 0.238 2.31 1.684 2.163 4.947.105 6.227.092 6.635.092 9.897s.014 3.667.072 4.947c.147 3.264 1.693 4.534 4.947 4.682 1.28.058 1.688.072 4.947.072s3.667-.014 4.947-.072c3.264-.148 4.534-1.693 4.682-4.947.058-1.28.072-1.688.072-4.947s-.014-3.667-.072-4.947C23.762 2.316 22.316.846 19.053.698 17.773.64 17.365.626 14.103.626zM12 5.835a6.165 6.165 0 100 12.33 6.165 6.165 0 000-12.33zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z" />
+    </svg>
+  </div>
+)
+
+const TikTokIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <div className={`rounded bg-black flex items-center justify-center ${className}`}>
+    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  </div>
+)
+
+const XIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <div className={`rounded bg-black flex items-center justify-center ${className}`}>
+    <span className="text-white text-[10px] font-bold">X</span>
+  </div>
+)
+
+const CHANNEL_ICON_COMPONENTS: Record<string, (props: { className?: string }) => JSX.Element> = {
+  instagram: InstagramIcon,
+  facebook: FacebookIcon,
+  linkedin: LinkedInIcon,
+  tiktok: TikTokIcon,
+  x: XIcon
+}
+
+const renderChannelIcons = (channels: string[]) =>
+  channels.map((channel, index) => {
+    const key = `${channel}-${index}`
+    const normalized = channel?.toLowerCase?.() ?? channel
+    const IconComponent = CHANNEL_ICON_COMPONENTS[normalized]
+
+    if (IconComponent) {
+      return <IconComponent key={key} className="w-4 h-4" />
+    }
+
+    return (
+      <div
+        key={key}
+        className="w-4 h-4 rounded bg-gray-300 text-gray-700 text-[10px] flex items-center justify-center uppercase"
+      >
+        {normalized ? normalized.charAt(0) : '?'}
+      </div>
+    )
+  })
 
   useEffect(() => {
     if (subcategoryId) {
@@ -842,11 +925,11 @@ export function EventOccurrencesManager({
                       {formatDateRange(occ.start_date, occ.end_date)}
                     </span>
                     <span className="text-gray-500">
-                      {occ.times_of_day.join(', ')}
+                      {occ.times_of_day.map(formatTimeDisplay).join(', ')}
                     </span>
-                    <span className="text-gray-500">
-                      {occ.channels.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join('+')}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      {renderChannelIcons(occ.channels)}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -889,8 +972,10 @@ export function EventOccurrencesManager({
                   >
                     <div className="flex items-center gap-3">
                       <span>{formatDateRange(occ.start_date, occ.end_date)}</span>
-                      <span>{occ.times_of_day.join(', ')}</span>
-                      <span>{occ.channels.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join('+')}</span>
+                    <span>{occ.times_of_day.map(formatTimeDisplay).join(', ')}</span>
+                    <div className="flex items-center gap-1">
+                      {renderChannelIcons(occ.channels)}
+                    </div>
                     </div>
                     <div className="flex gap-2">
                       <button
