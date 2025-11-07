@@ -516,6 +516,13 @@ export default function CategoriesPage() {
 
                             // Separate specific (event) rules from others
                             const eventRules = activeRules.filter(r => r.frequency === 'specific')
+                            const getSubcategoryChannelsForRule = (rule: typeof eventRules[0]) => {
+                              if (!rule) return [] as string[]
+                              if (rule.subcategories?.channels && rule.subcategories.channels.length > 0) {
+                                return rule.subcategories.channels
+                              }
+                              return Array.isArray(rule.channels) ? rule.channels : (rule.channels ? [rule.channels] : [])
+                            }
                             const otherRules = activeRules.filter(r => r.frequency !== 'specific')
 
                             // Group event rules by subcategory_id
@@ -719,12 +726,6 @@ export default function CategoriesPage() {
 
                                   const channels = firstRule.channels || []
                                   const subcategoryChannels = firstRule.subcategories?.channels ?? channels
-
-                                  const getSubcategoryChannelsForRule = (rule: typeof firstRule) => {
-                                    return rule.subcategories?.channels ?? (Array.isArray(rule.channels) ? rule.channels : [])
-                                  }
-
-                                  const subcategoryChannelsForRule = firstRule.subcategories?.channels ?? channels
 
                                   rows.push(
                                     <tr key={`event-group-${subcat.subcategoryId}`}>
@@ -954,13 +955,14 @@ export default function CategoriesPage() {
                                         <div className="flex space-x-2">
                                           <button
                                             onClick={() => {
+                                              const ruleChannels = getSubcategoryChannelsForRule(rule)
                                               setEditingSubcategory({
                                                 id: rule.subcategory_id,
                                                 name: rule.subcategories?.name || '',
                                                 detail: rule.subcategories?.detail,
                                                 url: rule.subcategories?.url,
                                                 hashtags: rule.subcategories?.default_hashtags || [],
-                                                channels: getSubcategoryChannelsForRule(rule)
+                                                channels: ruleChannels
                                               })
 
                                               const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
@@ -976,7 +978,7 @@ export default function CategoriesPage() {
                                                 daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
                                                 nthWeek: rule.nth_week,
                                                 weekday: rule.weekday,
-                                                channels: subcategoryChannelsForRule,
+                                                channels: ruleChannels,
                                                 isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
                                                 startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
                                                 endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
