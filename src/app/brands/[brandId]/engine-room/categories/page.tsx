@@ -720,7 +720,7 @@ export default function CategoriesPage() {
                                   const channels = firstRule.channels || []
                                   const subcategoryChannels = firstRule.subcategories?.channels ?? channels
 
-                                  const subcategoryChannelsForRule = rule.subcategories?.channels ?? rule.channels ?? []
+                                  const subcategoryChannelsForRule = firstRule.subcategories?.channels ?? channels
 
                                   rows.push(
                                     <tr key={`event-group-${subcat.subcategoryId}`}>
