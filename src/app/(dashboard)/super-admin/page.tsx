@@ -26,7 +26,7 @@ export default function SuperAdminPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 max-w-2xl">
+          <div className="grid grid-cols-1 gap-6 max-w-4xl mx-auto">
             {/* Brand Details Card */}
             <div 
               onClick={handleBrandDetailsClick}
@@ -41,7 +41,7 @@ export default function SuperAdminPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Brand Details</h3>
                   <p className="text-gray-600 text-sm mb-4">
-                    Manage business information, products, services, and company history. This data is used to generate personalized content.
+                    Manage business information, products, services, and company history.
                   </p>
                   <div className="flex items-center text-[#6366F1] text-sm font-medium">
                     <span>Manage Details</span>
