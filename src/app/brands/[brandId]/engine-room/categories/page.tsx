@@ -972,7 +972,7 @@ export default function CategoriesPage() {
                                                 daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
                                                 nthWeek: rule.nth_week,
                                                 weekday: rule.weekday,
-                                                channels: rule.channels || [],
+                                                channels: subcategoryChannelsForRule,
                                                 isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
                                                 startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
                                                 endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
