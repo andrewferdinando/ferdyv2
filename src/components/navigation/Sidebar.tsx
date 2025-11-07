@@ -215,89 +215,91 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-6 flex flex-col overflow-y-auto">
+      <nav className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
         {hasNoBrands ? (
           <div className="flex-1 flex items-center justify-center text-center text-xs text-gray-500">
             Add a brand to see navigation options.
           </div>
         ) : (
           <>
-            <ul className="space-y-2 flex-1">
-              {(showSkeleton || navigationItems.length === 0)
-                ? skeletonItems.map((_, index) => (
-                    <li key={`skeleton-${index}`}>
-                      <div className="h-11 w-full rounded-lg bg-gray-100 animate-pulse" />
-                    </li>
-                  ))
-                : navigationItems.map((item) => (
-                    <li key={item.name}>
+            <div className="flex flex-col gap-6">
+              <ul className="space-y-2">
+                {(showSkeleton || navigationItems.length === 0)
+                  ? skeletonItems.map((_, index) => (
+                      <li key={`skeleton-${index}`}>
+                        <div className="h-11 w-full rounded-lg bg-gray-100 animate-pulse" />
+                      </li>
+                    ))
+                  : navigationItems.map((item) => (
+                      <li key={item.name}>
+                        <Link
+                          href={item.href}
+                          onClick={handleNavigationClick}
+                          className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+                            item.active
+                              ? 'bg-[#EEF2FF] text-[#6366F1]'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <item.icon className="w-5 h-5" />
+                          <span className="font-medium text-sm">{item.name}</span>
+                        </Link>
+                      </li>
+                    ))}
+              </ul>
+
+              <div className="pt-4 border-t border-gray-200 space-y-2">
+                {showSkeleton ? (
+                  <div className="space-y-2">
+                    {skeletonItems.map((_, index) => (
+                      <div key={`footer-skeleton-${index}`} className="h-11 w-full rounded-lg bg-gray-100 animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <Link
+                      href={activeBrandId ? `/brands/${activeBrandId}/account` : '#'}
+                      onClick={handleNavigationClick}
+                      className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+                        !activeBrandId ? 'pointer-events-none opacity-60' : ''
+                      } ${
+                        pathname.startsWith('/account')
+                          ? 'bg-[#EEF2FF] text-[#6366F1]'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      aria-disabled={!activeBrandId}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="font-medium text-sm">Account</span>
+                    </Link>
+
+                    {isSuperAdmin && (
                       <Link
-                        href={item.href}
+                        href={superAdminItem.href}
                         onClick={handleNavigationClick}
                         className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-                          item.active
+                          superAdminItem.active
                             ? 'bg-[#EEF2FF] text-[#6366F1]'
                             : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
-                        <item.icon className="w-5 h-5" />
-                        <span className="font-medium text-sm">{item.name}</span>
+                        <superAdminItem.icon className="w-5 h-5" />
+                        <span className="font-medium text-sm">{superAdminItem.name}</span>
                       </Link>
-                    </li>
-                  ))}
-            </ul>
+                    )}
 
-            <div className="mt-auto pt-4 border-t border-gray-200 space-y-2">
-              {showSkeleton ? (
-                <div className="space-y-2">
-                  {skeletonItems.map((_, index) => (
-                    <div key={`footer-skeleton-${index}`} className="h-11 w-full rounded-lg bg-gray-100 animate-pulse" />
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <Link
-                    href={activeBrandId ? `/brands/${activeBrandId}/account` : '#'}
-                    onClick={handleNavigationClick}
-                    className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-                      !activeBrandId ? 'pointer-events-none opacity-60' : ''
-                    } ${
-                      pathname.startsWith('/account')
-                        ? 'bg-[#EEF2FF] text-[#6366F1]'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    aria-disabled={!activeBrandId}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span className="font-medium text-sm">Account</span>
-                  </Link>
-
-                  {isSuperAdmin && (
-                    <Link
-                      href={superAdminItem.href}
-                      onClick={handleNavigationClick}
-                      className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-                        superAdminItem.active
-                          ? 'bg-[#EEF2FF] text-[#6366F1]'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 text-gray-700 hover:bg-gray-100"
                     >
-                      <superAdminItem.icon className="w-5 h-5" />
-                      <span className="font-medium text-sm">{superAdminItem.name}</span>
-                    </Link>
-                  )}
-
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 text-gray-700 hover:bg-gray-100"
-                  >
-                    <LogoutIcon className="w-5 h-5" />
-                    <span className="font-medium text-sm">Sign Out</span>
-                  </button>
-                </>
-              )}
+                      <LogoutIcon className="w-5 h-5" />
+                      <span className="font-medium text-sm">Sign Out</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </>
         )}
