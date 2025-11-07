@@ -16,7 +16,7 @@ const adminCards = [
   }
 ];
 
-
+export default function SuperAdminPage() {
   return (
     <AppLayout>
       <div className="flex-1 overflow-auto">
