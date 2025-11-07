@@ -727,8 +727,6 @@ const renderChannelIcons = (channels: string[]) =>
   }
 
   const handleEdit = (occurrence: EventOccurrence) => {
-    setIsEditing(occurrence)
-    setIsDateRange(occurrence.frequency === 'date_range')
     // Normalize date strings to UTC format before parsing
     const normalizeToUTC = (dateStr: string): string => {
       if (dateStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
@@ -736,30 +734,47 @@ const renderChannelIcons = (channels: string[]) =>
       }
       return dateStr.endsWith('Z') ? dateStr : dateStr + 'Z'
     }
-    
-    // Extract date part from timestamptz, ensuring UTC parsing
-    // Use UTC methods to avoid timezone conversion issues
-    let startDatePart = ''
-    let endDatePart = ''
-    
-    if (occurrence.start_date) {
-      const normalized = normalizeToUTC(occurrence.start_date)
-      const startDateObj = new Date(normalized)
-      const year = startDateObj.getUTCFullYear()
-      const month = String(startDateObj.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(startDateObj.getUTCDate()).padStart(2, '0')
-      startDatePart = `${year}-${month}-${day}`
+
+    const extractDatePart = (dateValue: string | null): string => {
+      if (!dateValue) return ''
+      const normalized = normalizeToUTC(dateValue)
+      const utcDate = new Date(normalized)
+      const year = utcDate.getUTCFullYear()
+      const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(utcDate.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
     }
-    
-    if (occurrence.end_date) {
-      const normalized = normalizeToUTC(occurrence.end_date)
-      const endDateObj = new Date(normalized)
-      const year = endDateObj.getUTCFullYear()
-      const month = String(endDateObj.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(endDateObj.getUTCDate()).padStart(2, '0')
-      endDatePart = `${year}-${month}-${day}`
+
+    const startDatePart = extractDatePart(occurrence.start_date)
+    const endDatePart = extractDatePart(occurrence.end_date)
+
+    // If the occurrence lies in a locked month, prevent editing entirely
+    if (lockedMonthsLoaded && startDatePart) {
+      if (minDate && startDatePart < minDate) {
+        alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+        return
+      }
+
+      if (isDateLocked(startDatePart)) {
+        alert(`This date is in a locked month (${startDatePart.substring(0, 7)}). Please select a date from an unlocked month.`)
+        return
+      }
     }
-    
+
+    if (lockedMonthsLoaded && endDatePart) {
+      if (minDate && endDatePart < minDate) {
+        alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+        return
+      }
+
+      if (isDateLocked(endDatePart)) {
+        alert(`This date is in a locked month (${endDatePart.substring(0, 7)}). Please select a date from an unlocked month.`)
+        return
+      }
+    }
+
+    setIsEditing(occurrence)
+    setIsDateRange(occurrence.frequency === 'date_range')
     setStartDate(startDatePart)
     setEndDate(endDatePart)
     setTimesOfDay(occurrence.times_of_day)
