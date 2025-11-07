@@ -137,20 +137,31 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
 
   const skeletonItems = useMemo(() => new Array(3).fill(null), []);
 
-  const navigationItems = [
-    {
-      name: 'Schedule',
-      href: `/brands/${selectedBrand.id}/schedule`,
-      icon: CalendarIcon,
-      active: pathname.includes('/schedule'),
-    },
-    {
-      name: 'Engine Room',
-      href: `/brands/${selectedBrand.id}/engine-room`,
-      icon: SettingsIcon,
-      active: pathname.includes('/engine-room') && !pathname.includes('/account'),
-    },
-  ];
+  const navigationItems = useMemo(() => {
+    if (!activeBrandId) {
+      return [] as Array<{
+        name: string;
+        href: string;
+        icon: typeof CalendarIcon;
+        active: boolean;
+      }>;
+    }
+
+    return [
+      {
+        name: 'Schedule',
+        href: `/brands/${activeBrandId}/schedule`,
+        icon: CalendarIcon,
+        active: pathname.includes('/schedule'),
+      },
+      {
+        name: 'Engine Room',
+        href: `/brands/${activeBrandId}/engine-room`,
+        icon: SettingsIcon,
+        active: pathname.includes('/engine-room') && !pathname.includes('/account'),
+      },
+    ];
+  }, [activeBrandId, pathname]);
 
   const superAdminItem = {
     name: 'Super Admin',
@@ -212,7 +223,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
         ) : (
           <>
             <ul className="space-y-2 flex-1">
-              {showSkeleton
+              {(showSkeleton || navigationItems.length === 0)
                 ? skeletonItems.map((_, index) => (
                     <li key={`skeleton-${index}`}>
                       <div className="h-11 w-full rounded-lg bg-gray-100 animate-pulse" />
@@ -249,6 +260,8 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
                     href={activeBrandId ? `/brands/${activeBrandId}/account` : '#'}
                     onClick={handleNavigationClick}
                     className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      !activeBrandId ? 'pointer-events-none opacity-60' : ''
+                    } ${
                       pathname.startsWith('/account')
                         ? 'bg-[#EEF2FF] text-[#6366F1]'
                         : 'text-gray-700 hover:bg-gray-100'
