@@ -720,7 +720,7 @@ export default function CategoriesPage() {
                                   const channels = firstRule.channels || []
                                   const subcategoryChannels = firstRule.subcategories?.channels ?? channels
 
-                                  const subcategoryChannels = rule.subcategories?.channels ?? rule.channels ?? []
+                                  const subcategoryChannelsForRule = rule.subcategories?.channels ?? rule.channels ?? []
 
                                   rows.push(
                                     <tr key={`event-group-${subcat.subcategoryId}`}>
@@ -956,7 +956,7 @@ export default function CategoriesPage() {
                                                 detail: rule.subcategories?.detail,
                                                 url: rule.subcategories?.url,
                                                 hashtags: rule.subcategories?.default_hashtags || [],
-                                                channels: subcategoryChannels
+                                                channels: subcategoryChannelsForRule
                                               })
 
                                               const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
