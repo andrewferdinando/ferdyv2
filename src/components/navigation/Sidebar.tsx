@@ -215,7 +215,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-6 flex flex-col">
+      <nav className="flex-1 p-6 flex flex-col overflow-y-auto">
         {hasNoBrands ? (
           <div className="flex-1 flex items-center justify-center text-center text-xs text-gray-500">
             Add a brand to see navigation options.

@@ -34,7 +34,7 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex min-h-dvh bg-gray-50">
+    <div className="flex h-screen bg-gray-50">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

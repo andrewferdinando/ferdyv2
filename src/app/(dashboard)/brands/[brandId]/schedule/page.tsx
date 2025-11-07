@@ -8,6 +8,7 @@ import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
+import Breadcrumb from '@/components/navigation/Breadcrumb';
 
 // Type definitions
 interface Draft {
@@ -186,55 +187,58 @@ export default function SchedulePage() {
     <RequireAuth>
       <AppLayout>
         <div className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
-              <p className="text-gray-600 mt-1 text-sm">Manage your social media posts</p>
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="mb-4">
+                  <Breadcrumb />
+                </div>
+                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
+                <p className="text-gray-600 mt-1 text-sm">Manage your social media posts</p>
+              </div>
+
+              <button
+                onClick={handleNewPostClick}
+                className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto"
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span>New Post</span>
+              </button>
             </div>
-          
-          <button
-            onClick={handleNewPostClick}
-            className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white px-4 sm:px-6 py-3 rounded-lg flex items-center justify-center space-x-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm w-full sm:w-auto"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span>New Post</span>
-          </button>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-4 sm:gap-8 mt-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
-                activeTab === tab.id
-                  ? 'border-[#6366F1] text-[#6366F1]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.name}
-              {tab.count !== undefined && (
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
-                  activeTab === tab.id
-                    ? 'bg-[#6366F1] text-white'
-                    : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-        </div>
+            {/* Tabs */}
+            <div className="flex flex-wrap gap-4 sm:gap-8 mt-6">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
+                    activeTab === tab.id
+                      ? 'border-[#6366F1] text-[#6366F1]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.name}
+                  {tab.count !== undefined && (
+                    <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                      activeTab === tab.id
+                        ? 'bg-[#6366F1] text-white'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        {/* Tab Content */}
-        <div className="px-4 sm:px-6 lg:px-10 py-6">
-          {renderTabContent()}
+          {/* Tab Content */}
+          <div className="px-4 sm:px-6 lg:px-10 py-6">
+            {renderTabContent()}
+          </div>
         </div>
-      </div>
 
       </AppLayout>
     </RequireAuth>
