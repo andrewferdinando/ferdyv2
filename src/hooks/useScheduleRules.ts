@@ -40,6 +40,7 @@ interface ScheduleRule {
     name: string;
     detail: string;
     url: string;
+    channels?: string[] | null;
     default_hashtags: string[];
     category_id?: string;
     categories?: {
@@ -71,7 +72,7 @@ export function useScheduleRules(brandId: string) {
         .select(`
           *,
           categories(name),
-          subcategories(name, detail, url, default_hashtags, category_id, categories(name))
+          subcategories(name, detail, url, channels, default_hashtags, category_id, categories(name))
         `)
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false });

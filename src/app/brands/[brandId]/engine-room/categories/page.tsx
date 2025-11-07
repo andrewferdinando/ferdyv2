@@ -718,6 +718,9 @@ export default function CategoriesPage() {
                                   })
 
                                   const channels = firstRule.channels || []
+                                  const subcategoryChannels = firstRule.subcategories?.channels ?? channels
+
+                                  const subcategoryChannels = rule.subcategories?.channels ?? rule.channels ?? []
 
                                   rows.push(
                                     <tr key={`event-group-${subcat.subcategoryId}`}>
@@ -770,7 +773,7 @@ export default function CategoriesPage() {
                                                 detail: firstRule.subcategories?.detail,
                                                 url: firstRule.subcategories?.url,
                                                 hashtags: firstRule.subcategories?.default_hashtags || [],
-                                                channels: channels
+                                                channels: subcategoryChannels || []
                                               })
                                               // Set editingScheduleRule with frequency='specific' to trigger EventOccurrencesManager
                                               // The EventOccurrencesManager will load all occurrences for this subcategory
@@ -953,7 +956,7 @@ export default function CategoriesPage() {
                                                 detail: rule.subcategories?.detail,
                                                 url: rule.subcategories?.url,
                                                 hashtags: rule.subcategories?.default_hashtags || [],
-                                                channels: rule.channels || []
+                                                channels: subcategoryChannels
                                               })
 
                                               const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
