@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import Sidebar from '@/components/navigation/Sidebar';
 
 // Mobile menu icon
@@ -10,15 +10,31 @@ const MenuIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
   </svg>
 );
 
+const AppLayoutContext = createContext(false);
+
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const isNested = useContext(AppLayoutContext);
+
+  if (isNested) {
+    return <>{children}</>;
+  }
+
+  return (
+    <AppLayoutContext.Provider value={true}>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </AppLayoutContext.Provider>
+  );
+}
+
+function AppLayoutInner({ children }: AppLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-dvh bg-gray-50">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -36,15 +52,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
       )}
 
       {/* Sidebar */}
-      <div className={`
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0
-        fixed lg:static inset-y-0 left-0 z-50 lg:z-auto
-        transition-transform duration-300 ease-in-out
-      `}>
+      <div
+        className={`
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+          fixed lg:static inset-y-0 left-0 z-50 lg:z-auto
+          transition-transform duration-300 ease-in-out
+        `}
+      >
         <Sidebar onMobileClose={() => setIsMobileMenuOpen(false)} />
       </div>
-      
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden lg:ml-0 pt-16 lg:pt-0">
         {children}
