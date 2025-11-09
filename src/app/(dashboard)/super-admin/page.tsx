@@ -8,9 +8,21 @@ const adminCards = [
     title: 'Brand Details',
     description: 'Manage Business Information',
     href: '/super-admin/brand-details',
+    cta: 'Manage Details',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    )
+  },
+  {
+    title: 'Add New Brand & Users',
+    description: 'Create a new brand and onboard the first team members.',
+    href: '/auth/sign-up',
+    cta: 'Start Setup',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
       </svg>
     )
   }
@@ -56,7 +68,7 @@ export default function SuperAdminPage() {
                     </div>
                   </div>
                   <div className="flex items-center text-[#6366F1] text-sm font-medium mt-4">
-                    <span>Manage Details</span>
+                    <span>{card.cta ?? 'Open'}</span>
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
