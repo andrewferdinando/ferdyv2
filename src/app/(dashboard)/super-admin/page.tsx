@@ -6,7 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 const adminCards = [
   {
     title: 'Brand Details',
-    description: 'Manage business information, products, services, and company history.',
+    description: 'Manage Business Information',
     href: '/super-admin/brand-details',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
