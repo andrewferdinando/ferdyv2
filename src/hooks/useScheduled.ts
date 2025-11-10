@@ -29,12 +29,20 @@ type RawAsset = {
   duration_seconds?: number | null;
   asset_tags?: Array<{
     tag_id: string;
-    tags?: {
-      id: string;
-      name: string;
-      kind: 'subcategory' | 'custom';
-      is_active: boolean;
-    } | null;
+    tags?:
+      | {
+          id: string;
+          name: string;
+          kind: 'subcategory' | 'custom';
+          is_active: boolean;
+        }
+      | Array<{
+          id: string;
+          name: string;
+          kind: 'subcategory' | 'custom';
+          is_active: boolean;
+        }>
+      | null;
   }>;
 };
 
@@ -227,12 +235,17 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
 
 async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
   const tags: Tag[] = (raw.asset_tags || [])
-    .filter((at) => at.tags && at.tags.is_active)
-    .map((at) => ({
-      id: at.tags!.id,
-      name: at.tags!.name,
-      kind: at.tags!.kind,
-    }));
+    .map((at) => {
+      const tag = Array.isArray(at.tags) ? at.tags[0] : at.tags;
+      return tag && tag.is_active
+        ? {
+            id: tag.id,
+            name: tag.name,
+            kind: tag.kind,
+          }
+        : null;
+    })
+    .filter((tag): tag is Tag => Boolean(tag));
 
   const tagIds = tags.map((tag) => tag.id);
   const assetType = raw.asset_type === 'video' ? 'video' : 'image';
