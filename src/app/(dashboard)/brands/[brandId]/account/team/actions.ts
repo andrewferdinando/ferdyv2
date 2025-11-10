@@ -39,26 +39,12 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     })
 
   } else {
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: normalizedEmail,
-      options: {
-        redirectTo: `${APP_URL}/auth/existing-invite?src=invite&brand_id=${brandId}&email=${encodeURIComponent(
-          normalizedEmail,
-        )}`,
-      },
-    })
-
-    if (error || !data?.properties?.action_link) {
-      console.error('generateLink failed', error)
-      throw new Error('Failed to generate magic link')
-    }
-
-    // Supabase handles sending the magic link email when using signInWithOtp.
     const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
-        emailRedirectTo: data.properties.action_link,
+        emailRedirectTo: `${APP_URL}/auth/existing-invite?src=invite&brand_id=${brandId}&email=${encodeURIComponent(
+          normalizedEmail,
+        )}`,
       },
     })
 

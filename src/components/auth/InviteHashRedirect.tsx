@@ -24,7 +24,16 @@ export default function InviteHashRedirect() {
 
     try {
       const params = new URLSearchParams(hash.slice(1));
-      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      const type = (params.get('type') || '').toLowerCase();
+
+      let pathname = '/auth/callback';
+      if (type === 'invite') {
+        pathname = '/auth/set-password';
+      } else if (type === 'magiclink') {
+        pathname = '/auth/existing-invite';
+      }
+
+      const callbackUrl = new URL(pathname, window.location.origin);
 
       const brandId = params.get('brand_id');
       if (brandId) {
@@ -37,6 +46,11 @@ export default function InviteHashRedirect() {
         callbackUrl.searchParams.get('src') ||
         'invite_hash';
       callbackUrl.searchParams.set('src', source);
+
+      const email = params.get('email');
+      if (email) {
+        callbackUrl.searchParams.set('email', email);
+      }
 
       callbackUrl.hash = hash.slice(1);
 
