@@ -19,23 +19,35 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
 
     const fileArray = Array.from(files)
     const uploadedAssetIds: string[] = []
-    
-    // Validate all files first
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/mov', 'video/avi']
-    const maxSize = 50 * 1024 * 1024 // 50MB
-    
+
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    const maxImageSize = 50 * 1024 * 1024 // 50MB
+    const maxVideoSize = 200 * 1024 * 1024 // 200MB
+
     for (const file of fileArray) {
-      if (!allowedTypes.includes(file.type)) {
-        onUploadError(`Please select a valid image or video file: ${file.name}`)
-        return
-      }
-      if (file.size > maxSize) {
-        onUploadError(`File size must be less than 50MB: ${file.name}`)
-        return
+      const isVideo = file.type.startsWith('video/')
+
+      if (isVideo) {
+        if (file.type !== 'video/mp4') {
+          onUploadError(`Only .mp4 videos are supported. Problem file: ${file.name}`)
+          return
+        }
+        if (file.size > maxVideoSize) {
+          onUploadError(`Video files must be smaller than 200MB. Problem file: ${file.name}`)
+          return
+        }
+      } else {
+        if (!allowedImageTypes.includes(file.type)) {
+          onUploadError(`Please select a valid image file. Problem file: ${file.name}`)
+          return
+        }
+        if (file.size > maxImageSize) {
+          onUploadError(`Image files must be smaller than 50MB. Problem file: ${file.name}`)
+          return
+        }
       }
     }
 
-    // Upload files sequentially
     for (const file of fileArray) {
       try {
         const assetId = await new Promise<string>((resolve, reject) => {
@@ -43,7 +55,7 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
             file,
             brandId,
             onSuccess: (id) => resolve(id),
-            onError: (error) => reject(new Error(error))
+            onError: (error) => reject(new Error(error)),
           })
         })
         uploadedAssetIds.push(assetId)
@@ -83,13 +95,13 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/mp4"
         multiple
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"
         disabled={uploading}
       />
-      
+
       <button
         onClick={handleClick}
         onDragOver={handleDragOver}
@@ -98,8 +110,8 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
         disabled={uploading}
         className={`
           flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors
-          ${uploading 
-            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+          ${uploading
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
             : 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'
           }
           ${dragOver ? 'ring-2 ring-[#6366F1] ring-offset-2' : ''}

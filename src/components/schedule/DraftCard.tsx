@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useSocialAccounts } from '@/hooks/useSocialAccounts';
@@ -14,31 +14,70 @@ import { formatDateTimeLocal } from '@/lib/utils/timezone';
 import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
 
 // Helper component for draft images
-function DraftImage({ asset }: { asset: { id: string; title: string; storage_path: string; aspect_ratio: string } }) {
-  const [imageError, setImageError] = useState(false);
-  
-  if (imageError) {
+type DraftAsset = {
+  id: string;
+  title: string;
+  storage_path: string;
+  aspect_ratio: string;
+  asset_type?: 'image' | 'video' | null;
+  thumbnail_url?: string | null;
+  signed_url?: string | null;
+  thumbnail_signed_url?: string | null;
+  duration_seconds?: number | null;
+};
+
+function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+  const isVideo = (asset.asset_type ?? 'image') === 'video';
+  const previewUrl = useMemo(() => {
+    if (asset.thumbnail_signed_url) return asset.thumbnail_signed_url;
+    if (!isVideo && asset.signed_url) return asset.signed_url;
+    return null;
+  }, [asset.thumbnail_signed_url, asset.signed_url, isVideo]);
+
+  useEffect(() => {
+    if (previewUrl) return;
+    const { data } = supabase.storage.from('ferdy-assets').getPublicUrl(asset.thumbnail_url || asset.storage_path);
+    setFallbackUrl(data.publicUrl);
+  }, [previewUrl, asset.thumbnail_url, asset.storage_path]);
+
+  if (!previewUrl && !fallbackUrl) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
-        <span className="text-gray-400 text-xs">No image</span>
+      <div className="flex h-full w-full items-center justify-center">
+        <span className="text-xs text-gray-400">No preview</span>
       </div>
     );
   }
 
-  // Generate public URL using the same approach as Content Library
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage
-      .from('ferdy-assets')
-      .getPublicUrl(path);
-    return data.publicUrl;
-  };
+  if (isVideo) {
+    return (
+      <div className="relative h-full w-full">
+        <img
+          src={previewUrl ?? fallbackUrl ?? ''}
+          alt={asset.title || 'Video'}
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+        {asset.duration_seconds ? (
+          <div className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
+            {Math.round(asset.duration_seconds)}s
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
-    <img 
-      src={getPublicUrl(asset.storage_path)} 
+    <img
+      src={previewUrl ?? fallbackUrl ?? ''}
       alt={asset.title || 'Asset'}
-      className="w-full h-full object-cover"
-      onError={() => setImageError(true)}
+      className="h-full w-full object-cover"
     />
   );
 }
@@ -140,12 +179,7 @@ interface DraftCardProps {
       target_month: string;
       schedule_rule_id?: string;
     };
-    assets?: {
-      id: string;
-      title: string;
-      storage_path: string;
-      aspect_ratio: string;
-    }[];
+    assets?: DraftAsset[];
   };
   onUpdate: () => void;
   status?: 'draft' | 'scheduled' | 'published';
@@ -499,12 +533,12 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
           {/* Image Section */}
           <div className="flex-shrink-0">
             {draft.assets && draft.assets.length > 0 ? (
-              <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                <DraftImage asset={draft.assets[0]} />
+              <div className="h-20 w-20 overflow-hidden rounded-lg bg-gray-100">
+                <DraftAssetPreview asset={draft.assets[0]} />
               </div>
             ) : (
-              <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                <span className="text-gray-400 text-xs">No image</span>
+              <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-gray-100">
+                <span className="text-xs text-gray-400">No media</span>
               </div>
             )}
           </div>

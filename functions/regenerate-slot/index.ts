@@ -7,6 +7,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { assetLRU } from '../_shared/lru.ts';
 import { generateCaption } from '../_shared/ai.ts';
+import { channelSupportsMedia, SUPPORTED_MEDIA_TYPES, MediaType } from '../_shared/channelSupport.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,7 +94,12 @@ serve(async (req) => {
         .single();
 
       // Select new assets
-      const assetIds = await selectAssets(supabase, postJob.schedule_rules, postJob.brand_id);
+      const { assetIds, selectedAssets } = await selectAssets(
+        supabase,
+        postJob.schedule_rules,
+        postJob.brand_id,
+        postJob.channel,
+      );
 
       // Generate new content
       const generatedContent = await generateCaption({
@@ -162,9 +168,9 @@ serve(async (req) => {
         .eq('id', post_job_id);
 
       // Record asset usage for LRU
-      if (postJob.schedule_rules?.subcategory_id && assetIds.length > 0) {
-        assetIds.forEach((assetId: string) => {
-          assetLRU.recordUsage(postJob.brand_id, postJob.schedule_rules.subcategory_id, assetId);
+      if (postJob.schedule_rules?.subcategory_id && selectedAssets.length > 0) {
+        selectedAssets.forEach(({ id, asset_type }) => {
+          assetLRU.recordUsage(postJob.brand_id, postJob.schedule_rules.subcategory_id, id, asset_type);
         });
       }
 
@@ -194,12 +200,29 @@ serve(async (req) => {
 /**
  * Select assets for a post
  */
-async function selectAssets(supabase: any, rule: any, brandId: string): Promise<string[]> {
+interface SelectedAsset {
+  id: string;
+  asset_type: MediaType;
+}
+
+interface SelectAssetsResult {
+  assetIds: string[];
+  selectedAssets: SelectedAsset[];
+}
+
+async function selectAssets(
+  supabase: any,
+  rule: any,
+  brandId: string,
+  channel: string,
+): Promise<SelectAssetsResult> {
+  const empty: SelectAssetsResult = { assetIds: [], selectedAssets: [] };
+
   try {
     // Build asset query based on image_tag_rule
     let query = supabase
       .from('assets')
-      .select('id, tags')
+      .select('id, tags, asset_type')
       .eq('brand_id', brandId);
 
     // Apply tag filters if specified
@@ -207,30 +230,68 @@ async function selectAssets(supabase: any, rule: any, brandId: string): Promise<
       query = query.contains('tags', rule.image_tag_rule.all);
     }
 
+    const typeFilters = SUPPORTED_MEDIA_TYPES.map((type) => `asset_type.eq.${type}`).join(',');
+    query = query.or(`${typeFilters},asset_type.is.null`);
+
     const { data: assets, error } = await query;
 
     if (error) {
       console.error('Error fetching assets:', error);
-      return [];
+      return empty;
     }
 
     if (!assets || assets.length === 0) {
       console.log('No assets found for brand');
-      return [];
+      return empty;
     }
 
-    const availableAssetIds = assets.map((a: any) => a.id);
+    const eligibleAssets: SelectedAsset[] = (assets as any[]).reduce((acc: SelectedAsset[], asset: any) => {
+      const rawType = asset.asset_type as string | null;
+      const normalizedType: MediaType = rawType === 'video' ? 'video' : 'image';
+
+      if (!channelSupportsMedia(channel, normalizedType)) {
+        return acc;
+      }
+
+      if (!SUPPORTED_MEDIA_TYPES.includes(normalizedType)) {
+        return acc;
+      }
+
+      acc.push({
+        id: asset.id,
+        asset_type: normalizedType,
+      });
+      return acc;
+    }, []);
+
+    if (eligibleAssets.length === 0) {
+      console.log(
+        `No eligible assets found for channel ${channel} with supported media types ${SUPPORTED_MEDIA_TYPES.join(
+          ', ',
+        )}`,
+      );
+      return empty;
+    }
+
+    const availableAssetIds = eligibleAssets.map((asset) => asset.id);
 
     // Use LRU to select asset
-    const selectedAssetId = assetLRU.selectLeastUsed(
-      brandId,
-      rule?.subcategory_id,
-      availableAssetIds
-    );
+    const selectedAssetId = assetLRU.selectLeastUsed(brandId, rule?.subcategory_id, availableAssetIds);
+    if (!selectedAssetId) {
+      return empty;
+    }
 
-    return selectedAssetId ? [selectedAssetId] : [];
+    const selectedAsset = eligibleAssets.find((asset) => asset.id === selectedAssetId);
+    if (!selectedAsset) {
+      return empty;
+    }
+
+    return {
+      assetIds: [selectedAssetId],
+      selectedAssets: [selectedAsset],
+    };
   } catch (error) {
     console.error('Error selecting assets:', error);
-    return [];
+    return empty;
   }
 }

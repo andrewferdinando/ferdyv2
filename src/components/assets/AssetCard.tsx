@@ -6,73 +6,91 @@ interface AssetCardProps {
   asset: Asset
   onEdit: (asset: Asset) => void
   onDelete: (asset: Asset) => void
+  onPreview?: (asset: Asset) => void
 }
 
-export default function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
-  const isVideo = asset.storage_path.match(/\.(mp4|mov|avi)$/i)
+export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetCardProps) {
+  const isVideo = asset.asset_type === 'video'
+  const previewUrl = isVideo ? asset.thumbnail_signed_url || asset.signed_url : asset.signed_url
+  const canPreview = isVideo && typeof onPreview === 'function'
+
+  const handlePreviewClick = () => {
+    if (canPreview) {
+      onPreview!(asset)
+    }
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-      {/* Image/Video */}
-      <div className="aspect-square bg-gray-200 overflow-hidden">
-        {!asset.signed_url ? (
-          <div className="flex items-center justify-center text-gray-400">
+      <div
+        className={`relative aspect-square bg-gray-100 overflow-hidden ${canPreview ? 'cursor-pointer' : ''}`}
+        onClick={canPreview ? handlePreviewClick : undefined}
+        role={canPreview ? 'button' : undefined}
+        tabIndex={canPreview ? 0 : undefined}
+        onKeyDown={
+          canPreview
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  handlePreviewClick()
+                }
+              }
+            : undefined
+        }
+        aria-label={canPreview ? `Preview video ${asset.title}` : undefined}
+      >
+        {!previewUrl ? (
+          <div className="flex h-full items-center justify-center text-gray-400">
             <div className="text-center">
               <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <div className="text-xs">No URL</div>
-              <div className="text-xs text-gray-300">{asset.storage_path}</div>
+              <div className="text-xs">No preview</div>
+              <div className="text-xs text-gray-300 break-all px-2">{asset.storage_path}</div>
             </div>
           </div>
-        ) : isVideo ? (
-          <video
-            src={asset.signed_url}
-            className="w-full h-full object-cover"
-            muted
-            onError={(e) => {
-              const target = e.target as HTMLVideoElement;
-              target.style.display = 'none';
-              target.parentElement!.innerHTML = '<div class="flex items-center justify-center text-gray-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></div>';
-            }}
-          />
         ) : (
           <img
-            src={asset.signed_url}
+            src={previewUrl}
             alt={asset.title}
-            className="w-full h-full object-cover"
-            onLoad={() => console.log('✅ Image loaded successfully:', asset.title, asset.signed_url)}
+            className="h-full w-full object-cover"
             onError={(e) => {
-              console.error('❌ Image failed to load:', asset.title, asset.signed_url)
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
+              const target = e.target as HTMLImageElement
+              target.style.display = 'none'
               target.parentElement!.innerHTML = `
-                <div class="flex items-center justify-center text-gray-400">
+                <div class="flex h-full items-center justify-center text-gray-400">
                   <div class="text-center">
                     <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
-                    <div class="text-xs">Load Failed</div>
-                    <div class="text-xs text-gray-300">${asset.storage_path}</div>
+                    <div class="text-xs">Preview unavailable</div>
+                    <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
                   </div>
                 </div>
-              `;
+              `
             }}
           />
         )}
+        {isVideo && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Content */}
       <div className="p-4">
-        {/* Tags */}
         {asset.tags && asset.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
+          <div className="mb-4 flex flex-wrap gap-1">
             {asset.tags.map((tag) => (
-              <span 
+              <span
                 key={tag.id}
                 className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  tag.kind === 'subcategory' 
-                    ? 'bg-blue-100 text-blue-700' 
+                  tag.kind === 'subcategory'
+                    ? 'bg-blue-100 text-blue-700'
                     : 'bg-gray-100 text-gray-700'
                 }`}
               >
@@ -82,9 +100,8 @@ export default function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex items-center justify-end gap-3">
-          <button 
+          <button
             onClick={() => onEdit(asset)}
             className="p-2 text-[#6366F1] hover:text-[#4F46E5] hover:bg-[#EEF2FF] rounded-lg transition-colors duration-200"
             title="Edit"
@@ -93,7 +110,7 @@ export default function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
-          <button 
+          <button
             onClick={() => onDelete(asset)}
             className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
             title="Delete"

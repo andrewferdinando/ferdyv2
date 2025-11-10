@@ -3,6 +3,40 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
+import type { Asset } from '@/hooks/assets/useAssets';
+import { getSignedUrl } from '@/lib/storage/getSignedUrl';
+
+type Tag = {
+  id: string;
+  name: string;
+  kind: 'subcategory' | 'custom';
+};
+
+type RawAsset = {
+  id: string;
+  brand_id: string;
+  title: string;
+  storage_path: string;
+  aspect_ratio: string;
+  crop_windows?: Record<string, unknown>;
+  width?: number;
+  height?: number;
+  created_at: string;
+  asset_type?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  thumbnail_url?: string | null;
+  duration_seconds?: number | null;
+  asset_tags?: Array<{
+    tag_id: string;
+    tags?: {
+      id: string;
+      name: string;
+      kind: 'subcategory' | 'custom';
+      is_active: boolean;
+    } | null;
+  }>;
+};
 
 interface Draft {
   id: string;
@@ -37,12 +71,7 @@ interface Draft {
     status: string;
     target_month: string;
   };
-  assets?: {
-    id: string;
-    title: string;
-    storage_path: string;
-    aspect_ratio: string;
-  }[];
+  assets?: Asset[];
 }
 
 export function useDrafts(brandId: string, statusFilter?: string) {
@@ -109,17 +138,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
           };
           
           if (draft.asset_ids && draft.asset_ids.length > 0) {
-            const { data: assetsData, error: assetsError } = await supabase
-              .from('assets')
-              .select('id, title, storage_path, aspect_ratio')
-              .in('id', draft.asset_ids);
-            
-            if (assetsError) {
-              console.error('Error fetching assets for draft:', draft.id, assetsError);
-              return { ...normalizedDraft, assets: [] };
-            }
-            
-            return { ...normalizedDraft, assets: assetsData || [] };
+            const assets = await loadAssetsByIds(draft.asset_ids);
+            return { ...normalizedDraft, assets };
           }
           return { ...normalizedDraft, assets: [] };
         }));
@@ -202,11 +222,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
             const { data: refreshed } = await refetchQuery;
             const refreshedWithAssets = await Promise.all((refreshed || []).map(async (draft) => {
               if (draft.asset_ids && draft.asset_ids.length > 0) {
-                const { data: assetsData } = await supabase
-                  .from('assets')
-                  .select('id, title, storage_path, aspect_ratio')
-                  .in('id', draft.asset_ids);
-                return { ...draft, assets: assetsData || [] };
+            const assets = await loadAssetsByIds(draft.asset_ids);
+            return { ...draft, assets };
               }
               return { ...draft, assets: [] };
             }));
@@ -252,10 +269,19 @@ export function useDrafts(brandId: string, statusFilter?: string) {
 
       if (error) throw error;
 
+      let nextAssets: Asset[] | undefined;
+      if (updates.asset_ids && updates.asset_ids.length > 0) {
+        nextAssets = await loadAssetsByIds(updates.asset_ids);
+      }
+
       // Update local state
-      setDrafts(prev => prev.map(draft => 
-        draft.id === draftId ? { ...draft, ...updates } : draft
-      ));
+      setDrafts(prev =>
+        prev.map(draft =>
+          draft.id === draftId
+            ? { ...draft, ...updates, ...(nextAssets ? { assets: nextAssets } : {}) }
+            : draft,
+        ),
+      );
 
       return data;
     } catch (err) {
@@ -346,17 +372,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
       // Now fetch assets for each draft that has asset_ids
       const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
         if (draft.asset_ids && draft.asset_ids.length > 0) {
-          const { data: assetsData, error: assetsError } = await supabase
-            .from('assets')
-            .select('id, title, storage_path, aspect_ratio')
-            .in('id', draft.asset_ids);
-          
-          if (assetsError) {
-            console.error('Error fetching assets for draft:', draft.id, assetsError);
-            return { ...draft, assets: [] };
-          }
-          
-          return { ...draft, assets: assetsData || [] };
+          const assets = await loadAssetsByIds(draft.asset_ids);
+          return { ...draft, assets };
         }
         return { ...draft, assets: [] };
       }));
@@ -377,5 +394,101 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     approveDraft,
     deleteDraft,
     refetch
+  };
+}
+
+async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
+  if (!supabase || assetIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('assets')
+    .select(
+      `
+        id,
+        brand_id,
+        title,
+        storage_path,
+        aspect_ratio,
+        crop_windows,
+        width,
+        height,
+        created_at,
+        asset_type,
+        mime_type,
+        file_size,
+        thumbnail_url,
+        duration_seconds,
+        asset_tags (
+          tag_id,
+          tags (
+            id,
+            name,
+            kind,
+            is_active
+          )
+        )
+      `,
+    )
+    .in('id', assetIds);
+
+  if (error || !data) {
+    console.error('Error fetching assets by ids:', error);
+    return [];
+  }
+
+  return Promise.all(data.map(mapRawAssetToAsset));
+}
+
+async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
+  const tags: Tag[] = (raw.asset_tags || [])
+    .filter((at) => at.tags && at.tags.is_active)
+    .map((at) => ({
+      id: at.tags!.id,
+      name: at.tags!.name,
+      kind: at.tags!.kind,
+    }));
+
+  const tagIds = tags.map((tag) => tag.id);
+  const assetType = raw.asset_type === 'video' ? 'video' : 'image';
+
+  let signedUrl: string | undefined;
+  let thumbnailSignedUrl: string | undefined;
+
+  try {
+    signedUrl = await getSignedUrl(raw.storage_path);
+  } catch (err) {
+    console.error('Failed to generate signed url for asset', raw.id, err);
+  }
+
+  const thumbnailPath = raw.thumbnail_url || (assetType === 'video' ? undefined : raw.storage_path);
+  if (thumbnailPath) {
+    try {
+      thumbnailSignedUrl = await getSignedUrl(thumbnailPath);
+    } catch (err) {
+      console.error('Failed to generate thumbnail signed url for asset', raw.id, err);
+    }
+  }
+
+  return {
+    id: raw.id,
+    brand_id: raw.brand_id,
+    title: raw.title,
+    storage_path: raw.storage_path,
+    aspect_ratio: raw.aspect_ratio,
+    crop_windows: raw.crop_windows,
+    width: raw.width,
+    height: raw.height,
+    created_at: raw.created_at,
+    asset_type: assetType,
+    mime_type: raw.mime_type,
+    file_size: raw.file_size,
+    thumbnail_url: raw.thumbnail_url ?? null,
+    duration_seconds: raw.duration_seconds,
+    signed_url: signedUrl,
+    thumbnail_signed_url: thumbnailSignedUrl,
+    tags,
+    tag_ids: tagIds,
   };
 }

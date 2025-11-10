@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
-import { useAssets } from '@/hooks/useAssets';
+import { useAssets, Asset } from '@/hooks/assets/useAssets';
 import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
-import { utcToLocalDate, utcToLocalTime, localToUtc, formatDateTimeLocal } from '@/lib/utils/timezone';
+import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
+import { channelSupportsMedia, describeChannelSupport } from '@/lib/channelSupport';
 
 console.log('Edit Post page component loaded');
 
@@ -40,13 +41,7 @@ interface Draft {
     status: string;
     target_month: string;
   };
-  assets?: {
-    id: string;
-    title: string;
-    storage_path: string;
-    aspect_ratio: string;
-    signed_url?: string;
-  }[];
+  assets?: Asset[];
 }
 
 export default function EditPostPage() {
@@ -75,12 +70,54 @@ export default function EditPostPage() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState('');
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [activeAssetId, setActiveAssetId] = useState<string>('');
+  const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const { imageAssets, videoAssets } = useMemo(() => {
+    const grouped = assets.reduce(
+      (acc, asset) => {
+        if ((asset.asset_type ?? 'image') === 'video') {
+          acc.videoAssets.push(asset);
+        } else {
+          acc.imageAssets.push(asset);
+        }
+        return acc;
+      },
+      { imageAssets: [] as Asset[], videoAssets: [] as Asset[] },
+    );
+    return grouped;
+  }, [assets]);
+
+  const assetsForActiveTab = assetTab === 'videos' ? videoAssets : imageAssets;
+
+  const selectedMediaTypes = useMemo(() => {
+    const types = new Set<'image' | 'video'>();
+    selectedAssets.forEach((asset) => {
+      types.add((asset.asset_type ?? 'image'));
+    });
+    return types;
+  }, [selectedAssets]);
+
+  const channelsSupportSelection = useMemo(() => {
+    if (selectedMediaTypes.size === 0) return true;
+    return selectedChannels.every((channel) =>
+      Array.from(selectedMediaTypes).every((type) => channelSupportsMedia(channel, type)),
+    );
+  }, [selectedChannels, selectedMediaTypes]);
+
+  const hasSelectedMedia = selectedAssets.length > 0;
+  const hasVideoSelected = selectedMediaTypes.has('video');
 
   // Check if post can be approved (allow without connected social accounts for now)
-  const canApprove = postCopy.trim() && selectedChannels.length > 0 && scheduleDate && scheduleTime && draft?.asset_ids && draft.asset_ids.length > 0;
+  const canApprove =
+    !!postCopy.trim() &&
+    selectedChannels.length > 0 &&
+    !!scheduleDate &&
+    !!scheduleTime &&
+    hasSelectedMedia &&
+    channelsSupportSelection;
 
   // Load draft data
   useEffect(() => {
@@ -135,34 +172,6 @@ export default function EditPostPage() {
           setSelectedChannels(channels);
         }
         
-        // Load assets if asset_ids exist
-        if (data.asset_ids && data.asset_ids.length > 0) {
-          const { data: assetsData, error: assetsError } = await supabase
-            .from('assets')
-            .select('id, title, storage_path, aspect_ratio')
-            .in('id', data.asset_ids)
-            .eq('brand_id', brandId);
-
-          if (assetsError) {
-            console.error('Error loading assets:', assetsError);
-          } else if (assetsData) {
-            // Generate public URLs for assets
-            const assetsWithUrls = assetsData.map(asset => {
-              const { data } = supabase.storage
-                .from('ferdy-assets')
-                .getPublicUrl(asset.storage_path);
-              return { ...asset, signed_url: data.publicUrl };
-            });
-            
-            setDraft(prev => prev ? { ...prev, assets: assetsWithUrls } : null);
-            
-            // Set first asset as selected media if available
-            if (assetsWithUrls.length > 0) {
-              setSelectedMedia(assetsWithUrls[0].signed_url || '');
-            }
-          }
-        }
-        
              // Parse scheduled date and time - will convert to brand local time in separate useEffect
              // Just store the draft data here, conversion happens when brand loads
         
@@ -193,6 +202,33 @@ export default function EditPostPage() {
     }
   }, [draft, brand?.timezone]);
 
+  // Sync selected assets with draft asset IDs and full asset data
+  useEffect(() => {
+    if (!draft) {
+      setSelectedAssets([]);
+      setActiveAssetId('');
+      return;
+    }
+
+    const matchedAssets: Asset[] = (draft.asset_ids || [])
+      .map((id) => assets.find((asset) => asset.id === id))
+      .filter((asset): asset is Asset => Boolean(asset));
+
+    setSelectedAssets(matchedAssets);
+
+    if (matchedAssets.length === 0) {
+      setActiveAssetId('');
+      return;
+    }
+
+    setActiveAssetId((prev) => {
+      if (prev && matchedAssets.some((asset) => asset.id === prev)) {
+        return prev;
+      }
+      return matchedAssets[0].id;
+    });
+  }, [draft, assets]);
+
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
       e.preventDefault();
@@ -209,32 +245,67 @@ export default function EditPostPage() {
     setHashtags(hashtags.filter(tag => tag !== tagToRemove));
   };
 
-  const toggleChannel = (channel: string) => {
-    setSelectedChannels(prev => 
-      prev.includes(channel) 
-        ? prev.filter(c => c !== channel)
-        : [...prev, channel]
-    );
-  };
+  const toggleChannel = useCallback(
+    (channel: string) => {
+      setSelectedChannels((prev) => {
+        if (prev.includes(channel)) {
+          return prev.filter((c) => c !== channel);
+        }
 
-  const handleMediaSelect = async (asset: { id: string; title: string; storage_path: string; aspect_ratio: string; signed_url?: string }) => {
-    try {
-      // Add asset to draft
-      const newAssetIds = [...(draft?.asset_ids || []), asset.id];
-      const newAssets = [...(draft?.assets || []), asset];
-      
-      setDraft(prev => prev ? { 
-        ...prev, 
-        asset_ids: newAssetIds,
-        assets: newAssets 
-      } : null);
-      
-      setSelectedMedia(asset.signed_url || asset.storage_path);
+        const incompatibleType = Array.from(selectedMediaTypes).find(
+          (type) => !channelSupportsMedia(channel, type),
+        );
+
+        if (incompatibleType) {
+          alert(
+            `The ${channel} channel does not support ${
+              incompatibleType === 'video' ? 'video' : 'image'
+            } posts. Please remove incompatible media or choose a different channel.`,
+          );
+          return prev;
+        }
+
+        return [...prev, channel];
+      });
+    },
+    [selectedMediaTypes],
+  );
+
+  const handleMediaSelect = useCallback(
+    (asset: Asset) => {
+      if (!draft) return;
+
+      const mediaType = asset.asset_type ?? 'image';
+      const incompatibleChannel = selectedChannels.find(
+        (channel) => !channelSupportsMedia(channel, mediaType),
+      );
+
+      if (incompatibleChannel) {
+        alert(
+          `The ${incompatibleChannel} channel does not support ${
+            mediaType === 'video' ? 'videos' : 'images'
+          }. Remove the incompatible channel or choose different media.`,
+        );
+        return;
+      }
+
+      setDraft((prev) => {
+        if (!prev) return prev;
+        const existingIds = prev.asset_ids || [];
+        if (existingIds.includes(asset.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          asset_ids: [...existingIds, asset.id],
+        };
+      });
+
+      setActiveAssetId(asset.id);
       setIsMediaModalOpen(false);
-    } catch (error) {
-      console.error('Error adding asset to draft:', error);
-    }
-  };
+    },
+    [draft, selectedChannels],
+  );
 
   // Validate that all assets have tags
   const validateAssetsHaveTags = async (assetIds: string[]): Promise<boolean> => {
@@ -319,8 +390,8 @@ export default function EditPostPage() {
     }
 
     // Validate assets have tags before saving
-    if (draft?.asset_ids && draft.asset_ids.length > 0) {
-      const assetsValid = await validateAssetsHaveTags(draft.asset_ids)
+    if (selectedAssets.length > 0) {
+      const assetsValid = await validateAssetsHaveTags(selectedAssets.map((asset) => asset.id));
       if (!assetsValid) {
         return // Validation failed, error message already shown
       }
@@ -348,7 +419,7 @@ export default function EditPostPage() {
         .update({
           copy: postCopy.trim(),
           hashtags: normalizedHashtags,
-          asset_ids: draft?.asset_ids || [],
+          asset_ids: selectedAssets.map((asset) => asset.id),
           channel: selectedChannels.join(','), // Store as comma-separated string
           scheduled_for: scheduledAt.toISOString(), // UTC timestamp
           scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
@@ -413,8 +484,8 @@ export default function EditPostPage() {
     }
 
     // Validate assets have tags before approving
-    if (draft?.asset_ids && draft.asset_ids.length > 0) {
-      const assetsValid = await validateAssetsHaveTags(draft.asset_ids)
+    if (selectedAssets.length > 0) {
+      const assetsValid = await validateAssetsHaveTags(selectedAssets.map((asset) => asset.id));
       if (!assetsValid) {
         return // Validation failed, error message already shown
       }
@@ -441,7 +512,7 @@ export default function EditPostPage() {
         .update({
           copy: postCopy.trim(),
           hashtags: normalizedHashtags,
-          asset_ids: draft?.asset_ids || [],
+          asset_ids: selectedAssets.map((asset) => asset.id),
           channel: selectedChannels.join(','),
           approved: true, // Mark as approved
           scheduled_for: scheduledAt.toISOString(), // UTC timestamp
@@ -548,41 +619,83 @@ export default function EditPostPage() {
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {/* Existing Images from Draft */}
-                      {draft?.assets && draft.assets.length > 0 ? (
-                        draft.assets.map((asset) => (
-                          <div key={asset.id} className="relative">
-                            <img
-                              src={asset.signed_url || asset.storage_path}
-                              alt={asset.title || 'Asset'}
-                              className="w-full h-32 object-cover rounded-lg"
-                              onError={(e) => {
-                                console.error('Image failed to load:', asset.signed_url || asset.storage_path);
-                                e.currentTarget.src = '/assets/placeholders/image1.png';
-                              }}
-                            />
-                            <button 
-                              onClick={() => {
-                                // Remove this asset from the draft
-                                const updatedAssets = draft.assets?.filter(a => a.id !== asset.id) || [];
-                                const updatedAssetIds = draft.asset_ids.filter(id => id !== asset.id);
-                                setDraft(prev => prev ? { 
-                                  ...prev, 
-                                  assets: updatedAssets,
-                                  asset_ids: updatedAssetIds 
-                                } : null);
-                                if (selectedMedia === (asset.signed_url || asset.storage_path)) {
-                                  setSelectedMedia('');
-                                }
-                              }}
-                              className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                            >
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                          </div>
-                        ))
+                      {/* Existing media from Draft */}
+                      {selectedAssets.length > 0 ? (
+                        selectedAssets.map((asset) => {
+                          const isVideo = (asset.asset_type ?? 'image') === 'video';
+                          const previewUrl = isVideo
+                            ? asset.thumbnail_signed_url || asset.signed_url
+                            : asset.signed_url || asset.thumbnail_signed_url;
+
+                          return (
+                            <div key={asset.id} className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setActiveAssetId(asset.id)}
+                                className={`group relative flex h-32 w-full items-center justify-center overflow-hidden rounded-lg ${
+                                  activeAssetId === asset.id ? 'ring-2 ring-[#6366F1]' : ''
+                                }`}
+                              >
+                                {isVideo ? (
+                                  <>
+                                    {previewUrl ? (
+                                      <img
+                                        src={previewUrl}
+                                        alt={asset.title || 'Video preview'}
+                                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center bg-black text-sm text-white/70">
+                                        Video preview unavailable
+                                      </div>
+                                    )}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+                                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                          <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : previewUrl ? (
+                                  <img
+                                    src={previewUrl}
+                                    alt={asset.title || 'Asset'}
+                                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-gray-100 text-sm text-gray-500">
+                                    Preview unavailable
+                                  </div>
+                                )}
+                              </button>
+                              <div className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
+                                {isVideo ? 'Video' : 'Image'}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setDraft((prev) => {
+                                    if (!prev) return prev;
+                                    return {
+                                      ...prev,
+                                      asset_ids: (prev.asset_ids || []).filter((id) => id !== asset.id),
+                                    };
+                                  });
+                                  setActiveAssetId((prev) => (prev === asset.id ? '' : prev));
+                                }}
+                                className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                              >
+                                <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })
                       ) : (
                         <div className="col-span-2 text-center py-8 text-gray-500">
                           <svg className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -731,7 +844,10 @@ export default function EditPostPage() {
                               <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                             </svg>
                           </div>
-                          <span className="font-medium text-gray-900">Instagram</span>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium text-gray-900">Instagram</span>
+                            <span className="text-xs text-gray-500">{describeChannelSupport('instagram')}</span>
+                          </div>
                         </div>
                         {selectedChannels.includes('instagram') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
@@ -755,7 +871,10 @@ export default function EditPostPage() {
                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                             </svg>
                           </div>
-                          <span className="font-medium text-gray-900">Facebook</span>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium text-gray-900">Facebook</span>
+                            <span className="text-xs text-gray-500">{describeChannelSupport('facebook')}</span>
+                          </div>
                         </div>
                         {selectedChannels.includes('facebook') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
@@ -779,7 +898,10 @@ export default function EditPostPage() {
                               <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                             </svg>
                           </div>
-                          <span className="font-medium text-gray-900">LinkedIn</span>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium text-gray-900">LinkedIn</span>
+                            <span className="text-xs text-gray-500">{describeChannelSupport('linkedin')}</span>
+                          </div>
                         </div>
                         {selectedChannels.includes('linkedin') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
@@ -803,7 +925,10 @@ export default function EditPostPage() {
                               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                             </svg>
                           </div>
-                          <span className="font-medium text-gray-900">X (Twitter)</span>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium text-gray-900">X (Twitter)</span>
+                            <span className="text-xs text-gray-500">{describeChannelSupport('x')}</span>
+                          </div>
                         </div>
                         {selectedChannels.includes('x') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
@@ -870,45 +995,97 @@ export default function EditPostPage() {
         >
           {assetsLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#6366F1]" />
             </div>
           ) : assets.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No assets available for this brand.</p>
+            <div className="py-8 text-center">
+              <p className="mb-4 text-gray-500">No assets available for this brand.</p>
               <p className="text-sm text-gray-400">Upload assets in the Content Library first.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {assets.map((asset) => {
-                // Generate public URL for the asset using correct bucket
-                const { data } = supabase.storage
-                  .from('ferdy-assets')
-                  .getPublicUrl(asset.storage_path);
-                const imageUrl = data.publicUrl;
-                
-                return (
-                  <button
-                    key={asset.id}
-                    onClick={() => handleMediaSelect({ 
-                      ...asset, 
-                      signed_url: imageUrl 
-                    })}
-                    className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
-                  >
-                    <img 
-                      src={imageUrl} 
-                      alt={asset.title || 'Asset'} 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => {
-                        console.error('Image failed to load:', imageUrl);
-                        // Show placeholder if image fails to load
-                        e.currentTarget.src = '/assets/placeholders/image1.png';
-                      }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              <div className="mb-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('images')}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                    assetTab === 'images' ? 'bg-[#6366F1] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Images ({imageAssets.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('videos')}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                    assetTab === 'videos' ? 'bg-[#6366F1] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Videos ({videoAssets.length})
+                </button>
+              </div>
+              {assetsForActiveTab.length === 0 ? (
+                <div className="py-12 text-center text-sm text-gray-500">
+                  {assetTab === 'videos'
+                    ? 'No videos available. Upload a video in the Content Library.'
+                    : 'No images available. Upload an image in the Content Library.'}
+                </div>
+              ) : (
+                <div className="grid max-h-[420px] grid-cols-2 gap-4 overflow-y-auto sm:grid-cols-3">
+                  {assetsForActiveTab.map((asset) => {
+                    const isSelected = selectedAssets.some((selected) => selected.id === asset.id);
+                    const isVideo = (asset.asset_type ?? 'image') === 'video';
+                    const previewUrl = isVideo
+                      ? asset.thumbnail_signed_url || asset.signed_url
+                      : asset.thumbnail_signed_url || asset.signed_url;
+
+                    return (
+                      <button
+                        type="button"
+                        key={asset.id}
+                        onClick={() => handleMediaSelect(asset)}
+                        className={`group relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {previewUrl ? (
+                          <img
+                            src={previewUrl}
+                            alt={asset.title || 'Asset preview'}
+                            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gray-100 text-xs text-gray-500">
+                            Preview unavailable
+                          </div>
+                        )}
+                        {isVideo && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                        {isSelected && (
+                          <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#6366F1] text-white shadow">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
+                          {isVideo ? 'Video' : 'Image'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </Modal>
       </AppLayout>

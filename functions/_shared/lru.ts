@@ -3,8 +3,11 @@
  * Ensures assets are rotated fairly across subcategories
  */
 
+import { MediaType } from './channelSupport.ts';
+
 export interface AssetUsage {
   asset_id: string;
+  asset_type?: MediaType;
   subcategory_id: string;
   last_used_at: Date;
   usage_count: number;
@@ -31,21 +34,28 @@ export class AssetLRUCache {
   /**
    * Record asset usage
    */
-  recordUsage(brandId: string, subcategoryId: string, assetId: string): void {
+  recordUsage(
+    brandId: string,
+    subcategoryId: string,
+    assetId: string,
+    assetType: MediaType = 'image',
+  ): void {
     const key = this.getKey(brandId, subcategoryId);
     const usage = this.cache.get(key) || [];
-    
+
     // Update existing usage or add new
-    const existingIndex = usage.findIndex(u => u.asset_id === assetId);
+    const existingIndex = usage.findIndex((u) => u.asset_id === assetId);
     if (existingIndex >= 0) {
       usage[existingIndex].last_used_at = new Date();
       usage[existingIndex].usage_count += 1;
+      usage[existingIndex].asset_type = usage[existingIndex].asset_type || assetType;
     } else {
       usage.push({
         asset_id: assetId,
+        asset_type: assetType,
         subcategory_id: subcategoryId,
         last_used_at: new Date(),
-        usage_count: 1
+        usage_count: 1,
       });
     }
 
@@ -159,9 +169,10 @@ export async function loadAssetUsageFromDB(
         } else {
           usageMap.set(assetId, {
             asset_id: assetId,
+            asset_type: 'image',
             subcategory_id: subcategoryId,
             last_used_at: new Date(draft.created_at),
-            usage_count: 1
+            usage_count: 1,
           });
         }
       });

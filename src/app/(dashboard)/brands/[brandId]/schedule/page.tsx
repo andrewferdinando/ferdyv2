@@ -9,6 +9,7 @@ import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
 import { useToast } from '@/components/ui/ToastProvider';
+import { Asset } from '@/hooks/assets/useAssets';
 
 // Type definitions
 interface Draft {
@@ -32,12 +33,7 @@ interface Draft {
     status: string;
     target_month: string;
   };
-  assets?: {
-    id: string;
-    title: string;
-    storage_path: string;
-    aspect_ratio: string;
-  }[];
+  assets?: Asset[];
 }
 
 interface ScheduledPost {
@@ -61,12 +57,7 @@ interface ScheduledPost {
     status: string;
     target_month: string;
   };
-  assets?: {
-    id: string;
-    title: string;
-    storage_path: string;
-    aspect_ratio: string;
-  }[];
+  assets?: Asset[];
 }
 
 interface PublishedPost {
@@ -98,12 +89,7 @@ interface PublishedPost {
     status: string;
     error: string;
   };
-  assets?: {
-    id: string;
-    title: string;
-    storage_path: string;
-    aspect_ratio: string;
-  }[];
+  assets?: Asset[];
 }
 
 // Icons

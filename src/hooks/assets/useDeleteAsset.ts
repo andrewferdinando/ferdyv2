@@ -5,6 +5,7 @@ export interface DeleteAssetParams {
   assetId: string
   brandId: string
   storagePath: string
+  thumbnailPath?: string | null
   onSuccess?: () => void
   onError?: (error: string) => void
 }
@@ -12,22 +13,27 @@ export interface DeleteAssetParams {
 export function useDeleteAsset() {
   const [deleting, setDeleting] = useState(false)
 
-  const deleteAsset = async ({ assetId, brandId, storagePath, onSuccess, onError }: DeleteAssetParams) => {
+  const deleteAsset = async ({
+    assetId,
+    brandId,
+    storagePath,
+    thumbnailPath,
+    onSuccess,
+    onError,
+  }: DeleteAssetParams) => {
     try {
       setDeleting(true)
 
-
-      // Delete from storage first
-      const { error: storageError } = await supabase.storage
-        .from('ferdy-assets')
-        .remove([storagePath])
-
-      if (storageError) {
-        console.warn('Error deleting from storage:', storageError)
-        // Continue with database deletion even if storage deletion fails
+      const pathsToRemove = [storagePath]
+      if (thumbnailPath && thumbnailPath !== storagePath) {
+        pathsToRemove.push(thumbnailPath)
       }
 
-      // Delete from database
+      const { error: storageError } = await supabase.storage.from('ferdy-assets').remove(pathsToRemove)
+      if (storageError) {
+        console.warn('Error deleting from storage:', storageError)
+      }
+
       const { error: dbError } = await supabase
         .from('assets')
         .delete()
@@ -50,6 +56,9 @@ export function useDeleteAsset() {
 
   return {
     deleteAsset,
-    deleting
+    deleting,
   }
 }
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase-browser'
+

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -9,6 +9,7 @@ import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import AssetCard from '@/components/assets/AssetCard'
 import TagSelector from '@/components/assets/TagSelector'
+import { getSignedUrl } from '@/lib/storage/getSignedUrl'
 
 interface CropData {
   x: number
@@ -32,6 +33,7 @@ export default function ContentLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
 
   // Filter assets based on tab and search
   const filteredAssets = assets.filter(asset => {
@@ -77,6 +79,12 @@ export default function ContentLibraryPage() {
     alert(`Upload failed: ${error}`)
   }
 
+  const handlePreviewAsset = (asset: Asset) => {
+    if (asset.asset_type === 'video') {
+      setPreviewAsset(asset)
+    }
+  }
+
   const handleEditAsset = async (asset: Asset) => {
     try {
       // Store the original asset data for editing
@@ -117,6 +125,7 @@ export default function ContentLibraryPage() {
       assetId: showDeleteConfirm.id,
       brandId: showDeleteConfirm.brand_id,
       storagePath: showDeleteConfirm.storage_path,
+      thumbnailPath: showDeleteConfirm.thumbnail_url ?? undefined,
       onSuccess: () => {
         refetch()
         setShowDeleteConfirm(null)
@@ -244,6 +253,7 @@ export default function ContentLibraryPage() {
                   onUpdate={handleAssetUpdate}
                   brandId={brandId}
                   saveAssetTags={saveAssetTags}
+                  onPreviewAsset={handlePreviewAsset}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -270,6 +280,7 @@ export default function ContentLibraryPage() {
                         asset={asset}
                         onEdit={handleEditAsset}
                         onDelete={handleDeleteAsset}
+                        onPreview={handlePreviewAsset}
                       />
                     </div>
                   ))}
@@ -320,35 +331,52 @@ export default function ContentLibraryPage() {
             </div>
           </div>
         )}
+        {previewAsset && previewAsset.asset_type === 'video' && (
+          <VideoPreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />
+        )}
       </AppLayout>
     </RequireAuth>
   )
 }
 
 // Asset Detail View Component for Needs Attention tab
-function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, saveAssetTags }: { 
-  asset: Asset; 
-  originalAssetData: Asset | null; 
-  onBack: () => void; 
-  onUpdate: () => void;
-  brandId: string;
-  saveAssetTags: (assetId: string, tagIds: string[]) => Promise<void>;
+function AssetDetailView({
+  asset,
+  originalAssetData,
+  onBack,
+  onUpdate,
+  brandId,
+  saveAssetTags,
+  onPreviewAsset,
+}: {
+  asset: Asset
+  originalAssetData: Asset | null
+  onBack: () => void
+  onUpdate: () => void
+  brandId: string
+  saveAssetTags: (assetId: string, tagIds: string[]) => Promise<void>
+  onPreviewAsset?: (asset: Asset) => void
 }) {
-  // Use original asset data if available (for editing), otherwise use current asset data
   const displayAsset = originalAssetData || asset
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState(displayAsset.aspect_ratio || 'original')
+  const isVideo = (displayAsset.asset_type ?? 'image') === 'video'
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState(
+    isVideo ? 'original' : displayAsset.aspect_ratio || 'original',
+  )
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(displayAsset.tag_ids || [])
-  const [cropWindows] = useState(displayAsset.crop_windows ? JSON.stringify(displayAsset.crop_windows, null, 2) : '')
+  const [cropWindows] = useState(
+    displayAsset.crop_windows ? JSON.stringify(displayAsset.crop_windows, null, 2) : '',
+  )
   const [saving, setSaving] = useState(false)
   const [imagePosition, setImagePosition] = useState(() => {
-    // Initialize position from saved crop_windows data
+    if (isVideo) return { x: 0, y: 0 }
     if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
-      const cropData = displayAsset.crop_windows[selectedAspectRatio] || displayAsset.crop_windows[displayAsset.aspect_ratio]
+      const cropData =
+        displayAsset.crop_windows[selectedAspectRatio] ||
+        displayAsset.crop_windows[displayAsset.aspect_ratio]
       if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
         return { x: (cropData as CropData).x || 0, y: (cropData as CropData).y || 0 }
       }
     }
-    // Default to center the 150% image properly
     return { x: 0, y: 0 }
   })
   const [isDragging, setIsDragging] = useState(false)
@@ -358,13 +386,13 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, 
     { value: 'original', label: 'Original' },
     { value: '1:1', label: '1:1 Square' },
     { value: '4:5', label: '4:5 Portrait' },
-    { value: '1.91:1', label: '1.91:1 Landscape' }
+    { value: '1.91:1', label: '1.91:1 Landscape' },
   ]
 
   const handleAspectRatioChange = (ratio: string) => {
+    if (isVideo) return
     setSelectedAspectRatio(ratio)
-    
-    // Update image position based on saved crop data for this aspect ratio
+
     if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
       const cropData = displayAsset.crop_windows[ratio]
       if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
@@ -377,27 +405,28 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, 
     }
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (event: React.MouseEvent) => {
+    if (isVideo) return
     setIsDragging(true)
-    setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+    setDragStart({ x: event.clientX - imagePosition.x, y: event.clientY - imagePosition.y })
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return
-    
-    const newX = e.clientX - dragStart.x
-    const newY = e.clientY - dragStart.y
-    
-    // Constrain movement within reasonable bounds (larger since image is 150% size)
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (!isDragging || isVideo) return
+
+    const newX = event.clientX - dragStart.x
+    const newY = event.clientY - dragStart.y
+
     const maxX = 150
     const maxY = 150
     const constrainedX = Math.max(-maxX, Math.min(maxX, newX))
     const constrainedY = Math.max(-maxY, Math.min(maxY, newY))
-    
+
     setImagePosition({ x: constrainedX, y: constrainedY })
   }
 
   const handleMouseUp = () => {
+    if (isVideo) return
     setIsDragging(false)
   }
 
@@ -409,35 +438,32 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, 
 
     try {
       setSaving(true)
-      
-      const { supabase } = await import('@/lib/supabase-browser')
-      
-      // Update the asset with aspect ratio and crop position
-      const cropData = {
-        [selectedAspectRatio]: {
-          x: imagePosition.x,
-          y: imagePosition.y,
-          ...(cropWindows.trim() ? JSON.parse(cropWindows) : {})
+
+      if (!isVideo) {
+        const { supabase } = await import('@/lib/supabase-browser')
+        const cropData = {
+          [selectedAspectRatio]: {
+            x: imagePosition.x,
+            y: imagePosition.y,
+            ...(cropWindows.trim() ? JSON.parse(cropWindows) : {}),
+          },
+        }
+
+        const { error: assetError } = await supabase
+          .from('assets')
+          .update({
+            aspect_ratio: selectedAspectRatio,
+            crop_windows: cropData,
+          })
+          .eq('id', asset.id)
+          .eq('brand_id', asset.brand_id)
+
+        if (assetError) {
+          throw assetError
         }
       }
-      
-      const { error: assetError } = await supabase
-        .from('assets')
-        .update({
-          aspect_ratio: selectedAspectRatio,
-          crop_windows: cropData
-        })
-        .eq('id', asset.id)
-        .eq('brand_id', asset.brand_id)
 
-      if (assetError) {
-        throw assetError
-      }
-
-      // Save tags to asset_tags table
       await saveAssetTags(asset.id, selectedTagIds)
-
-      // Refresh the data
       onUpdate()
       onBack()
     } catch (error) {
@@ -448,110 +474,258 @@ function AssetDetailView({ asset, originalAssetData, onBack, onUpdate, brandId, 
     }
   }
 
-  const isVideo = asset.storage_path.match(/\.(mp4|mov|avi)$/i)
-
   return (
     <div className="flex-1 overflow-auto">
-
-          {/* Content */}
-          <div className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Section - Image Preview */}
-              <div className="lg:col-span-2 space-y-4">
-                {/* Aspect Ratio Selection */}
-                <div className="flex space-x-3">
-                  {aspectRatios.map((ratio) => (
-                    <button
-                      key={ratio.value}
-                      onClick={() => handleAspectRatioChange(ratio.value)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        selectedAspectRatio === ratio.value
-                          ? 'bg-[#6366F1] text-white'
-                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {ratio.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Image Preview */}
-                <div className="relative">
-                  <div 
-                    className={`bg-gray-100 rounded-xl overflow-hidden cursor-move ${
-                      selectedAspectRatio === '1.91:1' ? 'aspect-[1.91/1]' :
-                      selectedAspectRatio === '4:5' ? 'aspect-[4/5]' :
-                      selectedAspectRatio === '1:1' ? 'aspect-square' :
-                      'aspect-square'
+      <div className="p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            {!isVideo && (
+              <div className="flex space-x-3">
+                {aspectRatios.map((ratio) => (
+                  <button
+                    key={ratio.value}
+                    onClick={() => handleAspectRatioChange(ratio.value)}
+                    className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
+                      selectedAspectRatio === ratio.value
+                        ? 'bg-[#6366F1] text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                     }`}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
                   >
-                    {isVideo ? (
-                      <video
-                        src={asset.signed_url}
-                        className="select-none"
-                        style={{ 
-                          width: '150%',
-                          height: '150%',
-                          objectFit: 'contain',
-                          objectPosition: '50% 50%',
-                          transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
-                          transition: isDragging ? 'none' : 'transform 0.2s ease'
-                        }}
-                        muted
-                      />
-                    ) : (
-                      <img 
-                        src={asset.signed_url}
-                        alt={asset.title}
-                        className="select-none"
-                        style={{ 
-                          width: '150%',
-                          height: '150%',
-                          objectFit: 'contain',
-                          objectPosition: '50% 50%',
-                          transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
-                          transition: isDragging ? 'none' : 'transform 0.2s ease'
-                        }}
-                        draggable={false}
-                      />
-                    )}
-                  </div>
-                  <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm">
-                    Click and drag to reposition
-                  </div>
-                </div>
+                    {ratio.label}
+                  </button>
+                ))}
               </div>
+            )}
 
-              {/* Right Section - Tags and Actions */}
-              <div className="space-y-4">
-                {/* Tags */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-950 mb-3">Tags</h3>
-                  <TagSelector
-                    brandId={brandId}
-                    selectedTagIds={selectedTagIds}
-                    onTagsChange={setSelectedTagIds}
-                    required
+            <div className="relative">
+              {isVideo ? (
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
+                  <video
+                    controls
+                    preload="metadata"
+                    poster={displayAsset.thumbnail_signed_url || undefined}
+                    src={displayAsset.signed_url}
+                    className="h-full w-full object-contain"
+                  />
+                  {onPreviewAsset && (
+                    <button
+                      onClick={() => onPreviewAsset(displayAsset)}
+                      className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-sm font-medium text-gray-900 shadow hover:bg-white"
+                    >
+                      <svg className="h-4 w-4 text-[#6366F1]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      Open preview
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`cursor-move overflow-hidden rounded-xl bg-gray-100 ${
+                    selectedAspectRatio === '1.91:1'
+                      ? 'aspect-[1.91/1]'
+                      : selectedAspectRatio === '4:5'
+                      ? 'aspect-[4/5]'
+                      : selectedAspectRatio === '1:1'
+                      ? 'aspect-square'
+                      : 'aspect-square'
+                  }`}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                >
+                  <img
+                    src={displayAsset.signed_url}
+                    alt={displayAsset.title}
+                    className="select-none"
+                    style={{
+                      width: '150%',
+                      height: '150%',
+                      objectFit: 'contain',
+                      objectPosition: '50% 50%',
+                      transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
+                      transition: isDragging ? 'none' : 'transform 0.2s ease',
+                    }}
+                    draggable={false}
                   />
                 </div>
+              )}
+              {!isVideo && (
+                <div className="absolute left-4 top-4 rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">
+                  Click and drag to reposition
+                </div>
+              )}
+            </div>
+          </div>
 
-                {/* Actions */}
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-3 rounded-xl font-medium hover:from-[#4F46E5] hover:to-[#4338CA] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
+          <div className="space-y-4">
+            <div>
+              <h3 className="mb-3 text-lg font-semibold text-gray-950">
+                Tags <span className="text-red-500">*</span>
+              </h3>
+              <TagSelector
+                brandId={brandId}
+                selectedTagIds={selectedTagIds}
+                onTagsChange={setSelectedTagIds}
+                required
+              />
+            </div>
+
+            {isVideo && (
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                <div className="font-medium text-gray-900">{displayAsset.title}</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {displayAsset.duration_seconds != null && (
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-gray-400">Duration</div>
+                      <div>{Math.round(displayAsset.duration_seconds)}s</div>
+                    </div>
+                  )}
+                  {displayAsset.file_size != null && (
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-gray-400">File size</div>
+                      <div>{(displayAsset.file_size / (1024 * 1024)).toFixed(1)} MB</div>
+                    </div>
+                  )}
+                  {displayAsset.mime_type && (
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-gray-400">Format</div>
+                      <div>{displayAsset.mime_type}</div>
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSave}
+                disabled={saving || selectedTagIds.length === 0}
+                className="flex-1 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-3 font-medium text-white transition-all hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function VideoPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(asset.signed_url ?? null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+
+    const refreshSignedUrl = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const freshUrl = await getSignedUrl(asset.storage_path)
+        if (!isActive) return
+        setSignedUrl(freshUrl ?? asset.signed_url ?? null)
+      } catch (err) {
+        console.error('Error generating signed URL for video preview:', err)
+        if (isActive) {
+          setError('Unable to load this video right now.')
+          setSignedUrl(null)
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false)
+        }
+      }
+    }
+
+    refreshSignedUrl()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      isActive = false
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [asset, onClose])
+
+  const handleOverlayClick = () => {
+    onClose()
+  }
+
+  const handleDialogClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+      onClick={handleOverlayClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Previewing ${asset.title}`}
+    >
+      <div className="relative w-full max-w-4xl" onClick={handleDialogClick}>
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80"
+          aria-label="Close preview"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div className="overflow-hidden rounded-2xl bg-black shadow-2xl">
+          <div className="px-6 py-4 text-white">
+            <div className="text-lg font-semibold">{asset.title}</div>
+            {asset.tags && asset.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium text-white/70">
+                {asset.tags.map((tag) => (
+                  <span key={tag.id} className="rounded-full bg-white/10 px-2 py-1">
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-center bg-black">
+            {loading ? (
+              <div className="flex h-[60vh] w-full items-center justify-center text-white/80">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+              </div>
+            ) : error ? (
+              <div className="flex h-[60vh] w-full items-center justify-center px-6 text-center text-sm text-red-300">
+                {error}
+              </div>
+            ) : signedUrl ? (
+              <video
+                key={signedUrl}
+                controls
+                autoPlay
+                preload="auto"
+                poster={asset.thumbnail_signed_url || undefined}
+                src={signedUrl}
+                className="max-h-[70vh] w-full bg-black object-contain"
+              />
+            ) : (
+              <div className="flex h-[60vh] w-full items-center justify-center px-6 text-center text-sm text-red-300">
+                Unable to load this video.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
