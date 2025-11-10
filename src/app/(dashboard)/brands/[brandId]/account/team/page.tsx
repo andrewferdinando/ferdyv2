@@ -5,7 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
-import { fetchTeamState, sendTeamInvite } from './actions';
+import {
+  fetchTeamState,
+  sendTeamInvite,
+  updateTeamMemberRole,
+  removeTeamMember,
+} from './actions';
 
 interface TeamMember {
   id: string;
@@ -43,7 +48,20 @@ export default function TeamPage() {
   const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
+  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null);
+  const [removingMember, setRemovingMember] = useState(false);
   const [, startTransition] = useTransition();
+
+  const refreshTeam = useCallback(async () => {
+    if (!brandId) {
+      return;
+    }
+
+    const data = await fetchTeamState(brandId);
+    setTeamMembers(data.members);
+    setPendingInvites(data.invites);
+  }, [brandId]);
 
   const checkUserRole = useCallback(async () => {
     try {
@@ -74,7 +92,7 @@ export default function TeamPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [brandId]);
 
   useEffect(() => {
     checkUserRole();
@@ -84,18 +102,14 @@ export default function TeamPage() {
     if (!brandId || !currentUserId) return;
 
     if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
-      startTransition(async () => {
-        try {
-          const data = await fetchTeamState(brandId);
-          setTeamMembers(data.members);
-          setPendingInvites(data.invites);
-        } catch (err) {
+      startTransition(() => {
+        refreshTeam().catch((err) => {
           console.error(err);
           setError('Unable to load team members');
-        }
+        });
       });
     }
-  }, [userRole, brandId, currentUserId]);
+  }, [userRole, brandId, currentUserId, refreshTeam]);
 
   const handleInviteUser = async () => {
     if (!inviteName.trim()) {
@@ -130,10 +144,11 @@ export default function TeamPage() {
       setShowInviteForm(false);
       
       // Refresh team members
-      startTransition(async () => {
-        const data = await fetchTeamState(brandId);
-        setTeamMembers(data.members);
-        setPendingInvites(data.invites);
+      startTransition(() => {
+        refreshTeam().catch((refreshErr) => {
+          console.error(refreshErr);
+          setError('Unable to refresh team members');
+        });
       });
       
       setTimeout(() => setSuccess(''), 3000);
@@ -160,6 +175,67 @@ export default function TeamPage() {
       case 'admin': return 'bg-blue-100 text-blue-800';
       case 'editor': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleRoleUpdate = async (member: TeamMember, nextRole: 'admin' | 'editor') => {
+    if (member.role === nextRole) {
+      return;
+    }
+
+    if (!currentUserId) {
+      setError('Unable to determine current user');
+      return;
+    }
+
+    setRoleUpdatingId(member.id);
+    setError('');
+    setSuccess('');
+
+    try {
+      await updateTeamMemberRole({
+        brandId,
+        memberId: member.id,
+        role: nextRole,
+        requesterId: currentUserId,
+      });
+
+      await refreshTeam();
+      setSuccess(`${member.name || member.email} is now ${getRoleDisplayName(nextRole)}.`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('handleRoleUpdate error', err);
+      setError(err instanceof Error ? err.message : 'Unable to update role');
+    } finally {
+      setRoleUpdatingId(null);
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!memberToRemove || !currentUserId) {
+      return;
+    }
+
+    setRemovingMember(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await removeTeamMember({
+        brandId,
+        memberId: memberToRemove.id,
+        requesterId: currentUserId,
+      });
+
+      await refreshTeam();
+      setMemberToRemove(null);
+      setSuccess('Team member removed.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('handleConfirmRemove error', err);
+      setError(err instanceof Error ? err.message : 'Unable to remove team member');
+    } finally {
+      setRemovingMember(false);
     }
   };
 
@@ -338,6 +414,50 @@ export default function TeamPage() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
                           {getRoleDisplayName(member.role)}
                         </span>
+                        {member.id === currentUserId && (
+                          <span className="text-xs text-gray-400">You</span>
+                        )}
+                        {member.role !== 'super_admin' && member.id !== currentUserId ? (
+                          <>
+                            <div className="relative">
+                              <select
+                                value={member.role === 'admin' ? 'admin' : 'editor'}
+                                onChange={(event) =>
+                                  handleRoleUpdate(
+                                    member,
+                                    event.target.value as 'admin' | 'editor',
+                                  )
+                                }
+                                disabled={roleUpdatingId === member.id}
+                                className="h-9 rounded-lg border border-gray-300 bg-white px-3 pr-9 text-sm text-gray-700 focus:border-[#6366F1] focus:outline-none focus:ring-4 focus:ring-[#EEF2FF] transition-all appearance-none"
+                              >
+                                <option value="editor">Editor</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                              <svg
+                                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                            <button
+                              onClick={() => setMemberToRemove(member)}
+                              disabled={roleUpdatingId === member.id}
+                              className="inline-flex items-center rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        ) : null}
+                        {member.role === 'super_admin' && (
+                          <span className="text-xs text-gray-400">Managed centrally</span>
+                        )}
+                        {roleUpdatingId === member.id && (
+                          <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-[#6366F1]" />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -374,6 +494,38 @@ export default function TeamPage() {
             </div>
           </div>
         </div>
+        {memberToRemove && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900">Remove team member</h3>
+              <p className="mt-3 text-sm text-gray-600">
+                Are you sure you want to remove{' '}
+                <span className="font-medium text-gray-900">
+                  {memberToRemove.name || memberToRemove.email}
+                </span>{' '}
+                from{' '}
+                <span className="font-medium text-gray-900">{memberToRemove.brand_name}</span>? They
+                will lose access immediately.
+              </p>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setMemberToRemove(null)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  disabled={removingMember}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmRemove}
+                  disabled={removingMember}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {removingMember ? 'Removing…' : 'Remove member'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </AppLayout>
     </RequireAuth>
   );

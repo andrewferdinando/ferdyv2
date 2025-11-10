@@ -15,6 +15,19 @@ const InviteSchema = z.object({
   inviterId: z.string().uuid(),
 })
 
+const UpdateRoleSchema = z.object({
+  brandId: z.string().uuid(),
+  memberId: z.string().uuid(),
+  role: z.enum(['admin', 'editor']),
+  requesterId: z.string().uuid(),
+})
+
+const RemoveMemberSchema = z.object({
+  brandId: z.string().uuid(),
+  memberId: z.string().uuid(),
+  requesterId: z.string().uuid(),
+})
+
 export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   const payload = InviteSchema.parse(input)
   const { brandId, email, name, role, inviterId } = payload
@@ -171,6 +184,152 @@ export async function fetchTeamState(brandId: string) {
     invites: invites ?? [],
     brandName: brand?.name ?? '',
   }
+}
+
+export async function updateTeamMemberRole(input: z.infer<typeof UpdateRoleSchema>) {
+  const payload = UpdateRoleSchema.parse(input)
+  const { brandId, memberId, role, requesterId } = payload
+
+  if (memberId === requesterId) {
+    throw new Error('You cannot change your own role.')
+  }
+
+  await requireAdminForBrand(brandId, requesterId)
+
+  const { data: membership, error: membershipError } = await supabaseAdmin
+    .from('brand_memberships')
+    .select('role')
+    .eq('brand_id', brandId)
+    .eq('user_id', memberId)
+    .maybeSingle()
+
+  if (membershipError) {
+    console.error('updateTeamMemberRole membership lookup error', membershipError)
+    throw new Error('Unable to fetch team member.')
+  }
+
+  if (!membership) {
+    throw new Error('Team member not found.')
+  }
+
+  if (membership.role === 'super_admin') {
+    throw new Error('Super admins cannot be edited.')
+  }
+
+  if (membership.role === role) {
+    return { ok: true }
+  }
+
+  if (membership.role === 'admin' && role !== 'admin') {
+    const { count: otherAdminsCount, error: adminCountError } = await supabaseAdmin
+      .from('brand_memberships')
+      .select('*', { head: true, count: 'exact' })
+      .eq('brand_id', brandId)
+      .in('role', ['admin', 'super_admin'])
+      .neq('user_id', memberId)
+
+    if (adminCountError) {
+      console.error('updateTeamMemberRole adminCount error', adminCountError)
+      throw new Error('Unable to verify admin quota.')
+    }
+
+    if (!otherAdminsCount || otherAdminsCount === 0) {
+      throw new Error('At least one admin must remain on the team.')
+    }
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('brand_memberships')
+    .update({ role })
+    .eq('brand_id', brandId)
+    .eq('user_id', memberId)
+
+  if (updateError) {
+    console.error('updateTeamMemberRole update error', updateError)
+    throw new Error('Unable to update the role. Please try again.')
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('user_id', memberId)
+    .maybeSingle()
+
+  if (!profile || profile.role !== 'super_admin') {
+    await supabaseAdmin
+      .from('profiles')
+      .upsert(
+        {
+          user_id: memberId,
+          role,
+        },
+        { onConflict: 'user_id' },
+      )
+  }
+
+  return { ok: true }
+}
+
+export async function removeTeamMember(input: z.infer<typeof RemoveMemberSchema>) {
+  const payload = RemoveMemberSchema.parse(input)
+  const { brandId, memberId, requesterId } = payload
+
+  if (memberId === requesterId) {
+    throw new Error('You cannot remove yourself from the team.')
+  }
+
+  await requireAdminForBrand(brandId, requesterId)
+
+  const { data: membership, error: membershipError } = await supabaseAdmin
+    .from('brand_memberships')
+    .select('role')
+    .eq('brand_id', brandId)
+    .eq('user_id', memberId)
+    .maybeSingle()
+
+  if (membershipError) {
+    console.error('removeTeamMember membership lookup error', membershipError)
+    throw new Error('Unable to find team member.')
+  }
+
+  if (!membership) {
+    throw new Error('Team member not found.')
+  }
+
+  if (membership.role === 'super_admin') {
+    throw new Error('Super admins cannot be removed from brands.')
+  }
+
+  if (membership.role === 'admin') {
+    const { count: otherAdminsCount, error: adminCountError } = await supabaseAdmin
+      .from('brand_memberships')
+      .select('*', { head: true, count: 'exact' })
+      .eq('brand_id', brandId)
+      .in('role', ['admin', 'super_admin'])
+      .neq('user_id', memberId)
+
+    if (adminCountError) {
+      console.error('removeTeamMember adminCount error', adminCountError)
+      throw new Error('Unable to verify admin quota.')
+    }
+
+    if (!otherAdminsCount || otherAdminsCount === 0) {
+      throw new Error('At least one admin must remain on the team.')
+    }
+  }
+
+  const { error: deleteError } = await supabaseAdmin
+    .from('brand_memberships')
+    .delete()
+    .eq('brand_id', brandId)
+    .eq('user_id', memberId)
+
+  if (deleteError) {
+    console.error('removeTeamMember delete error', deleteError)
+    throw new Error('Unable to remove this member. Please try again.')
+  }
+
+  return { ok: true }
 }
 
 
