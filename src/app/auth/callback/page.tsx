@@ -14,42 +14,33 @@ export default function AuthCallbackPage() {
       try {
         const hash = window.location.hash.substring(1)
         const hashParams = new URLSearchParams(hash)
-        let accessToken = hashParams.get('access_token')
+        const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
 
-        if (accessToken && refreshToken) {
-          const { error: setSessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
+        if (!accessToken || !refreshToken) {
+          console.error('Auth callback missing tokens', {
+            hasAccessToken: Boolean(accessToken),
+            hasRefreshToken: Boolean(refreshToken),
+            hash: window.location.hash,
+            href: window.location.href,
           })
+          setStatusMessage('This link has expired. Please request a new invite.')
+          window.location.replace('/auth/sign-in?message=Invite link expired')
+          return
+        }
 
-          if (setSessionError) {
-            throw setSessionError
-          }
-        } else {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession()
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
 
-          if (!session?.access_token) {
-            setStatusMessage('This link has expired. Please request a new invite.')
-            window.location.replace(
-              '/auth/sign-in?message=Please sign in to continue',
-            )
-            return
-          }
-
-          accessToken = session.access_token
+        if (setSessionError) {
+          console.error('Auth callback setSession error', setSessionError)
+          throw setSessionError
         }
 
         const url = new URL(window.location.href)
         const brandId = url.searchParams.get('brand_id')
-
-        if (!accessToken) {
-          setStatusMessage('This link has expired. Please request a new invite.')
-          window.location.replace('/auth/sign-in?message=Please sign in to continue')
-          return
-        }
 
         const result = await finalizeInvite({
           accessToken,
