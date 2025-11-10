@@ -49,6 +49,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const router = useRouter();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [fallbackBrandName, setFallbackBrandName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAccountAdmin, setIsAccountAdmin] = useState(false);
   const { brands, loading: brandsLoading } = useBrands();
@@ -99,15 +100,37 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
     } else {
       // Fall back to localStorage or first brand
       const storedBrandId = localStorage.getItem('selectedBrandId');
+      const storedBrandName = localStorage.getItem('selectedBrandName');
       if (storedBrandId && brands.some(brand => brand.id === storedBrandId)) {
         setSelectedBrandId(storedBrandId);
+        if (storedBrandName) {
+          setFallbackBrandName(storedBrandName);
+        }
       } else if (brands.length > 0) {
         const firstBrandId = brands[0].id;
         setSelectedBrandId(firstBrandId);
         localStorage.setItem('selectedBrandId', firstBrandId);
+        localStorage.setItem('selectedBrandName', brands[0].name);
+        setFallbackBrandName(brands[0].name);
       }
     }
   }, [pathname, brands]);
+
+  useEffect(() => {
+    if (!selectedBrandId) {
+      return;
+    }
+    const selected = brands.find((brand) => brand.id === selectedBrandId);
+    if (selected) {
+      setFallbackBrandName(selected.name);
+      localStorage.setItem('selectedBrandName', selected.name);
+    } else {
+      const storedName = localStorage.getItem('selectedBrandName');
+      if (storedName) {
+        setFallbackBrandName(storedName);
+      }
+    }
+  }, [brands, selectedBrandId]);
 
   const handleNavigationClick = () => {
     if (onMobileClose) {
@@ -118,6 +141,11 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const handleBrandSelect = (brandId: string) => {
     setSelectedBrandId(brandId);
     localStorage.setItem('selectedBrandId', brandId);
+    const matchingBrand = brands.find((brand) => brand.id === brandId);
+    if (matchingBrand) {
+      setFallbackBrandName(matchingBrand.name);
+      localStorage.setItem('selectedBrandName', matchingBrand.name);
+    }
     setIsBrandDropdownOpen(false);
     
     // Navigate to the selected brand's schedule page
@@ -133,11 +161,11 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
     }
   };
 
-  const selectedBrand = brands.find(brand => brand.id === selectedBrandId) || null;
-  const activeBrandId = selectedBrandId || selectedBrand?.id || '';
+  const selectedBrand = selectedBrandId ? brands.find(brand => brand.id === selectedBrandId) || null : null;
+  const activeBrandId = selectedBrandId || '';
 
   const showSkeleton = brandsLoading || (!selectedBrand && brands.length > 0);
-  const hasNoBrands = !brandsLoading && brands.length === 0;
+  const hasNoBrands = !brandsLoading && brands.length === 0 && !selectedBrandId;
 
   const skeletonItems = useMemo(() => new Array(3).fill(null), []);
 
@@ -192,7 +220,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
               disabled={brandsLoading}
             >
               <span className="font-medium text-gray-900 text-xs">
-                {selectedBrand?.name || 'Select Brand'}
+                {selectedBrand?.name || fallbackBrandName || 'Select Brand'}
               </span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </button>

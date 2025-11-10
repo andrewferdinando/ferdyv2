@@ -218,8 +218,9 @@ export default function AddBrandPage() {
 
       try {
         localStorage.setItem('selectedBrandId', brandId)
+        localStorage.setItem('selectedBrandName', formValues.name.trim())
       } catch (storageError) {
-        console.warn('AddBrandPage: unable to persist selectedBrandId', storageError)
+        console.warn('AddBrandPage: unable to persist selected brand metadata', storageError)
       }
 
       showToast({
