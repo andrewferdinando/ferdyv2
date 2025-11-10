@@ -3,10 +3,7 @@
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { requireAdminForBrand } from '@/lib/server/auth'
-import {
-  upsertBrandInvite,
-  findPendingInvitesByEmail,
-} from '@/lib/server/brandInvites'
+import { upsertBrandInvite } from '@/lib/server/brandInvites'
 
 const APP_URL = process.env.APP_URL!
 
@@ -23,11 +20,12 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
 
   await requireAdminForBrand(brandId, inviterId)
 
-  const existing = await supabaseAdmin.auth.admin
-    .getUserByEmail(email)
-    .catch(() => null)
+  const { data: list } = await supabaseAdmin.auth.admin.listUsers()
+  const existing = list?.users?.find(
+    (user) => user.email?.toLowerCase() === email.toLowerCase(),
+  )
 
-  if (!existing?.user) {
+  if (!existing) {
     await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: {
         brand_id: brandId,
