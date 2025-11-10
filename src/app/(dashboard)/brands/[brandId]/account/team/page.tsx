@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
+import { fetchTeamState, sendTeamInvite } from './actions';
 
 interface TeamMember {
   id: string;
@@ -15,13 +16,11 @@ interface TeamMember {
   brand_name: string;
 }
 
-interface SupabaseMember {
-  user_id: string;
+interface PendingInvite {
+  email: string;
   role: string;
+  status: string;
   created_at: string;
-  brand_id: string;
-  user_profiles: { name: string }[] | null;
-  brands: { name: string }[] | null;
 }
 
 export default function TeamPage() {
@@ -30,21 +29,26 @@ export default function TeamPage() {
   const brandId = params.brandId as string;
   
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
+  const [, startTransition] = useTransition();
 
   const checkUserRole = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      setCurrentUserId(user.id);
 
       // Get user's role for the current brand (from URL)
       console.log('Fetching role for brand:', brandId);
@@ -72,74 +76,26 @@ export default function TeamPage() {
     }
   }, []);
 
-  const fetchTeamMembers = useCallback(async () => {
-    try {
-      // Get all brands the user is a member of
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: userBrands, error: brandsError } = await supabase
-        .from('brand_memberships')
-        .select(`
-          brand_id,
-          brands!inner(name)
-        `)
-        .eq('user_id', user.id);
-
-      if (brandsError) throw brandsError;
-
-      if (!userBrands || userBrands.length === 0) {
-        setTeamMembers([]);
-        return;
-      }
-
-      // Get all team members from brands the user is part of
-      const brandIds = userBrands.map(b => b.brand_id);
-      
-      const { data, error } = await supabase
-        .from('brand_memberships')
-        .select(`
-          user_id,
-          role,
-          created_at,
-          brand_id,
-          user_profiles!inner(name),
-          brands!inner(name)
-        `)
-        .in('brand_id', brandIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Get user emails separately since we can't join auth.users directly
-      const { data: userEmails } = await supabase.auth.admin.listUsers();
-      const emailMap = new Map(userEmails?.users?.map(user => [user.id, user.email]) || []);
-
-      const members: TeamMember[] = (data || []).map((member: SupabaseMember) => ({
-        id: member.user_id,
-        name: member.user_profiles?.[0]?.name || 'Unknown',
-        email: emailMap.get(member.user_id) || 'Unknown',
-        role: member.role,
-        created_at: member.created_at,
-        brand_name: member.brands?.[0]?.name || 'Unknown'
-      }));
-
-      setTeamMembers(members);
-    } catch (error) {
-      console.error('Error fetching team members:', error);
-      setError('Failed to load team members');
-    }
-  }, []);
-
   useEffect(() => {
     checkUserRole();
   }, [checkUserRole]);
 
   useEffect(() => {
+    if (!brandId || !currentUserId) return;
+
     if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
-      fetchTeamMembers();
+      startTransition(async () => {
+        try {
+          const data = await fetchTeamState(brandId);
+          setTeamMembers(data.members);
+          setPendingInvites(data.invites);
+        } catch (err) {
+          console.error(err);
+          setError('Unable to load team members');
+        }
+      });
     }
-  }, [userRole, fetchTeamMembers]);
+  }, [userRole, brandId, currentUserId]);
 
   const handleInviteUser = async () => {
     if (!inviteEmail.trim()) {
@@ -152,25 +108,17 @@ export default function TeamPage() {
 
     try {
       console.log('Attempting to invite user:', inviteEmail, 'with role:', inviteRole);
-      
-      // Call our API route for user invitation
-      const response = await fetch('/api/invite-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: inviteEmail,
-          role: inviteRole
-        })
-      });
 
-      const result = await response.json();
-      console.log('Invite API response:', result);
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to send invitation');
+      if (!currentUserId) {
+        throw new Error('Unable to determine current user');
       }
+
+      await sendTeamInvite({
+        brandId,
+        email: inviteEmail.trim(),
+        role: inviteRole as 'admin' | 'editor',
+        inviterId: currentUserId,
+      });
 
       setSuccess(`Invitation sent to ${inviteEmail}`);
       setInviteEmail('');
@@ -178,7 +126,11 @@ export default function TeamPage() {
       setShowInviteForm(false);
       
       // Refresh team members
-      fetchTeamMembers();
+      startTransition(async () => {
+        const data = await fetchTeamState(brandId);
+        setTeamMembers(data.members);
+        setPendingInvites(data.invites);
+      });
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
@@ -331,7 +283,9 @@ export default function TeamPage() {
               {/* Team Members List */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Team Members ({teamMembers.length})</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Team Members ({teamMembers.length + pendingInvites.length})
+                  </h3>
                 </div>
                 
                 <div className="divide-y divide-gray-200">
@@ -353,6 +307,31 @@ export default function TeamPage() {
                       <div className="flex items-center space-x-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
                           {getRoleDisplayName(member.role)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {pendingInvites.map((invite) => (
+                    <div key={`${invite.email}-${invite.created_at}`} className="px-6 py-4 flex items-center justify-between bg-gray-50">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{invite.email}</p>
+                          <p className="text-xs text-gray-500">{new Date(invite.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(invite.role)}`}>
+                          {getRoleDisplayName(invite.role)}
+                        </span>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Pending
                         </span>
                       </div>
                     </div>

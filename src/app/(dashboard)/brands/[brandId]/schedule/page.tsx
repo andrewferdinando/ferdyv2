@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import DraftCard from '@/components/schedule/DraftCard';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
+import { useToast } from '@/components/ui/ToastProvider';
 
 // Type definitions
 interface Draft {
@@ -121,7 +122,9 @@ interface Tab {
 export default function SchedulePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const brandId = params.brandId as string;
+  const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState('drafts');
 
@@ -150,6 +153,31 @@ export default function SchedulePage() {
     refetchScheduled();
     refetchPublished();
   };
+
+  useEffect(() => {
+    if (searchParams.get('welcome') === '1') {
+      const brandName =
+        (typeof window !== 'undefined' &&
+          (localStorage.getItem('welcomeBrandName') ||
+            localStorage.getItem('selectedBrandName'))) ||
+        'the brand';
+
+      showToast({
+        title: `Welcome to ${brandName}.`,
+        type: 'success',
+      });
+
+      try {
+        localStorage.removeItem('welcomeBrandName');
+      } catch {
+        // noop
+      }
+
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('welcome');
+      router.replace(newUrl.pathname + newUrl.search);
+    }
+  }, [router, searchParams, showToast]);
 
   const renderTabContent = () => {
     switch (activeTab) {
