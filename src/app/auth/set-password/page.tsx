@@ -67,7 +67,7 @@ export default function SetPasswordPage() {
     prepareFromHash()
   }, [])
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<Element>) => {
     event.preventDefault()
 
     if (!accessToken) {
