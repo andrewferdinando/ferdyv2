@@ -221,7 +221,7 @@ export default function AddBrandPage() {
         type: 'success',
       })
 
-      router.push(`/brands/${brandId}`)
+      router.push(`/brands/${brandId}/schedule`)
     } catch (error) {
       console.error('AddBrandPage: failed to create brand', error)
       setServerError(error instanceof Error ? error.message : 'Failed to create brand. Please try again.')
