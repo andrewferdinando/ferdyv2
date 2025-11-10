@@ -55,7 +55,7 @@ export default function AuthCallbackPage() {
           console.warn('Unable to persist brand selection', storageError)
         }
 
-        window.location.replace(`/brands/${result.brandId}?welcome=1`)
+        window.location.replace(`/brands/${result.brandId}/schedule?welcome=1`)
         return
       } catch (error) {
         console.error('auth callback error', error)
