@@ -28,7 +28,7 @@ export async function upsertBrandInvite({
       status,
     },
     {
-      onConflict: 'idx_brand_invites_brand_id_email',
+      onConflict: 'brand_id,email',
     },
   )
 
