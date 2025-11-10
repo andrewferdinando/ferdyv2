@@ -43,10 +43,18 @@ export default function AccountSettingsPage() {
     fetchProfileRole();
   }, []);
 
-  const isAccountAdmin = profileRole === 'admin' || profileRole === 'super_admin';
+  const isPrivileged =
+    profileRole === 'admin' || profileRole === 'super_admin' || profileRole === 'owner';
 
   const accountSettings = useMemo(() => {
-    const entries = [
+    const entries: Array<{
+      id: string;
+      title: string;
+      description: string;
+      icon: React.ReactNode;
+      href: string;
+      requiresAdmin: boolean;
+    }> = [
       {
         id: 'profile',
         title: 'Profile',
@@ -57,6 +65,7 @@ export default function AccountSettingsPage() {
           </svg>
         ),
         href: `/brands/${brandId}/account/profile`,
+        requiresAdmin: false,
       },
       {
         id: 'brand',
@@ -68,6 +77,7 @@ export default function AccountSettingsPage() {
           </svg>
         ),
         href: `/brands/${brandId}/account/brand`,
+        requiresAdmin: true,
       },
       {
         id: 'team',
@@ -79,6 +89,7 @@ export default function AccountSettingsPage() {
           </svg>
         ),
         href: `/brands/${brandId}/account/team`,
+        requiresAdmin: true,
       },
       {
         id: 'post-time',
@@ -90,6 +101,7 @@ export default function AccountSettingsPage() {
           </svg>
         ),
         href: `/brands/${brandId}/account/post-time`,
+        requiresAdmin: true,
       },
       {
         id: 'billing',
@@ -101,11 +113,9 @@ export default function AccountSettingsPage() {
           </svg>
         ),
         href: `/brands/${brandId}/account/billing`,
+        requiresAdmin: true,
       },
-    ];
-
-    if (isAccountAdmin) {
-      entries.push({
+      {
         id: 'add-brand',
         title: 'Add Brand',
         description: 'Create and set up a new brand.',
@@ -115,11 +125,12 @@ export default function AccountSettingsPage() {
           </svg>
         ),
         href: '/account/add-brand',
-      });
-    }
+        requiresAdmin: true,
+      },
+    ];
 
     return entries;
-  }, [brandId, isAccountAdmin]);
+  }, [brandId]);
 
   return (
     <RequireAuth>
@@ -135,31 +146,72 @@ export default function AccountSettingsPage() {
 
               {/* Settings Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {accountSettings.map((setting) => (
-                  <Link
-                    key={setting.id}
-                    href={setting.href}
-                    className="group block"
-                  >
-                    <div className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
+                {accountSettings.map((setting) => {
+                  const disabled = setting.requiresAdmin && !isPrivileged;
+                  const cardClasses = [
+                    'rounded-xl border p-6 transition-all duration-200 h-full',
+                    disabled
+                      ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-70'
+                      : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5',
+                  ].join(' ');
+                  const iconWrapperClasses = [
+                    'w-12 h-12 rounded-lg flex items-center justify-center transition-colors duration-200',
+                    disabled
+                      ? 'bg-gray-200 text-gray-500'
+                      : 'bg-[#EEF2FF] text-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white',
+                  ].join(' ');
+                  const titleClasses = [
+                    'text-lg font-semibold transition-colors duration-200',
+                    disabled ? 'text-gray-500' : 'text-gray-900 group-hover:text-[#6366F1]',
+                  ].join(' ');
+                  const descriptionClasses = disabled ? 'text-gray-500 text-sm mt-1 leading-relaxed' : 'text-gray-600 text-sm mt-1 leading-relaxed';
+                  const cardContent = (
+                    <div
+                      className={cardClasses}
+                      aria-disabled={disabled}
+                      title={disabled ? 'Only admins can access this section.' : undefined}
+                    >
                       <div className="flex items-start space-x-4">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-[#EEF2FF] rounded-lg flex items-center justify-center text-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white transition-colors duration-200">
+                          <div className={iconWrapperClasses}>
                             {setting.icon}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[#6366F1] transition-colors duration-200">
+                          <h3 className={titleClasses}>
                             {setting.title}
                           </h3>
-                          <p className="text-gray-600 text-sm mt-1 leading-relaxed">
+                          <p className={descriptionClasses}>
                             {setting.description}
                           </p>
+                          {disabled && (
+                            <span className="mt-3 inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200">
+                              Admins only
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </Link>
-                ))}
+                  );
+
+                  if (disabled) {
+                    return (
+                      <div key={setting.id} className="group block">
+                        {cardContent}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={setting.id}
+                      href={setting.href}
+                      className="group block"
+                    >
+                      {cardContent}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -168,3 +220,4 @@ export default function AccountSettingsPage() {
     </RequireAuth>
   );
 }
+
