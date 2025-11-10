@@ -133,8 +133,8 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
     }
   };
 
-  const selectedBrand = brands.find(brand => brand.id === selectedBrandId) || brands[0];
-  const activeBrandId = selectedBrand?.id ?? selectedBrandId ?? '';
+  const selectedBrand = brands.find(brand => brand.id === selectedBrandId) || null;
+  const activeBrandId = selectedBrandId || selectedBrand?.id || '';
 
   const showSkeleton = brandsLoading || (!selectedBrand && brands.length > 0);
   const hasNoBrands = !brandsLoading && brands.length === 0;

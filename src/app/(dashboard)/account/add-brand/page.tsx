@@ -216,12 +216,19 @@ export default function AddBrandPage() {
         timezone: formValues.timezone.trim(),
       })
 
+      try {
+        localStorage.setItem('selectedBrandId', brandId)
+      } catch (storageError) {
+        console.warn('AddBrandPage: unable to persist selectedBrandId', storageError)
+      }
+
       showToast({
         title: 'Brand created successfully.',
         type: 'success',
       })
 
       router.push(`/brands/${brandId}/schedule`)
+      router.refresh()
     } catch (error) {
       console.error('AddBrandPage: failed to create brand', error)
       setServerError(error instanceof Error ? error.message : 'Failed to create brand. Please try again.')
