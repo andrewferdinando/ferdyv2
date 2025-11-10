@@ -10,6 +10,7 @@ import {
   sendTeamInvite,
   updateTeamMemberRole,
   removeTeamMember,
+  cancelTeamInvite,
 } from './actions';
 
 interface TeamMember {
@@ -51,6 +52,7 @@ export default function TeamPage() {
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null);
   const [removingMember, setRemovingMember] = useState(false);
+  const [removingInviteEmail, setRemovingInviteEmail] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const refreshTeam = useCallback(async () => {
@@ -168,6 +170,34 @@ export default function TeamPage() {
       setError(error instanceof Error ? error.message : 'Failed to send invitation');
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleRemoveInvite = async (invite: PendingInvite) => {
+    if (!currentUserId) {
+      setError('Unable to determine current user');
+      return;
+    }
+
+    setRemovingInviteEmail(invite.email);
+    setError('');
+    setSuccess('');
+
+    try {
+      await cancelTeamInvite({
+        brandId,
+        email: invite.email,
+        requesterId: currentUserId,
+      });
+
+      await refreshTeam();
+      setSuccess('Pending invite removed.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('handleRemoveInvite error', err);
+      setError(err instanceof Error ? err.message : 'Unable to remove invite');
+    } finally {
+      setRemovingInviteEmail(null);
     }
   };
 
@@ -495,6 +525,13 @@ export default function TeamPage() {
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                           Pending
                         </span>
+                        <button
+                          onClick={() => handleRemoveInvite(invite)}
+                          disabled={removingInviteEmail === invite.email}
+                          className="inline-flex items-center rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {removingInviteEmail === invite.email ? 'Removing…' : 'Remove'}
+                        </button>
                       </div>
                     </div>
                   ))}

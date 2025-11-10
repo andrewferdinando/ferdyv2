@@ -28,6 +28,12 @@ const RemoveMemberSchema = z.object({
   requesterId: z.string().uuid(),
 })
 
+const CancelInviteSchema = z.object({
+  brandId: z.string().uuid(),
+  email: z.string().email(),
+  requesterId: z.string().uuid(),
+})
+
 export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   const payload = InviteSchema.parse(input)
   const { brandId, email, name, role, inviterId } = payload
@@ -327,6 +333,28 @@ export async function removeTeamMember(input: z.infer<typeof RemoveMemberSchema>
   if (deleteError) {
     console.error('removeTeamMember delete error', deleteError)
     throw new Error('Unable to remove this member. Please try again.')
+  }
+
+  return { ok: true }
+}
+
+export async function cancelTeamInvite(input: z.infer<typeof CancelInviteSchema>) {
+  const payload = CancelInviteSchema.parse(input)
+  const { brandId, email, requesterId } = payload
+
+  await requireAdminForBrand(brandId, requesterId)
+
+  const normalizedEmail = email.trim().toLowerCase()
+
+  const { error } = await supabaseAdmin
+    .from('brand_invites')
+    .delete()
+    .eq('brand_id', brandId)
+    .eq('email', normalizedEmail)
+
+  if (error) {
+    console.error('cancelTeamInvite delete error', error, { brandId, normalizedEmail })
+    throw new Error('Unable to remove pending invite. Please try again.')
   }
 
   return { ok: true }
