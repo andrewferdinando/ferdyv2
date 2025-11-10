@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import type { Asset } from '@/hooks/assets/useAssets';
 
 interface PublishedPost {
   id: string;
@@ -32,12 +33,7 @@ interface PublishedPost {
     status: string;
     error: string;
   };
-  assets?: {
-    id: string;
-    title: string;
-    storage_path: string;
-    aspect_ratio: string;
-  }[];
+  assets?: Asset[];
 }
 
 export function usePublished(brandId: string) {
