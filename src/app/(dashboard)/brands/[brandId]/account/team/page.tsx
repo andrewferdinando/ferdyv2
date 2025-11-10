@@ -51,7 +51,6 @@ export default function TeamPage() {
       setCurrentUserId(user.id);
 
       // Get user's role for the current brand (from URL)
-      console.log('Fetching role for brand:', brandId);
       const { data: membershipData, error: membershipError } = await supabase
         .from('brand_memberships')
         .select('role')
@@ -64,7 +63,6 @@ export default function TeamPage() {
         console.error('Error fetching membership data:', membershipError);
       } else if (membershipData) {
         role = membershipData.role;
-        console.log('Found role:', role);
       }
 
       setUserRole(role);
@@ -107,8 +105,6 @@ export default function TeamPage() {
     setError('');
 
     try {
-      console.log('Attempting to invite user:', inviteEmail, 'with role:', inviteRole);
-
       if (!currentUserId) {
         throw new Error('Unable to determine current user');
       }
