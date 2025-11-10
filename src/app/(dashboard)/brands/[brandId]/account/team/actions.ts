@@ -18,12 +18,13 @@ const InviteSchema = z.object({
 export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   const payload = InviteSchema.parse(input)
   const { brandId, email, name, role, inviterId } = payload
+  const normalizedEmail = email.trim().toLowerCase()
 
   await requireAdminForBrand(brandId, inviterId)
 
   const { data: list } = await supabaseAdmin.auth.admin.listUsers()
   const existing = list?.users?.find(
-    (user) => user.email?.toLowerCase() === email.toLowerCase(),
+    (user) => user.email?.toLowerCase() === normalizedEmail,
   )
 
   if (!existing) {
@@ -39,7 +40,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
 
     await upsertBrandInvite({
       brandId,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       name,
       role,
       status: 'pending',
@@ -77,13 +78,14 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
         {
           user_id: existing.id,
           full_name: name,
+          role,
         },
         { onConflict: 'user_id' },
       )
 
     await upsertBrandInvite({
       brandId,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       name,
       role,
       status: 'pending_existing',

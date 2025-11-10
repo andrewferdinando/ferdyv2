@@ -22,7 +22,7 @@ export async function upsertBrandInvite({
   await supabaseAdmin.from('brand_invites').upsert(
     {
       brand_id: brandId,
-      email,
+      email: email.toLowerCase(),
       invitee_name: name,
       role,
       status,

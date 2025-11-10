@@ -77,19 +77,20 @@ export async function finalizeInvite({
 
   await markInviteAccepted(userEmail, resolvedBrandId)
 
-  const inviteeName = selectedInvite?.invitee_name
+  const inviteeName = selectedInvite?.invitee_name ?? null
+
+  const profileUpdate: { user_id: string; role: string; full_name?: string } = {
+    user_id: user.id,
+    role: resolvedRole,
+  }
 
   if (inviteeName) {
-    await supabaseAdmin
-      .from('profiles')
-      .upsert(
-        {
-          user_id: user.id,
-          full_name: inviteeName,
-        },
-        { onConflict: 'user_id' },
-      )
+    profileUpdate.full_name = inviteeName
   }
+
+  await supabaseAdmin
+    .from('profiles')
+    .upsert(profileUpdate, { onConflict: 'user_id' })
 
   const { data: brand } = await supabaseAdmin
     .from('brands')
