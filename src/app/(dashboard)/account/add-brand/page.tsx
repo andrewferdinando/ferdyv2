@@ -74,6 +74,7 @@ export default function AddBrandPage() {
   const [authState, setAuthState] = useState<'loading' | 'ready' | 'unauthorized'>('loading')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [serverError, setServerError] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: '',
@@ -127,6 +128,8 @@ export default function AddBrandPage() {
           setAuthState('unauthorized')
           return
         }
+
+        setCurrentUserId(user.id)
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -196,11 +199,17 @@ export default function AddBrandPage() {
       return
     }
 
+    if (!currentUserId) {
+      setServerError('Your session expired. Please refresh and sign in again.')
+      return
+    }
+
     setIsSubmitting(true)
     setServerError('')
 
     try {
       const brandId = await createBrandAction({
+        userId: currentUserId,
         name: formValues.name.trim(),
         websiteUrl: formValues.websiteUrl?.trim() || '',
         countryCode: formValues.countryCode?.trim().toUpperCase(),

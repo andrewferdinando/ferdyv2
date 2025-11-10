@@ -1,10 +1,10 @@
 'use server'
 
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 const CreateBrandPayloadSchema = z.object({
+  userId: z.string().uuid('User session is invalid. Please sign in again.'),
   name: z
     .string()
     .trim()
@@ -48,31 +48,16 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error(firstError)
   }
 
-  const cookieStore = await cookies()
-  const accessToken = cookieStore.get('sb-access-token')?.value
-
-  if (!accessToken) {
-    throw new Error('You must be signed in to create a brand.')
-  }
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabaseAdmin.auth.getUser(accessToken)
-
-  if (userError || !user) {
-    console.error('createBrandAction: failed to resolve user from access token', userError)
-    throw new Error('Unable to verify your account. Please sign in again.')
-  }
+  const { userId, name, websiteUrl, countryCode, timezone } = parsed.data
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('role')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (profileError) {
-    console.error('createBrandAction: failed to load profile', profileError)
+    console.error('createBrandAction: failed to load profile for user', userId, profileError)
     throw new Error('Unable to verify your permissions. Please try again.')
   }
 
@@ -81,11 +66,11 @@ export async function createBrandAction(payload: CreateBrandPayload) {
   }
 
   const { data: brand, error: rpcError } = await supabaseAdmin.rpc('rpc_create_brand_with_admin', {
-    p_user_id: user.id,
-    p_name: parsed.data.name,
-    p_website_url: parsed.data.websiteUrl ?? '',
-    p_country_code: parsed.data.countryCode ?? '',
-    p_timezone: parsed.data.timezone,
+    p_user_id: userId,
+    p_name: name,
+    p_website_url: websiteUrl ?? '',
+    p_country_code: countryCode ?? '',
+    p_timezone: timezone,
   })
 
   if (rpcError) {
@@ -100,5 +85,4 @@ export async function createBrandAction(payload: CreateBrandPayload) {
 
   return brand.id as string
 }
-
 
