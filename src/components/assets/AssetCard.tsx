@@ -18,10 +18,11 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
     let isMounted = true
 
     if (isVideo && !asset.thumbnail_signed_url && asset.signed_url) {
+      setGeneratedThumbnail(null)
       generateVideoThumbnail(asset.signed_url)
         .then((thumbnail) => {
-          if (isMounted && thumbnail) {
-            setGeneratedThumbnail(thumbnail)
+          if (isMounted) {
+            setGeneratedThumbnail(thumbnail ?? null)
           }
         })
         .catch(() => {
