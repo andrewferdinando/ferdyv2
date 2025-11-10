@@ -88,6 +88,15 @@ export async function finalizeInvite({
     throw new Error('Invite not found for this user')
   }
 
+  console.log('finalizeInvite: resolved context', {
+    userId: user.id,
+    userEmail,
+    resolvedBrandId,
+    resolvedRole,
+    metadataBrandId,
+    metadataRole,
+  })
+
   const { error: membershipError } = await supabaseAdmin
     .from('brand_memberships')
     .upsert(
@@ -102,9 +111,19 @@ export async function finalizeInvite({
     )
 
   if (membershipError) {
-    console.error('finalizeInvite membership upsert error', membershipError)
+    console.error('finalizeInvite membership upsert error', membershipError, {
+      brandId: resolvedBrandId,
+      userId: user.id,
+      role: resolvedRole,
+    })
     throw new Error('Unable to create membership for invite')
   }
+
+  console.log('finalizeInvite membership upsert success', {
+    brandId: resolvedBrandId,
+    userId: user.id,
+    role: resolvedRole,
+  })
 
   await markInviteAccepted(userEmail, resolvedBrandId)
 
