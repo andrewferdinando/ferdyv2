@@ -28,7 +28,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   )
 
   if (!existing) {
-    await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, {
       data: {
         brand_id: brandId,
         invitee_name: name,
@@ -38,17 +38,10 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
       redirectTo: `${APP_URL}/auth/callback?src=invite`,
     })
 
-    await upsertBrandInvite({
-      brandId,
-      email: normalizedEmail,
-      name,
-      role,
-      status: 'pending',
-    })
   } else {
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email,
+      email: normalizedEmail,
       options: {
         redirectTo: `${APP_URL}/auth/callback?src=invite&brand_id=${brandId}`,
       },
@@ -61,7 +54,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
 
     // Supabase handles sending the magic link email when using signInWithOtp.
     const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-      email,
+      email: normalizedEmail,
       options: {
         emailRedirectTo: data.properties.action_link,
       },
@@ -70,6 +63,23 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     if (otpError) {
       console.error('Error sending magic link', otpError)
       throw new Error('Failed to send invite email')
+    }
+
+    const updatedMetadata = {
+      ...(existing.user_metadata || {}),
+      brand_id: brandId,
+      brand_role: role,
+      invitee_name: name,
+      last_invite_sent_at: new Date().toISOString(),
+    }
+
+    const { error: updateUserError } =
+      await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+        user_metadata: updatedMetadata,
+      })
+
+    if (updateUserError) {
+      console.error('sendTeamInvite updateUser metadata error', updateUserError)
     }
 
     await supabaseAdmin
@@ -83,14 +93,22 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
         { onConflict: 'user_id' },
       )
 
-    await upsertBrandInvite({
-      brandId,
-      email: normalizedEmail,
-      name,
-      role,
-      status: 'pending_existing',
-    })
   }
+
+  await upsertBrandInvite({
+    brandId,
+    email: normalizedEmail,
+    name,
+    role,
+    status: existing ? 'pending_existing' : 'pending',
+  })
+
+  console.log('team invite recorded', {
+    brandId,
+    email: normalizedEmail,
+    role,
+    status: existing ? 'pending_existing' : 'pending',
+  })
 
   return { ok: true }
 }

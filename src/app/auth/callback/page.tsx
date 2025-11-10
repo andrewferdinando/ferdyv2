@@ -14,8 +14,8 @@ export default function AuthCallbackPage() {
       try {
         const hash = window.location.hash.substring(1)
         const hashParams = new URLSearchParams(hash)
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
+        let accessToken = hashParams.get('access_token')
+        let refreshToken = hashParams.get('refresh_token')
 
         if (accessToken && refreshToken) {
           const { error: setSessionError } = await supabase.auth.setSession({
@@ -26,29 +26,46 @@ export default function AuthCallbackPage() {
           if (setSessionError) {
             throw setSessionError
           }
+        } else {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
 
-          const url = new URL(window.location.href)
-          const brandId = url.searchParams.get('brand_id')
-
-          const result = await finalizeInvite({
-            accessToken,
-            brandId,
-          })
-
-          try {
-            localStorage.setItem('selectedBrandId', result.brandId)
-            localStorage.setItem('selectedBrandName', result.brandName)
-            localStorage.setItem('welcomeBrandName', result.brandName)
-          } catch (storageError) {
-            console.warn('Unable to persist brand selection', storageError)
+          if (!session?.access_token) {
+            setStatusMessage('This link has expired. Please request a new invite.')
+            window.location.replace(
+              '/auth/sign-in?message=Please sign in to continue',
+            )
+            return
           }
 
-          window.location.replace(`/brands/${result.brandId}?welcome=1`)
-          return
-        } else {
-      setStatusMessage('This link has expired. Please request a new invite.')
-      window.location.replace('/auth/sign-in?message=Please sign in to continue')
+          accessToken = session.access_token
         }
+
+        const url = new URL(window.location.href)
+        const brandId = url.searchParams.get('brand_id')
+
+        if (!accessToken) {
+          setStatusMessage('This link has expired. Please request a new invite.')
+          window.location.replace('/auth/sign-in?message=Please sign in to continue')
+          return
+        }
+
+        const result = await finalizeInvite({
+          accessToken,
+          brandId,
+        })
+
+        try {
+          localStorage.setItem('selectedBrandId', result.brandId)
+          localStorage.setItem('selectedBrandName', result.brandName)
+          localStorage.setItem('welcomeBrandName', result.brandName)
+        } catch (storageError) {
+          console.warn('Unable to persist brand selection', storageError)
+        }
+
+        window.location.replace(`/brands/${result.brandId}?welcome=1`)
+        return
       } catch (error) {
         console.error('auth callback error', error)
         setStatusMessage('Something went wrong. Please sign in again.')
