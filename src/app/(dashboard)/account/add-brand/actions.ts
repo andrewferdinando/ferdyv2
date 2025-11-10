@@ -48,7 +48,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error(firstError)
   }
 
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const accessToken = cookieStore.get('sb-access-token')?.value
 
   if (!accessToken) {
