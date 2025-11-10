@@ -220,6 +220,10 @@ export default function AddBrandPage() {
     }
   }
 
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    void handleSubmit(event)
+  }
+
   const isFormValid = BrandFormSchema.safeParse(formValues).success
 
   const renderContent = () => {
@@ -269,7 +273,7 @@ export default function AddBrandPage() {
             </div>
           )}
 
-          <Form onSubmit={handleSubmit} className="space-y-6">
+          <Form onSubmit={handleFormSubmit} className="space-y-6">
             <FormField label="Brand Name" required>
               <Input
                 value={formValues.name}
