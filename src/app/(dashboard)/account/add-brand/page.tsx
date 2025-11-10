@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import RequireAuth from '@/components/auth/RequireAuth'
 import AppLayout from '@/components/layout/AppLayout'
+import type { FormEvent } from 'react'
 import { Form, FormField } from '@/components/ui/Form'
 import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/ToastProvider'
@@ -181,7 +182,7 @@ export default function AddBrandPage() {
     }))
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setTouched({
       name: true,
@@ -220,7 +221,7 @@ export default function AddBrandPage() {
     }
   }
 
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
     void handleSubmit(event)
   }
 
