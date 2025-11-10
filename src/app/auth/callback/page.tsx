@@ -15,7 +15,7 @@ export default function AuthCallbackPage() {
         const hash = window.location.hash.substring(1)
         const hashParams = new URLSearchParams(hash)
         let accessToken = hashParams.get('access_token')
-        let refreshToken = hashParams.get('refresh_token')
+        const refreshToken = hashParams.get('refresh_token')
 
         if (accessToken && refreshToken) {
           const { error: setSessionError } = await supabase.auth.setSession({
