@@ -59,9 +59,20 @@ export default function TeamPage() {
     }
 
     const data = await fetchTeamState(brandId);
-    setTeamMembers(data.members);
+
+    if (currentUserId) {
+      const orderedMembers = [...data.members].sort((a, b) => {
+        if (a.id === currentUserId) return -1;
+        if (b.id === currentUserId) return 1;
+        return 0;
+      });
+      setTeamMembers(orderedMembers);
+    } else {
+      setTeamMembers(data.members);
+    }
+
     setPendingInvites(data.invites);
-  }, [brandId]);
+  }, [brandId, currentUserId]);
 
   const checkUserRole = useCallback(async () => {
     try {
