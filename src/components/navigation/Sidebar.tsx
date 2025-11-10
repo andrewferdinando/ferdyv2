@@ -20,14 +20,6 @@ const SettingsIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
-const AccountIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11c1.657 0 3-1.567 3-3.5S17.657 4 16 4 13 5.567 13 7.5 14.343 11 16 11z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11c1.657 0 3-1.567 3-3.5S10.657 4 9 4 6 5.567 6 7.5 7.343 11 9 11z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13c-2.761 0-5 2.239-5 5v1h12v-1c0-2.761-2.239-5-5-5zM16 13c-.803 0-1.566.198-2.24.551a6.002 6.002 0 013.485 5.449v1H22v-1c0-2.761-2.239-5-5-5z" />
-  </svg>
-);
-
 const SuperAdminIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -172,12 +164,6 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
         icon: SettingsIcon,
         active: pathname.includes('/engine-room') && !pathname.includes('/account'),
       },
-      {
-        name: 'Brand Account',
-        href: `/brands/${activeBrandId}/account`,
-        icon: AccountIcon,
-        active: pathname.startsWith(`/brands/${activeBrandId}/account`),
-      },
     ];
   }, [activeBrandId, pathname]);
 
@@ -275,12 +261,12 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
                   </div>
                 ) : (
                   <>
-                  {isAccountAdmin && (
+                  {activeBrandId && (
                     <Link
-                      href="/account"
+                      href={`/brands/${activeBrandId}/account`}
                       onClick={handleNavigationClick}
                       className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-                        pathname.startsWith('/account')
+                        pathname.startsWith(`/brands/${activeBrandId}/account`)
                           ? 'bg-[#EEF2FF] text-[#6366F1]'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
@@ -292,13 +278,21 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
                     </Link>
                   )}
 
-                  {!isAccountAdmin && (
-                    <div className="flex items-center !space-x-6 px-4 py-3 rounded-lg text-gray-400 border border-dashed border-gray-200">
+                  {isAccountAdmin && (
+                    <Link
+                      href="/account"
+                      onClick={handleNavigationClick}
+                      className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
+                        pathname.startsWith('/account')
+                          ? 'bg-[#EEF2FF] text-[#6366F1]'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14a7 7 0 00-7 7h14a7 7 0 00-7-7zM16 8a4 4 0 11-8 0 4 4 0 018 0z" />
                       </svg>
-                      <span className="font-medium text-sm">Account (Admin only)</span>
-                    </div>
+                      <span className="font-medium text-sm">Account Admin</span>
+                    </Link>
                   )}
 
                     {isSuperAdmin && (

@@ -84,7 +84,7 @@ export default function AccountOverviewPage() {
                 </div>
 
                 {isAccountAdmin ? (
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-1">
                     <Link
                       href="/account/add-brand"
                       className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg"
@@ -98,36 +98,12 @@ export default function AccountOverviewPage() {
                           </div>
                           <div>
                             <h2 className="text-lg font-semibold text-gray-900">Add Brand</h2>
-                            <p className="mt-1 text-sm text-gray-600">
-                              Spin up a new brand workspace with dedicated schedules, content, and automations.
+                            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+                              Create a new brand workspace to manage content, data, and automations.
                             </p>
                           </div>
                         </div>
                         <svg className="h-5 w-5 text-gray-400 transition-colors group-hover:text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </Link>
-
-                    <Link
-                      href="/brands"
-                      className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-900 group-hover:text-white">
-                            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7l9-4 9 4-9 4-9-4zm0 6l9 4 9-4" />
-                            </svg>
-                          </div>
-                          <div>
-                            <h2 className="text-lg font-semibold text-gray-900">Manage Brands</h2>
-                            <p className="mt-1 text-sm text-gray-600">
-                              Switch between existing brands to update schedules, content, and integrations.
-                            </p>
-                          </div>
-                        </div>
-                        <svg className="h-5 w-5 text-gray-400 transition-colors group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
