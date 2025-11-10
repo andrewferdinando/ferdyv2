@@ -38,16 +38,25 @@ export async function finalizeInvite({
   let resolvedBrandId = brandId ?? null
   let resolvedRole: 'admin' | 'editor' = 'editor'
 
+  let selectedInvite:
+    | (Awaited<ReturnType<typeof findPendingInvite>> & { invitee_name?: string })
+    | (Awaited<ReturnType<typeof findPendingInvitesByEmail>>[number] & {
+        invitee_name?: string
+      })
+    | null = null
+
   if (!resolvedBrandId) {
     const invites = await findPendingInvitesByEmail(userEmail)
     if (invites.length > 0) {
       resolvedBrandId = invites[0].brand_id
       resolvedRole = (invites[0].role as 'admin' | 'editor') ?? 'editor'
+      selectedInvite = invites[0]
     }
   } else {
     const invite = await findPendingInvite(userEmail, resolvedBrandId)
     if (invite?.role) {
       resolvedRole = invite.role as 'admin' | 'editor'
+      selectedInvite = invite
     }
   }
 
@@ -68,6 +77,20 @@ export async function finalizeInvite({
 
   await markInviteAccepted(userEmail, resolvedBrandId)
 
+  const inviteeName = selectedInvite?.invitee_name
+
+  if (inviteeName) {
+    await supabaseAdmin
+      .from('profiles')
+      .upsert(
+        {
+          user_id: user.id,
+          full_name: inviteeName,
+        },
+        { onConflict: 'user_id' },
+      )
+  }
+
   const { data: brand } = await supabaseAdmin
     .from('brands')
     .select('name')
@@ -78,6 +101,7 @@ export async function finalizeInvite({
     brandId: resolvedBrandId,
     brandName: brand?.name ?? 'the brand',
     role: resolvedRole,
+    inviteName: inviteeName ?? null,
   }
 }
 

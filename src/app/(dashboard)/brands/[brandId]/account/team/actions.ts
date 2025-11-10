@@ -10,13 +10,14 @@ const APP_URL = process.env.APP_URL!
 const InviteSchema = z.object({
   brandId: z.string().uuid(),
   email: z.string().email(),
+  name: z.string().min(1),
   role: z.enum(['admin', 'editor']),
   inviterId: z.string().uuid(),
 })
 
 export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   const payload = InviteSchema.parse(input)
-  const { brandId, email, role, inviterId } = payload
+  const { brandId, email, name, role, inviterId } = payload
 
   await requireAdminForBrand(brandId, inviterId)
 
@@ -29,6 +30,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: {
         brand_id: brandId,
+        invitee_name: name,
         role,
         src: 'team_invite',
       },
@@ -38,6 +40,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     await upsertBrandInvite({
       brandId,
       email: email.toLowerCase(),
+      name,
       role,
       status: 'pending',
     })
@@ -68,9 +71,20 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
       throw new Error('Failed to send invite email')
     }
 
+    await supabaseAdmin
+      .from('profiles')
+      .upsert(
+        {
+          user_id: existing.id,
+          full_name: name,
+        },
+        { onConflict: 'user_id' },
+      )
+
     await upsertBrandInvite({
       brandId,
       email: email.toLowerCase(),
+      name,
       role,
       status: 'pending_existing',
     })
@@ -135,7 +149,7 @@ export async function fetchTeamState(brandId: string) {
 
   const { data: invites, error: invitesError } = await supabaseAdmin
     .from('brand_invites')
-    .select('email, role, status, created_at')
+    .select('email, invitee_name, role, status, created_at')
     .eq('brand_id', brandId)
     .in('status', ['pending', 'pending_existing'])
     .order('created_at', { ascending: false })

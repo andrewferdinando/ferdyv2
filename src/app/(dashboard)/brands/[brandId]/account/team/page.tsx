@@ -18,6 +18,7 @@ interface TeamMember {
 
 interface PendingInvite {
   email: string;
+  invitee_name?: string | null;
   role: string;
   status: string;
   created_at: string;
@@ -39,6 +40,7 @@ export default function TeamPage() {
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
   const [, startTransition] = useTransition();
@@ -96,6 +98,10 @@ export default function TeamPage() {
   }, [userRole, brandId, currentUserId]);
 
   const handleInviteUser = async () => {
+    if (!inviteName.trim()) {
+      setError('Please enter their name');
+      return;
+    }
     if (!inviteEmail.trim()) {
       setError('Please enter an email address');
       return;
@@ -112,11 +118,13 @@ export default function TeamPage() {
       await sendTeamInvite({
         brandId,
         email: inviteEmail.trim(),
+        name: inviteName.trim(),
         role: inviteRole as 'admin' | 'editor',
         inviterId: currentUserId,
       });
 
       setSuccess(`Invitation sent to ${inviteEmail}`);
+      setInviteName('');
       setInviteEmail('');
       setInviteRole('editor');
       setShowInviteForm(false);
@@ -234,6 +242,17 @@ export default function TeamPage() {
                     
                     <div className="space-y-4">
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                        <input
+                          type="text"
+                          value={inviteName}
+                          onChange={(e) => setInviteName(e.target.value)}
+                          className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none transition-all duration-150"
+                          placeholder="Enter full name"
+                        />
+                      </div>
+
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                         <input
                           type="email"
@@ -246,14 +265,29 @@ export default function TeamPage() {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                        <select
-                          value={inviteRole}
-                          onChange={(e) => setInviteRole(e.target.value)}
-                          className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none transition-all duration-150 appearance-none"
-                        >
-                          <option value="editor">Editor</option>
-                          <option value="admin">Admin</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={inviteRole}
+                            onChange={(e) => setInviteRole(e.target.value)}
+                            className="w-full h-10 px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-4 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none transition-all duration-150 appearance-none"
+                          >
+                            <option value="editor">Editor</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          <svg
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
                       </div>
                     </div>
                     
@@ -317,7 +351,10 @@ export default function TeamPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{invite.email}</p>
+                          <p className="font-medium text-gray-900">
+                            {invite.invitee_name || invite.email}
+                          </p>
+                          <p className="text-sm text-gray-500">{invite.email}</p>
                           <p className="text-xs text-gray-500">{new Date(invite.created_at).toLocaleString()}</p>
                         </div>
                       </div>

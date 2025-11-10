@@ -7,6 +7,7 @@ export type InviteStatus = 'pending' | 'pending_existing' | 'accepted'
 interface UpsertInviteParams {
   brandId: string
   email: string
+  name: string
   role: 'admin' | 'editor'
   status: InviteStatus
 }
@@ -14,6 +15,7 @@ interface UpsertInviteParams {
 export async function upsertBrandInvite({
   brandId,
   email,
+  name,
   role,
   status,
 }: UpsertInviteParams) {
@@ -21,6 +23,7 @@ export async function upsertBrandInvite({
     {
       brand_id: brandId,
       email,
+      invitee_name: name,
       role,
       status,
     },
@@ -33,7 +36,7 @@ export async function upsertBrandInvite({
 export async function findPendingInvite(email: string, brandId?: string) {
   let query = supabaseAdmin
     .from('brand_invites')
-    .select('brand_id, role, status')
+    .select('brand_id, invitee_name, role, status')
     .eq('email', email.toLowerCase())
     .in('status', ['pending', 'pending_existing'] satisfies InviteStatus[])
     .order('created_at', { ascending: false })
@@ -55,7 +58,7 @@ export async function findPendingInvite(email: string, brandId?: string) {
 export async function findPendingInvitesByEmail(email: string) {
   const { data, error } = await supabaseAdmin
     .from('brand_invites')
-    .select('brand_id, role, status')
+    .select('brand_id, invitee_name, role, status')
     .eq('email', email.toLowerCase())
     .in('status', ['pending', 'pending_existing'] satisfies InviteStatus[])
     .order('created_at', { ascending: false })

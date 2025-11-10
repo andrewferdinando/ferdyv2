@@ -3,6 +3,7 @@ create table if not exists public.brand_invites (
   id uuid primary key default gen_random_uuid(),
   brand_id uuid not null references public.brands(id) on delete cascade,
   email text not null,
+  invitee_name text,
   role text not null check (role in ('admin','editor')),
   status text not null default 'pending',
   created_at timestamptz not null default now()
