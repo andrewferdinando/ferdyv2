@@ -19,7 +19,7 @@ export async function upsertBrandInvite({
   role,
   status,
 }: UpsertInviteParams) {
-  await supabaseAdmin.from('brand_invites').upsert(
+  const { error } = await supabaseAdmin.from('brand_invites').upsert(
     {
       brand_id: brandId,
       email: email.toLowerCase(),
@@ -28,9 +28,19 @@ export async function upsertBrandInvite({
       status,
     },
     {
-      onConflict: 'brand_id,email',
+      onConflict: 'idx_brand_invites_brand_id_email',
     },
   )
+
+  if (error) {
+    console.error('upsertBrandInvite error', error, {
+      brandId,
+      email,
+      role,
+      status,
+    })
+    throw error
+  }
 }
 
 export async function findPendingInvite(email: string, brandId?: string) {
