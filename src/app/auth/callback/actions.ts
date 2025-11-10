@@ -77,17 +77,6 @@ export async function finalizeInvite({
     .eq('id', resolvedBrandId)
     .maybeSingle()
 
-  try {
-    cookies().set('selectedBrandId', resolvedBrandId, {
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: APP_URL.startsWith('https://'),
-      path: '/',
-    })
-  } catch (error) {
-    console.warn('Unable to set brand cookie', error)
-  }
-
   return {
     brandId: resolvedBrandId,
     brandName: brand?.name ?? 'the brand',
