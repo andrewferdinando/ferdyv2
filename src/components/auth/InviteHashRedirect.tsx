@@ -14,7 +14,11 @@ export default function InviteHashRedirect() {
       return;
     }
 
-    if (pathname.startsWith('/auth/callback')) {
+    if (
+      pathname.startsWith('/auth/callback') ||
+      pathname.startsWith('/auth/set-password') ||
+      pathname.startsWith('/auth/existing-invite')
+    ) {
       return;
     }
 

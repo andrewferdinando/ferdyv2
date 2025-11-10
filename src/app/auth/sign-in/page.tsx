@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { Input } from '@/components/ui/Input'
 import { Form } from '@/components/ui/Form'
+import { finalizeInvite } from '@/app/auth/callback/actions'
 
 function SignInForm() {
   const [email, setEmail] = useState('')
@@ -15,6 +16,15 @@ function SignInForm() {
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/brands'
   const message = searchParams.get('message')
+  const inviteBrandId = searchParams.get('invite_brand')
+  const inviteEmail = searchParams.get('invite_email')
+  const hasInvite = Boolean(searchParams.get('invite'))
+
+  useEffect(() => {
+    if (inviteEmail) {
+      setEmail(inviteEmail)
+    }
+  }, [inviteEmail])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,6 +43,42 @@ function SignInForm() {
       }
 
       if (data.user) {
+        if (hasInvite && inviteBrandId) {
+          const accessToken = data.session?.access_token
+
+          if (!accessToken) {
+            setError('We could not finalise your invite. Please try again.')
+            return
+          }
+
+          try {
+            const result = await finalizeInvite({
+              accessToken,
+              brandId: inviteBrandId,
+            })
+
+            try {
+              localStorage.setItem('selectedBrandId', result.brandId)
+              localStorage.setItem('selectedBrandName', result.brandName)
+              localStorage.setItem('welcomeBrandName', result.brandName)
+            } catch (storageError) {
+              console.warn('SignIn: unable to persist brand selection', storageError)
+            }
+
+            router.push(`/brands/${result.brandId}/schedule?welcome=1`)
+            router.refresh()
+            return
+          } catch (inviteError) {
+            console.error('SignIn: finalize invite error', inviteError)
+            setError(
+              inviteError instanceof Error
+                ? inviteError.message
+                : 'We could not complete your invite. Please try again.',
+            )
+            return
+          }
+        }
+
         router.push(next)
         router.refresh()
       }
