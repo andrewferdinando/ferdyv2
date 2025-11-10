@@ -44,6 +44,22 @@ export async function finalizeInvite({
         invitee_name?: string
       })
     | null = null
+  let inviteeName: string | null = null
+
+  const metadataBrandId =
+    user.user_metadata?.brand_id ??
+    user.user_metadata?.brandId ??
+    user.user_metadata?.brandID ??
+    null
+  const metadataRole =
+    (user.user_metadata?.role as 'admin' | 'editor' | undefined) ??
+    (user.user_metadata?.brand_role as 'admin' | 'editor' | undefined) ??
+    null
+  const metadataName =
+    user.user_metadata?.invitee_name ??
+    user.user_metadata?.name ??
+    user.user_metadata?.full_name ??
+    null
 
   if (!resolvedBrandId) {
     const invites = await findPendingInvitesByEmail(userEmail)
@@ -60,24 +76,39 @@ export async function finalizeInvite({
     }
   }
 
+  if (!resolvedBrandId && metadataBrandId) {
+    resolvedBrandId = metadataBrandId
+  }
+
+  if (metadataRole === 'admin' || metadataRole === 'editor') {
+    resolvedRole = metadataRole
+  }
+
   if (!resolvedBrandId) {
     throw new Error('Invite not found for this user')
   }
 
-  await supabaseAdmin.from('brand_memberships').upsert(
-    {
-      brand_id: resolvedBrandId,
-      user_id: user.id,
-      role: resolvedRole,
-    },
-    {
-      onConflict: 'brand_id,user_id',
-    },
-  )
+  const { error: membershipError } = await supabaseAdmin
+    .from('brand_memberships')
+    .upsert(
+      {
+        brand_id: resolvedBrandId,
+        user_id: user.id,
+        role: resolvedRole,
+      },
+      {
+        onConflict: 'brand_id,user_id',
+      },
+    )
+
+  if (membershipError) {
+    console.error('finalizeInvite membership upsert error', membershipError)
+    throw new Error('Unable to create membership for invite')
+  }
 
   await markInviteAccepted(userEmail, resolvedBrandId)
 
-  const inviteeName = selectedInvite?.invitee_name ?? null
+  inviteeName = selectedInvite?.invitee_name ?? metadataName ?? null
 
   const profileUpdate: { user_id: string; role: string; full_name?: string } = {
     user_id: user.id,
@@ -88,9 +119,13 @@ export async function finalizeInvite({
     profileUpdate.full_name = inviteeName
   }
 
-  await supabaseAdmin
+  const { error: profileError } = await supabaseAdmin
     .from('profiles')
     .upsert(profileUpdate, { onConflict: 'user_id' })
+
+  if (profileError) {
+    console.error('finalizeInvite profile upsert error', profileError)
+  }
 
   const { data: brand } = await supabaseAdmin
     .from('brands')
