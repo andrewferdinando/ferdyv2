@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Asset } from '@/hooks/assets/useAssets'
 
 interface AssetCardProps {
@@ -11,7 +12,35 @@ interface AssetCardProps {
 
 export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetCardProps) {
   const isVideo = asset.asset_type === 'video'
-  const previewUrl = isVideo ? asset.thumbnail_signed_url || asset.signed_url : asset.signed_url
+  const [generatedThumbnail, setGeneratedThumbnail] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    if (isVideo && !asset.thumbnail_signed_url && asset.signed_url) {
+      generateVideoThumbnail(asset.signed_url)
+        .then((thumbnail) => {
+          if (isMounted && thumbnail) {
+            setGeneratedThumbnail(thumbnail)
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setGeneratedThumbnail(null)
+          }
+        })
+    } else {
+      setGeneratedThumbnail(null)
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [asset.id, asset.signed_url, asset.thumbnail_signed_url, isVideo])
+
+  const previewUrl = isVideo
+    ? generatedThumbnail || asset.thumbnail_signed_url || undefined
+    : asset.signed_url
   const canPreview = isVideo && typeof onPreview === 'function'
 
   const handlePreviewClick = () => {
@@ -123,5 +152,65 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
       </div>
     </div>
   )
+}
+
+async function generateVideoThumbnail(url: string): Promise<string | null> {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  return new Promise((resolve) => {
+    const video = document.createElement('video')
+    let resolved = false
+
+    const finalize = (value: string | null) => {
+      if (resolved) return
+      resolved = true
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
+      resolve(value)
+    }
+
+    video.crossOrigin = 'anonymous'
+    video.preload = 'metadata'
+    video.muted = true
+    video.playsInline = true
+    video.src = url
+
+    video.onloadedmetadata = () => {
+      try {
+        const duration = video.duration || 0
+        const targetTime = duration > 0 ? Math.min(duration * 0.1, duration - 0.1) : 0.1
+        video.currentTime = Number.isFinite(targetTime) ? Math.max(targetTime, 0.1) : 0.1
+      } catch {
+        finalize(null)
+      }
+    }
+
+    video.onseeked = () => {
+      try {
+        const width = video.videoWidth || 640
+        const height = video.videoHeight || 360
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const context = canvas.getContext('2d')
+        if (!context) {
+          finalize(null)
+          return
+        }
+        context.drawImage(video, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+        finalize(dataUrl)
+      } catch {
+        finalize(null)
+      }
+    }
+
+    video.onerror = () => finalize(null)
+
+    setTimeout(() => finalize(null), 7000)
+  })
 }
 
