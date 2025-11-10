@@ -59,6 +59,3 @@ export function useDeleteAsset() {
     deleting,
   }
 }
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase-browser'
-
