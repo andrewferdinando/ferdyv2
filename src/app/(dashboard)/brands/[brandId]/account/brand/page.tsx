@@ -154,7 +154,6 @@ export default function BrandSettingsPage() {
               {/* Header */}
               <div className="mb-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Brand Settings</h1>
-                <p className="text-gray-600 mt-1 text-sm">Manage your brand information, timezone, and country settings</p>
               </div>
 
               {/* Brand Settings Form */}

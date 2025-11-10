@@ -141,7 +141,6 @@ export default function AccountSettingsPage() {
               {/* Header */}
               <div className="mb-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Account Settings</h1>
-                <p className="text-gray-600 mt-1 text-sm">Manage your account, team, and billing preferences</p>
               </div>
 
               {/* Settings Cards */}

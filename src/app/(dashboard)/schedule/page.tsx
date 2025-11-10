@@ -179,7 +179,6 @@ export default function SchedulePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Schedule</h1>
-            <p className="text-gray-600 mt-1 text-sm">Manage your social media posts</p>
           </div>
           <button 
             onClick={() => router.push('/new-post')}

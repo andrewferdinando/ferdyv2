@@ -121,7 +121,6 @@ export default function PostTimeSettingsPage() {
               {/* Header */}
               <div className="mb-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Default Post Time</h1>
-                <p className="text-gray-600 mt-1 text-sm">Set a default time that will auto-populate when creating new subcategories</p>
               </div>
 
               {/* Post Time Settings Form */}

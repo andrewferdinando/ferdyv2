@@ -178,7 +178,6 @@ export default function IntegrationsPage() {
           <div className="mb-4">
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-          <p className="text-gray-600 mt-1">Connect your social media accounts to start publishing</p>
         </div>
 
         {/* Connected Accounts Summary */}

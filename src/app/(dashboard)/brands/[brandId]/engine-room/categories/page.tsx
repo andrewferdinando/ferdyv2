@@ -438,7 +438,6 @@ export default function CategoriesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Framework</h1>
-                <p className="text-gray-600 mt-1 text-sm">Organize your content with structured categories and post schedules</p>
               </div>
               {isAdmin && (
                 <button

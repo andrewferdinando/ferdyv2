@@ -270,9 +270,6 @@ export default function AddBrandPage() {
         <div className="mb-8">
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-gray-950">Add Brand</h1>
-            <p className="text-gray-600">
-              Create a new brand to manage its social content, data, and automations.
-            </p>
           </div>
         </div>
 

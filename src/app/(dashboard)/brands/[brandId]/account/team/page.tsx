@@ -283,7 +283,6 @@ export default function TeamPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Team</h1>
-                    <p className="text-gray-600 mt-1 text-sm">Invite team members and manage roles and permissions</p>
                   </div>
                   <button
                     onClick={() => setShowInviteForm(true)}
@@ -345,24 +344,21 @@ export default function TeamPage() {
                           <select
                             value={inviteRole}
                             onChange={(e) => setInviteRole(e.target.value)}
-                            className="w-full h-10 px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-4 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none transition-all duration-150 appearance-none"
+                            className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-700 focus:border-[#6366F1] focus:outline-none focus:ring-4 focus:ring-[#EEF2FF] transition-all duration-150 appearance-none"
                           >
                             <option value="editor">Editor</option>
                             <option value="admin">Admin</option>
                           </select>
-                          <svg
-                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
+                          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                            <svg
+                              className="h-4 w-4 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -429,19 +425,21 @@ export default function TeamPage() {
                                   )
                                 }
                                 disabled={roleUpdatingId === member.id}
-                                className="h-9 rounded-lg border border-gray-300 bg-white px-3 pr-9 text-sm text-gray-700 focus:border-[#6366F1] focus:outline-none focus:ring-4 focus:ring-[#EEF2FF] transition-all appearance-none"
+                                className="h-9 rounded-lg border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-700 focus:border-[#6366F1] focus:outline-none focus:ring-4 focus:ring-[#EEF2FF] transition-all appearance-none"
                               >
                                 <option value="editor">Editor</option>
                                 <option value="admin">Admin</option>
                               </select>
-                              <svg
-                                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
+                              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                                <svg
+                                  className="h-3.5 w-3.5 text-gray-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
                             </div>
                             <button
                               onClick={() => setMemberToRemove(member)}
