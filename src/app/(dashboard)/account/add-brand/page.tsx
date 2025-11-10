@@ -356,7 +356,7 @@ export default function AddBrandPage() {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !isFormValid}
+                disabled={isSubmitting || !isFormValid || !currentUserId}
                 className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? 'Creating…' : 'Create Brand'}

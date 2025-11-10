@@ -45,7 +45,7 @@ export function useUserRole(brandId: string) {
     checkUserRole()
   }, [brandId])
 
-  const isAdmin = userRole === 'admin' || userRole === 'super_admin'
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'owner'
   const isEditor = userRole === 'editor'
 
   return {
