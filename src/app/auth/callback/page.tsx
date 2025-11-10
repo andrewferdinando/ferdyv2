@@ -43,15 +43,16 @@ export default function AuthCallbackPage() {
             console.warn('Unable to persist brand selection', storageError)
           }
 
-          router.replace(`/brands/${result.brandId}?welcome=1`)
+          window.location.replace(`/brands/${result.brandId}?welcome=1`)
+          return
         } else {
-          setStatusMessage('This link has expired. Please request a new invite.')
-          router.replace('/auth/sign-in?message=Please sign in to continue')
+      setStatusMessage('This link has expired. Please request a new invite.')
+      window.location.replace('/auth/sign-in?message=Please sign in to continue')
         }
       } catch (error) {
         console.error('auth callback error', error)
         setStatusMessage('Something went wrong. Please sign in again.')
-        router.replace('/auth/sign-in?message=Please sign in to continue')
+        window.location.replace('/auth/sign-in?message=Please sign in to continue')
       }
     }
 
