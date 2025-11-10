@@ -182,7 +182,7 @@ export default function AddBrandPage() {
     }))
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setTouched({
       name: true,
@@ -221,7 +221,7 @@ export default function AddBrandPage() {
     }
   }
 
-  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = (event: FormEvent) => {
     void handleSubmit(event)
   }
 
