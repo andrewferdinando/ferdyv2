@@ -1,14 +1,11 @@
 'use server'
 
-import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import {
   findPendingInvite,
   findPendingInvitesByEmail,
   markInviteAccepted,
 } from '@/lib/server/brandInvites'
-
-const APP_URL = process.env.APP_URL!
 
 interface FinalizeInvitePayload {
   accessToken: string

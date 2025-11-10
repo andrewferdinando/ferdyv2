@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { finalizeInvite } from './actions'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [statusMessage, setStatusMessage] = useState('Finalising your access…')
 
   useEffect(() => {
@@ -28,9 +27,12 @@ export default function AuthCallbackPage() {
             throw setSessionError
           }
 
+          const url = new URL(window.location.href)
+          const brandId = url.searchParams.get('brand_id')
+
           const result = await finalizeInvite({
             accessToken,
-            brandId: searchParams.get('brand_id'),
+            brandId,
           })
 
           try {
@@ -54,7 +56,7 @@ export default function AuthCallbackPage() {
     }
 
     complete()
-  }, [router, searchParams])
+  }, [router])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
