@@ -216,20 +216,12 @@ export default function AddBrandPage() {
         timezone: formValues.timezone.trim(),
       })
 
-      try {
-        localStorage.setItem('selectedBrandId', brandId)
-        localStorage.setItem('selectedBrandName', formValues.name.trim())
-      } catch (storageError) {
-        console.warn('AddBrandPage: unable to persist selected brand metadata', storageError)
-      }
-
       showToast({
         title: 'Brand created successfully.',
         type: 'success',
       })
 
-      router.push(`/brands/${brandId}/schedule`)
-      router.refresh()
+      router.push('/brands')
     } catch (error) {
       console.error('AddBrandPage: failed to create brand', error)
       setServerError(error instanceof Error ? error.message : 'Failed to create brand. Please try again.')
