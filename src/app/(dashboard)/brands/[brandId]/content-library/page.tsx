@@ -526,13 +526,7 @@ function AssetDetailView({
       return CROP_FORMATS[0]
     }
 
-    const computeScale = (formatRatio: number) => {
-      if (formatRatio >= 1) {
-        return Math.max(1, formatRatio / imageAspectRatio)
-      }
-
-      return Math.max(1, 1 / (imageAspectRatio * formatRatio))
-    }
+    const computeScale = (formatRatio: number) => Math.max(formatRatio / imageAspectRatio, 1)
 
     return CROP_FORMATS.reduce((best, candidate) => {
       const bestScale = computeScale(best.ratio)
@@ -559,13 +553,7 @@ function AssetDetailView({
       displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
     if (hasExistingCrops) return
 
-    const computeScale = (formatRatio: number) => {
-      if (formatRatio >= 1) {
-        return Math.max(1, formatRatio / imageAspectRatio)
-      }
-
-      return Math.max(1, 1 / (imageAspectRatio * formatRatio))
-    }
+    const computeScale = (formatRatio: number) => Math.max(formatRatio / imageAspectRatio, 1)
 
     didAutoSelectRef.current = true
     const initialScale = computeScale(bestFormat.ratio)

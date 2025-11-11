@@ -556,15 +556,7 @@ function AssetDetailView({
       return FORMATS[0]
     }
 
-    const computeScale = (formatRatio: number) => {
-      if (!imageAspectRatio) return 1
-
-      if (formatRatio >= 1) {
-        return Math.max(1, formatRatio / imageAspectRatio)
-      }
-
-      return Math.max(1, 1 / (imageAspectRatio * formatRatio))
-    }
+    const computeScale = (formatRatio: number) => Math.max(formatRatio / imageAspectRatio, 1)
 
     return FORMATS.reduce((best, candidate) => {
       const bestScale = computeScale(best.ratio)
