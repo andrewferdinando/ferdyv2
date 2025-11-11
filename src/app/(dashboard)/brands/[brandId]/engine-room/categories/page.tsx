@@ -437,7 +437,7 @@ export default function CategoriesPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Framework</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Categories</h1>
               </div>
               {isAdmin && (
                 <button
@@ -1053,7 +1053,7 @@ export default function CategoriesPage() {
             setIsSubcategoryModalOpen(false)
             setEditingSubcategory(null)
             setEditingScheduleRule(null)
-            // Refresh schedule rules so Post Framework updates immediately
+            // Refresh schedule rules so the Post Categories view updates immediately
             refetchRules()
           }}
         />

@@ -12,7 +12,7 @@ export default function BrandEngineRoomPage() {
   const settingsCards = [
     {
       title: 'Categories',
-      description: 'Define content categories and post frequency.',
+      description: 'Define post categories and frequency.',
       href: `/brands/${brandId}/engine-room/categories`,
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
