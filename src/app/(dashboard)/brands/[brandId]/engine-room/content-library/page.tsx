@@ -11,11 +11,6 @@ import AssetCard from '@/components/assets/AssetCard'
 import TagSelector from '@/components/assets/TagSelector'
 import { getSignedUrl } from '@/lib/storage/getSignedUrl'
 
-interface CropData {
-  x: number
-  y: number
-}
-
 // Search Icon Component
 const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,12 +18,14 @@ const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
-const CROP_FORMATS = [
+const FORMATS = [
   { key: '1:1', ratio: 1, hint: 'Feed' },
   { key: '4:5', ratio: 4 / 5, hint: 'Feed (tall)' },
   { key: '1.91:1', ratio: 1.91, hint: 'Feed (landscape)' },
   { key: '9:16', ratio: 9 / 16, hint: 'Reels & Stories' },
 ] as const
+
+const EPSILON = 1e-6
 
 const MAX_ZOOM_MULTIPLIER = 4
 
@@ -335,7 +332,7 @@ export default function ContentLibraryPage() {
             ) : (
               // Ready to Use tab - show grid of ready assets
               filteredAssets.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
                   {filteredAssets.map((asset) => (
                     <div key={asset.id}>
                       <AssetCard
@@ -424,14 +421,14 @@ function AssetDetailView({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(displayAsset.tag_ids || [])
   const [saving, setSaving] = useState(false)
 
-  const initialFormat = CROP_FORMATS.some((format) => format.key === displayAsset.aspect_ratio)
-    ? (displayAsset.aspect_ratio as typeof CROP_FORMATS[number]['key'])
-    : CROP_FORMATS[0].key
+  const initialFormat = FORMATS.some((format) => format.key === displayAsset.aspect_ratio)
+    ? (displayAsset.aspect_ratio as typeof FORMATS[number]['key'])
+    : FORMATS[0].key
 
-  const [selectedFormat, setSelectedFormat] = useState<typeof CROP_FORMATS[number]['key']>(initialFormat)
+  const [selectedFormat, setSelectedFormat] = useState<typeof FORMATS[number]['key']>(initialFormat)
   const [crops, setCrops] = useState<Record<string, CropState>>(() => {
     const initial: Record<string, CropState> = {}
-    CROP_FORMATS.forEach(({ key }) => {
+    FORMATS.forEach(({ key }) => {
       const stored = displayAsset.image_crops?.[key]
       initial[key] = {
         scale: stored?.scale ?? 1,
@@ -487,7 +484,7 @@ function AssetDetailView({
     return () => observer.disconnect()
   }, [selectedFormat])
 
-  const activeFormat = CROP_FORMATS.find((format) => format.key === selectedFormat) ?? CROP_FORMATS[0]
+  const activeFormat = FORMATS.find((format) => format.key === selectedFormat) ?? FORMATS[0]
 
   const aspectClass =
     activeFormat.key === '1.91:1'
@@ -528,9 +525,9 @@ function AssetDetailView({
       )
 
       if (
-        Math.abs(bounded.scale - current.scale) < 0.000001 &&
-        Math.abs(bounded.x - current.x) < 0.000001 &&
-        Math.abs(bounded.y - current.y) < 0.000001
+        Math.abs(bounded.scale - current.scale) < EPSILON &&
+        Math.abs(bounded.x - current.x) < EPSILON &&
+        Math.abs(bounded.y - current.y) < EPSILON
       ) {
         return prev
       }
@@ -542,27 +539,35 @@ function AssetDetailView({
     })
   }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width, minScale, selectedFormat])
 
-  useEffect(() => {
-    if (isVideo) return
-    if (didAutoSelectRef.current) return
-    if (!imageDimensions.width || !imageDimensions.height) return
+  const imageAspectRatio = useMemo(() => {
+    if (!imageDimensions.width || !imageDimensions.height) return 1
+    return imageDimensions.width / imageDimensions.height
+  }, [imageDimensions.height, imageDimensions.width])
 
-    const hasStoredCrops = !!displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
-    const aspectMatches = CROP_FORMATS.some((format) => format.key === displayAsset.aspect_ratio)
-
-    if (hasStoredCrops && aspectMatches) {
-      didAutoSelectRef.current = true
-      return
+  const bestFormat = useMemo(() => {
+    if (!imageAspectRatio) {
+      return FORMATS[0]
     }
 
-    const imageRatio = imageDimensions.width / imageDimensions.height
-    const bestFormat = CROP_FORMATS.reduce((closest, format) => {
-      return Math.abs(format.ratio - imageRatio) < Math.abs(closest.ratio - imageRatio) ? format : closest
-    }, CROP_FORMATS[0])
+    const computeScale = (formatRatio: number) => Math.max(1, formatRatio / imageAspectRatio)
 
-    didAutoSelectRef.current = true
-    setSelectedFormat(bestFormat.key)
-  }, [displayAsset.aspect_ratio, displayAsset.image_crops, imageDimensions.height, imageDimensions.width, isVideo])
+    return FORMATS.reduce((best, candidate) => {
+      const bestScale = computeScale(best.ratio)
+      const candidateScale = computeScale(candidate.ratio)
+
+      if (candidateScale < bestScale - EPSILON) {
+        return candidate
+      }
+
+      if (Math.abs(candidateScale - bestScale) <= EPSILON) {
+        return Math.abs(candidate.ratio - imageAspectRatio) < Math.abs(best.ratio - imageAspectRatio)
+          ? candidate
+          : best
+      }
+
+      return best
+    }, FORMATS[0])
+  }, [imageAspectRatio])
 
   const activeCrop = crops[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
 
@@ -656,7 +661,7 @@ function AssetDetailView({
     }
   }
 
-  const handleFormatChange = (formatKey: typeof CROP_FORMATS[number]['key']) => {
+  const handleFormatChange = (formatKey: typeof FORMATS[number]['key']) => {
     setSelectedFormat(formatKey)
   }
 
@@ -716,7 +721,7 @@ function AssetDetailView({
           <div className="space-y-4 lg:col-span-2">
             {!isVideo && (
               <div className="flex flex-wrap gap-3">
-                {CROP_FORMATS.map((format) => {
+                {FORMATS.map((format) => {
                   const isActive = format.key === selectedFormat
                   return (
                     <button

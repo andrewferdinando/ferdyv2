@@ -56,6 +56,8 @@ const ensureCropWithinBounds = (
   }
 }
 
+const EPSILON = 1e-6
+
 type CropState = {
   scale: number
   x: number
@@ -306,7 +308,7 @@ export default function ContentLibraryPage() {
             ) : (
               // Ready to Use tab - show grid of ready assets
               filteredAssets.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
                   {filteredAssets.map((asset) => (
                     <div key={asset.id}>
                       <AssetCard
@@ -513,27 +515,35 @@ function AssetDetailView({
     })
   }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width, minScale, selectedFormat])
 
-  useEffect(() => {
-    if (isVideo) return
-    if (didAutoSelectRef.current) return
-    if (!imageDimensions.width || !imageDimensions.height) return
+  const imageAspectRatio = useMemo(() => {
+    if (!imageDimensions.width || !imageDimensions.height) return 1
+    return imageDimensions.width / imageDimensions.height
+  }, [imageDimensions.height, imageDimensions.width])
 
-    const hasStoredCrops = !!displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
-    const aspectMatches = CROP_FORMATS.some((format) => format.key === displayAsset.aspect_ratio)
-
-    if (hasStoredCrops && aspectMatches) {
-      didAutoSelectRef.current = true
-      return
+  const bestFormat = useMemo(() => {
+    if (!imageAspectRatio) {
+      return CROP_FORMATS[0]
     }
 
-    const imageRatio = imageDimensions.width / imageDimensions.height
-    const bestFormat = CROP_FORMATS.reduce((closest, format) => {
-      return Math.abs(format.ratio - imageRatio) < Math.abs(closest.ratio - imageRatio) ? format : closest
-    }, CROP_FORMATS[0])
+    const computeScale = (formatRatio: number) => Math.max(1, formatRatio / imageAspectRatio)
 
-    didAutoSelectRef.current = true
-    setSelectedFormat(bestFormat.key)
-  }, [displayAsset.aspect_ratio, displayAsset.image_crops, imageDimensions.height, imageDimensions.width, isVideo])
+    return CROP_FORMATS.reduce((best, candidate) => {
+      const bestScale = computeScale(best.ratio)
+      const candidateScale = computeScale(candidate.ratio)
+
+      if (candidateScale < bestScale - EPSILON) {
+        return candidate
+      }
+
+      if (Math.abs(candidateScale - bestScale) <= EPSILON) {
+        return Math.abs(candidate.ratio - imageAspectRatio) < Math.abs(best.ratio - imageAspectRatio)
+          ? candidate
+          : best
+      }
+
+      return best
+    }, CROP_FORMATS[0])
+  }, [imageAspectRatio])
 
   const activeCrop = crops[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
 
