@@ -27,6 +27,16 @@ const FORMATS = [
 
 const EPSILON = 1e-6
 
+type MediaFilterValue = 'images' | 'videos'
+type VideoGroupKey = 'vertical' | 'square' | 'landscape'
+
+const VIDEO_GROUP_ORDER: VideoGroupKey[] = ['vertical', 'square', 'landscape']
+const VIDEO_GROUP_LABELS: Record<VideoGroupKey, string> = {
+  vertical: 'Vertical format',
+  square: 'Square format',
+  landscape: 'Landscape format',
+}
+
 const MAX_ZOOM_MULTIPLIER = 4
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
@@ -58,6 +68,63 @@ const ensureCropWithinBounds = (
   }
 }
 
+const parseAspectRatio = (value?: string | null): number | null => {
+  if (!value) return null
+  const cleaned = value.trim()
+  if (!cleaned) return null
+
+  if (cleaned.includes(':')) {
+    const [left, right] = cleaned.split(':')
+    const leftNum = Number(left)
+    const rightNum = Number(right)
+    if (Number.isFinite(leftNum) && Number.isFinite(rightNum) && rightNum !== 0) {
+      return leftNum / rightNum
+    }
+  }
+
+  if (cleaned.includes('/')) {
+    const [left, right] = cleaned.split('/')
+    const leftNum = Number(left)
+    const rightNum = Number(right)
+    if (Number.isFinite(leftNum) && Number.isFinite(rightNum) && rightNum !== 0) {
+      return leftNum / rightNum
+    }
+  }
+
+  const numeric = Number(cleaned)
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric
+  }
+
+  return null
+}
+
+const getAssetAspectRatio = (asset: Asset): number | null => {
+  if (asset.width && asset.height) {
+    if (asset.height === 0) return null
+    return asset.width / asset.height
+  }
+
+  if (asset.aspect_ratio) {
+    return parseAspectRatio(asset.aspect_ratio)
+  }
+
+  return null
+}
+
+const classifyVideoShape = (asset: Asset): VideoGroupKey => {
+  const ratio = getAssetAspectRatio(asset)
+  if (!ratio) return 'landscape'
+  if (ratio < 0.9) return 'vertical'
+  if (ratio <= 1.1) return 'square'
+  return 'landscape'
+}
+
+const assetMatchesMediaFilter = (asset: Asset, filter: MediaFilterValue) => {
+  const isVideo = (asset.asset_type ?? 'image') === 'video'
+  return filter === 'images' ? !isVideo : isVideo
+}
+
 type CropState = {
   scale: number
   x: number
@@ -72,7 +139,7 @@ export default function ContentLibraryPage() {
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
-  const [mediaFilter, setMediaFilter] = useState<'images' | 'videos' | 'all'>('images')
+  const [mediaFilter, setMediaFilter] = useState<MediaFilterValue>('images')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
@@ -81,13 +148,8 @@ export default function ContentLibraryPage() {
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       asset.tags.some(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()))
-
-    const matchesFilter =
-      mediaFilter === 'all'
-        ? true
-        : mediaFilter === 'images'
-        ? (asset.asset_type ?? 'image') !== 'video'
-        : (asset.asset_type ?? 'image') === 'video'
+    
+    const matchesFilter = assetMatchesMediaFilter(asset, mediaFilter)
 
     if (activeTab === 'ready') {
       return asset.tags.length > 0 && matchesSearch && matchesFilter
@@ -98,12 +160,7 @@ export default function ContentLibraryPage() {
 
   const needsAttentionAssets = assets
     .filter(asset => {
-      const matchesFilter =
-        mediaFilter === 'all'
-          ? true
-          : mediaFilter === 'images'
-          ? (asset.asset_type ?? 'image') !== 'video'
-          : (asset.asset_type ?? 'image') === 'video'
+      const matchesFilter = assetMatchesMediaFilter(asset, mediaFilter)
       return asset.tags.length === 0 && matchesFilter
     })
     .sort((a, b) => {
@@ -116,15 +173,33 @@ export default function ContentLibraryPage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   const readyAssets = assets.filter((asset) => {
-    const matchesFilter =
-      mediaFilter === 'all'
-        ? true
-        : mediaFilter === 'images'
-        ? (asset.asset_type ?? 'image') !== 'video'
-        : (asset.asset_type ?? 'image') === 'video'
+    const matchesFilter = assetMatchesMediaFilter(asset, mediaFilter)
 
     return asset.tags.length > 0 && matchesFilter
   })
+
+  const isVideoFilter = mediaFilter === 'videos'
+
+  const groupedVideoAssets = useMemo(() => {
+    if (!isVideoFilter) return null
+    return filteredAssets.reduce<Record<VideoGroupKey, Asset[]>>(
+      (acc, asset) => {
+        const group = classifyVideoShape(asset)
+        acc[group].push(asset)
+        return acc
+      },
+      {
+        vertical: [],
+        square: [],
+        landscape: [],
+      },
+    )
+  }, [filteredAssets, isVideoFilter])
+
+  const filterOptions: { key: MediaFilterValue; label: string }[] = [
+    { key: 'images', label: 'Images' },
+    { key: 'videos', label: 'Videos' },
+  ]
 
   const handleUploadSuccess = (assetIds: string[]) => {
     refetch()
@@ -294,7 +369,7 @@ export default function ContentLibraryPage() {
           <div className="p-4 sm:p-6">
             {/* Search */}
             {activeTab === 'ready' && (
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full max-w-md">
                   <SearchIcon className="absolute left-3 top-[13px] text-gray-500 h-4 w-4 pointer-events-none" />
                   <input
@@ -306,13 +381,7 @@ export default function ContentLibraryPage() {
                   />
                 </div>
                 <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-semibold text-gray-600">
-                  {(
-                    [
-                      { key: 'images', label: 'Images' },
-                      { key: 'videos', label: 'Videos' },
-                      { key: 'all', label: 'All' },
-                    ] as const
-                  ).map((option) => (
+                  {filterOptions.map((option) => (
                     <button
                       key={option.key}
                       type="button"
@@ -344,49 +413,82 @@ export default function ContentLibraryPage() {
                     editingAssetData && assetToEdit.id === editingAssetData.id ? editingAssetData : null
 
                   return (
-                    <AssetDetailView
+                <AssetDetailView 
                       asset={assetToEdit}
                       originalAssetData={originalData}
-                      onBack={() => {}}
-                      onUpdate={handleAssetUpdate}
-                      brandId={brandId}
-                      saveAssetTags={saveAssetTags}
+                  onBack={() => {}} 
+                  onUpdate={handleAssetUpdate}
+                  brandId={brandId}
+                  saveAssetTags={saveAssetTags}
                       onPreviewAsset={handlePreviewAsset}
-                    />
+                />
                   )
                 }
 
                 return (
-                  <div className="flex flex-col items-center justify-center min-h-[400px]">
-                    <div className="text-center mb-8">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
-                      <p className="text-gray-600">No content needs attention right now</p>
-                    </div>
-                    <div className="mt-auto">
-                      <UploadAsset
-                        brandId={brandId}
-                        onUploadSuccess={handleUploadSuccess}
-                        onUploadError={handleUploadError}
-                      />
-                    </div>
+                <div className="flex flex-col items-center justify-center min-h-[400px]">
+                  <div className="text-center mb-8">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
+                    <p className="text-gray-600">No content needs attention right now</p>
                   </div>
-                )
+                  <div className="mt-auto">
+                    <UploadAsset
+                      brandId={brandId}
+                      onUploadSuccess={handleUploadSuccess}
+                      onUploadError={handleUploadError}
+                    />
+                  </div>
+                </div>
+              )
               })()
             ) : (
               // Ready to Use tab - show grid of ready assets
               filteredAssets.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                isVideoFilter && groupedVideoAssets
+                  ? (() => {
+                      const groups = groupedVideoAssets
+                      return (
+                        <div className="mt-6 space-y-6">
+                          {VIDEO_GROUP_ORDER.map((groupKey) => {
+                            const groupAssets = groups[groupKey]
+                            if (groupAssets.length === 0) return null
+                            return (
+                              <div key={groupKey} className="space-y-3">
+                                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                  {VIDEO_GROUP_LABELS[groupKey]}
+                                </div>
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                                  {groupAssets.map((asset) => (
+                                    <div key={asset.id}>
+                                      <AssetCard
+                                        asset={asset}
+                                        onEdit={handleEditAsset}
+                                        onDelete={handleDeleteAsset}
+                                        onPreview={handlePreviewAsset}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()
+                  : (
+                    <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
                   {filteredAssets.map((asset) => (
                     <div key={asset.id}>
                       <AssetCard
                         asset={asset}
                         onEdit={handleEditAsset}
                         onDelete={handleDeleteAsset}
-                        onPreview={handlePreviewAsset}
+                            onPreview={handlePreviewAsset}
                       />
                     </div>
                   ))}
                 </div>
+                  )
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                   <div className="text-center mb-8">
@@ -789,10 +891,10 @@ function AssetDetailView({
 
     try {
       setSaving(true)
-
+      
       if (!isVideo) {
-        const { supabase } = await import('@/lib/supabase-browser')
-
+      const { supabase } = await import('@/lib/supabase-browser')
+      
         const cropsToPersist = Object.fromEntries(
           Object.entries(crops).map(([key, value]) => [
             key,
@@ -803,19 +905,19 @@ function AssetDetailView({
             },
           ]),
         )
-
-        const { error: assetError } = await supabase
-          .from('assets')
-          .update({
+      
+      const { error: assetError } = await supabase
+        .from('assets')
+        .update({
             aspect_ratio: selectedFormat,
             image_crops: cropsToPersist,
             crop_windows: null,
-          })
-          .eq('id', asset.id)
-          .eq('brand_id', asset.brand_id)
+        })
+        .eq('id', asset.id)
+        .eq('brand_id', asset.brand_id)
 
-        if (assetError) {
-          throw assetError
+      if (assetError) {
+        throw assetError
         }
       }
 
@@ -832,7 +934,7 @@ function AssetDetailView({
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6">
+          <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
             {!isVideo && (
@@ -856,7 +958,7 @@ function AssetDetailView({
                     </button>
                   )
                 })}
-              </div>
+                </div>
             )}
 
             {isVideo && (
@@ -889,12 +991,12 @@ function AssetDetailView({
             )}
 
             <div className="relative">
-              {isVideo ? (
+                    {isVideo ? (
                 <div
                   className="relative w-full overflow-hidden rounded-xl bg-black"
                   style={{ aspectRatio: `${placementAspectRatio}` }}
                 >
-                  <video
+                      <video
                     controls
                     preload="metadata"
                     poster={displayAsset.thumbnail_signed_url || undefined}
@@ -935,7 +1037,7 @@ function AssetDetailView({
                         src={displayAsset.signed_url}
                         alt={displayAsset.title}
                         className="pointer-events-none absolute left-1/2 top-1/2 select-none"
-                        style={{
+                        style={{ 
                           width: imageDimensions.width || '100%',
                           height: imageDimensions.height || '100%',
                           maxWidth: 'none',
@@ -952,7 +1054,7 @@ function AssetDetailView({
                   </div>
                 </div>
               )}
-            </div>
+              </div>
 
             {!isVideo && (
               <div className="flex items-center gap-3">
@@ -972,18 +1074,18 @@ function AssetDetailView({
             )}
           </div>
 
-          <div className="space-y-4">
-            <div>
+              <div className="space-y-4">
+                <div>
               <h3 className="mb-3 text-lg font-semibold text-gray-950">
                 Tags <span className="text-red-500">*</span>
               </h3>
-              <TagSelector
-                brandId={brandId}
-                selectedTagIds={selectedTagIds}
-                onTagsChange={setSelectedTagIds}
-                required
-              />
-            </div>
+                  <TagSelector
+                    brandId={brandId}
+                    selectedTagIds={selectedTagIds}
+                    onTagsChange={setSelectedTagIds}
+                    required
+                  />
+                </div>
 
             {isVideo && (
               <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
@@ -1011,19 +1113,19 @@ function AssetDetailView({
               </div>
             )}
 
-            <div className="flex space-x-3">
-              <button
-                onClick={handleSave}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleSave}
                 disabled={saving || selectedTagIds.length === 0}
                 className="flex-1 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-3 font-medium text-white transition-all hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
   )
 }
 

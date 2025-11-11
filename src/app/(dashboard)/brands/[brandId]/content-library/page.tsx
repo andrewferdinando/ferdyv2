@@ -58,6 +58,73 @@ const ensureCropWithinBounds = (
 
 const EPSILON = 1e-6
 
+type MediaFilterValue = 'images' | 'videos'
+type VideoGroupKey = 'vertical' | 'square' | 'landscape'
+
+const VIDEO_GROUP_ORDER: VideoGroupKey[] = ['vertical', 'square', 'landscape']
+const VIDEO_GROUP_LABELS: Record<VideoGroupKey, string> = {
+  vertical: 'Vertical format',
+  square: 'Square format',
+  landscape: 'Landscape format',
+}
+
+const parseAspectRatio = (value?: string | null): number | null => {
+  if (!value) return null
+  const cleaned = value.trim()
+  if (!cleaned) return null
+
+  if (cleaned.includes(':')) {
+    const [left, right] = cleaned.split(':')
+    const leftNum = Number(left)
+    const rightNum = Number(right)
+    if (Number.isFinite(leftNum) && Number.isFinite(rightNum) && rightNum !== 0) {
+      return leftNum / rightNum
+    }
+  }
+
+  if (cleaned.includes('/')) {
+    const [left, right] = cleaned.split('/')
+    const leftNum = Number(left)
+    const rightNum = Number(right)
+    if (Number.isFinite(leftNum) && Number.isFinite(rightNum) && rightNum !== 0) {
+      return leftNum / rightNum
+    }
+  }
+
+  const numeric = Number(cleaned)
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric
+  }
+
+  return null
+}
+
+const getAssetAspectRatio = (asset: Asset): number | null => {
+  if (asset.width && asset.height) {
+    if (asset.height === 0) return null
+    return asset.width / asset.height
+  }
+
+  if (asset.aspect_ratio) {
+    return parseAspectRatio(asset.aspect_ratio)
+  }
+
+  return null
+}
+
+const classifyVideoShape = (asset: Asset): VideoGroupKey => {
+  const ratio = getAssetAspectRatio(asset)
+  if (!ratio) return 'landscape'
+  if (ratio < 0.9) return 'vertical'
+  if (ratio <= 1.1) return 'square'
+  return 'landscape'
+}
+
+const assetMatchesMediaFilter = (asset: Asset, filter: MediaFilterValue) => {
+  const isVideo = (asset.asset_type ?? 'image') === 'video'
+  return filter === 'images' ? !isVideo : isVideo
+}
+
 type CropState = {
   scale: number
   x: number
@@ -72,7 +139,7 @@ export default function ContentLibraryPage() {
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
-  const [mediaFilter, setMediaFilter] = useState<'images' | 'videos' | 'all'>('images')
+  const [mediaFilter, setMediaFilter] = useState<MediaFilterValue>('images')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
@@ -82,12 +149,7 @@ export default function ContentLibraryPage() {
     const matchesSearch = asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       asset.tags.some(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()))
     
-    const matchesFilter =
-      mediaFilter === 'all'
-        ? true
-        : mediaFilter === 'images'
-        ? (asset.asset_type ?? 'image') !== 'video'
-        : (asset.asset_type ?? 'image') === 'video'
+    const matchesFilter = assetMatchesMediaFilter(asset, mediaFilter)
 
     if (activeTab === 'ready') {
       return asset.tags.length > 0 && matchesSearch && matchesFilter
@@ -98,12 +160,7 @@ export default function ContentLibraryPage() {
 
   const needsAttentionAssets = assets
     .filter(asset => {
-      const matchesFilter =
-        mediaFilter === 'all'
-          ? true
-          : mediaFilter === 'images'
-          ? (asset.asset_type ?? 'image') !== 'video'
-          : (asset.asset_type ?? 'image') === 'video'
+      const matchesFilter = assetMatchesMediaFilter(asset, mediaFilter)
       return asset.tags.length === 0 && matchesFilter
     })
     .sort((a, b) => {
@@ -116,15 +173,33 @@ export default function ContentLibraryPage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   const readyAssets = assets.filter((asset) => {
-    const matchesFilter =
-      mediaFilter === 'all'
-        ? true
-        : mediaFilter === 'images'
-        ? (asset.asset_type ?? 'image') !== 'video'
-        : (asset.asset_type ?? 'image') === 'video'
+    const matchesFilter = assetMatchesMediaFilter(asset, mediaFilter)
 
     return asset.tags.length > 0 && matchesFilter
   })
+
+  const isVideoFilter = mediaFilter === 'videos'
+
+  const groupedVideoAssets = useMemo(() => {
+    if (!isVideoFilter) return null
+    return filteredAssets.reduce<Record<VideoGroupKey, Asset[]>>(
+      (acc, asset) => {
+        const group = classifyVideoShape(asset)
+        acc[group].push(asset)
+        return acc
+      },
+      {
+        vertical: [],
+        square: [],
+        landscape: [],
+      },
+    )
+  }, [filteredAssets, isVideoFilter])
+
+  const filterOptions: { key: MediaFilterValue; label: string }[] = [
+    { key: 'images', label: 'Images' },
+    { key: 'videos', label: 'Videos' },
+  ]
 
   const handleUploadSuccess = async (assetIds: string[]) => {
     // Refetch to get newly uploaded assets
@@ -288,7 +363,7 @@ export default function ContentLibraryPage() {
           <div className="p-4 sm:p-6">
             {/* Search */}
             {activeTab === 'ready' && (
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full max-w-md">
                   <SearchIcon className="absolute left-3 top-[13px] text-gray-500 h-4 w-4 pointer-events-none" />
                   <input
@@ -300,13 +375,7 @@ export default function ContentLibraryPage() {
                   />
                 </div>
                 <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-semibold text-gray-600">
-                  {(
-                    [
-                      { key: 'images', label: 'Images' },
-                      { key: 'videos', label: 'Videos' },
-                      { key: 'all', label: 'All' },
-                    ] as const
-                  ).map((option) => (
+                  {filterOptions.map((option) => (
                     <button
                       key={option.key}
                       type="button"
@@ -351,18 +420,51 @@ export default function ContentLibraryPage() {
             ) : (
               // Ready to Use tab - show grid of ready assets
               filteredAssets.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-                  {filteredAssets.map((asset) => (
-                    <div key={asset.id}>
-                      <AssetCard
-                        asset={asset}
-                        onEdit={handleEditAsset}
-                        onDelete={handleDeleteAsset}
-                        onPreview={handlePreviewAsset}
-                      />
+                isVideoFilter && groupedVideoAssets
+                  ? (() => {
+                      const groups = groupedVideoAssets
+                      return (
+                        <div className="mt-6 space-y-6">
+                          {VIDEO_GROUP_ORDER.map((groupKey) => {
+                            const groupAssets = groups[groupKey]
+                            if (groupAssets.length === 0) return null
+                            return (
+                              <div key={groupKey} className="space-y-3">
+                                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                  {VIDEO_GROUP_LABELS[groupKey]}
+                                </div>
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                                  {groupAssets.map((asset) => (
+                                    <div key={asset.id}>
+                                      <AssetCard
+                                        asset={asset}
+                                        onEdit={handleEditAsset}
+                                        onDelete={handleDeleteAsset}
+                                        onPreview={handlePreviewAsset}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()
+                  : (
+                    <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                      {filteredAssets.map((asset) => (
+                        <div key={asset.id}>
+                          <AssetCard
+                            asset={asset}
+                            onEdit={handleEditAsset}
+                            onDelete={handleDeleteAsset}
+                            onPreview={handlePreviewAsset}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                   <div className="text-center mb-8">
