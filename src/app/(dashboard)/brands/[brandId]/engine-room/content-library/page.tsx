@@ -244,32 +244,50 @@ export default function ContentLibraryPage() {
 
             {/* Tab Content */}
             {activeTab === 'needs_attention' ? (
-              // Needs Attention tab - show processing interface directly
-              needsAttentionAssets.length > 0 ? (
-                <AssetDetailView 
-                  asset={needsAttentionAssets[0]} 
-                  originalAssetData={editingAssetData}
-                  onBack={() => {}} 
-                  onUpdate={handleAssetUpdate}
-                  brandId={brandId}
-                  saveAssetTags={saveAssetTags}
-                  onPreviewAsset={handlePreviewAsset}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px]">
-                  <div className="text-center mb-8">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
-                    <p className="text-gray-600">No content needs attention right now</p>
-                  </div>
-                  <div className="mt-auto">
-                    <UploadAsset
+              (() => {
+                const fallbackAsset = editingAssetData ?? null
+                const prioritizedAssets = needsAttentionAssets.length
+                  ? [
+                      ...needsAttentionAssets.filter((asset) => editingAssetData && asset.id === editingAssetData.id),
+                      ...needsAttentionAssets.filter((asset) => !editingAssetData || asset.id !== editingAssetData.id),
+                    ]
+                  : []
+
+                const assetToEdit = prioritizedAssets[0] ?? fallbackAsset
+
+                if (assetToEdit) {
+                  const originalData =
+                    editingAssetData && assetToEdit.id === editingAssetData.id ? editingAssetData : null
+
+                  return (
+                    <AssetDetailView
+                      asset={assetToEdit}
+                      originalAssetData={originalData}
+                      onBack={() => {}}
+                      onUpdate={handleAssetUpdate}
                       brandId={brandId}
-                      onUploadSuccess={handleUploadSuccess}
-                      onUploadError={handleUploadError}
+                      saveAssetTags={saveAssetTags}
+                      onPreviewAsset={handlePreviewAsset}
                     />
+                  )
+                }
+
+                return (
+                  <div className="flex flex-col items-center justify-center min-h-[400px]">
+                    <div className="text-center mb-8">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
+                      <p className="text-gray-600">No content needs attention right now</p>
+                    </div>
+                    <div className="mt-auto">
+                      <UploadAsset
+                        brandId={brandId}
+                        onUploadSuccess={handleUploadSuccess}
+                        onUploadError={handleUploadError}
+                      />
+                    </div>
                   </div>
-                </div>
-              )
+                )
+              })()
             ) : (
               // Ready to Use tab - show grid of ready assets
               filteredAssets.length > 0 ? (
