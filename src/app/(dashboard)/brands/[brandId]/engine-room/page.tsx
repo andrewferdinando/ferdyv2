@@ -31,6 +31,16 @@ export default function BrandEngineRoomPage() {
       ),
     },
     {
+      title: 'Post Time',
+      description: 'Set the default time for automated posts.',
+      href: `/brands/${brandId}/engine-room/post-time`,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
       title: 'Integrations',
       description: 'Connect your social media accounts.',
       href: `/brands/${brandId}/engine-room/integrations`,
