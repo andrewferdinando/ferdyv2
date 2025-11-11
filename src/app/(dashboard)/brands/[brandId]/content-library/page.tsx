@@ -829,7 +829,7 @@ function AssetDetailView({
                     className="h-full w-full"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
-                  {onPreviewAsset && (
+                  {onPreviewAsset && videoPlacement !== 'story' && (
                     <button
                       onClick={() => onPreviewAsset(displayAsset)}
                       className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-sm font-medium text-gray-900 shadow hover:bg-white"
