@@ -50,6 +50,48 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   const isVideo = asset.asset_type === 'video'
   const [generatedThumbnail, setGeneratedThumbnail] = useState<string | null>(null)
 
+  const formatKey: keyof typeof CROP_FORMATS = !isVideo && (Object.keys(CROP_FORMATS) as Array<keyof typeof CROP_FORMATS>).includes(
+    asset.aspect_ratio as keyof typeof CROP_FORMATS,
+  )
+    ? (asset.aspect_ratio as keyof typeof CROP_FORMATS)
+    : '1:1'
+
+  const frameRatio = isVideo ? 1 : CROP_FORMATS[formatKey]
+
+  const imageWidth = asset.width ?? 1080
+  const imageHeight = asset.height ?? 1080
+  const imageRatio = imageWidth / Math.max(imageHeight, 1)
+
+  const minScale = useMemo(() => {
+    if (isVideo) return 1
+    return Math.max(frameRatio / imageRatio, 1)
+  }, [frameRatio, imageRatio, isVideo])
+
+  const storedCrop = asset.image_crops?.[formatKey]
+  const adjustedCrop = useMemo(() => {
+    if (isVideo) {
+      return { scale: 1, x: 0, y: 0 }
+    }
+
+    const base = {
+      scale: storedCrop?.scale ?? minScale,
+      x: storedCrop?.x ?? 0,
+      y: storedCrop?.y ?? 0,
+    }
+    return ensureCropWithinBounds(base, base.scale, minScale, imageRatio, 1, frameRatio, 1)
+  }, [frameRatio, imageRatio, minScale, storedCrop?.scale, storedCrop?.x, storedCrop?.y, isVideo])
+
+  const overflowX = isVideo ? 0 : Math.max(0, (imageRatio * adjustedCrop.scale - frameRatio) / 2)
+  const overflowY = isVideo ? 0 : Math.max(0, (1 * adjustedCrop.scale - 1) / 2)
+
+  const translateXPercent = overflowX === 0 ? 0 : (adjustedCrop.x * overflowX * 100) / frameRatio
+  const translateYPercent = overflowY === 0 ? 0 : adjustedCrop.y * overflowY * 100
+
+  const widthPercent = (imageRatio * adjustedCrop.scale * 100) / frameRatio
+  const heightPercent = adjustedCrop.scale * 100
+
+  const videoAspectRatio = asset.width && asset.height && asset.height !== 0 ? asset.width / asset.height : 9 / 16
+
   useEffect(() => {
     let isMounted = true
 
@@ -87,13 +129,11 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   }
 
   if (isVideo) {
-    const aspectRatio = asset.width && asset.height && asset.height !== 0 ? asset.width / asset.height : 9 / 16
-
     return (
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
         <div
           className={`relative overflow-hidden bg-gray-100 ${canPreview ? 'cursor-pointer' : ''}`}
-          style={{ aspectRatio: `${aspectRatio}` }}
+          style={{ aspectRatio: `${videoAspectRatio}` }}
           onClick={canPreview ? handlePreviewClick : undefined}
           role={canPreview ? 'button' : undefined}
           tabIndex={canPreview ? 0 : undefined}
@@ -194,42 +234,6 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
       </div>
     )
   }
-
-  const formatKey = (Object.keys(CROP_FORMATS) as Array<keyof typeof CROP_FORMATS>).includes(
-    asset.aspect_ratio as keyof typeof CROP_FORMATS,
-  )
-    ? (asset.aspect_ratio as keyof typeof CROP_FORMATS)
-    : '1:1'
-  const frameRatio = CROP_FORMATS[formatKey]
-
-  const imageWidth = asset.width ?? 1080
-  const imageHeight = asset.height ?? 1080
-  const imageRatio = imageWidth / Math.max(imageHeight, 1)
-
-  const frameWidth = frameRatio
-  const frameHeight = 1
-  const minScale = useMemo(() => {
-    return Math.max(frameWidth / imageRatio, frameHeight / 1)
-  }, [frameWidth, imageRatio])
-
-  const storedCrop = asset.image_crops?.[formatKey]
-  const adjustedCrop = useMemo(() => {
-    const base = {
-      scale: storedCrop?.scale ?? minScale,
-      x: storedCrop?.x ?? 0,
-      y: storedCrop?.y ?? 0,
-    }
-    return ensureCropWithinBounds(base, base.scale, minScale, imageRatio, 1, frameWidth, frameHeight)
-  }, [frameHeight, frameWidth, imageRatio, minScale, storedCrop?.scale, storedCrop?.x, storedCrop?.y])
-
-  const overflowX = Math.max(0, (imageRatio * adjustedCrop.scale - frameWidth) / 2)
-  const overflowY = Math.max(0, (1 * adjustedCrop.scale - frameHeight) / 2)
-
-  const translateXPercent = overflowX === 0 ? 0 : (adjustedCrop.x * overflowX * 100) / frameWidth
-  const translateYPercent = overflowY === 0 ? 0 : (adjustedCrop.y * overflowY * 100) / frameHeight
-
-  const widthPercent = (imageRatio * adjustedCrop.scale * 100) / frameWidth
-  const heightPercent = (adjustedCrop.scale * 100) / frameHeight
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
