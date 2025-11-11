@@ -56,40 +56,6 @@ export function useUploadAsset() {
         }
       }
 
-      if (isVideo) {
-        const { url: videoUrl } = await uploadToStorage({
-          brandId,
-          file,
-          storagePath,
-        })
-
-        if (videoUrl && (!width || !height)) {
-          const video = document.createElement('video')
-          video.src = videoUrl
-          video.preload = 'metadata'
-
-          await new Promise<void>((resolve) => {
-            const handleLoadedMetadata = () => {
-              if (!width) {
-                width = video.videoWidth || width
-              }
-              if (!height) {
-                height = video.videoHeight || height
-              }
-              video.removeEventListener('loadedmetadata', handleLoadedMetadata)
-              resolve()
-            }
-
-            video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true })
-            video.load()
-          })
-        }
-
-        if (durationSeconds == null) {
-          durationSeconds = await getVideoDuration(storagePath)
-        }
-      }
-
       // Upload thumbnail if provided
       if (thumbnailFile && thumbnailPath) {
         const { error: thumbnailError } = await supabase.storage
