@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
@@ -174,6 +174,8 @@ export default function NewPostPage() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
+  const scheduleDateInputRef = useRef<HTMLInputElement>(null);
+  const scheduleTimeInputRef = useRef<HTMLInputElement>(null);
 
   const { imageAssets, videoAssets } = useMemo(() => {
     const grouped = assets.reduce(
@@ -516,6 +518,7 @@ export default function NewPostPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
                         <div className="relative">
                           <input
+                            ref={scheduleDateInputRef}
                             type="date"
                             value={scheduleDate}
                             onChange={(e) => setScheduleDate(e.target.value)}
@@ -527,9 +530,25 @@ export default function NewPostPage() {
                               lineHeight: '1.5'
                             }}
                           />
-                          <svg className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-2px' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const node = scheduleDateInputRef.current;
+                              if (!node) return;
+                              if (typeof node.showPicker === 'function') {
+                                node.showPicker();
+                              } else {
+                                node.focus();
+                                node.click();
+                              }
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
+                            aria-label="Choose date"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                       
@@ -537,6 +556,7 @@ export default function NewPostPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
                         <div className="relative">
                           <input
+                            ref={scheduleTimeInputRef}
                             type="time"
                             value={scheduleTime}
                             onChange={(e) => setScheduleTime(e.target.value)}
@@ -548,9 +568,25 @@ export default function NewPostPage() {
                               lineHeight: '1.5'
                             }}
                           />
-                          <svg className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-2px' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const node = scheduleTimeInputRef.current;
+                              if (!node) return;
+                              if (typeof node.showPicker === 'function') {
+                                node.showPicker();
+                              } else {
+                                node.focus();
+                                node.click();
+                              }
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
+                            aria-label="Choose time"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     </div>

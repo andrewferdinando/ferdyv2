@@ -199,7 +199,10 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   const { brand } = useBrand(draft.brand_id); // Fetch brand for timezone
   
   // Get category/subcategory names from draft (from drafts_with_labels view)
-  const categoryName = draft.category_name || 'Uncategorized';
+  const categoryName =
+    draft.schedule_source === 'manual'
+      ? 'Manually created'
+      : draft.category_name || 'Uncategorized';
   const subcategoryName = draft.subcategory_name;
 
   // Check if content exceeds 2 lines
