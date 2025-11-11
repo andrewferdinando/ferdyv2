@@ -557,21 +557,6 @@ function AssetDetailView({
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-950">
-                Tags <span className="text-red-500">*</span>
-              </h3>
-              <TagSelector
-                brandId={brandId}
-                selectedTagIds={selectedTagIds}
-                onTagsChange={setSelectedTagIds}
-                required
-              />
-            </div>
-
             {isVideo && (
               <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
                 <div className="font-medium text-gray-900">{displayAsset.title}</div>
@@ -597,6 +582,20 @@ function AssetDetailView({
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="mb-3 text-lg font-semibold text-gray-950">
+                Tags <span className="text-red-500">*</span>
+              </h3>
+              <TagSelector
+                brandId={brandId}
+                selectedTagIds={selectedTagIds}
+                onTagsChange={setSelectedTagIds}
+                required
+              />
+            </div>
 
             <div className="flex space-x-3">
               <button
