@@ -80,38 +80,6 @@ function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
     setFallbackUrl(data.publicUrl);
   }, [previewUrl, asset.thumbnail_url, asset.storage_path]);
 
-  if (!previewUrl && !fallbackUrl) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <span className="text-xs text-gray-400">No preview</span>
-      </div>
-    );
-  }
-
-  if (isVideo) {
-    return (
-      <div className="relative h-full w-full">
-        <img
-          src={previewUrl ?? fallbackUrl ?? ''}
-          alt={asset.title || 'Video'}
-          className="h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        </div>
-        {asset.duration_seconds ? (
-          <div className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
-            {Math.round(asset.duration_seconds)}s
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
   const formatKey = (Object.keys(FORMAT_RATIOS) as Array<keyof typeof FORMAT_RATIOS>).includes(
     asset.aspect_ratio as keyof typeof FORMAT_RATIOS,
   )
@@ -146,6 +114,38 @@ function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
 
   const widthPercent = (imageRatio * crop.scale * 100) / frameWidth;
   const heightPercent = (crop.scale * 100) / frameHeight;
+
+  if (!previewUrl && !fallbackUrl) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <span className="text-xs text-gray-400">No preview</span>
+      </div>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <div className="relative h-full w-full">
+        <img
+          src={previewUrl ?? fallbackUrl ?? ''}
+          alt={asset.title || 'Video'}
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+        {asset.duration_seconds ? (
+          <div className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
+            {Math.round(asset.duration_seconds)}s
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-full w-full overflow-hidden">
