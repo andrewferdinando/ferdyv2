@@ -72,6 +72,7 @@ export default function ContentLibraryPage() {
   
   const [activeTab, setActiveTab] = useState<'ready' | 'needs_attention'>('ready')
   const [searchQuery, setSearchQuery] = useState('')
+  const [mediaFilter, setMediaFilter] = useState<'images' | 'videos' | 'all'>('images')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
@@ -81,15 +82,30 @@ export default function ContentLibraryPage() {
     const matchesSearch = asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       asset.tags.some(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase()))
     
+    const matchesFilter =
+      mediaFilter === 'all'
+        ? true
+        : mediaFilter === 'images'
+        ? (asset.asset_type ?? 'image') !== 'video'
+        : (asset.asset_type ?? 'image') === 'video'
+
     if (activeTab === 'ready') {
-      return asset.tags.length > 0 && matchesSearch
+      return asset.tags.length > 0 && matchesSearch && matchesFilter
     } else {
-      return asset.tags.length === 0 && matchesSearch
+      return asset.tags.length === 0 && matchesSearch && matchesFilter
     }
   })
 
   const needsAttentionAssets = assets
-    .filter(asset => asset.tags.length === 0)
+    .filter(asset => {
+      const matchesFilter =
+        mediaFilter === 'all'
+          ? true
+          : mediaFilter === 'images'
+          ? (asset.asset_type ?? 'image') !== 'video'
+          : (asset.asset_type ?? 'image') === 'video'
+      return asset.tags.length === 0 && matchesFilter
+    })
     .sort((a, b) => {
       // If we have editingAssetData, prioritize that asset first
       if (editingAssetData) {
@@ -99,7 +115,16 @@ export default function ContentLibraryPage() {
       // Otherwise, sort by creation date (newest first)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
-  const readyAssets = assets.filter(asset => asset.tags.length > 0)
+  const readyAssets = assets.filter((asset) => {
+    const matchesFilter =
+      mediaFilter === 'all'
+        ? true
+        : mediaFilter === 'images'
+        ? (asset.asset_type ?? 'image') !== 'video'
+        : (asset.asset_type ?? 'image') === 'video'
+
+    return asset.tags.length > 0 && matchesFilter
+  })
 
   const handleUploadSuccess = async (assetIds: string[]) => {
     // Refetch to get newly uploaded assets
@@ -263,7 +288,7 @@ export default function ContentLibraryPage() {
           <div className="p-4 sm:p-6">
             {/* Search */}
             {activeTab === 'ready' && (
-              <div className="mb-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full max-w-md">
                   <SearchIcon className="absolute left-3 top-[13px] text-gray-500 h-4 w-4 pointer-events-none" />
                   <input
@@ -273,6 +298,24 @@ export default function ContentLibraryPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-10 px-3 py-2 pl-12 border border-gray-300 rounded-lg text-sm focus:border-[#6366F1] focus:ring-4 focus:ring-[#EEF2FF] focus:outline-none transition-all duration-150"
                   />
+                </div>
+                <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-semibold text-gray-600">
+                  {(
+                    [
+                      { key: 'images', label: 'Images' },
+                      { key: 'videos', label: 'Videos' },
+                      { key: 'all', label: 'All' },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setMediaFilter(option.key)}
+                      className={`rounded-full px-3 py-1 transition-all ${(mediaFilter === option.key ? 'bg-white text-gray-900 shadow' : 'text-gray-600 hover:text-gray-800')}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
