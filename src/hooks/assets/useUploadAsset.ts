@@ -87,6 +87,7 @@ export function useUploadAsset() {
         file_size: file.size,
         thumbnail_url: thumbnailPath ?? (isVideo ? null : storagePath),
         duration_seconds: durationSeconds,
+        image_crops: null,
       }
 
       const { error: insertError } = await supabase.from('assets').insert(insertPayload).select().single()

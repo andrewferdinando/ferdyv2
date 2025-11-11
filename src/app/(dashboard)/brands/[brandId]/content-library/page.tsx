@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -11,17 +11,56 @@ import AssetCard from '@/components/assets/AssetCard'
 import TagSelector from '@/components/assets/TagSelector'
 import { getSignedUrl } from '@/lib/storage/getSignedUrl'
 
-interface CropData {
-  x: number
-  y: number
-}
-
 // Search Icon Component
 const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
+
+const CROP_FORMATS = [
+  { key: '1:1', ratio: 1, hint: 'Feed' },
+  { key: '4:5', ratio: 4 / 5, hint: 'Feed (tall)' },
+  { key: '1.91:1', ratio: 1.91, hint: 'Feed (landscape)' },
+  { key: '9:16', ratio: 9 / 16, hint: 'Reels & Stories' },
+] as const
+
+const MAX_ZOOM_MULTIPLIER = 4
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
+
+const ensureCropWithinBounds = (
+  crop: { scale: number; x: number; y: number },
+  nextScale: number,
+  minScale: number,
+  imageWidth: number,
+  imageHeight: number,
+  frameWidth: number,
+  frameHeight: number,
+) => {
+  const safeScale = Math.max(nextScale, minScale)
+
+  const overflowX = Math.max(0, (imageWidth * safeScale - frameWidth) / 2)
+  const overflowY = Math.max(0, (imageHeight * safeScale - frameHeight) / 2)
+
+  const prevOverflowX = Math.max(0, (imageWidth * crop.scale - frameWidth) / 2)
+  const prevOverflowY = Math.max(0, (imageHeight * crop.scale - frameHeight) / 2)
+
+  const prevPxX = prevOverflowX === 0 ? 0 : crop.x * prevOverflowX
+  const prevPxY = prevOverflowY === 0 ? 0 : crop.y * prevOverflowY
+
+  return {
+    scale: safeScale,
+    x: overflowX === 0 ? 0 : clamp(prevPxX / overflowX, -1, 1),
+    y: overflowY === 0 ? 0 : clamp(prevPxY / overflowY, -1, 1),
+  }
+}
+
+type CropState = {
+  scale: number
+  x: number
+  y: number
+}
 
 export default function ContentLibraryPage() {
   const params = useParams()
@@ -353,75 +392,243 @@ function AssetDetailView({
 }) {
   const displayAsset = originalAssetData || asset
   const isVideo = (displayAsset.asset_type ?? 'image') === 'video'
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState(
-    isVideo ? 'original' : displayAsset.aspect_ratio || 'original',
-  )
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(displayAsset.tag_ids || [])
-  const [cropWindows] = useState(
-    displayAsset.crop_windows ? JSON.stringify(displayAsset.crop_windows, null, 2) : '',
-  )
   const [saving, setSaving] = useState(false)
-  const [imagePosition, setImagePosition] = useState(() => {
-    if (isVideo) return { x: 0, y: 0 }
-    if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
-      const cropData =
-        displayAsset.crop_windows[selectedAspectRatio] ||
-        displayAsset.crop_windows[displayAsset.aspect_ratio]
-      if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
-        return { x: (cropData as CropData).x || 0, y: (cropData as CropData).y || 0 }
+
+  const initialFormat = CROP_FORMATS.some((format) => format.key === displayAsset.aspect_ratio)
+    ? (displayAsset.aspect_ratio as typeof CROP_FORMATS[number]['key'])
+    : CROP_FORMATS[0].key
+
+  const [selectedFormat, setSelectedFormat] = useState<typeof CROP_FORMATS[number]['key']>(initialFormat)
+  const [crops, setCrops] = useState<Record<string, CropState>>(() => {
+    const initial: Record<string, CropState> = {}
+    CROP_FORMATS.forEach(({ key }) => {
+      const stored = displayAsset.image_crops?.[key]
+      initial[key] = {
+        scale: stored?.scale ?? 1,
+        x: stored?.x ?? 0,
+        y: stored?.y ?? 0,
       }
-    }
-    return { x: 0, y: 0 }
+    })
+    return initial
   })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
-  const aspectRatios = [
-    { value: 'original', label: 'Original' },
-    { value: '1:1', label: '1:1 Square' },
-    { value: '4:5', label: '4:5 Portrait' },
-    { value: '1.91:1', label: '1.91:1 Landscape' },
-  ]
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({
+    width: displayAsset.width ?? 0,
+    height: displayAsset.height ?? 0,
+  })
+  const [isImageLoading, setIsImageLoading] = useState(false)
+  const frameRef = useRef<HTMLDivElement | null>(null)
+  const [frameSize, setFrameSize] = useState({ width: 0, height: 0 })
+  const dragStateRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    crop: CropState
+  } | null>(null)
+  const didAutoSelectRef = useRef(false)
 
-  const handleAspectRatioChange = (ratio: string) => {
+  useEffect(() => {
     if (isVideo) return
-    setSelectedAspectRatio(ratio)
+    if (imageDimensions.width && imageDimensions.height) return
+    if (!displayAsset.signed_url && !displayAsset.thumbnail_signed_url) return
 
-    if (displayAsset.crop_windows && typeof displayAsset.crop_windows === 'object') {
-      const cropData = displayAsset.crop_windows[ratio]
-      if (cropData && typeof cropData === 'object' && 'x' in cropData && 'y' in cropData) {
-        setImagePosition({ x: (cropData as CropData).x || 0, y: (cropData as CropData).y || 0 })
-      } else {
-        setImagePosition({ x: 0, y: 0 })
+    setIsImageLoading(true)
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = displayAsset.signed_url || displayAsset.thumbnail_signed_url || ''
+    img.onload = () => {
+      setImageDimensions({
+        width: img.naturalWidth || displayAsset.width || 1080,
+        height: img.naturalHeight || displayAsset.height || 1080,
+      })
+      setIsImageLoading(false)
+    }
+    img.onerror = () => {
+      setIsImageLoading(false)
+    }
+  }, [displayAsset.height, displayAsset.signed_url, displayAsset.thumbnail_signed_url, displayAsset.width, imageDimensions.height, imageDimensions.width, isVideo])
+
+  useEffect(() => {
+    if (!frameRef.current) return
+    const observer = new ResizeObserver(([entry]) => {
+      setFrameSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+    })
+    observer.observe(frameRef.current)
+    return () => observer.disconnect()
+  }, [selectedFormat])
+
+  const activeFormat = CROP_FORMATS.find((format) => format.key === selectedFormat) ?? CROP_FORMATS[0]
+
+  const aspectClass =
+    activeFormat.key === '1.91:1'
+      ? 'aspect-[1.91/1]'
+      : activeFormat.key === '4:5'
+      ? 'aspect-[4/5]'
+      : activeFormat.key === '9:16'
+      ? 'aspect-[9/16]'
+      : 'aspect-square'
+
+  const minScale = useMemo(() => {
+    if (!imageDimensions.width || !imageDimensions.height || !frameSize.width || !frameSize.height) {
+      return 1
+    }
+    return Math.max(
+      frameSize.width / imageDimensions.width,
+      frameSize.height / imageDimensions.height,
+    )
+  }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width])
+
+  const maxScale = minScale * MAX_ZOOM_MULTIPLIER
+
+  useEffect(() => {
+    if (!imageDimensions.width || !imageDimensions.height || !frameSize.width || !frameSize.height) {
+      return
+    }
+
+    setCrops((prev) => {
+      const current = prev[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
+      const bounded = ensureCropWithinBounds(
+        current,
+        current.scale,
+        minScale,
+        imageDimensions.width,
+        imageDimensions.height,
+        frameSize.width || 0,
+        frameSize.height || 0,
+      )
+
+      if (
+        Math.abs(bounded.scale - current.scale) < 0.000001 &&
+        Math.abs(bounded.x - current.x) < 0.000001 &&
+        Math.abs(bounded.y - current.y) < 0.000001
+      ) {
+        return prev
       }
-    } else {
-      setImagePosition({ x: 0, y: 0 })
+
+      return {
+        ...prev,
+        [selectedFormat]: bounded,
+      }
+    })
+  }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width, minScale, selectedFormat])
+
+  useEffect(() => {
+    if (isVideo) return
+    if (didAutoSelectRef.current) return
+    if (!imageDimensions.width || !imageDimensions.height) return
+
+    const hasStoredCrops = !!displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
+    const aspectMatches = CROP_FORMATS.some((format) => format.key === displayAsset.aspect_ratio)
+
+    if (hasStoredCrops && aspectMatches) {
+      didAutoSelectRef.current = true
+      return
+    }
+
+    const imageRatio = imageDimensions.width / imageDimensions.height
+    const bestFormat = CROP_FORMATS.reduce((closest, format) => {
+      return Math.abs(format.ratio - imageRatio) < Math.abs(closest.ratio - imageRatio) ? format : closest
+    }, CROP_FORMATS[0])
+
+    didAutoSelectRef.current = true
+    setSelectedFormat(bestFormat.key)
+  }, [displayAsset.aspect_ratio, displayAsset.image_crops, imageDimensions.height, imageDimensions.width, isVideo])
+
+  const activeCrop = crops[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
+
+  const overflowX = useMemo(() => {
+    if (!imageDimensions.width || !frameSize.width) return 0
+    return Math.max(0, (imageDimensions.width * activeCrop.scale - frameSize.width) / 2)
+  }, [activeCrop.scale, frameSize.width, imageDimensions.width])
+
+  const overflowY = useMemo(() => {
+    if (!imageDimensions.height || !frameSize.height) return 0
+    return Math.max(0, (imageDimensions.height * activeCrop.scale - frameSize.height) / 2)
+  }, [activeCrop.scale, frameSize.height, imageDimensions.height])
+
+  const translateX = overflowX === 0 ? 0 : activeCrop.x * overflowX
+  const translateY = overflowY === 0 ? 0 : activeCrop.y * overflowY
+
+  const sliderValue = useMemo(() => {
+    if (maxScale === minScale) return 0
+    return Math.round(((activeCrop.scale - minScale) / (maxScale - minScale)) * 100)
+  }, [activeCrop.scale, maxScale, minScale])
+
+  const updateCrop = (formatKey: string, nextState: CropState) => {
+    setCrops((prev) => ({
+      ...prev,
+      [formatKey]: nextState,
+    }))
+  }
+
+  const handleScaleChange = (nextScale: number) => {
+    if (!imageDimensions.width || !imageDimensions.height) return
+    const clampedScale = clamp(nextScale, minScale, maxScale)
+    updateCrop(
+      selectedFormat,
+      ensureCropWithinBounds(
+        activeCrop,
+        clampedScale,
+        minScale,
+        imageDimensions.width,
+        imageDimensions.height,
+        frameSize.width || 0,
+        frameSize.height || 0,
+      ),
+    )
+  }
+
+  const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const ratio = Number(event.target.value) / 100
+    const scale = minScale + (maxScale - minScale) * ratio
+    handleScaleChange(scale)
+  }
+
+  const handleWheel = (event: React.WheelEvent) => {
+    event.preventDefault()
+    const delta = -event.deltaY * 0.001
+    handleScaleChange(activeCrop.scale * (1 + delta))
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!frameRef.current || isVideo) return
+    frameRef.current.setPointerCapture(event.pointerId)
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      crop: { ...activeCrop },
     }
   }
 
-  const handleMouseDown = (event: React.MouseEvent) => {
-    if (isVideo) return
-    setIsDragging(true)
-    setDragStart({ x: event.clientX - imagePosition.x, y: event.clientY - imagePosition.y })
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStateRef.current) return
+    event.preventDefault()
+
+    const { startX, startY, crop } = dragStateRef.current
+    const deltaX = event.clientX - startX
+    const deltaY = event.clientY - startY
+
+    const spanX = Math.max(0, (imageDimensions.width * crop.scale - frameSize.width) / 2)
+    const spanY = Math.max(0, (imageDimensions.height * crop.scale - frameSize.height) / 2)
+
+    updateCrop(selectedFormat, {
+      scale: crop.scale,
+      x: spanX === 0 ? 0 : clamp(crop.x + deltaX / spanX, -1, 1),
+      y: spanY === 0 ? 0 : clamp(crop.y + deltaY / spanY, -1, 1),
+    })
   }
 
-  const handleMouseMove = (event: React.MouseEvent) => {
-    if (!isDragging || isVideo) return
-
-    const newX = event.clientX - dragStart.x
-    const newY = event.clientY - dragStart.y
-
-    const maxX = 150
-    const maxY = 150
-    const constrainedX = Math.max(-maxX, Math.min(maxX, newX))
-    const constrainedY = Math.max(-maxY, Math.min(maxY, newY))
-
-    setImagePosition({ x: constrainedX, y: constrainedY })
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStateRef.current && dragStateRef.current.pointerId === event.pointerId && frameRef.current) {
+      frameRef.current.releasePointerCapture(event.pointerId)
+      dragStateRef.current = null
+    }
   }
 
-  const handleMouseUp = () => {
-    if (isVideo) return
-    setIsDragging(false)
+  const handleFormatChange = (formatKey: typeof CROP_FORMATS[number]['key']) => {
+    setSelectedFormat(formatKey)
   }
 
   const handleSave = async () => {
@@ -432,28 +639,33 @@ function AssetDetailView({
 
     try {
       setSaving(true)
-
+      
       if (!isVideo) {
-        const { supabase } = await import('@/lib/supabase-browser')
-        const cropData = {
-          [selectedAspectRatio]: {
-            x: imagePosition.x,
-            y: imagePosition.y,
-            ...(cropWindows.trim() ? JSON.parse(cropWindows) : {}),
-          },
-        }
+      const { supabase } = await import('@/lib/supabase-browser')
+      
+        const cropsToPersist = Object.fromEntries(
+          Object.entries(crops).map(([key, value]) => [
+            key,
+            {
+              scale: Number(value.scale.toFixed(6)),
+              x: Number(value.x.toFixed(6)),
+              y: Number(value.y.toFixed(6)),
+            },
+          ]),
+        )
+      
+      const { error: assetError } = await supabase
+        .from('assets')
+        .update({
+            aspect_ratio: selectedFormat,
+            image_crops: cropsToPersist,
+            crop_windows: null,
+        })
+        .eq('id', asset.id)
+        .eq('brand_id', asset.brand_id)
 
-        const { error: assetError } = await supabase
-          .from('assets')
-          .update({
-            aspect_ratio: selectedAspectRatio,
-            crop_windows: cropData,
-          })
-          .eq('id', asset.id)
-          .eq('brand_id', asset.brand_id)
-
-        if (assetError) {
-          throw assetError
+      if (assetError) {
+        throw assetError
         }
       }
 
@@ -470,24 +682,30 @@ function AssetDetailView({
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-4 sm:p-6">
+          <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
             {!isVideo && (
-              <div className="flex space-x-3">
-                {aspectRatios.map((ratio) => (
-                  <button
-                    key={ratio.value}
-                    onClick={() => handleAspectRatioChange(ratio.value)}
-                    className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
-                      selectedAspectRatio === ratio.value
-                        ? 'bg-[#6366F1] text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {ratio.label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap gap-3">
+                {CROP_FORMATS.map((format) => {
+                  const isActive = format.key === selectedFormat
+                  return (
+                    <button
+                      key={format.key}
+                      onClick={() => handleFormatChange(format.key)}
+                      className={`rounded-xl border px-4 py-2 text-left shadow-sm transition-all hover:border-[#6366F1] hover:text-[#6366F1] ${
+                        isActive
+                          ? 'border-[#6366F1] bg-[#EEF2FF] text-[#6366F1]'
+                          : 'border-gray-200 bg-white text-gray-700'
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">{format.key}</span>
+                      <span className={`block text-xs ${isActive ? 'text-[#4F46E5]' : 'text-gray-500'}`}>
+                        {format.hint}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             )}
 
@@ -514,54 +732,72 @@ function AssetDetailView({
                   )}
                 </div>
               ) : (
-                <div
-                  className={`cursor-move overflow-hidden rounded-xl bg-gray-100 ${
-                    selectedAspectRatio === '1.91:1'
-                      ? 'aspect-[1.91/1]'
-                      : selectedAspectRatio === '4:5'
-                      ? 'aspect-[4/5]'
-                      : selectedAspectRatio === '1:1'
-                      ? 'aspect-square'
-                      : 'aspect-square'
-                  }`}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                >
-                  <img
-                    src={displayAsset.signed_url}
-                    alt={displayAsset.title}
-                    className="select-none"
-                    style={{
-                      width: '150%',
-                      height: '150%',
-                      objectFit: 'contain',
-                      objectPosition: '50% 50%',
-                      transform: `translate(calc(-25% + ${imagePosition.x}px), calc(-25% + ${imagePosition.y}px))`,
-                      transition: isDragging ? 'none' : 'transform 0.2s ease',
-                    }}
-                    draggable={false}
-                  />
-                </div>
-              )}
-              {!isVideo && (
-                <div className="absolute left-4 top-4 rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">
-                  Click and drag to reposition
+                <div className={`${aspectClass} relative w-full overflow-hidden rounded-xl bg-gray-100`}>
+                  <div
+                    ref={frameRef}
+                    className="absolute inset-0 cursor-move"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    onWheel={handleWheel}
+                  >
+                    {isImageLoading && (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                        Loading image...
+                      </div>
+                    )}
+                    {!isImageLoading && (
+                      <img
+                        src={displayAsset.signed_url}
+                        alt={displayAsset.title}
+                        className="pointer-events-none absolute left-1/2 top-1/2 select-none"
+                        style={{ 
+                          width: imageDimensions.width || '100%',
+                          height: imageDimensions.height || '100%',
+                          maxWidth: 'none',
+                          maxHeight: 'none',
+                          transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
+                          transformOrigin: 'center',
+                        }}
+                        draggable={false}
+                      />
+                    )}
+                  </div>
+                  <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
+                    Drag to pan • Scroll or use slider to zoom
+                  </div>
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <div>
+            {!isVideo && (
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700" htmlFor="crop-zoom">
+                  Zoom
+                </label>
+                <input
+                  id="crop-zoom"
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={sliderValue}
+                  onChange={handleSliderChange}
+                  className="flex-1 accent-[#6366F1]"
+                />
+              </div>
+            )}
+              </div>
+
+              <div className="space-y-4">
+                <div>
               <h3 className="mb-3 text-lg font-semibold text-gray-950">
                 Tags <span className="text-red-500">*</span>
               </h3>
-              <TagSelector
-                brandId={brandId}
-                selectedTagIds={selectedTagIds}
-                onTagsChange={setSelectedTagIds}
+                  <TagSelector
+                    brandId={brandId}
+                    selectedTagIds={selectedTagIds}
+                    onTagsChange={setSelectedTagIds}
                 required
               />
             </div>
@@ -592,19 +828,19 @@ function AssetDetailView({
               </div>
             )}
 
-            <div className="flex space-x-3">
-              <button
-                onClick={handleSave}
-                disabled={saving || selectedTagIds.length === 0}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || selectedTagIds.length === 0}
                 className="flex-1 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-3 font-medium text-white transition-all hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
   )
 }
 

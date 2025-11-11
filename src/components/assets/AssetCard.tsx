@@ -1,7 +1,43 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Asset } from '@/hooks/assets/useAssets'
+
+const CROP_FORMATS = {
+  '1:1': 1,
+  '4:5': 4 / 5,
+  '1.91:1': 1.91,
+  '9:16': 9 / 16,
+} as const
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
+
+const ensureCropWithinBounds = (
+  crop: { scale: number; x: number; y: number },
+  nextScale: number,
+  minScale: number,
+  imageWidth: number,
+  imageHeight: number,
+  frameWidth: number,
+  frameHeight: number,
+) => {
+  const safeScale = Math.max(nextScale, minScale)
+
+  const overflowX = Math.max(0, (imageWidth * safeScale - frameWidth) / 2)
+  const overflowY = Math.max(0, (imageHeight * safeScale - frameHeight) / 2)
+
+  const prevOverflowX = Math.max(0, (imageWidth * crop.scale - frameWidth) / 2)
+  const prevOverflowY = Math.max(0, (imageHeight * crop.scale - frameHeight) / 2)
+
+  const prevPxX = prevOverflowX === 0 ? 0 : crop.x * prevOverflowX
+  const prevPxY = prevOverflowY === 0 ? 0 : crop.y * prevOverflowY
+
+  return {
+    scale: safeScale,
+    x: overflowX === 0 ? 0 : clamp(prevPxX / overflowX, -1, 1),
+    y: overflowY === 0 ? 0 : clamp(prevPxY / overflowY, -1, 1),
+  }
+}
 
 interface AssetCardProps {
   asset: Asset
@@ -39,6 +75,42 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
     }
   }, [asset.id, asset.signed_url, asset.thumbnail_signed_url, isVideo])
 
+  const formatKey = (Object.keys(CROP_FORMATS) as Array<keyof typeof CROP_FORMATS>).includes(
+    asset.aspect_ratio as keyof typeof CROP_FORMATS,
+  )
+    ? (asset.aspect_ratio as keyof typeof CROP_FORMATS)
+    : '1:1'
+  const frameRatio = CROP_FORMATS[formatKey]
+
+  const imageWidth = asset.width ?? 1080
+  const imageHeight = asset.height ?? 1080
+  const imageRatio = imageWidth / Math.max(imageHeight, 1)
+
+  const frameWidth = frameRatio
+  const frameHeight = 1
+  const minScale = useMemo(() => {
+    return Math.max(frameWidth / imageRatio, frameHeight / 1)
+  }, [frameWidth, imageRatio])
+
+  const storedCrop = asset.image_crops?.[formatKey]
+  const adjustedCrop = useMemo(() => {
+    const base = {
+      scale: storedCrop?.scale ?? minScale,
+      x: storedCrop?.x ?? 0,
+      y: storedCrop?.y ?? 0,
+    }
+    return ensureCropWithinBounds(base, base.scale, minScale, imageRatio, 1, frameWidth, frameHeight)
+  }, [frameHeight, frameWidth, imageRatio, minScale, storedCrop?.scale, storedCrop?.x, storedCrop?.y])
+
+  const overflowX = Math.max(0, (imageRatio * adjustedCrop.scale - frameWidth) / 2)
+  const overflowY = Math.max(0, (1 * adjustedCrop.scale - frameHeight) / 2)
+
+  const translateXPercent = overflowX === 0 ? 0 : (adjustedCrop.x * overflowX * 100) / frameWidth
+  const translateYPercent = overflowY === 0 ? 0 : (adjustedCrop.y * overflowY * 100) / frameHeight
+
+  const widthPercent = (imageRatio * adjustedCrop.scale * 100) / frameWidth
+  const heightPercent = (adjustedCrop.scale * 100) / frameHeight
+
   const previewUrl = isVideo
     ? generatedThumbnail || asset.thumbnail_signed_url || undefined
     : asset.signed_url
@@ -53,7 +125,8 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div
-        className={`relative aspect-square bg-gray-100 overflow-hidden ${canPreview ? 'cursor-pointer' : ''}`}
+        className={`relative overflow-hidden bg-gray-100 ${canPreview ? 'cursor-pointer' : ''}`}
+        style={{ aspectRatio: frameRatio }}
         onClick={canPreview ? handlePreviewClick : undefined}
         role={canPreview ? 'button' : undefined}
         tabIndex={canPreview ? 0 : undefined}
@@ -79,7 +152,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
               <div className="text-xs text-gray-300 break-all px-2">{asset.storage_path}</div>
             </div>
           </div>
-        ) : (
+        ) : isVideo ? (
           <img
             src={previewUrl}
             alt={asset.title}
@@ -87,21 +160,53 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
             onError={(e) => {
               const target = e.target as HTMLImageElement
               target.style.display = 'none'
-              target.parentElement!.innerHTML = `
-                <div class="flex h-full items-center justify-center text-gray-400">
-                  <div class="text-center">
-                    <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <div class="text-xs">Preview unavailable</div>
-                    <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
+              if (target.parentElement) {
+                target.parentElement.innerHTML = `
+                  <div class="flex h-full items-center justify-center text-gray-400">
+                    <div class="text-center">
+                      <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      </svg>
+                      <div class="text-xs">Preview unavailable</div>
+                      <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
+                    </div>
                   </div>
-                </div>
-              `
+                `
+              }
+            }}
+          />
+        ) : (
+          <img
+            src={previewUrl}
+            alt={asset.title}
+            className="pointer-events-none absolute left-1/2 top-1/2"
+            style={{
+              width: `${widthPercent}%`,
+              height: `${heightPercent}%`,
+              transform: `translate(-50%, -50%) translate(${translateXPercent}%, ${translateYPercent}%)`,
+              transformOrigin: 'center',
+            }}
+            draggable={false}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.style.display = 'none'
+              if (target.parentElement) {
+                target.parentElement.innerHTML = `
+                  <div class="flex h-full items-center justify-center text-gray-400">
+                    <div class="text-center">
+                      <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      </svg>
+                      <div class="text-xs">Preview unavailable</div>
+                      <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
+                    </div>
+                  </div>
+                `
+              }
             }}
           />
         )}
-        {isVideo && (
+        {isVideo && previewUrl && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">

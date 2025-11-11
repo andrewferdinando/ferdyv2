@@ -21,6 +21,14 @@ export interface Asset {
   mime_type?: string | null
   file_size?: number | null
   duration_seconds?: number | null
+  image_crops?: Record<
+    string,
+    {
+      scale: number
+      x: number
+      y: number
+    }
+  >
 }
 
 interface Tag {
@@ -44,6 +52,7 @@ interface AssetFromDB {
   file_size?: number | null
   thumbnail_url?: string | null
   duration_seconds?: number | null
+  image_crops?: Record<string, { scale?: number; x?: number; y?: number }> | null
   asset_tags?: Array<{
     tag_id: string
     tags?: {
@@ -86,6 +95,19 @@ export function useAssets(brandId: string) {
     const thumbnailPath = asset.thumbnail_url || (assetType === 'video' ? undefined : asset.storage_path)
     const thumbnailSignedUrl = await buildSignedUrl(thumbnailPath)
 
+    const imageCrops =
+      asset.image_crops &&
+      Object.fromEntries(
+        Object.entries(asset.image_crops).map(([key, value]) => [
+          key,
+          {
+            scale: typeof value?.scale === 'number' ? value.scale : 1,
+            x: typeof value?.x === 'number' ? value.x : 0,
+            y: typeof value?.y === 'number' ? value.y : 0,
+          },
+        ]),
+      )
+
     return {
       ...asset,
       asset_type: assetType,
@@ -97,6 +119,7 @@ export function useAssets(brandId: string) {
       thumbnail_signed_url: thumbnailSignedUrl,
       tags: assetTags,
       tag_ids: tagIds,
+      image_crops: imageCrops ?? undefined,
     } as Asset
   }
 

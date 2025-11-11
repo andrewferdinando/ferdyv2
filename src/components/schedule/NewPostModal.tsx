@@ -8,6 +8,42 @@ import { Input } from '@/components/ui/Input';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
 import { channelSupportsMedia, describeChannelSupport } from '@/lib/channelSupport';
 
+const CROP_RATIOS: Record<string, number> = {
+  '1:1': 1,
+  '4:5': 4 / 5,
+  '1.91:1': 1.91,
+  '9:16': 9 / 16,
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const ensureCropWithinBounds = (
+  crop: { scale: number; x: number; y: number },
+  nextScale: number,
+  minScale: number,
+  imageWidth: number,
+  imageHeight: number,
+  frameWidth: number,
+  frameHeight: number,
+) => {
+  const safeScale = Math.max(nextScale, minScale);
+
+  const overflowX = Math.max(0, (imageWidth * safeScale - frameWidth) / 2);
+  const overflowY = Math.max(0, (imageHeight * safeScale - frameHeight) / 2);
+
+  const prevOverflowX = Math.max(0, (imageWidth * crop.scale - frameWidth) / 2);
+  const prevOverflowY = Math.max(0, (imageHeight * crop.scale - frameHeight) / 2);
+
+  const prevPxX = prevOverflowX === 0 ? 0 : crop.x * prevOverflowX;
+  const prevPxY = prevOverflowY === 0 ? 0 : crop.y * prevOverflowY;
+
+  return {
+    scale: safeScale,
+    x: overflowX === 0 ? 0 : clamp(prevPxX / overflowX, -1, 1),
+    y: overflowY === 0 ? 0 : clamp(prevPxY / overflowY, -1, 1),
+  };
+};
+
 interface NewPostModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -285,6 +321,40 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
                   ? asset.thumbnail_signed_url || asset.signed_url
                   : asset.thumbnail_signed_url || asset.signed_url;
 
+                const formatKey = (Object.keys(CROP_RATIOS) as Array<keyof typeof CROP_RATIOS>).includes(
+                  asset.aspect_ratio as keyof typeof CROP_RATIOS,
+                )
+                  ? (asset.aspect_ratio as keyof typeof CROP_RATIOS)
+                  : '1:1';
+                const frameRatio = CROP_RATIOS[formatKey];
+
+                const imageWidth = asset.width ?? 1080;
+                const imageHeight = asset.height ?? 1080;
+                const imageRatio = imageWidth / Math.max(imageHeight, 1);
+                const minScale = Math.max(frameRatio / imageRatio, 1);
+
+                const storedCrop = asset.image_crops?.[formatKey];
+                const crop = ensureCropWithinBounds(
+                  {
+                    scale: storedCrop?.scale ?? minScale,
+                    x: storedCrop?.x ?? 0,
+                    y: storedCrop?.y ?? 0,
+                  },
+                  storedCrop?.scale ?? minScale,
+                  minScale,
+                  imageRatio,
+                  1,
+                  frameRatio,
+                  1,
+                );
+
+                const overflowX = Math.max(0, (imageRatio * crop.scale - frameRatio) / 2);
+                const overflowY = Math.max(0, (crop.scale - 1) / 2);
+                const translateXPercent = overflowX === 0 ? 0 : (crop.x * overflowX * 100) / frameRatio;
+                const translateYPercent = overflowY === 0 ? 0 : crop.y * overflowY * 100;
+                const widthPercent = (imageRatio * crop.scale * 100) / frameRatio;
+                const heightPercent = crop.scale * 100;
+
                 return (
                   <button
                     type="button"
@@ -296,19 +366,34 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <div className="relative aspect-square overflow-hidden bg-gray-100">
+                    <div className="relative overflow-hidden bg-gray-100" style={{ aspectRatio: frameRatio }}>
                       {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt={asset.title}
-                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        />
+                        isVideo ? (
+                          <img
+                            src={previewUrl}
+                            alt={asset.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={previewUrl}
+                            alt={asset.title}
+                            className="pointer-events-none absolute left-1/2 top-1/2 transition-transform duration-200 group-hover:scale-[1.02]"
+                            style={{
+                              width: `${widthPercent}%`,
+                              height: `${heightPercent}%`,
+                              transform: `translate(-50%, -50%) translate(${translateXPercent}%, ${translateYPercent}%)`,
+                              transformOrigin: 'center',
+                            }}
+                            draggable={false}
+                          />
+                        )
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-gray-400">
                           No preview
                         </div>
                       )}
-                      {isVideo && (
+                      {isVideo && previewUrl && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
                             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">

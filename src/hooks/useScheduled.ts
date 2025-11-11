@@ -19,6 +19,7 @@ type RawAsset = {
   storage_path: string;
   aspect_ratio: string;
   crop_windows?: Record<string, unknown>;
+  image_crops?: Record<string, { scale?: number; x?: number; y?: number }> | null;
   width?: number;
   height?: number;
   created_at: string;
@@ -204,6 +205,7 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
         storage_path,
         aspect_ratio,
         crop_windows,
+        image_crops,
         width,
         height,
         created_at,
@@ -275,6 +277,7 @@ async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
     storage_path: raw.storage_path,
     aspect_ratio: raw.aspect_ratio,
     crop_windows: raw.crop_windows,
+    image_crops: raw.image_crops ?? undefined,
     width: raw.width,
     height: raw.height,
     created_at: raw.created_at,

@@ -13,6 +13,42 @@ import UserAvatar from '@/components/ui/UserAvatar';
 import { formatDateTimeLocal } from '@/lib/utils/timezone';
 import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
 
+const FORMAT_RATIOS: Record<string, number> = {
+  '1:1': 1,
+  '4:5': 4 / 5,
+  '1.91:1': 1.91,
+  '9:16': 9 / 16,
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const ensureCropWithinBounds = (
+  crop: { scale: number; x: number; y: number },
+  nextScale: number,
+  minScale: number,
+  imageWidth: number,
+  imageHeight: number,
+  frameWidth: number,
+  frameHeight: number,
+) => {
+  const safeScale = Math.max(nextScale, minScale);
+
+  const overflowX = Math.max(0, (imageWidth * safeScale - frameWidth) / 2);
+  const overflowY = Math.max(0, (imageHeight * safeScale - frameHeight) / 2);
+
+  const prevOverflowX = Math.max(0, (imageWidth * crop.scale - frameWidth) / 2);
+  const prevOverflowY = Math.max(0, (imageHeight * crop.scale - frameHeight) / 2);
+
+  const prevPxX = prevOverflowX === 0 ? 0 : crop.x * prevOverflowX;
+  const prevPxY = prevOverflowY === 0 ? 0 : crop.y * prevOverflowY;
+
+  return {
+    scale: safeScale,
+    x: overflowX === 0 ? 0 : clamp(prevPxX / overflowX, -1, 1),
+    y: overflowY === 0 ? 0 : clamp(prevPxY / overflowY, -1, 1),
+  };
+};
+
 // Helper component for draft images
 type DraftAsset = {
   id: string;
@@ -24,6 +60,9 @@ type DraftAsset = {
   signed_url?: string | null;
   thumbnail_signed_url?: string | null;
   duration_seconds?: number | null;
+  width?: number | null;
+  height?: number | null;
+  image_crops?: Record<string, { scale?: number; x?: number; y?: number }> | null;
 };
 
 function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
@@ -73,12 +112,56 @@ function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
     );
   }
 
+  const formatKey = (Object.keys(FORMAT_RATIOS) as Array<keyof typeof FORMAT_RATIOS>).includes(
+    asset.aspect_ratio as keyof typeof FORMAT_RATIOS,
+  )
+    ? (asset.aspect_ratio as keyof typeof FORMAT_RATIOS)
+    : '1:1';
+  const frameWidth = FORMAT_RATIOS[formatKey];
+  const frameHeight = 1;
+
+  const imageWidth = asset.width ?? 1080;
+  const imageHeight = asset.height ?? 1080;
+  const imageRatio = imageWidth / Math.max(imageHeight, 1);
+
+  const minScale = useMemo(() => {
+    return Math.max(frameWidth / imageRatio, frameHeight / 1);
+  }, [frameWidth, frameHeight, imageRatio]);
+
+  const storedCrop = asset.image_crops?.[formatKey];
+  const crop = useMemo(() => {
+    const base = {
+      scale: storedCrop?.scale ?? minScale,
+      x: storedCrop?.x ?? 0,
+      y: storedCrop?.y ?? 0,
+    };
+    return ensureCropWithinBounds(base, base.scale, minScale, imageRatio, 1, frameWidth, frameHeight);
+  }, [frameHeight, frameWidth, imageRatio, minScale, storedCrop?.scale, storedCrop?.x, storedCrop?.y]);
+
+  const overflowX = Math.max(0, (imageRatio * crop.scale - frameWidth) / 2);
+  const overflowY = Math.max(0, (1 * crop.scale - frameHeight) / 2);
+
+  const translateXPercent = overflowX === 0 ? 0 : (crop.x * overflowX * 100) / frameWidth;
+  const translateYPercent = overflowY === 0 ? 0 : (crop.y * overflowY * 100) / frameHeight;
+
+  const widthPercent = (imageRatio * crop.scale * 100) / frameWidth;
+  const heightPercent = (crop.scale * 100) / frameHeight;
+
   return (
-    <img
-      src={previewUrl ?? fallbackUrl ?? ''}
-      alt={asset.title || 'Asset'}
-      className="h-full w-full object-cover"
-    />
+    <div className="relative h-full w-full overflow-hidden">
+      <img
+        src={previewUrl ?? fallbackUrl ?? ''}
+        alt={asset.title || 'Asset'}
+        className="pointer-events-none absolute left-1/2 top-1/2"
+        style={{
+          width: `${widthPercent}%`,
+          height: `${heightPercent}%`,
+          transform: `translate(-50%, -50%) translate(${translateXPercent}%, ${translateYPercent}%)`,
+          transformOrigin: 'center',
+        }}
+        draggable={false}
+      />
+    </div>
   );
 }
 
