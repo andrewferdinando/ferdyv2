@@ -496,12 +496,19 @@ function AssetDetailView({
       : 'aspect-square'
 
   const minScale = useMemo(() => {
-    if (!imageDimensions.width || !imageDimensions.height || !frameSize.width || !frameSize.height) {
+    if (
+      !imageDimensions.width ||
+      !imageDimensions.height ||
+      !frameSize.width ||
+      !frameSize.height
+    ) {
       return 1
     }
+
     return Math.max(
       frameSize.width / imageDimensions.width,
       frameSize.height / imageDimensions.height,
+      1,
     )
   }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width])
 
@@ -549,7 +556,15 @@ function AssetDetailView({
       return FORMATS[0]
     }
 
-    const computeScale = (formatRatio: number) => Math.max(1, formatRatio / imageAspectRatio)
+    const computeScale = (formatRatio: number) => {
+      if (!imageAspectRatio) return 1
+
+      if (formatRatio >= 1) {
+        return Math.max(1, formatRatio / imageAspectRatio)
+      }
+
+      return Math.max(1, 1 / (imageAspectRatio * formatRatio))
+    }
 
     return FORMATS.reduce((best, candidate) => {
       const bestScale = computeScale(best.ratio)

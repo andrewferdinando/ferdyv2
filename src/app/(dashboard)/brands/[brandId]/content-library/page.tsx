@@ -478,6 +478,7 @@ function AssetDetailView({
     return Math.max(
       frameSize.width / imageDimensions.width,
       frameSize.height / imageDimensions.height,
+      1,
     )
   }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width])
 
@@ -525,7 +526,13 @@ function AssetDetailView({
       return CROP_FORMATS[0]
     }
 
-    const computeScale = (formatRatio: number) => Math.max(1, formatRatio / imageAspectRatio)
+    const computeScale = (formatRatio: number) => {
+      if (formatRatio >= 1) {
+        return Math.max(1, formatRatio / imageAspectRatio)
+      }
+
+      return Math.max(1, 1 / (imageAspectRatio * formatRatio))
+    }
 
     return CROP_FORMATS.reduce((best, candidate) => {
       const bestScale = computeScale(best.ratio)
@@ -544,6 +551,34 @@ function AssetDetailView({
       return best
     }, CROP_FORMATS[0])
   }, [imageAspectRatio])
+
+  useEffect(() => {
+    if (didAutoSelectRef.current) return
+    if (!imageAspectRatio) return
+    const hasExistingCrops =
+      displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
+    if (hasExistingCrops) return
+
+    const computeScale = (formatRatio: number) => {
+      if (formatRatio >= 1) {
+        return Math.max(1, formatRatio / imageAspectRatio)
+      }
+
+      return Math.max(1, 1 / (imageAspectRatio * formatRatio))
+    }
+
+    didAutoSelectRef.current = true
+    const initialScale = computeScale(bestFormat.ratio)
+    setSelectedFormat(bestFormat.key)
+    setCrops((prev) => ({
+      ...prev,
+      [bestFormat.key]: {
+        scale: initialScale,
+        x: 0,
+        y: 0,
+      },
+    }))
+  }, [bestFormat.key, displayAsset.image_crops, imageAspectRatio])
 
   const activeCrop = crops[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
 
