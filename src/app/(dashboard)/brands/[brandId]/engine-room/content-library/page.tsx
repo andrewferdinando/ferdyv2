@@ -454,6 +454,26 @@ function AssetDetailView({
   } | null>(null)
   const didAutoSelectRef = useRef(false)
   const initializedFormatsRef = useRef<Record<string, boolean>>({})
+  const defaultVideoPlacement = useMemo<"feed" | "story">(() => {
+    if ((displayAsset.asset_type ?? 'image') !== 'video') {
+      return 'feed'
+    }
+    const sourceWidth = displayAsset.width ?? imageDimensions.width
+    const sourceHeight = displayAsset.height ?? imageDimensions.height
+    if (sourceWidth && sourceHeight && sourceWidth < sourceHeight) {
+      return 'story'
+    }
+    return 'feed'
+  }, [displayAsset.asset_type, displayAsset.height, displayAsset.width, imageDimensions.height, imageDimensions.width])
+  const [videoPlacement, setVideoPlacement] = useState<'feed' | 'story'>(defaultVideoPlacement)
+
+  useEffect(() => {
+    setVideoPlacement(defaultVideoPlacement)
+  }, [defaultVideoPlacement])
+
+  useEffect(() => {
+    initializedFormatsRef.current = {}
+  }, [asset.id])
 
   useEffect(() => {
     if (isVideo) return
@@ -625,6 +645,23 @@ function AssetDetailView({
     return Math.round(((activeCrop.scale - minScale) / (maxScale - minScale)) * 100)
   }, [activeCrop.scale, maxScale, minScale])
 
+  const rawVideoAspectRatio =
+    imageDimensions.width && imageDimensions.height
+      ? imageDimensions.width / imageDimensions.height
+      : displayAsset.width && displayAsset.height
+      ? displayAsset.width / displayAsset.height
+      : null
+
+  const normalizedVideoAspectRatio =
+    rawVideoAspectRatio && Number.isFinite(rawVideoAspectRatio) && rawVideoAspectRatio > 0
+      ? rawVideoAspectRatio
+      : (displayAsset.asset_type ?? 'image') === 'video'
+      ? 16 / 9
+      : 1
+
+  const placementAspectRatio =
+    videoPlacement === 'story' ? 9 / 16 : normalizedVideoAspectRatio
+
   const updateCrop = (formatKey: string, nextState: CropState) => {
     setCrops((prev) => ({
       ...prev,
@@ -779,15 +816,48 @@ function AssetDetailView({
               </div>
             )}
 
+            {isVideo && (
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-semibold text-gray-600">
+                  <button
+                    type="button"
+                    onClick={() => setVideoPlacement('feed')}
+                    className={`rounded-full px-3 py-1 transition-all ${
+                      videoPlacement === 'feed'
+                        ? 'bg-white text-gray-900 shadow'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Feed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoPlacement('story')}
+                    className={`rounded-full px-3 py-1 transition-all ${
+                      videoPlacement === 'story'
+                        ? 'bg-white text-gray-900 shadow'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Reels & Story
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="relative">
               {isVideo ? (
-                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
+                <div
+                  className="relative w-full overflow-hidden rounded-xl bg-black"
+                  style={{ aspectRatio: `${placementAspectRatio}` }}
+                >
                   <video
                     controls
                     preload="metadata"
                     poster={displayAsset.thumbnail_signed_url || undefined}
                     src={displayAsset.signed_url}
-                    className="h-full w-full object-contain"
+                    className="h-full w-full"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {onPreviewAsset && (
                     <button

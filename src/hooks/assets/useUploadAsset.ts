@@ -33,33 +33,75 @@ export function useUploadAsset() {
       let height: number | undefined
       let durationSeconds: number | undefined
       let thumbnailPath: string | null = null
+      let thumbnailFile: File | undefined
 
       if (isVideo) {
-        setProgress(10)
-        const { thumbnailBlob, width: videoWidth, height: videoHeight, duration } = await getVideoMetadata(file)
-        width = videoWidth
-        height = videoHeight
-        durationSeconds = Number.isFinite(duration) ? Math.round(duration) : undefined
-
-        thumbnailPath = `thumbnails/${assetId}.jpg`
-        const { error: thumbError } = await supabase.storage
-          .from('ferdy-assets')
-          .upload(thumbnailPath, thumbnailBlob, {
-            upsert: false,
-            contentType: 'image/jpeg',
-          })
-
-        if (thumbError) {
-          throw thumbError
+        try {
+          const { width: metaWidth, height: metaHeight, duration, thumbnailBlob } = await getVideoMetadata(file)
+          width = metaWidth
+          height = metaHeight
+          durationSeconds = Math.round(duration)
+          thumbnailFile = new File([thumbnailBlob], `${assetId}-thumb.jpg`, { type: 'image/jpeg' })
+          thumbnailPath = `brands/${brandId}/thumbnails/${assetId}.jpg`
+        } catch (metadataError) {
+          console.warn('useUploadAsset: unable to read video metadata locally', metadataError)
         }
       } else {
-        setProgress(10)
         try {
-          const dimensions = await getImageDimensions(file)
-          width = dimensions.width
-          height = dimensions.height
-        } catch (err) {
-          console.warn('Could not determine image dimensions', err)
+          const { width: imageWidth, height: imageHeight } = await getImageDimensions(file)
+          width = imageWidth
+          height = imageHeight
+        } catch (dimensionError) {
+          console.warn('useUploadAsset: unable to read image dimensions', dimensionError)
+        }
+      }
+
+      if (isVideo) {
+        const { url: videoUrl } = await uploadToStorage({
+          brandId,
+          file,
+          storagePath,
+        })
+
+        if (videoUrl && (!width || !height)) {
+          const video = document.createElement('video')
+          video.src = videoUrl
+          video.preload = 'metadata'
+
+          await new Promise<void>((resolve) => {
+            const handleLoadedMetadata = () => {
+              if (!width) {
+                width = video.videoWidth || width
+              }
+              if (!height) {
+                height = video.videoHeight || height
+              }
+              video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+              resolve()
+            }
+
+            video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true })
+            video.load()
+          })
+        }
+
+        if (durationSeconds == null) {
+          durationSeconds = await getVideoDuration(storagePath)
+        }
+      }
+
+      // Upload thumbnail if provided
+      if (thumbnailFile && thumbnailPath) {
+        const { error: thumbnailError } = await supabase.storage
+          .from('ferdy-assets')
+          .upload(thumbnailPath, thumbnailFile, {
+            upsert: true,
+            contentType: thumbnailFile.type || 'image/jpeg',
+          })
+
+        if (thumbnailError) {
+          console.warn('useUploadAsset: failed to upload video thumbnail', thumbnailError)
+          thumbnailPath = null
         }
       }
 
