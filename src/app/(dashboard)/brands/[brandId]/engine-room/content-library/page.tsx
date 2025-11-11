@@ -453,6 +453,7 @@ function AssetDetailView({
     crop: CropState
   } | null>(null)
   const didAutoSelectRef = useRef(false)
+  const initializedFormatsRef = useRef<Record<string, boolean>>({})
 
   useEffect(() => {
     if (isVideo) return
@@ -508,7 +509,6 @@ function AssetDetailView({
     return Math.max(
       frameSize.width / imageDimensions.width,
       frameSize.height / imageDimensions.height,
-      1,
     )
   }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width])
 
@@ -520,7 +520,7 @@ function AssetDetailView({
     }
 
     setCrops((prev) => {
-      const current = prev[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
+      const current = prev[selectedFormat] ?? { scale: minScale, x: 0, y: 0 }
       const bounded = ensureCropWithinBounds(
         current,
         current.scale,
@@ -575,6 +575,35 @@ function AssetDetailView({
       return best
     }, FORMATS[0])
   }, [imageAspectRatio])
+
+  useEffect(() => {
+    if (didAutoSelectRef.current) return
+    if (!imageAspectRatio) return
+    const hasExistingCrops =
+      displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
+    if (hasExistingCrops) return
+
+    didAutoSelectRef.current = true
+    setSelectedFormat(bestFormat.key)
+  }, [bestFormat.key, displayAsset.image_crops, imageAspectRatio])
+
+  useEffect(() => {
+    if (isVideo) return
+    if (!imageDimensions.width || !imageDimensions.height) return
+    if (!frameSize.width || !frameSize.height) return
+    if (displayAsset.image_crops?.[selectedFormat]) return
+    if (initializedFormatsRef.current[selectedFormat]) return
+
+    initializedFormatsRef.current[selectedFormat] = true
+    setCrops((prev) => ({
+      ...prev,
+      [selectedFormat]: {
+        scale: minScale,
+        x: 0,
+        y: 0,
+      },
+    }))
+  }, [displayAsset.image_crops, frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width, isVideo, minScale, selectedFormat])
 
   const activeCrop = crops[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
 

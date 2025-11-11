@@ -429,6 +429,7 @@ function AssetDetailView({
     crop: CropState
   } | null>(null)
   const didAutoSelectRef = useRef(false)
+  const initializedFormatsRef = useRef<Record<string, boolean>>({})
 
   useEffect(() => {
     if (isVideo) return
@@ -478,7 +479,6 @@ function AssetDetailView({
     return Math.max(
       frameSize.width / imageDimensions.width,
       frameSize.height / imageDimensions.height,
-      1,
     )
   }, [frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width])
 
@@ -490,21 +490,21 @@ function AssetDetailView({
     }
 
     setCrops((prev) => {
-      const current = prev[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
+      const current = prev[selectedFormat] ?? { scale: minScale, x: 0, y: 0 }
       const bounded = ensureCropWithinBounds(
         current,
         current.scale,
         minScale,
         imageDimensions.width,
         imageDimensions.height,
-        frameSize.width || 0,
-        frameSize.height || 0,
+        frameSize.width,
+        frameSize.height,
       )
 
       if (
-        Math.abs(bounded.scale - current.scale) < 0.000001 &&
-        Math.abs(bounded.x - current.x) < 0.000001 &&
-        Math.abs(bounded.y - current.y) < 0.000001
+        Math.abs(bounded.scale - current.scale) < EPSILON &&
+        Math.abs(bounded.x - current.x) < EPSILON &&
+        Math.abs(bounded.y - current.y) < EPSILON
       ) {
         return prev
       }
@@ -553,20 +553,27 @@ function AssetDetailView({
       displayAsset.image_crops && Object.keys(displayAsset.image_crops).length > 0
     if (hasExistingCrops) return
 
-    const computeScale = (formatRatio: number) => Math.max(formatRatio / imageAspectRatio, 1)
-
     didAutoSelectRef.current = true
-    const initialScale = computeScale(bestFormat.ratio)
     setSelectedFormat(bestFormat.key)
+  }, [bestFormat.key, displayAsset.image_crops, imageAspectRatio])
+
+  useEffect(() => {
+    if (isVideo) return
+    if (!imageDimensions.width || !imageDimensions.height) return
+    if (!frameSize.width || !frameSize.height) return
+    if (displayAsset.image_crops?.[selectedFormat]) return
+    if (initializedFormatsRef.current[selectedFormat]) return
+
+    initializedFormatsRef.current[selectedFormat] = true
     setCrops((prev) => ({
       ...prev,
-      [bestFormat.key]: {
-        scale: initialScale,
+      [selectedFormat]: {
+        scale: minScale,
         x: 0,
         y: 0,
       },
     }))
-  }, [bestFormat.key, displayAsset.image_crops, imageAspectRatio])
+  }, [displayAsset.image_crops, frameSize.height, frameSize.width, imageDimensions.height, imageDimensions.width, isVideo, minScale, selectedFormat])
 
   const activeCrop = crops[selectedFormat] ?? { scale: 1, x: 0, y: 0 }
 
