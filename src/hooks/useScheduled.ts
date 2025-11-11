@@ -270,6 +270,19 @@ async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
     }
   }
 
+  const imageCrops = raw.image_crops
+    ? Object.fromEntries(
+        Object.entries(raw.image_crops).map(([key, value]) => [
+          key,
+          {
+            scale: typeof value?.scale === 'number' ? value.scale : 1,
+            x: typeof value?.x === 'number' ? value.x : 0,
+            y: typeof value?.y === 'number' ? value.y : 0,
+          },
+        ]),
+      )
+    : undefined;
+
   return {
     id: raw.id,
     brand_id: raw.brand_id,
@@ -277,7 +290,7 @@ async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
     storage_path: raw.storage_path,
     aspect_ratio: raw.aspect_ratio,
     crop_windows: raw.crop_windows,
-    image_crops: raw.image_crops ?? undefined,
+    image_crops: imageCrops,
     width: raw.width,
     height: raw.height,
     created_at: raw.created_at,
