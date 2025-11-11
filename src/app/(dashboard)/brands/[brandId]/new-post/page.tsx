@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
@@ -171,8 +171,34 @@ export default function NewPostPage() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState('');
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
+
+  const { imageAssets, videoAssets } = useMemo(() => {
+    const grouped = assets.reduce(
+      (acc, asset) => {
+        if ((asset.asset_type ?? 'image') === 'video') {
+          acc.videoAssets.push(asset);
+        } else {
+          acc.imageAssets.push(asset);
+        }
+        return acc;
+      },
+      { imageAssets: [] as Asset[], videoAssets: [] as Asset[] },
+    )
+    return grouped
+  }, [assets])
+
+  const assetsForActiveTab = assetTab === 'videos' ? videoAssets : imageAssets
+
+  const selectedPreviewUrl = useMemo(() => {
+    if (!selectedAsset) return ''
+    if ((selectedAsset.asset_type ?? 'image') === 'video') {
+      return selectedAsset.thumbnail_signed_url || selectedAsset.signed_url || ''
+    }
+    return selectedAsset.signed_url || ''
+  }, [selectedAsset])
 
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
@@ -198,29 +224,10 @@ export default function NewPostPage() {
     );
   };
 
-  const handleMediaSelect = async (asset: { id: string; storage_path: string; signed_url?: string }) => {
-    try {
-      // Use the signed_url from the asset if available, otherwise generate public URL
-      let imageUrl;
-      
-      if (asset.signed_url) {
-        imageUrl = asset.signed_url;
-      } else {
-        const { getPublicUrl } = await import('@/lib/storage/getPublicUrl');
-        imageUrl = getPublicUrl(asset.storage_path);
-      }
-      
-      console.log('Selected media URL:', imageUrl);
-      setSelectedMedia(imageUrl);
-      setSelectedAssetIds([asset.id]);
-      setIsMediaModalOpen(false);
-    } catch (error) {
-      console.error('Error getting image URL:', error);
-      // Fallback to storage_path if everything fails
-      setSelectedMedia(asset.storage_path);
-      setSelectedAssetIds([asset.id]);
-      setIsMediaModalOpen(false);
-    }
+  const handleMediaSelect = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setSelectedAssetIds([asset.id]);
+    setIsMediaModalOpen(false);
   };
 
   const [isSaving, setIsSaving] = useState(false);
@@ -393,20 +400,33 @@ export default function NewPostPage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Existing Image */}
-                      {selectedMedia && (
+                      {selectedAsset && (
                         <div className="relative">
-                          <img
-                            src={selectedMedia}
-                            alt="Selected media"
-                            className="w-full h-32 object-cover rounded-lg"
-                            onError={(e) => {
-                              console.error('Selected media failed to load:', selectedMedia);
-                              // Show a data URL placeholder image instead of a file path
-                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y3ZjhmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNmI3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
-                            }}
-                          />
+                          {(selectedAsset.asset_type ?? 'image') === 'video' ? (
+                            <video
+                              controls
+                              preload="metadata"
+                              poster={selectedPreviewUrl || undefined}
+                              src={selectedAsset.signed_url || selectedAsset.storage_path}
+                              className="w-full h-32 rounded-lg bg-black object-contain"
+                            />
+                          ) : (
+                            <img
+                              src={selectedPreviewUrl || selectedAsset.signed_url || selectedAsset.storage_path}
+                              alt={selectedAsset.title || 'Selected media'}
+                              className="w-full h-32 object-cover rounded-lg"
+                              onError={(e) => {
+                                console.error('Selected media failed to load:', selectedPreviewUrl)
+                                e.currentTarget.src =
+                                  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y3ZjhmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNmI3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+'
+                              }}
+                            />
+                          )}
                           <button 
-                            onClick={() => setSelectedMedia('')}
+                            onClick={() => {
+                              setSelectedAsset(null);
+                              setSelectedAssetIds([]);
+                            }}
                             className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                           >
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -662,39 +682,107 @@ export default function NewPostPage() {
               <p className="text-sm text-gray-400">Upload assets in the Content Library first.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {assets.map((asset) => {
-                // Use the same approach as Content Library - use signed_url if available
-                let imageUrl = asset.storage_path;
-                
-                // If the asset has a signed_url (from useAssets hook), use it
-                if (asset.signed_url) {
-                  imageUrl = asset.signed_url;
-                  console.log(`Using signed URL for asset:`, asset.id, '-> URL:', asset.signed_url);
-                } else {
-                  console.log(`No signed URL available for asset:`, asset.id, 'storage_path:', asset.storage_path);
-                }
-                
-                return (
-                  <button
-                    key={asset.id}
-                    onClick={() => handleMediaSelect(asset)}
-                    className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
-                  >
-                    <img 
-                      src={imageUrl} 
-                      alt={asset.title || 'Asset'} 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => {
-                        console.error('Image failed to load:', imageUrl);
-                        // Show a data URL placeholder image instead of a file path
-                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y3ZjhmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNmI3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
-                      }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              <div className="mb-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('images')}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                    assetTab === 'images'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Images ({imageAssets.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('videos')}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                    assetTab === 'videos'
+                      ? 'bg-[#6366F1] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Videos ({videoAssets.length})
+                </button>
+              </div>
+              {assetsForActiveTab.length === 0 ? (
+                <p className="py-16 text-center text-sm text-gray-500">
+                  {assetTab === 'videos'
+                    ? 'No videos available yet. Upload a video in the Content Library.'
+                    : 'No images available yet. Upload an image in the Content Library.'}
+                </p>
+              ) : (
+                <div className="grid max-h-96 grid-cols-2 gap-4 overflow-y-auto sm:grid-cols-3">
+                  {assetsForActiveTab.map((asset) => {
+                    const isSelected = selectedAssetIds.includes(asset.id);
+                    const isVideo = (asset.asset_type ?? 'image') === 'video';
+                    const previewUrl = isVideo
+                      ? asset.thumbnail_signed_url || asset.signed_url
+                      : asset.signed_url || asset.thumbnail_signed_url;
+
+                    return (
+                      <button
+                        type="button"
+                        key={asset.id}
+                        onClick={() => handleMediaSelect(asset)}
+                        className={`group relative flex flex-col overflow-hidden rounded-lg border-2 text-left transition-all ${
+                          isSelected
+                            ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="relative aspect-square overflow-hidden bg-gray-100">
+                          {previewUrl ? (
+                            <img
+                              src={previewUrl}
+                              alt={asset.title || 'Asset'}
+                              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-gray-500">
+                              No preview
+                            </div>
+                          )}
+                          {isVideo && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+                                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                          {isVideo && (
+                            <div className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
+                              Video
+                            </div>
+                          )}
+                          {isSelected && (
+                            <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#6366F1] text-white shadow">
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="px-2 py-1">
+                          <p className="truncate text-xs font-medium text-gray-700">{asset.title}</p>
+                          <p className="text-xs text-gray-400">
+                            {isVideo
+                              ? asset.duration_seconds
+                                ? `${Math.round(asset.duration_seconds)}s`
+                                : 'Video'
+                              : asset.aspect_ratio || 'Image'}
+                          </p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
         </Modal>
 
