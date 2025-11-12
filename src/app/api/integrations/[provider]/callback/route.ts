@@ -16,6 +16,7 @@ function getRedirectUrl(brandId: string, params: Record<string, string>) {
   return url
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(
   request: Request,
   context: any,
