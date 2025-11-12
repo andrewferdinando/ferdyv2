@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
-import RequireAuth from '@/components/auth/RequireAuth'
 import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
 import { supabase } from '@/lib/supabase-browser'
@@ -123,6 +122,36 @@ const renderSocialIcon = (iconName: string, className: string = "w-6 h-6") => {
   return <SocialIcon iconName={iconName} className={className} />;
 };
 
+function ClientAuthGate() {
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        const next = encodeURIComponent(window.location.pathname)
+        router.replace(`/auth/sign-in?next=${next}`)
+      }
+
+      if (isMounted) {
+        setChecking(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [router])
+
+  if (checking) {
+    return null
+  }
+
+  return null
+}
+
 export default function IntegrationsPage() {
   const params = useParams()
   const brandId = params.brandId as string
@@ -195,170 +224,168 @@ export default function IntegrationsPage() {
 
   if (loading || roleLoading) {
     return (
-      <RequireAuth>
-        <AppLayout>
-          <div className="flex-1 overflow-auto bg-gray-50">
-            <div className="p-4 sm:p-6 lg:p-10">
-              <div className="mx-auto flex h-64 max-w-4xl items-center justify-center text-gray-500">
-                Loading integrations…
-              </div>
+      <AppLayout>
+        <ClientAuthGate />
+        <div className="flex-1 overflow-auto bg-gray-50">
+          <div className="p-4 sm:p-6 lg:p-10">
+            <div className="mx-auto flex h-64 max-w-4xl items-center justify-center text-gray-500">
+              Loading integrations…
             </div>
           </div>
-        </AppLayout>
-      </RequireAuth>
+        </div>
+      </AppLayout>
     )
   }
 
   const connectedAccounts = accounts.filter((account) => account.status === 'connected')
 
   return (
-    <RequireAuth>
-      <AppLayout>
-        <div className="flex-1 overflow-auto bg-gray-50">
-          <div className="p-4 sm:p-6 lg:p-10">
-            <div className="mx-auto max-w-4xl space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-                <p className="mt-2 text-sm text-gray-600">
-                  Connect your brand’s social accounts to schedule and publish directly from Ferdy.
-                </p>
+    <AppLayout>
+      <ClientAuthGate />
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="p-4 sm:p-6 lg:p-10">
+          <div className="mx-auto max-w-4xl space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Connect your brand’s social accounts to schedule and publish directly from Ferdy.
+              </p>
+            </div>
+
+            {errorMessage && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errorMessage}
               </div>
+            )}
 
-              {errorMessage && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {errorMessage}
-                </div>
-              )}
-
-              {connectedAccounts.length > 0 && (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-4">
-                  <h3 className="text-sm font-medium text-indigo-900">Connected accounts</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {connectedAccounts.map((account) => (
-                      <span
-                        key={account.id}
-                        className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800"
-                      >
-                        {account.provider} · {account.handle}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {socialProviders.map((provider) => {
-                  const connectedAccount = accountsByProvider.get(provider.id)
-                  const isConnected = connectedAccount?.status === 'connected'
-                  const isProcessing = actionProvider === provider.id
-                  const disabledReason = !isAdmin
-                    ? 'Only brand owners or admins can manage integrations.'
-                    : isProcessing
-                      ? 'Processing…'
-                      : null
-
-                  const connectLabel =
-                    provider.id === 'instagram' ? 'Connect via Facebook' : isConnected ? 'Change connection' : 'Connect'
-
-                  const showChange = isConnected && isAdmin
-
-                  return (
-                    <div
-                      key={provider.id}
-                      className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+            {connectedAccounts.length > 0 && (
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-4">
+                <h3 className="text-sm font-medium text-indigo-900">Connected accounts</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {connectedAccounts.map((account) => (
+                    <span
+                      key={account.id}
+                      className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800"
                     >
-                      <div className="mb-4 flex items-center justify-between">
-                        {renderSocialIcon(provider.icon, 'w-10 h-10')}
-                        {isConnected && (
-                          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            Connected
-                          </span>
-                        )}
+                      {account.provider} · {account.handle}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {socialProviders.map((provider) => {
+                const connectedAccount = accountsByProvider.get(provider.id)
+                const isConnected = connectedAccount?.status === 'connected'
+                const isProcessing = actionProvider === provider.id
+                const disabledReason = !isAdmin
+                  ? 'Only brand owners or admins can manage integrations.'
+                  : isProcessing
+                    ? 'Processing…'
+                    : null
+
+                const connectLabel =
+                  provider.id === 'instagram' ? 'Connect via Facebook' : isConnected ? 'Change connection' : 'Connect'
+
+                const showChange = isConnected && isAdmin
+
+                return (
+                  <div
+                    key={provider.id}
+                    className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      {renderSocialIcon(provider.icon, 'w-10 h-10')}
+                      {isConnected && (
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                          Connected
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">{provider.name}</h3>
+                    <p className="mt-2 text-sm text-gray-600">{provider.description}</p>
+
+                    {isConnected && (
+                      <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                        Connected as <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900">{provider.name}</h3>
-                      <p className="mt-2 text-sm text-gray-600">{provider.description}</p>
+                    )}
+
+                    <div className="mt-6 space-y-3">
+                      <button
+                        type="button"
+                        onClick={() => (isConnected ? handleConnect(provider.id) : handleConnect(provider.id))}
+                        disabled={!!disabledReason}
+                        className={`w-full inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                          disabledReason
+                            ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
+                            : 'border border-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
+                        }`}
+                        title={disabledReason || connectLabel}
+                      >
+                        {isProcessing ? 'Please wait…' : connectLabel}
+                      </button>
 
                       {isConnected && (
-                        <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                          Connected as <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
-                        </div>
-                      )}
-
-                      <div className="mt-6 space-y-3">
-                        <button
-                          type="button"
-                          onClick={() => (isConnected ? handleConnect(provider.id) : handleConnect(provider.id))}
-                          disabled={!!disabledReason}
-                          className={`w-full inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                            disabledReason
-                              ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
-                              : 'border border-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
-                          }`}
-                          title={disabledReason || connectLabel}
-                        >
-                          {isProcessing ? 'Please wait…' : connectLabel}
-                        </button>
-
-                        {isConnected && (
-                          <div className="flex flex-col gap-2 sm:flex-row">
-                            {showChange && (
-                              <button
-                                type="button"
-                                onClick={() => handleConnect(provider.id)}
-                                disabled={!!disabledReason}
-                                className="flex-1 rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
-                              >
-                                Change
-                              </button>
-                            )}
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          {showChange && (
                             <button
                               type="button"
-                              onClick={() => handleDisconnect(provider.id)}
+                              onClick={() => handleConnect(provider.id)}
                               disabled={!!disabledReason}
-                              className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                              className="flex-1 rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
                             >
-                              <UnlinkIcon className="mr-2 h-4 w-4" />
-                              Disconnect
+                              Change
                             </button>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDisconnect(provider.id)}
+                            disabled={!!disabledReason}
+                            className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                          >
+                            <UnlinkIcon className="mr-2 h-4 w-4" />
+                            Disconnect
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                )
+              })}
+            </div>
 
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
-                <h3 className="text-xl font-semibold text-gray-950">Connection requirements</h3>
-                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div>
-                    <h4 className="text-base font-semibold text-gray-950">Facebook &amp; Instagram</h4>
-                    <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                      <li>
-                        <span className="font-semibold text-gray-900">Facebook:</span> You must be an admin of the
-                        Facebook Page you want to connect.
-                      </li>
-                      <li>
-                        <span className="font-semibold text-gray-900">Instagram:</span> Only Instagram Business or Creator
-                        accounts linked to the connected Facebook Page can be used.
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="text-base font-semibold text-gray-950">LinkedIn</h4>
-                    <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                      <li>
-                        <span className="font-semibold text-gray-900">LinkedIn:</span> Requires admin access to the company
-                        page.
-                      </li>
-                    </ul>
-                  </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <h3 className="text-xl font-semibold text-gray-950">Connection requirements</h3>
+              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <h4 className="text-base font-semibold text-gray-950">Facebook &amp; Instagram</h4>
+                  <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                    <li>
+                      <span className="font-semibold text-gray-900">Facebook:</span> You must be an admin of the
+                      Facebook Page you want to connect.
+                    </li>
+                    <li>
+                      <span className="font-semibold text-gray-900">Instagram:</span> Only Instagram Business or Creator
+                      accounts linked to the connected Facebook Page can be used.
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-gray-950">LinkedIn</h4>
+                  <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                    <li>
+                      <span className="font-semibold text-gray-900">LinkedIn:</span> Requires admin access to the company
+                      page.
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </AppLayout>
-    </RequireAuth>
+      </div>
+    </AppLayout>
   )
 }
