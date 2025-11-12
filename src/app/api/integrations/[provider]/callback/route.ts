@@ -5,6 +5,8 @@ import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
 
+export const runtime = 'nodejs' as const
+
 const ENV_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
 const DEFAULT_SITE_URL = (ENV_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
 
@@ -78,9 +80,51 @@ export async function GET(request: Request, context: any) {
     brandIdForRedirect = state.brandId
     originForRedirect = state.origin ? state.origin.replace(/\/$/, '') : requestOrigin
 
+    const redirectWith = (reason: string, description: string) => {
+      const redirect = getRedirectUrl(originForRedirect, state.brandId, {
+        error: 'integration_failed',
+        error_description: description.substring(0, 200),
+        reason,
+      })
+      console.log('OAuth callback redirect ->', redirect.toString())
+      return NextResponse.redirect(redirect)
+    }
+
     const stateProvider = state.provider as SupportedProvider
     if (stateProvider !== provider && !(provider === 'instagram' && stateProvider === 'facebook')) {
       throw new Error('OAuth provider mismatch.')
+    }
+
+    const normalizedProvider = stateProvider === 'instagram' ? 'facebook' : stateProvider
+
+    if (normalizedProvider === 'facebook') {
+      const fbId = process.env.FACEBOOK_CLIENT_ID
+      const fbSecret = process.env.FACEBOOK_CLIENT_SECRET
+      console.log('[fb env]', {
+        hasId: Boolean(fbId),
+        id: fbId,
+        secretLen: fbSecret?.length ?? 0,
+        secretStart: fbSecret?.slice(0, 3) ?? null,
+        secretEnd: fbSecret?.slice(-3) ?? null,
+      })
+      if (!fbId || !fbSecret) {
+        return redirectWith('missing_client_secret', 'Facebook client credentials are not configured.')
+      }
+    }
+
+    if (normalizedProvider === 'linkedin') {
+      const liId = process.env.LINKEDIN_CLIENT_ID
+      const liSecret = process.env.LINKEDIN_CLIENT_SECRET
+      console.log('[li env]', {
+        hasId: Boolean(liId),
+        id: liId,
+        secretLen: liSecret?.length ?? 0,
+        secretStart: liSecret?.slice(0, 3) ?? null,
+        secretEnd: liSecret?.slice(-3) ?? null,
+      })
+      if (!liId || !liSecret) {
+        return redirectWith('missing_client_secret', 'LinkedIn client credentials are not configured.')
+      }
     }
 
     const hasAccess = await requireAdmin(state.brandId, state.userId)
@@ -88,8 +132,8 @@ export async function GET(request: Request, context: any) {
       throw new Error('You no longer have permission to manage this brand.')
     }
 
-    const normalizedProvider = stateProvider === 'instagram' ? 'facebook' : stateProvider
     const callbackRedirect = `${originForRedirect}/api/integrations/${normalizedProvider}/callback`
+    console.log('[oauth callback]', { provider, normalizedProvider, redirectUri: callbackRedirect, hasCode: Boolean(code) })
     console.log('[OAuth callback:state_verified]', {
       provider,
       brandId: state.brandId,

@@ -18,28 +18,30 @@ const FACEBOOK_SCOPES = [
 ].join(',')
 
 function getFacebookConfig() {
-  const appId = process.env.FACEBOOK_APP_ID
-  const appSecret = process.env.FACEBOOK_APP_SECRET
+  const clientId = process.env.FACEBOOK_CLIENT_ID
+  const clientSecret = process.env.FACEBOOK_CLIENT_SECRET
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const redirectUri =
     process.env.FACEBOOK_REDIRECT_URI || `${siteUrl.replace(/\/$/, '')}/api/integrations/facebook/callback`
 
-  if (!appId || !appSecret) {
-    throw new Error('Facebook OAuth configuration is missing. Ensure FACEBOOK_APP_ID and FACEBOOK_APP_SECRET are set.')
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'Facebook OAuth configuration is missing. Ensure FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET are set.',
+    )
   }
 
   return {
-    appId,
-    appSecret,
+    clientId,
+    clientSecret,
     redirectUri,
   }
 }
 
 export function getFacebookAuthorizationUrl({ state, redirectUri }: OAuthStartOptions): OAuthStartResult {
-  const { appId, redirectUri: defaultRedirect } = getFacebookConfig()
+  const { clientId, redirectUri: defaultRedirect } = getFacebookConfig()
   const finalRedirect = redirectUri ?? defaultRedirect
   const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth')
-  authUrl.searchParams.set('client_id', appId)
+  authUrl.searchParams.set('client_id', clientId)
   authUrl.searchParams.set('redirect_uri', finalRedirect)
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('response_type', 'code')
@@ -53,27 +55,37 @@ async function exchangeFacebookCodeForToken(
   redirectUriOverride: string | undefined,
   logger?: OAuthLogger,
 ) {
-  const { appId, appSecret, redirectUri } = getFacebookConfig()
+  const { clientId, clientSecret, redirectUri } = getFacebookConfig()
   const finalRedirect = redirectUriOverride ?? redirectUri
   const tokenUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
-  tokenUrl.searchParams.set('client_id', appId)
-  tokenUrl.searchParams.set('client_secret', appSecret)
-  tokenUrl.searchParams.set('redirect_uri', finalRedirect)
-  tokenUrl.searchParams.set('code', code)
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: finalRedirect,
+    code,
+  })
 
   logger?.('token_request', {
     provider: 'facebook',
     url: `${tokenUrl.origin}${tokenUrl.pathname}`,
-    query: {
-      client_id: appId,
+    body: {
+      client_id: clientId,
       client_secret: '[redacted]',
       redirect_uri: finalRedirect,
       code: `${code.slice(0, 8)}…`,
     },
   })
 
-  const response = await fetch(tokenUrl, { method: 'GET' })
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  })
   const raw = await response.text()
+
+  console.log('[token]', { provider: 'facebook', status: response.status, raw: raw.slice(0, 500) })
 
   logger?.('token_response', {
     provider: 'facebook',

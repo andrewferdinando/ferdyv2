@@ -4,6 +4,8 @@ import { getAuthorizationUrl } from '@/lib/integrations'
 import { createOAuthState } from '@/lib/oauthState'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 
+export const runtime = 'nodejs' as const
+
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
   if (!header) return null
@@ -64,6 +66,8 @@ export async function POST(request: Request, context: any) {
       provider,
       origin,
     })
+
+    console.log('[oauth start]', { provider, brandId, redirectUri })
 
     const { url } = getAuthorizationUrl(provider, { state, redirectUri })
 

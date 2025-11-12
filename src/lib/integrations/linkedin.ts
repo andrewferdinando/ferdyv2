@@ -78,6 +78,8 @@ async function exchangeLinkedInCode(
 
   const raw = await response.text()
 
+  console.log('[token]', { provider: 'linkedin', status: response.status, raw: raw.slice(0, 500) })
+
   logger?.('token_response', {
     provider: 'linkedin',
     status: response.status,
