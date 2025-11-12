@@ -16,7 +16,8 @@ function getRedirectUrl(brandId: string, params: Record<string, string>) {
   return url
 }
 
-export async function GET(request: Request, context: Record<string, any>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, context: any) {
   const provider = context?.params?.provider as SupportedProvider
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
