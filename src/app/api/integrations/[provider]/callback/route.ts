@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
+import { supabase, supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 import { handleOAuthCallback } from '@/lib/integrations'
 import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
@@ -70,6 +70,16 @@ export async function GET(request: Request, context: any) {
     const state = verifyOAuthState(stateParam)
     brandIdForRedirect = state.brandId
     originForRedirect = state.origin ? state.origin.replace(/\/$/, '') : requestOrigin
+
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    if (exchangeError) {
+      console.error('Error exchanging code for session:', exchangeError.message)
+      const exchangeRedirect = getRedirectUrl(originForRedirect, state.brandId, {
+        error: 'auth_exchange_failed',
+        error_description: 'Failed to establish user session.',
+      })
+      return NextResponse.redirect(exchangeRedirect)
+    }
 
     const stateProvider = state.provider as SupportedProvider
     if (stateProvider !== provider && !(provider === 'instagram' && stateProvider === 'facebook')) {
