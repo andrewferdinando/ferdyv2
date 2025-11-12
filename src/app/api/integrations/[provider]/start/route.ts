@@ -4,7 +4,7 @@ import { getAuthorizationUrl } from '@/lib/integrations'
 import { createOAuthState } from '@/lib/oauthState'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 
-export const runtime = 'nodejs'
+export const runtime = 'nodejs' as const
 
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
@@ -46,6 +46,16 @@ export async function POST(request: Request, context: any) {
 
     const origin = resolveOrigin(request)
     console.log('[oauth start]', { raw, provider, url: request.url })
+    console.log('[env check]', {
+      FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID?.length ?? 0,
+      FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET?.length ?? 0,
+      LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID?.length ?? 0,
+      LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET?.length ?? 0,
+      INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID?.length ?? 0,
+      INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET?.length ?? 0,
+      REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI || process.env.NEXT_PUBLIC_REDIRECT_URI || null,
+      RUNTIME: process.env.NEXT_RUNTIME || 'nodejs',
+    })
 
     if (!provider) {
       const redirect = new URL('/api/integrations/unsupported', origin)
