@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase, supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 import { handleOAuthCallback } from '@/lib/integrations'
 import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
@@ -71,16 +71,6 @@ export async function GET(request: Request, context: any) {
     brandIdForRedirect = state.brandId
     originForRedirect = state.origin ? state.origin.replace(/\/$/, '') : requestOrigin
 
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-    if (exchangeError) {
-      console.error('Error exchanging code for session:', exchangeError.message)
-      const exchangeRedirect = getRedirectUrl(originForRedirect, state.brandId, {
-        error: 'auth_exchange_failed',
-        error_description: 'Failed to establish user session.',
-      })
-      return NextResponse.redirect(exchangeRedirect)
-    }
-
     const stateProvider = state.provider as SupportedProvider
     if (stateProvider !== provider && !(provider === 'instagram' && stateProvider === 'facebook')) {
       throw new Error('OAuth provider mismatch.')
@@ -141,12 +131,12 @@ export async function GET(request: Request, context: any) {
     })
     return NextResponse.redirect(successRedirect)
   } catch (error) {
-    console.error('Integration callback error:', error)
+    const message = error instanceof Error ? error.message : 'Failed to complete integration.'
+    console.error(`Integration callback error for ${provider}:`, message)
     const redirect = getRedirectUrl(originForRedirect, brandIdForRedirect, {
       error: 'integration_failed',
-      error_description: error instanceof Error ? error.message : 'Failed to complete integration.',
+      error_description: message.substring(0, 200),
     })
     return NextResponse.redirect(redirect)
   }
 }
-
