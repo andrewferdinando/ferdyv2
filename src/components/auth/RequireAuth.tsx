@@ -17,17 +17,24 @@ export default function RequireAuth({ children }: RequireAuthProps) {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        // No session, redirect to sign in with return URL
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        console.debug('[RequireAuth] Initial session check', { pathname, hasSession: !!session, error })
+
+        if (!session) {
+          const next = encodeURIComponent(pathname)
+          console.debug('[RequireAuth] No session found, redirecting', { next })
+          router.push(`/auth/sign-in?next=${next}`)
+          return
+        }
+
+        setUser(session.user)
+        setLoading(false)
+      } catch (authError) {
+        console.error('[RequireAuth] Failed to get session', authError)
         const next = encodeURIComponent(pathname)
         router.push(`/auth/sign-in?next=${next}`)
-        return
       }
-
-      setUser(session.user)
-      setLoading(false)
     }
 
     checkSession()
@@ -35,6 +42,7 @@ export default function RequireAuth({ children }: RequireAuthProps) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.debug('[RequireAuth] Auth state change', { event, hasSession: !!session })
         if (event === 'SIGNED_OUT' || !session) {
           const next = encodeURIComponent(pathname)
           router.push(`/auth/sign-in?next=${next}`)
