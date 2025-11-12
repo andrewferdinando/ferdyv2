@@ -1,5 +1,4 @@
-const nodeRuntime = 'nodejs' as const
-export const runtime = nodeRuntime
+export const runtime = 'nodejs'
 
 export { GET } from '../../[provider]/callback/route'
 
