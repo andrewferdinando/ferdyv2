@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 import { handleOAuthCallback } from '@/lib/integrations'
 import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
 
-export const runtime = 'nodejs'
+export const runtime = 'nodejs' as const
 
 const ENV_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
 const DEFAULT_SITE_URL = (ENV_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -41,9 +41,19 @@ function getRedirectUrl(origin: string, brandId: string, params: Record<string, 
   return url
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, context: any) {
-  const provider = context?.params?.provider as SupportedProvider
+export async function GET(request: NextRequest, { params }: { params: { provider: string } }) {
+  const raw = (params?.provider || '').toLowerCase()
+  const providerMap: Record<string, SupportedProvider> = {
+    fb: 'facebook',
+    facebook: 'facebook',
+    ig: 'instagram',
+    instagram: 'instagram',
+    instagram_via_facebook: 'instagram',
+    li: 'linkedin',
+    linkedin: 'linkedin',
+    linkedin_oidc: 'linkedin',
+  }
+  const provider = providerMap[raw]
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const stateParam = url.searchParams.get('state')
@@ -52,6 +62,7 @@ export async function GET(request: Request, context: any) {
 
   const requestOrigin = resolveOrigin(request)
   console.log('[OAuth callback:start]', {
+    raw,
     provider,
     hasCode: Boolean(code),
     stateRaw: stateParam,
@@ -59,6 +70,14 @@ export async function GET(request: Request, context: any) {
     requestUrl: request.url,
   })
   console.log('[runtime]', { provider, runtime: process.env.NEXT_RUNTIME || 'nodejs' })
+
+  if (!provider) {
+    const redirect = getRedirectUrl(requestOrigin, '', {
+      error: 'unsupported_provider',
+      reason: `provider_${raw || 'missing'}`,
+    })
+    return NextResponse.redirect(redirect)
+  }
 
   if (errorParam) {
     const errorRedirect = getRedirectUrl(requestOrigin, '', { error: errorParam, error_description: errorDescription })
@@ -99,23 +118,21 @@ export async function GET(request: Request, context: any) {
     const normalizedProvider = stateProvider === 'instagram' ? 'facebook' : stateProvider
 
     if (normalizedProvider === 'facebook') {
-      const fbId =
+      const FB_CLIENT_ID =
         process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || ''
-      const fbSecret =
+      const FB_CLIENT_SECRET =
         process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || ''
-      console.log('[fb env]', {
-        hasId: Boolean(fbId),
-        id: fbId,
-        secretLen: fbSecret?.length ?? 0,
-        secretStart: fbSecret?.slice(0, 3) ?? null,
-        secretEnd: fbSecret?.slice(-3) ?? null,
+      console.log('[fb env chosen]', {
+        idLen: FB_CLIENT_ID.length,
+        secretLen: FB_CLIENT_SECRET.length,
       })
-      if (!fbId || !fbSecret) {
+
+      if (!FB_CLIENT_ID || !FB_CLIENT_SECRET) {
         return redirectWith('missing_client_secret', 'Facebook client credentials are not configured.')
       }
 
-      process.env.FACEBOOK_CLIENT_ID = fbId
-      process.env.FACEBOOK_CLIENT_SECRET = fbSecret
+      process.env.FACEBOOK_CLIENT_ID = FB_CLIENT_ID
+      process.env.FACEBOOK_CLIENT_SECRET = FB_CLIENT_SECRET
     }
 
     if (normalizedProvider === 'linkedin') {
