@@ -21,10 +21,10 @@ export default function DataDeletionPage() {
         <p>
           If you wish to delete your data associated with Ferdy, please contact us at{' '}
           <a
-            href="mailto:hello@ferdy.io"
+            href="mailto:andrew@ferdy.io"
             className="font-medium text-[#6366F1] underline decoration-transparent transition hover:decoration-[#6366F1]"
           >
-            hello@ferdy.io
+            andrew@ferdy.io
           </a>{' '}
           and we’ll remove all connected data within 30 days.
         </p>
