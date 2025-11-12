@@ -5,9 +5,14 @@ import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
 
-const DEFAULT_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
+const ENV_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
+const DEFAULT_SITE_URL = (ENV_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
 
 function resolveOrigin(request: Request, fallback?: string) {
+  if (ENV_SITE_URL) {
+    return ENV_SITE_URL.replace(/\/$/, '')
+  }
+
   if (fallback) {
     return fallback.replace(/\/$/, '')
   }

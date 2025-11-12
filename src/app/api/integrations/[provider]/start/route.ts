@@ -13,6 +13,11 @@ function extractToken(request: Request) {
 }
 
 function resolveOrigin(request: Request) {
+  const canonical = process.env.NEXT_PUBLIC_SITE_URL
+  if (canonical) {
+    return canonical.replace(/\/$/, '')
+  }
+
   const forwardedProto = request.headers.get('x-forwarded-proto')
   const forwardedHost = request.headers.get('x-forwarded-host')
   const host = forwardedHost ?? request.headers.get('host')
