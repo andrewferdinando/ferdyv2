@@ -180,7 +180,12 @@ export default function IntegrationsPage() {
                         <strong>Connected by:</strong>{' '}
                         {account.connected_by?.full_name || 'Unknown'}
                       </p>
-                      <p><strong>Last refreshed:</strong> {new Date(account.last_refreshed_at).toLocaleDateString()}</p>
+                      <p>
+                        <strong>Last refreshed:</strong>{' '}
+                        {account.last_refreshed_at
+                          ? new Date(account.last_refreshed_at).toLocaleDateString()
+                          : 'Never'}
+                      </p>
                     </div>
                     
                     <div className="flex space-x-2">
