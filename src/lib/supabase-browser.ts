@@ -20,15 +20,20 @@ try {
   console.warn('[supabase-browser] Failed to derive cookie domain from NEXT_PUBLIC_SITE_URL', error)
 }
 
+const authOptions: Record<string, unknown> = {
+  autoRefreshToken: true,
+  persistSession: true,
+  detectSessionInUrl: true,
+}
+
+if (cookieDomain) {
+  authOptions.cookieOptions = {
+    domain: cookieDomain,
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    cookieOptions: {
-      domain: cookieDomain,
-    },
-  },
+  auth: authOptions as Record<string, unknown>,
 })
 
 // Helper to get current session
