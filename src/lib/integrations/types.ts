@@ -28,3 +28,6 @@ export type OAuthCallbackResult = {
   accounts: ConnectedAccount[]
 }
 
+export type OAuthLogger = (event: string, payload: Record<string, unknown>) => void
+
+

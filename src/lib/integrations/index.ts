@@ -4,6 +4,7 @@ import type {
   ConnectedAccount,
   OAuthCallbackArgs,
   OAuthCallbackResult,
+  OAuthLogger,
   OAuthStartOptions,
   OAuthStartResult,
   SupportedProvider,
@@ -25,14 +26,15 @@ export function getAuthorizationUrl(provider: SupportedProvider, options: OAuthS
 export async function handleOAuthCallback(
   provider: SupportedProvider,
   args: OAuthCallbackArgs,
+  logger?: OAuthLogger,
 ): Promise<OAuthCallbackResult> {
   const normalized = provider === 'instagram' ? 'facebook' : provider
 
   switch (normalized) {
     case 'facebook':
-      return handleFacebookCallback(args)
+      return handleFacebookCallback(args, logger)
     case 'linkedin':
-      return handleLinkedInCallback(args)
+      return handleLinkedInCallback(args, logger)
     default:
       throw new Error(`Unsupported provider: ${provider}`)
   }

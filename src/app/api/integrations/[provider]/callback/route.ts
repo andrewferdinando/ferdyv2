@@ -49,6 +49,13 @@ export async function GET(request: Request, context: any) {
   const errorDescription = url.searchParams.get('error_description') || 'OAuth flow was cancelled.'
 
   const requestOrigin = resolveOrigin(request)
+  console.log('[OAuth callback:start]', {
+    provider,
+    hasCode: Boolean(code),
+    stateRaw: stateParam,
+    origin: requestOrigin,
+    requestUrl: request.url,
+  })
 
   if (errorParam) {
     const errorRedirect = getRedirectUrl(requestOrigin, '', { error: errorParam, error_description: errorDescription })
@@ -83,13 +90,34 @@ export async function GET(request: Request, context: any) {
 
     const normalizedProvider = stateProvider === 'instagram' ? 'facebook' : stateProvider
     const callbackRedirect = `${originForRedirect}/api/integrations/${normalizedProvider}/callback`
+    console.log('[OAuth callback:state_verified]', {
+      provider,
+      brandId: state.brandId,
+      userId: state.userId,
+      stateProvider,
+      callbackRedirect,
+    })
 
-    const { accounts } = await handleOAuthCallback(stateProvider, { code, redirectUri: callbackRedirect })
+    const debugLogger = (event: string, payload: Record<string, unknown>) => {
+      console.log('[OAuth callback:debug]', {
+        provider: stateProvider,
+        event,
+        ...payload,
+      })
+    }
+
+    const { accounts } = await handleOAuthCallback(stateProvider, { code, redirectUri: callbackRedirect }, debugLogger)
     if (!accounts.length) {
       throw new Error('No accounts were returned by the provider.')
     }
 
     const targetProviders = Array.from(new Set(accounts.map((account) => account.provider)))
+    console.log('[OAuth callback:accounts]', {
+      provider: stateProvider,
+      brandId: state.brandId,
+      targetProviders,
+      accountCount: accounts.length,
+    })
 
     await supabaseAdmin
       .from('social_accounts')
@@ -124,6 +152,12 @@ export async function GET(request: Request, context: any) {
       if (upsertError) {
         throw new Error(`Failed to store ${account.provider} account: ${upsertError.message}`)
       }
+
+      console.log('[OAuth callback:upsert]', {
+        provider: account.provider,
+        brandId: state.brandId,
+        accountId: account.accountId,
+      })
     }
 
     const successRedirect = getRedirectUrl(originForRedirect, state.brandId, {
@@ -134,9 +168,22 @@ export async function GET(request: Request, context: any) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to complete integration.'
     console.error(`Integration callback error for ${provider}:`, message)
+
+    let reason = 'general_failure'
+    const tokenMatch = message.match(/^TOKEN_EXCHANGE_FAILED:([^:]+):([^:]+):?/i)
+    if (tokenMatch) {
+      reason = `token_${tokenMatch[1]}_${tokenMatch[2]}`
+    } else {
+      const segments = message.split(':')
+      if (segments[0]) {
+        reason = segments[0].toLowerCase().replace(/[^a-z0-9_-]/g, '_')
+      }
+    }
+
     const redirect = getRedirectUrl(originForRedirect, brandIdForRedirect, {
       error: 'integration_failed',
       error_description: message.substring(0, 200),
+      reason: reason.substring(0, 60),
     })
     console.log('OAuth callback redirect ->', redirect.toString())
     return NextResponse.redirect(redirect)

@@ -1,4 +1,11 @@
-import { ConnectedAccount, OAuthCallbackArgs, OAuthCallbackResult, OAuthStartOptions, OAuthStartResult } from './types'
+import {
+  ConnectedAccount,
+  OAuthCallbackArgs,
+  OAuthCallbackResult,
+  OAuthLogger,
+  OAuthStartOptions,
+  OAuthStartResult,
+} from './types'
 
 const FACEBOOK_SCOPES = [
   'pages_manage_posts',
@@ -41,7 +48,11 @@ export function getFacebookAuthorizationUrl({ state, redirectUri }: OAuthStartOp
   return { url: authUrl.toString() }
 }
 
-async function exchangeFacebookCodeForToken(code: string, redirectUriOverride?: string) {
+async function exchangeFacebookCodeForToken(
+  code: string,
+  redirectUriOverride: string | undefined,
+  logger?: OAuthLogger,
+) {
   const { appId, appSecret, redirectUri } = getFacebookConfig()
   const finalRedirect = redirectUriOverride ?? redirectUri
   const tokenUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
@@ -50,64 +61,137 @@ async function exchangeFacebookCodeForToken(code: string, redirectUriOverride?: 
   tokenUrl.searchParams.set('redirect_uri', finalRedirect)
   tokenUrl.searchParams.set('code', code)
 
+  logger?.('token_request', {
+    provider: 'facebook',
+    url: `${tokenUrl.origin}${tokenUrl.pathname}`,
+    query: {
+      client_id: appId,
+      client_secret: '[redacted]',
+      redirect_uri: finalRedirect,
+      code: `${code.slice(0, 8)}…`,
+    },
+  })
+
   const response = await fetch(tokenUrl, { method: 'GET' })
+  const raw = await response.text()
+
+  logger?.('token_response', {
+    provider: 'facebook',
+    status: response.status,
+    ok: response.ok,
+    raw: raw.slice(0, 500),
+  })
+
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`Facebook token exchange failed: ${response.status} ${detail}`)
+    throw new Error(`TOKEN_EXCHANGE_FAILED:facebook:${response.status}:${raw.slice(0, 200)}`)
   }
 
-  return (await response.json()) as {
-    access_token: string
-    token_type: string
-    expires_in?: number
+  try {
+    return JSON.parse(raw) as {
+      access_token: string
+      token_type: string
+      expires_in?: number
+    }
+  } catch (error) {
+    logger?.('token_parse_error', {
+      provider: 'facebook',
+      error: error instanceof Error ? error.message : 'unknown',
+      raw: raw.slice(0, 200),
+    })
+    throw new Error('TOKEN_EXCHANGE_FAILED:facebook:invalid_json')
   }
 }
 
-async function fetchFacebookPages(userAccessToken: string) {
+async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger) {
   const pagesUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
   pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account')
   pagesUrl.searchParams.set('access_token', userAccessToken)
 
+  logger?.('facebook_pages_request', {
+    provider: 'facebook',
+    url: `${pagesUrl.origin}${pagesUrl.pathname}`,
+  })
+
   const response = await fetch(pagesUrl, { method: 'GET' })
+  const raw = await response.text()
+
+  logger?.('facebook_pages_response', {
+    provider: 'facebook',
+    status: response.status,
+    ok: response.ok,
+    raw: raw.slice(0, 500),
+  })
+
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`Failed to list Facebook pages: ${response.status} ${detail}`)
+    throw new Error(`FACEBOOK_PAGES_FAILED:${response.status}:${raw.slice(0, 200)}`)
   }
 
-  return (await response.json()) as {
-    data?: Array<{
-      id: string
-      name: string
-      access_token: string
-      instagram_business_account?: { id: string }
-    }>
+  try {
+    return JSON.parse(raw) as {
+      data?: Array<{
+        id: string
+        name: string
+        access_token: string
+        instagram_business_account?: { id: string }
+      }>
+    }
+  } catch (error) {
+    logger?.('facebook_pages_parse_error', {
+      provider: 'facebook',
+      error: error instanceof Error ? error.message : 'unknown',
+      raw: raw.slice(0, 200),
+    })
+    throw new Error('FACEBOOK_PAGES_FAILED:invalid_json')
   }
 }
 
-async function fetchInstagramAccount(instagramId: string, pageAccessToken: string) {
+async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
   const igUrl = new URL(`https://graph.facebook.com/v19.0/${instagramId}`)
   igUrl.searchParams.set('fields', 'id,username,name')
   igUrl.searchParams.set('access_token', pageAccessToken)
 
+  logger?.('instagram_account_request', {
+    provider: 'instagram',
+    url: `${igUrl.origin}${igUrl.pathname}`,
+    instagramId,
+  })
+
   const response = await fetch(igUrl, { method: 'GET' })
+  const raw = await response.text()
+
+  logger?.('instagram_account_response', {
+    provider: 'instagram',
+    status: response.status,
+    ok: response.ok,
+    raw: raw.slice(0, 500),
+  })
+
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`Failed to fetch Instagram account details: ${response.status} ${detail}`)
+    throw new Error(`INSTAGRAM_ACCOUNT_FAILED:${response.status}:${raw.slice(0, 200)}`)
   }
 
-  return (await response.json()) as {
-    id: string
-    username?: string
-    name?: string
+  try {
+    return JSON.parse(raw) as {
+      id: string
+      username?: string
+      name?: string
+    }
+  } catch (error) {
+    logger?.('instagram_account_parse_error', {
+      provider: 'instagram',
+      error: error instanceof Error ? error.message : 'unknown',
+      raw: raw.slice(0, 200),
+    })
+    throw new Error('INSTAGRAM_ACCOUNT_FAILED:invalid_json')
   }
 }
 
 export async function handleFacebookCallback({
   code,
   redirectUri,
-}: OAuthCallbackArgs): Promise<OAuthCallbackResult> {
-  const tokenResponse = await exchangeFacebookCodeForToken(code, redirectUri)
-  const pagesResponse = await fetchFacebookPages(tokenResponse.access_token)
+}: OAuthCallbackArgs, logger?: OAuthLogger): Promise<OAuthCallbackResult> {
+  const tokenResponse = await exchangeFacebookCodeForToken(code, redirectUri, logger)
+  const pagesResponse = await fetchFacebookPages(tokenResponse.access_token, logger)
 
   const pages = pagesResponse.data || []
   if (!pages.length) {
@@ -133,6 +217,7 @@ export async function handleFacebookCallback({
       const instagramAccount = await fetchInstagramAccount(
         primaryPage.instagram_business_account.id,
         primaryPage.access_token,
+        logger,
       )
 
       accounts.push({

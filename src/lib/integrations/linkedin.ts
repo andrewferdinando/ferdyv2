@@ -1,4 +1,11 @@
-import { ConnectedAccount, OAuthCallbackArgs, OAuthCallbackResult, OAuthStartOptions, OAuthStartResult } from './types'
+import {
+  ConnectedAccount,
+  OAuthCallbackArgs,
+  OAuthCallbackResult,
+  OAuthLogger,
+  OAuthStartOptions,
+  OAuthStartResult,
+} from './types'
 
 const LINKEDIN_SCOPES = ['r_organization_admin', 'w_member_social'].join(' ')
 
@@ -35,7 +42,11 @@ export function getLinkedInAuthorizationUrl({ state, redirectUri }: OAuthStartOp
   return { url: authUrl.toString() }
 }
 
-async function exchangeLinkedInCode(code: string, overrideRedirect?: string) {
+async function exchangeLinkedInCode(
+  code: string,
+  overrideRedirect: string | undefined,
+  logger?: OAuthLogger,
+) {
   const { clientId, clientSecret, redirectUri } = getLinkedInConfig()
   const finalRedirect = overrideRedirect ?? redirectUri
   const body = new URLSearchParams()
@@ -45,6 +56,18 @@ async function exchangeLinkedInCode(code: string, overrideRedirect?: string) {
   body.set('client_id', clientId)
   body.set('client_secret', clientSecret)
 
+  logger?.('token_request', {
+    provider: 'linkedin',
+    url: 'https://www.linkedin.com/oauth/v2/accessToken',
+    body: {
+      grant_type: 'authorization_code',
+      code: `${code.slice(0, 8)}…`,
+      redirect_uri: finalRedirect,
+      client_id: clientId,
+      client_secret: '[redacted]',
+    },
+  })
+
   const response = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
     method: 'POST',
     headers: {
@@ -53,25 +76,47 @@ async function exchangeLinkedInCode(code: string, overrideRedirect?: string) {
     body: body.toString(),
   })
 
+  const raw = await response.text()
+
+  logger?.('token_response', {
+    provider: 'linkedin',
+    status: response.status,
+    ok: response.ok,
+    raw: raw.slice(0, 500),
+  })
+
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`LinkedIn token exchange failed: ${response.status} ${detail}`)
+    throw new Error(`TOKEN_EXCHANGE_FAILED:linkedin:${response.status}:${raw.slice(0, 200)}`)
   }
 
-  return (await response.json()) as {
-    access_token: string
-    expires_in: number
-    refresh_token?: string
-    refresh_token_expires_in?: number
+  try {
+    return JSON.parse(raw) as {
+      access_token: string
+      expires_in: number
+      refresh_token?: string
+      refresh_token_expires_in?: number
+    }
+  } catch (error) {
+    logger?.('token_parse_error', {
+      provider: 'linkedin',
+      error: error instanceof Error ? error.message : 'unknown',
+      raw: raw.slice(0, 200),
+    })
+    throw new Error('TOKEN_EXCHANGE_FAILED:linkedin:invalid_json')
   }
 }
 
-async function fetchLinkedInOrganizations(accessToken: string) {
+async function fetchLinkedInOrganizations(accessToken: string, logger?: OAuthLogger) {
   const aclUrl = new URL('https://api.linkedin.com/v2/organizationAcls')
   aclUrl.searchParams.set('q', 'roleAssignee')
   aclUrl.searchParams.set('role', 'ADMINISTRATOR')
   aclUrl.searchParams.set('state', 'APPROVED')
   aclUrl.searchParams.set('projection', '(elements*(organization~(id,localizedName,vanityName)))')
+
+  logger?.('linkedin_org_request', {
+    provider: 'linkedin',
+    url: `${aclUrl.origin}${aclUrl.pathname}`,
+  })
 
   const response = await fetch(aclUrl, {
     headers: {
@@ -79,28 +124,45 @@ async function fetchLinkedInOrganizations(accessToken: string) {
     },
   })
 
+  const raw = await response.text()
+
+  logger?.('linkedin_org_response', {
+    provider: 'linkedin',
+    status: response.status,
+    ok: response.ok,
+    raw: raw.slice(0, 500),
+  })
+
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`Failed to list LinkedIn organizations: ${response.status} ${detail}`)
+    throw new Error(`LINKEDIN_ORGS_FAILED:${response.status}:${raw.slice(0, 200)}`)
   }
 
-  return (await response.json()) as {
-    elements?: Array<{
-      'organization~'?: {
-        id: number
-        localizedName?: string
-        vanityName?: string
-      }
-    }>
+  try {
+    return JSON.parse(raw) as {
+      elements?: Array<{
+        'organization~'?: {
+          id: number
+          localizedName?: string
+          vanityName?: string
+        }
+      }>
+    }
+  } catch (error) {
+    logger?.('linkedin_org_parse_error', {
+      provider: 'linkedin',
+      error: error instanceof Error ? error.message : 'unknown',
+      raw: raw.slice(0, 200),
+    })
+    throw new Error('LINKEDIN_ORGS_FAILED:invalid_json')
   }
 }
 
 export async function handleLinkedInCallback({
   code,
   redirectUri,
-}: OAuthCallbackArgs): Promise<OAuthCallbackResult> {
-  const tokenResponse = await exchangeLinkedInCode(code, redirectUri)
-  const organizations = await fetchLinkedInOrganizations(tokenResponse.access_token)
+}: OAuthCallbackArgs, logger?: OAuthLogger): Promise<OAuthCallbackResult> {
+  const tokenResponse = await exchangeLinkedInCode(code, redirectUri, logger)
+  const organizations = await fetchLinkedInOrganizations(tokenResponse.access_token, logger)
   const element = organizations.elements?.find((item) => item['organization~'])
 
   if (!element || !element['organization~']) {
