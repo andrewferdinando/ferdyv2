@@ -12,18 +12,11 @@ export type SocialAccountSummary = {
   status: 'connected' | 'expired' | 'revoked' | 'error'
   token_expires_at: string | null
   last_refreshed_at: string | null
-  connected_by_user_id: string
+  connected_by_user_id: string | null
   created_at: string
   connected_by?: {
     full_name: string | null
   } | null
-}
-
-type RawSocialAccount = Omit<SocialAccountSummary, 'connected_by'> & {
-  connected_by:
-    | { full_name: string | null }[]
-    | { full_name: string | null }
-    | null
 }
 
 export function useSocialAccounts(brandId: string) {
@@ -48,7 +41,7 @@ export function useSocialAccounts(brandId: string) {
       setLoading(true)
       setError(null)
 
-        const { data, error } = await supabase
+      const { data, error: accountsError } = await supabase
         .from('social_accounts')
         .select(
           `
@@ -61,27 +54,54 @@ export function useSocialAccounts(brandId: string) {
             token_expires_at,
             last_refreshed_at,
             connected_by_user_id,
-            created_at,
-            connected_by:profiles!social_accounts_connected_by_user_id_fkey(full_name)
+            created_at
           `,
         )
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false })
 
-        if (error) {
-          throw error
+      if (accountsError) {
+        throw accountsError
+      }
+
+      const socialAccounts = (data ?? []) as Omit<SocialAccountSummary, 'connected_by'>[]
+      const userIds = Array.from(
+        new Set(
+          socialAccounts
+            .map((account) => account.connected_by_user_id)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0),
+        ),
+      )
+
+      let userNameLookup: Record<string, { full_name: string | null }> = {}
+
+      if (userIds.length > 0) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds)
+
+        if (profileError) {
+          console.warn('useSocialAccounts: failed to load profile names', profileError)
+        } else {
+          userNameLookup = (profileData ?? []).reduce<Record<string, { full_name: string | null }>>(
+            (acc, profile) => {
+              acc[profile.user_id] = { full_name: profile.full_name ?? null }
+              return acc
+            },
+            {},
+          )
         }
+      }
 
-        const normalized: SocialAccountSummary[] = (data as RawSocialAccount[] | null | undefined)?.map(
-          (account) => ({
-          ...account,
-          connected_by: Array.isArray(account.connected_by)
-            ? account.connected_by[0] ?? null
-            : account.connected_by ?? null,
-          }),
-        ) ?? []
+      const normalized: SocialAccountSummary[] = socialAccounts.map((account) => ({
+        ...account,
+        connected_by: account.connected_by_user_id
+          ? userNameLookup[account.connected_by_user_id] ?? null
+          : null,
+      }))
 
-        setAccounts(normalized)
+      setAccounts(normalized)
     } catch (err) {
       console.error('useSocialAccounts: fetch error', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch social accounts')
