@@ -99,8 +99,10 @@ export async function GET(request: Request, context: any) {
     const normalizedProvider = stateProvider === 'instagram' ? 'facebook' : stateProvider
 
     if (normalizedProvider === 'facebook') {
-      const fbId = process.env.FACEBOOK_CLIENT_ID
-      const fbSecret = process.env.FACEBOOK_CLIENT_SECRET
+      const fbId =
+        process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || ''
+      const fbSecret =
+        process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || ''
       console.log('[fb env]', {
         hasId: Boolean(fbId),
         id: fbId,
@@ -111,6 +113,9 @@ export async function GET(request: Request, context: any) {
       if (!fbId || !fbSecret) {
         return redirectWith('missing_client_secret', 'Facebook client credentials are not configured.')
       }
+
+      process.env.FACEBOOK_CLIENT_ID = fbId
+      process.env.FACEBOOK_CLIENT_SECRET = fbSecret
     }
 
     if (normalizedProvider === 'linkedin') {

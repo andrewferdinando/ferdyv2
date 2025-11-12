@@ -69,6 +69,30 @@ export async function POST(request: Request, context: any) {
       return NextResponse.json({ error: 'brandId is required' }, { status: 400 })
     }
 
+    if (provider === 'facebook' || provider === 'instagram') {
+      const FB_CLIENT_ID =
+        process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || ''
+      const FB_CLIENT_SECRET =
+        process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || ''
+
+      if (!FB_CLIENT_ID || !FB_CLIENT_SECRET) {
+        console.error('[facebook oauth] Missing FB envs', {
+          idLen: FB_CLIENT_ID.length,
+          secretLen: FB_CLIENT_SECRET.length,
+          keys: Object.keys(process.env).filter((key) => key.startsWith('FACEBOOK')),
+        })
+        const redirect = new URL(
+          `/brands/${brandId}/engine-room/integrations?error=start_failed&reason=missing_fb_env`,
+          origin,
+        )
+        return NextResponse.redirect(redirect)
+      }
+
+      // Ensure downstream helpers see the normalized credentials
+      process.env.FACEBOOK_CLIENT_ID = FB_CLIENT_ID
+      process.env.FACEBOOK_CLIENT_SECRET = FB_CLIENT_SECRET
+    }
+
     const token = extractToken(request)
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
