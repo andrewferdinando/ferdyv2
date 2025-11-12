@@ -4,12 +4,10 @@ import { decryptToken } from '@/lib/encryption'
 import { revokeProviderAccess } from '@/lib/integrations'
 import type { ConnectedAccount, SupportedProvider } from '@/lib/integrations/types'
 
-export async function POST(
-  request: Request,
-  { params }: { params: { provider: SupportedProvider } },
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function POST(request: Request, context: any) {
   try {
-    const provider = params.provider
+    const provider = context?.params?.provider as SupportedProvider
     if (!['facebook', 'instagram', 'linkedin'].includes(provider)) {
       return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 })
     }
