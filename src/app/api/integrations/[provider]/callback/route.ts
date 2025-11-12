@@ -128,7 +128,11 @@ export async function GET(
         process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || ''
       console.log('[fb env chosen]', {
         idLen: FB_CLIENT_ID.length,
+        idStart: FB_CLIENT_ID.slice(0, 4),
+        idEnd: FB_CLIENT_ID.slice(-4),
         secretLen: FB_CLIENT_SECRET.length,
+        secretStart: FB_CLIENT_SECRET.slice(0, 4),
+        secretEnd: FB_CLIENT_SECRET.slice(-4),
       })
 
       if (!FB_CLIENT_ID || !FB_CLIENT_SECRET) {
