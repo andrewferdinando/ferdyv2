@@ -41,7 +41,7 @@ export function useSocialAccounts(brandId: string) {
       setLoading(true)
       setError(null)
 
-      const { data, error } = await supabase
+        const { data, error } = await supabase
         .from('social_accounts')
         .select(
           `
@@ -61,11 +61,18 @@ export function useSocialAccounts(brandId: string) {
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        throw error
-      }
+        if (error) {
+          throw error
+        }
 
-      setAccounts((data || []) as SocialAccountSummary[])
+        const normalized = (data || []).map((account: any) => ({
+          ...account,
+          connected_by: Array.isArray(account.connected_by)
+            ? account.connected_by[0] ?? null
+            : account.connected_by ?? null,
+        }))
+
+        setAccounts(normalized as SocialAccountSummary[])
     } catch (err) {
       console.error('useSocialAccounts: fetch error', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch social accounts')
