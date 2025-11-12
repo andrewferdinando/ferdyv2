@@ -12,6 +12,7 @@ export type ConnectedAccount = {
 
 export type OAuthStartOptions = {
   state: string
+  redirectUri?: string
 }
 
 export type OAuthStartResult = {
@@ -20,6 +21,7 @@ export type OAuthStartResult = {
 
 export type OAuthCallbackArgs = {
   code: string
+  redirectUri?: string
 }
 
 export type OAuthCallbackResult = {

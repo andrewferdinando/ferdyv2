@@ -22,24 +22,26 @@ function getLinkedInConfig() {
   }
 }
 
-export function getLinkedInAuthorizationUrl({ state }: OAuthStartOptions): OAuthStartResult {
-  const { clientId, redirectUri } = getLinkedInConfig()
+export function getLinkedInAuthorizationUrl({ state, redirectUri }: OAuthStartOptions): OAuthStartResult {
+  const { clientId, redirectUri: defaultRedirect } = getLinkedInConfig()
+  const finalRedirect = redirectUri ?? defaultRedirect
   const authUrl = new URL('https://www.linkedin.com/oauth/v2/authorization')
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('client_id', clientId)
-  authUrl.searchParams.set('redirect_uri', redirectUri)
+  authUrl.searchParams.set('redirect_uri', finalRedirect)
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('scope', LINKEDIN_SCOPES)
 
   return { url: authUrl.toString() }
 }
 
-async function exchangeLinkedInCode(code: string) {
+async function exchangeLinkedInCode(code: string, overrideRedirect?: string) {
   const { clientId, clientSecret, redirectUri } = getLinkedInConfig()
+  const finalRedirect = overrideRedirect ?? redirectUri
   const body = new URLSearchParams()
   body.set('grant_type', 'authorization_code')
   body.set('code', code)
-  body.set('redirect_uri', redirectUri)
+  body.set('redirect_uri', finalRedirect)
   body.set('client_id', clientId)
   body.set('client_secret', clientSecret)
 
@@ -93,8 +95,11 @@ async function fetchLinkedInOrganizations(accessToken: string) {
   }
 }
 
-export async function handleLinkedInCallback({ code }: OAuthCallbackArgs): Promise<OAuthCallbackResult> {
-  const tokenResponse = await exchangeLinkedInCode(code)
+export async function handleLinkedInCallback({
+  code,
+  redirectUri,
+}: OAuthCallbackArgs): Promise<OAuthCallbackResult> {
+  const tokenResponse = await exchangeLinkedInCode(code, redirectUri)
   const organizations = await fetchLinkedInOrganizations(tokenResponse.access_token)
   const element = organizations.elements?.find((item) => item['organization~'])
 

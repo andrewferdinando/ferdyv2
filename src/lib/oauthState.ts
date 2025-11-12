@@ -12,6 +12,7 @@ export type OAuthStatePayload = {
   provider: string
   timestamp: number
   redirectPath?: string
+  origin?: string
 }
 
 const STATE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes

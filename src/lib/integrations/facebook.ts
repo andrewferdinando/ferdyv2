@@ -28,11 +28,12 @@ function getFacebookConfig() {
   }
 }
 
-export function getFacebookAuthorizationUrl({ state }: OAuthStartOptions): OAuthStartResult {
-  const { appId, redirectUri } = getFacebookConfig()
+export function getFacebookAuthorizationUrl({ state, redirectUri }: OAuthStartOptions): OAuthStartResult {
+  const { appId, redirectUri: defaultRedirect } = getFacebookConfig()
+  const finalRedirect = redirectUri ?? defaultRedirect
   const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth')
   authUrl.searchParams.set('client_id', appId)
-  authUrl.searchParams.set('redirect_uri', redirectUri)
+  authUrl.searchParams.set('redirect_uri', finalRedirect)
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('scope', FACEBOOK_SCOPES)
@@ -40,12 +41,13 @@ export function getFacebookAuthorizationUrl({ state }: OAuthStartOptions): OAuth
   return { url: authUrl.toString() }
 }
 
-async function exchangeFacebookCodeForToken(code: string) {
+async function exchangeFacebookCodeForToken(code: string, redirectUriOverride?: string) {
   const { appId, appSecret, redirectUri } = getFacebookConfig()
+  const finalRedirect = redirectUriOverride ?? redirectUri
   const tokenUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
   tokenUrl.searchParams.set('client_id', appId)
   tokenUrl.searchParams.set('client_secret', appSecret)
-  tokenUrl.searchParams.set('redirect_uri', redirectUri)
+  tokenUrl.searchParams.set('redirect_uri', finalRedirect)
   tokenUrl.searchParams.set('code', code)
 
   const response = await fetch(tokenUrl, { method: 'GET' })
@@ -100,8 +102,11 @@ async function fetchInstagramAccount(instagramId: string, pageAccessToken: strin
   }
 }
 
-export async function handleFacebookCallback({ code }: OAuthCallbackArgs): Promise<OAuthCallbackResult> {
-  const tokenResponse = await exchangeFacebookCodeForToken(code)
+export async function handleFacebookCallback({
+  code,
+  redirectUri,
+}: OAuthCallbackArgs): Promise<OAuthCallbackResult> {
+  const tokenResponse = await exchangeFacebookCodeForToken(code, redirectUri)
   const pagesResponse = await fetchFacebookPages(tokenResponse.access_token)
 
   const pages = pagesResponse.data || []

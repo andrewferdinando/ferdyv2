@@ -12,6 +12,15 @@ function extractToken(request: Request) {
   return token
 }
 
+function resolveOrigin(request: Request) {
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const host = forwardedHost ?? request.headers.get('host')
+  const scheme = forwardedProto ?? (host?.startsWith('localhost') ? 'http' : 'https')
+  const fallback = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  return host ? `${scheme}://${host}` : fallback
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
   try {
@@ -40,13 +49,18 @@ export async function POST(request: Request, context: any) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
+    const origin = resolveOrigin(request)
+    const normalizedProvider = provider === 'instagram' ? 'facebook' : provider
+    const redirectUri = `${origin}/api/integrations/${normalizedProvider}/callback`
+
     const state = createOAuthState({
       brandId,
       userId: userData.user.id,
       provider,
+      origin,
     })
 
-    const { url } = getAuthorizationUrl(provider, { state })
+    const { url } = getAuthorizationUrl(provider, { state, redirectUri })
 
     return NextResponse.json({ url })
   } catch (error) {
