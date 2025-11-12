@@ -5,7 +5,7 @@ import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
 
-export const runtime = 'nodejs' as const
+export const runtime = 'nodejs'
 
 const ENV_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
 const DEFAULT_SITE_URL = (ENV_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
