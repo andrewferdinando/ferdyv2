@@ -5,7 +5,8 @@ import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
 
-export const runtime = 'nodejs'
+const nodeRuntime = 'nodejs' as const
+export const runtime = nodeRuntime
 
 const ENV_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
 const DEFAULT_SITE_URL = (ENV_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -58,6 +59,7 @@ export async function GET(request: Request, context: any) {
     origin: requestOrigin,
     requestUrl: request.url,
   })
+  console.log('[runtime]', { provider, runtime: process.env.NEXT_RUNTIME || 'nodejs' })
 
   if (errorParam) {
     const errorRedirect = getRedirectUrl(requestOrigin, '', { error: errorParam, error_description: errorDescription })
