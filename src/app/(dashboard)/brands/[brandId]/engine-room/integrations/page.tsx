@@ -207,6 +207,7 @@ export default function IntegrationsPage() {
     setErrorMessage(null)
     setActionProvider(providerId)
     try {
+    console.log('[oauth click]', providerId)
       const { data: sessionData } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
 

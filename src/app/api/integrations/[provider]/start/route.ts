@@ -4,7 +4,7 @@ import { getAuthorizationUrl } from '@/lib/integrations'
 import { createOAuthState } from '@/lib/oauthState'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 
-export const runtime = 'nodejs'
+export const runtime = 'nodejs' as const
 
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
@@ -31,9 +31,27 @@ function resolveOrigin(request: Request) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
   try {
-    const provider = context?.params?.provider as SupportedProvider
-    if (!['facebook', 'instagram', 'linkedin'].includes(provider)) {
-      return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 })
+    const raw = String(context?.params?.provider ?? '').toLowerCase()
+    const providerMap: Record<string, SupportedProvider> = {
+      fb: 'facebook',
+      facebook: 'facebook',
+      ig: 'instagram',
+      instagram: 'instagram',
+      instagram_via_facebook: 'instagram',
+      li: 'linkedin',
+      linkedin: 'linkedin',
+      linkedin_oidc: 'linkedin',
+    }
+    const provider = providerMap[raw]
+
+    const origin = resolveOrigin(request)
+    console.log('[oauth start]', { raw, provider, url: request.url })
+
+    if (!provider) {
+      const redirect = new URL('/api/integrations/unsupported', origin)
+      redirect.searchParams.set('error', 'unsupported_provider')
+      redirect.searchParams.set('prov', raw)
+      return NextResponse.redirect(redirect)
     }
 
     const { brandId } = await request.json().catch(() => ({}))
@@ -56,7 +74,6 @@ export async function POST(request: Request, context: any) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    const origin = resolveOrigin(request)
     const normalizedProvider = provider === 'instagram' ? 'facebook' : provider
     const redirectUri = `${origin}/api/integrations/${normalizedProvider}/callback`
 
