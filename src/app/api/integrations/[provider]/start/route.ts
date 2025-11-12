@@ -4,7 +4,7 @@ import { getAuthorizationUrl } from '@/lib/integrations'
 import { createOAuthState } from '@/lib/oauthState'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 
-export const runtime = 'nodejs' as const
+export const runtime = 'nodejs'
 
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
