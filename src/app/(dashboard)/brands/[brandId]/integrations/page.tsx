@@ -176,7 +176,10 @@ export default function IntegrationsPage() {
                   <div className="space-y-3">
                     <div className="text-sm text-gray-600">
                       <p><strong>Handle:</strong> @{account.handle}</p>
-                      <p><strong>Connected by:</strong> {account.connected_by.full_name}</p>
+                      <p>
+                        <strong>Connected by:</strong>{' '}
+                        {account.connected_by?.full_name || 'Unknown'}
+                      </p>
                       <p><strong>Last refreshed:</strong> {new Date(account.last_refreshed_at).toLocaleDateString()}</p>
                     </div>
                     
