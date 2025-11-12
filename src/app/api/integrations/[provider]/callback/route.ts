@@ -16,11 +16,8 @@ function getRedirectUrl(brandId: string, params: Record<string, string>) {
   return url
 }
 
-export async function GET(
-  request: Request,
-  context: { params: { provider?: unknown } },
-) {
-  const provider = context.params?.provider as SupportedProvider
+export async function GET(request: Request, context: Record<string, any>) {
+  const provider = context?.params?.provider as SupportedProvider
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const stateParam = url.searchParams.get('state')
