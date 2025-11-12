@@ -97,7 +97,12 @@ export function useSocialAccounts(brandId: string) {
   const disconnectAccount = useCallback(
     async (provider: string) => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession()
+        const client = supabase
+        if (!client) {
+          throw new Error('Supabase client not available')
+        }
+
+        const { data: sessionData } = await client.auth.getSession()
         const accessToken = sessionData.session?.access_token
 
         if (!accessToken) {
