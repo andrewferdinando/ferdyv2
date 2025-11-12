@@ -4,11 +4,8 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (
-    pathname.startsWith('/api/integrations/facebook/callback') ||
-    pathname.startsWith('/api/integrations/instagram/callback') ||
-    pathname.startsWith('/api/integrations/linkedin/callback')
-  ) {
+  // Allow social OAuth handshake routes through untouched
+  if (pathname.startsWith('/api/integrations/')) {
     return NextResponse.next()
   }
 
