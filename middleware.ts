@@ -9,6 +9,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  if (pathname.match(/^\/brands\/[^/]+\/engine-room\/integrations/)) {
+    return NextResponse.next()
+  }
+
   return NextResponse.next()
 }
 

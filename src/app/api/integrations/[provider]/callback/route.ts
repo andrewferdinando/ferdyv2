@@ -129,6 +129,7 @@ export async function GET(request: Request, context: any) {
     const successRedirect = getRedirectUrl(originForRedirect, state.brandId, {
       connected: targetProviders.join(','),
     })
+    console.log('OAuth callback redirect ->', successRedirect.toString())
     return NextResponse.redirect(successRedirect)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to complete integration.'
@@ -137,6 +138,7 @@ export async function GET(request: Request, context: any) {
       error: 'integration_failed',
       error_description: message.substring(0, 200),
     })
+    console.log('OAuth callback redirect ->', redirect.toString())
     return NextResponse.redirect(redirect)
   }
 }
