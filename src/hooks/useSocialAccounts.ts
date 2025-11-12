@@ -97,10 +97,18 @@ export function useSocialAccounts(brandId: string) {
   const disconnectAccount = useCallback(
     async (provider: string) => {
       try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const accessToken = sessionData.session?.access_token
+
+        if (!accessToken) {
+          throw new Error('Unauthorized')
+        }
+
         const response = await fetch(`/api/integrations/${provider}/disconnect`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({ brandId }),
         })

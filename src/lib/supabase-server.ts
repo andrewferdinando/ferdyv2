@@ -18,23 +18,31 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 // Helper to require admin access for a brand
 export async function requireAdmin(brandId: string, userId: string) {
   // Check if user is super admin
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('role')
     .eq('user_id', userId)
     .single()
+
+  if (profileError) {
+    throw profileError
+  }
 
   if (profile?.role === 'super_admin') {
     return true
   }
 
   // Check if user is brand admin
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabaseAdmin
     .from('brand_memberships')
     .select('role')
     .eq('brand_id', brandId)
     .eq('user_id', userId)
     .single()
+
+  if (membershipError) {
+    throw membershipError
+  }
 
   return membership?.role === 'admin'
 }

@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
+import { supabase } from '@/lib/supabase-browser'
 
 // Icons
 const LinkIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -143,9 +144,19 @@ export default function IntegrationsPage() {
     setErrorMessage(null)
     setActionProvider(providerId)
     try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+
+      if (!accessToken) {
+        throw new Error('Unauthorized')
+      }
+
       const response = await fetch(`/api/integrations/${providerId}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ brandId }),
       })
 

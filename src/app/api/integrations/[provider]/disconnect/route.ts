@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server'
-import { supabase, supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 import { decryptToken } from '@/lib/encryption'
 import { revokeProviderAccess } from '@/lib/integrations'
 import type { ConnectedAccount, SupportedProvider } from '@/lib/integrations/types'
+
+function extractToken(request: Request) {
+  const header = request.headers.get('Authorization')
+  if (!header) return null
+  const [scheme, token] = header.split(' ')
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null
+  return token
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
@@ -17,15 +25,17 @@ export async function POST(request: Request, context: any) {
       return NextResponse.json({ error: 'brandId is required' }, { status: 400 })
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session?.user) {
+    const token = extractToken(request)
+    if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const hasAccess = await requireAdmin(brandId, session.user.id)
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token)
+    if (userError || !userData?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const hasAccess = await requireAdmin(brandId, userData.user.id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
@@ -48,9 +58,7 @@ export async function POST(request: Request, context: any) {
     }
 
     for (const account of accounts) {
-      if (!account.token_encrypted) {
-        continue
-      }
+      if (!account.token_encrypted) continue
 
       try {
         const decryptedToken = decryptToken(account.token_encrypted)
