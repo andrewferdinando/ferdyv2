@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 import { handleOAuthCallback } from '@/lib/integrations'
 import type { SupportedProvider } from '@/lib/integrations/types'
@@ -17,10 +17,10 @@ function getRedirectUrl(brandId: string, params: Record<string, string>) {
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { provider: string } },
+  request: Request,
+  context: { params: { provider: string } },
 ) {
-  const provider = params.provider as SupportedProvider
+  const provider = context.params.provider as SupportedProvider
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const stateParam = url.searchParams.get('state')
