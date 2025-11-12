@@ -5,7 +5,7 @@ import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
 
-export const runtime = 'nodejs' as const
+export const runtime = 'nodejs'
 
 const ENV_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
 const DEFAULT_SITE_URL = (ENV_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -41,8 +41,12 @@ function getRedirectUrl(origin: string, brandId: string, params: Record<string, 
   return url
 }
 
-export async function GET(request: NextRequest, { params }: { params: { provider: string } }) {
-  const raw = (params?.provider || '').toLowerCase()
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ provider: string }> },
+) {
+  const { provider: providerParam } = await context.params
+  const raw = (providerParam || '').toLowerCase()
   const providerMap: Record<string, SupportedProvider> = {
     fb: 'facebook',
     facebook: 'facebook',

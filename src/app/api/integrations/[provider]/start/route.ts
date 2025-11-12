@@ -4,7 +4,7 @@ import { getAuthorizationUrl } from '@/lib/integrations'
 import { createOAuthState } from '@/lib/oauthState'
 import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 
-export const runtime = 'nodejs' as const
+export const runtime = 'nodejs'
 
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
@@ -28,9 +28,13 @@ function resolveOrigin(request: Request) {
   return host ? `${scheme}://${host}` : fallback
 }
 
-export async function POST(request: NextRequest, { params }: { params: { provider: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ provider: string }> },
+) {
   try {
-    const raw = (params?.provider || '').toLowerCase()
+    const { provider: providerParam } = await context.params
+    const raw = (providerParam || '').toLowerCase()
     const providerMap: Record<string, SupportedProvider> = {
       fb: 'facebook',
       facebook: 'facebook',
