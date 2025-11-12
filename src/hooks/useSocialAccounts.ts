@@ -19,6 +19,13 @@ export type SocialAccountSummary = {
   } | null
 }
 
+type RawSocialAccount = Omit<SocialAccountSummary, 'connected_by'> & {
+  connected_by:
+    | { full_name: string | null }[]
+    | { full_name: string | null }
+    | null
+}
+
 export function useSocialAccounts(brandId: string) {
   const [accounts, setAccounts] = useState<SocialAccountSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,14 +72,16 @@ export function useSocialAccounts(brandId: string) {
           throw error
         }
 
-        const normalized = (data || []).map((account: any) => ({
+        const normalized: SocialAccountSummary[] = (data as RawSocialAccount[] | null | undefined)?.map(
+          (account) => ({
           ...account,
           connected_by: Array.isArray(account.connected_by)
             ? account.connected_by[0] ?? null
             : account.connected_by ?? null,
-        }))
+          }),
+        ) ?? []
 
-        setAccounts(normalized as SocialAccountSummary[])
+        setAccounts(normalized)
     } catch (err) {
       console.error('useSocialAccounts: fetch error', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch social accounts')
