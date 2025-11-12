@@ -127,21 +127,55 @@ function ClientAuthGate() {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    let isMounted = true
+    if (!supabase) {
+      return
+    }
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        const next = encodeURIComponent(window.location.pathname)
-        router.replace(`/auth/sign-in?next=${next}`)
+    let isActive = true
+    let redirectTimer: ReturnType<typeof setTimeout> | null = null
+
+    const goToSignIn = () => {
+      if (!isActive) return
+      const next = encodeURIComponent(window.location.pathname + window.location.search)
+      router.replace(`/auth/sign-in?next=${next}`)
+    }
+
+    const checkSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!isActive) return
+
+        if (data.session) {
+          setChecking(false)
+          return
+        }
+
+        redirectTimer = setTimeout(goToSignIn, 2000)
+      } catch (error) {
+        console.error('ClientAuthGate: failed to get session', error)
+        redirectTimer = setTimeout(goToSignIn, 500)
       }
+    }
 
-      if (isMounted) {
+    void checkSession()
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isActive) return
+      if (session) {
+        if (redirectTimer) {
+          clearTimeout(redirectTimer)
+          redirectTimer = null
+        }
         setChecking(false)
       }
     })
 
     return () => {
-      isMounted = false
+      isActive = false
+      if (redirectTimer) {
+        clearTimeout(redirectTimer)
+      }
+      subscription?.subscription.unsubscribe()
     }
   }, [router])
 
