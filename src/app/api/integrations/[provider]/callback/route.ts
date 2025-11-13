@@ -84,7 +84,20 @@ export async function GET(
   }
 
   if (errorParam) {
-    const errorRedirect = getRedirectUrl(requestOrigin, '', { error: errorParam, error_description: errorDescription })
+    let message = errorDescription
+    let reason = errorParam
+
+    if (provider === 'linkedin' && errorParam === 'unauthorized_scope_error') {
+      message =
+        'We couldn’t complete the LinkedIn connection. Please reconnect your LinkedIn profile and try again.'
+      reason = 'linkedin_scope_denied'
+    }
+
+    const errorRedirect = getRedirectUrl(requestOrigin, '', {
+      error: 'integration_failed',
+      error_description: message.substring(0, 200),
+      reason,
+    })
     return NextResponse.redirect(errorRedirect)
   }
 

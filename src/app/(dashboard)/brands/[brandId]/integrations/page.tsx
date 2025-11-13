@@ -51,10 +51,10 @@ const socialProviders: SocialProvider[] = [
   },
   {
     id: 'linkedin',
-    name: 'LinkedIn',
+    name: 'LinkedIn Profile',
     icon: '💼',
     color: 'bg-blue-700',
-    description: 'Connect your LinkedIn company page'
+    description: 'Connect to your personal LinkedIn profile'
   },
   {
     id: 'tiktok',
@@ -229,7 +229,7 @@ export default function IntegrationsPage() {
             <p><strong>Facebook:</strong> Requires a Facebook Page and appropriate permissions</p>
             <p><strong>Instagram:</strong> Requires Instagram Business Account connected to Facebook Page</p>
             <p><strong>Twitter/X:</strong> Requires API access and developer account</p>
-            <p><strong>LinkedIn:</strong> Requires LinkedIn Company Page admin access</p>
+            <p><strong>LinkedIn:</strong> Connect a personal LinkedIn profile to publish to your feed</p>
             <p><strong>TikTok:</strong> Requires TikTok Business Account</p>
           </div>
         </div>

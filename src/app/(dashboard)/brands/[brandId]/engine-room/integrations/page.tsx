@@ -71,10 +71,10 @@ const socialProviders: SocialProvider[] = [
   },
   {
     id: 'linkedin',
-    name: 'LinkedIn',
+    name: 'LinkedIn Profile',
     icon: 'linkedin',
     color: '#0A66C2',
-    description: 'Connect your LinkedIn Company Page.',
+    description: 'Connect to your personal LinkedIn profile.',
   },
 ]
 
@@ -411,8 +411,8 @@ export default function IntegrationsPage() {
                   <h4 className="text-base font-semibold text-gray-950">LinkedIn</h4>
                   <ul className="mt-3 space-y-2 text-sm text-gray-700">
                     <li>
-                      <span className="font-semibold text-gray-900">LinkedIn:</span> Requires admin access to the company
-                      page.
+                      <span className="font-semibold text-gray-900">LinkedIn:</span> Connect a personal LinkedIn profile
+                      that can publish to your own feed.
                     </li>
                   </ul>
                 </div>

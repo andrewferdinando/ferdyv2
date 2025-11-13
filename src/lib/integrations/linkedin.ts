@@ -7,7 +7,7 @@ import {
   OAuthStartResult,
 } from './types'
 
-const LINKEDIN_SCOPES = ['r_organization_admin', 'w_member_social'].join(' ')
+const LINKEDIN_SCOPES = ['r_liteprofile', 'w_member_social'].join(' ')
 
 function getLinkedInConfig() {
   const clientId = process.env.LINKEDIN_CLIENT_ID
@@ -38,6 +38,8 @@ export function getLinkedInAuthorizationUrl({ state, redirectUri }: OAuthStartOp
   authUrl.searchParams.set('redirect_uri', finalRedirect)
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('scope', LINKEDIN_SCOPES)
+
+  console.log('[linkedin scopes]', LINKEDIN_SCOPES)
 
   return { url: authUrl.toString() }
 }
@@ -108,19 +110,55 @@ async function exchangeLinkedInCode(
   }
 }
 
-async function fetchLinkedInOrganizations(accessToken: string, logger?: OAuthLogger) {
-  const aclUrl = new URL('https://api.linkedin.com/v2/organizationAcls')
-  aclUrl.searchParams.set('q', 'roleAssignee')
-  aclUrl.searchParams.set('role', 'ADMINISTRATOR')
-  aclUrl.searchParams.set('state', 'APPROVED')
-  aclUrl.searchParams.set('projection', '(elements*(organization~(id,localizedName,vanityName)))')
+export async function handleLinkedInCallback({
+  code,
+  redirectUri,
+}: OAuthCallbackArgs, logger?: OAuthLogger): Promise<OAuthCallbackResult> {
+  const tokenResponse = await exchangeLinkedInCode(code, redirectUri, logger)
+  const profile = await fetchLinkedInMemberProfile(tokenResponse.access_token, logger)
+  const memberUrn = `urn:li:person:${profile.id}`
+  const fullName = [profile.localizedFirstName, profile.localizedLastName].filter(Boolean).join(' ').trim()
 
-  logger?.('linkedin_org_request', {
+  logger?.('linkedin_member_profile', {
     provider: 'linkedin',
-    url: `${aclUrl.origin}${aclUrl.pathname}`,
+    id: profile.id,
+    memberUrn,
+    fullName,
+  })
+  console.log('[linkedin member]', { id: profile.id, memberUrn, fullName })
+
+  const accounts: ConnectedAccount[] = [
+    {
+      provider: 'linkedin',
+      accountId: memberUrn,
+      handle: fullName || `LinkedIn User ${profile.id}`,
+      accessToken: tokenResponse.access_token,
+      refreshToken: tokenResponse.refresh_token,
+      expiresAt: tokenResponse.expires_in
+        ? new Date(Date.now() + tokenResponse.expires_in * 1000)
+        : undefined,
+      metadata: {
+        memberUrn,
+        linkedInId: profile.id,
+        localizedFirstName: profile.localizedFirstName ?? null,
+        localizedLastName: profile.localizedLastName ?? null,
+      },
+    },
+  ]
+
+  return { accounts }
+}
+
+async function fetchLinkedInMemberProfile(accessToken: string, logger?: OAuthLogger) {
+  const meUrl = new URL('https://api.linkedin.com/v2/me')
+  meUrl.searchParams.set('projection', '(id,localizedFirstName,localizedLastName)')
+
+  logger?.('linkedin_me_request', {
+    provider: 'linkedin',
+    url: `${meUrl.origin}${meUrl.pathname}`,
   })
 
-  const response = await fetch(aclUrl, {
+  const response = await fetch(meUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -128,7 +166,7 @@ async function fetchLinkedInOrganizations(accessToken: string, logger?: OAuthLog
 
   const raw = await response.text()
 
-  logger?.('linkedin_org_response', {
+  logger?.('linkedin_me_response', {
     provider: 'linkedin',
     status: response.status,
     ok: response.ok,
@@ -136,58 +174,23 @@ async function fetchLinkedInOrganizations(accessToken: string, logger?: OAuthLog
   })
 
   if (!response.ok) {
-    throw new Error(`LINKEDIN_ORGS_FAILED:${response.status}:${raw.slice(0, 200)}`)
+    throw new Error(`LINKEDIN_PROFILE_FAILED:${response.status}:${raw.slice(0, 200)}`)
   }
 
   try {
     return JSON.parse(raw) as {
-      elements?: Array<{
-        'organization~'?: {
-          id: number
-          localizedName?: string
-          vanityName?: string
-        }
-      }>
+      id: string
+      localizedFirstName?: string
+      localizedLastName?: string
     }
   } catch (error) {
-    logger?.('linkedin_org_parse_error', {
+    logger?.('linkedin_me_parse_error', {
       provider: 'linkedin',
       error: error instanceof Error ? error.message : 'unknown',
       raw: raw.slice(0, 200),
     })
-    throw new Error('LINKEDIN_ORGS_FAILED:invalid_json')
+    throw new Error('LINKEDIN_PROFILE_FAILED:invalid_json')
   }
-}
-
-export async function handleLinkedInCallback({
-  code,
-  redirectUri,
-}: OAuthCallbackArgs, logger?: OAuthLogger): Promise<OAuthCallbackResult> {
-  const tokenResponse = await exchangeLinkedInCode(code, redirectUri, logger)
-  const organizations = await fetchLinkedInOrganizations(tokenResponse.access_token, logger)
-  const element = organizations.elements?.find((item) => item['organization~'])
-
-  if (!element || !element['organization~']) {
-    throw new Error('No LinkedIn organization found. You must be an administrator of at least one company page.')
-  }
-
-  const { id, localizedName, vanityName } = element['organization~']
-  const handle = localizedName || vanityName || `LinkedIn Org ${id}`
-
-  const accounts: ConnectedAccount[] = [
-    {
-      provider: 'linkedin',
-      accountId: id.toString(),
-      handle,
-      accessToken: tokenResponse.access_token,
-      refreshToken: tokenResponse.refresh_token,
-      expiresAt: tokenResponse.expires_in
-        ? new Date(Date.now() + tokenResponse.expires_in * 1000)
-        : undefined,
-    },
-  ]
-
-  return { accounts }
 }
 
 export async function revokeLinkedInAccess(accessToken: string) {
