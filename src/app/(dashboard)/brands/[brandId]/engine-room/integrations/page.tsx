@@ -292,36 +292,48 @@ export default function IntegrationsPage() {
                 const connectLabel =
                   provider.id === 'instagram' ? 'Connect via Facebook' : isConnected ? 'Change connection' : 'Connect'
 
-                const showChange = isConnected && isAdmin
+                const connectionSummary = isConnected ? (
+                  <>
+                    <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
+                  </>
+                ) : (
+                  <>No account connected yet.</>
+                )
 
                 return (
                   <div
                     key={provider.id}
-                    className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+                    className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md"
                   >
-                    <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center justify-between">
                       {renderSocialIcon(provider.icon, 'w-10 h-10')}
-                      {isConnected && (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                          Connected
-                        </span>
-                      )}
+                      <span className="inline-flex h-6 items-center">
+                        {isConnected && (
+                          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                            Connected
+                          </span>
+                        )}
+                      </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">{provider.name}</h3>
+                    <h3 className="mt-4 text-lg font-semibold text-gray-900">{provider.name}</h3>
                     <p className="mt-2 text-sm text-gray-600">{provider.description}</p>
 
-                    {isConnected && (
-                      <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                        Connected as <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
+                    <div className="mt-4 flex-1">
+                      <div className="min-h-[56px] rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                        <p className="font-semibold text-gray-900">Connection status</p>
+                        <p className="mt-1 text-gray-600">
+                          {isConnected ? 'Connected as ' : ''}
+                          {connectionSummary}
+                        </p>
                       </div>
-                    )}
+                    </div>
 
-                    <div className="mt-6 space-y-3">
+                    <div className="mt-6 flex flex-col gap-3">
                       <button
                         type="button"
-                        onClick={() => (isConnected ? handleConnect(provider.id) : handleConnect(provider.id))}
+                        onClick={() => handleConnect(provider.id)}
                         disabled={!!disabledReason}
-                        className={`w-full inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                        className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
                           disabledReason
                             ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
                             : 'border border-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
@@ -331,28 +343,27 @@ export default function IntegrationsPage() {
                         {isProcessing ? 'Please wait…' : connectLabel}
                       </button>
 
-                      {isConnected && (
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          {showChange && (
-                            <button
-                              type="button"
-                              onClick={() => handleConnect(provider.id)}
-                              disabled={!!disabledReason}
-                              className="flex-1 rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
-                            >
-                              Change
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleDisconnect(provider.id)}
-                            disabled={!!disabledReason}
-                            className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
-                          >
-                            Disconnect
-                          </button>
-                        </div>
-                      )}
+                      <div
+                        className={`flex flex-col gap-2 sm:flex-row ${isConnected ? '' : 'invisible pointer-events-none select-none'}`}
+                        aria-hidden={!isConnected}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleConnect(provider.id)}
+                          disabled={!!disabledReason}
+                          className="flex-1 rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                        >
+                          Change
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDisconnect(provider.id)}
+                          disabled={!!disabledReason}
+                          className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                        >
+                          Disconnect
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
