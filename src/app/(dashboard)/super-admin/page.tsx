@@ -223,7 +223,6 @@ function PostInformationCard({
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex flex-col gap-5 border-b border-gray-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Post information</p>
           <h2 className="text-2xl font-semibold text-gray-950">Post Information</h2>
           {analysedAt && (
             <p className="text-xs text-gray-400">Last analysed {analysedAt}</p>
@@ -231,8 +230,11 @@ function PostInformationCard({
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
           <div className="w-full sm:min-w-[14rem] sm:w-auto">
-            <label className="mb-1 block text-xs font-medium text-gray-600">Brand</label>
+            <label className="sr-only" htmlFor="post-info-brand-select">
+              Brand
+            </label>
             <Select
+              id="post-info-brand-select"
               value={selectedBrandId ?? ''}
               onChange={(event) => handleBrandChange(event.target.value)}
               options={

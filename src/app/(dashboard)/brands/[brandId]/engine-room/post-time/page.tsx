@@ -112,10 +112,6 @@ export default function EngineRoomPostTimePage() {
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold leading-[1.2] text-gray-950">
               Default Post Time
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              This time auto-populates new subcategories so your automation stays consistent. You can still
-              override the time for individual subcategories when needed.
-            </p>
           </div>
 
           <div className="p-4 sm:p-6 lg:p-10">
@@ -148,9 +144,6 @@ export default function EngineRoomPostTimePage() {
                       onChange={(event) => setDefaultPostTime(event.target.value)}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm transition focus:border-transparent focus:ring-2 focus:ring-[#6366F1]"
                     />
-                    <p className="mt-2 text-xs text-gray-500">
-                      Leave blank to remove the default. Subcategories created afterwards will inherit this time.
-                    </p>
                   </div>
                 </div>
 
@@ -164,6 +157,18 @@ export default function EngineRoomPostTimePage() {
                   </button>
                 </div>
               </form>
+
+              <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-900">How It Works</h2>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                  This time auto-populates new subcategories so your automation stays consistent. You can still override the
+                  time for individual subcategories when needed.
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                  Leave the field blank to remove the default. New subcategories created afterwards will inherit whatever time
+                  you set here.
+                </p>
+              </div>
             </div>
           </div>
         </div>
