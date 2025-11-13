@@ -126,6 +126,8 @@ export async function GET(
         process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || ''
       const FB_CLIENT_SECRET =
         process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || ''
+      const fbEnvKeys = Object.keys(process.env).filter((key) => key.startsWith('FACEBOOK'))
+      console.log('[fb env keys]', fbEnvKeys)
       console.log('[fb env chosen]', {
         idLen: FB_CLIENT_ID.length,
         idStart: FB_CLIENT_ID.slice(0, 4),
