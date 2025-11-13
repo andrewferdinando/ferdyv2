@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import { useBrands } from '@/hooks/useBrands';
 
 const adminCards = [
   {
@@ -29,6 +30,8 @@ const adminCards = [
 ];
 
 export default function SuperAdminPage() {
+  const { brands, loading } = useBrands();
+
   return (
     <AppLayout>
       <div className="flex-1 overflow-auto">
@@ -74,6 +77,48 @@ export default function SuperAdminPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+            <div className="mt-10">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Brand Post Information</h2>
+                <p className="text-sm text-gray-500">
+                  Open a brand to review the analysed Facebook and Instagram post insights.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200">
+                {loading ? (
+                  <div className="p-6 space-y-4">
+                    {[0, 1, 2].map((key) => (
+                      <div key={key} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : brands.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-500">
+                    No brands available yet. Connect a brand to view post information.
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-gray-200">
+                    {brands.map((brand) => (
+                      <li key={brand.id}>
+                        <Link
+                          href={`/super-admin/brands/${brand.id}/post-information`}
+                          className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors duration-150"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{brand.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              View analysed Meta posts, tone, and average length.
+                            </p>
+                          </div>
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </div>
