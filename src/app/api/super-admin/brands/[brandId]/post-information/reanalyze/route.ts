@@ -12,9 +12,12 @@ function extractToken(request: NextRequest) {
   return token
 }
 
-export async function POST(request: NextRequest, { params }: { params: { brandId: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ brandId: string }> },
+) {
   try {
-    const { brandId } = params
+    const { brandId } = await context.params
     if (!brandId) {
       return NextResponse.json({ error: 'brandId is required' }, { status: 400 })
     }
