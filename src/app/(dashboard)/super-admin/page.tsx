@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import { useBrands } from '@/hooks/useBrands';
 import { supabase } from '@/lib/supabase-browser';
+import { Select } from '@/components/ui/Input';
 
 const adminCards = [
   {
@@ -204,54 +205,90 @@ function PostInformationCard({
     }
   }, [fetchPostInformation, selectedBrand]);
 
+  const handleBrandChange = useCallback(
+    (brandId: string) => {
+      setSelectedBrandId(brandId);
+      if (typeof window !== 'undefined') {
+        const brand = brands.find((b) => b.id === brandId);
+        window.localStorage.setItem('selectedBrandId', brandId);
+        if (brand) {
+          window.localStorage.setItem('selectedBrandName', brand.name);
+        }
+      }
+    },
+    [brands],
+  );
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">Post information</p>
-          <h2 className="text-xl font-semibold text-gray-900">
+    <div className="rounded-xl border border-gray-200 bg-white p-6">
+      <div className="flex flex-col gap-5 border-b border-gray-100 pb-5 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Post information</p>
+          <h2 className="text-2xl font-semibold text-gray-950">
             {selectedBrand ? selectedBrand.name : 'Select a brand'}
           </h2>
+          <p className="text-sm text-gray-500">
+            Review analysed Facebook and Instagram content for the current brand.
+          </p>
           {analysedAt && (
-            <p className="mt-1 text-xs text-gray-500">Last analysed {analysedAt}</p>
+            <p className="text-xs text-gray-400">Last analysed {analysedAt}</p>
           )}
         </div>
-        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-          {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <div className="w-full sm:w-56">
+            <label className="mb-1 block text-xs font-medium text-gray-600">Brand</label>
+            <Select
+              value={selectedBrandId ?? ''}
+              onChange={(event) => handleBrandChange(event.target.value)}
+              options={
+                brands.length > 0
+                  ? brands.map((brand) => ({ value: brand.id, label: brand.name }))
+                  : [{ value: '', label: 'No brands available' }]
+              }
+              disabled={brandsLoading || brands.length === 0}
+            />
+          </div>
           <button
             type="button"
             onClick={handleReanalyse}
             disabled={!selectedBrand || reanalyzeLoading}
-            className="inline-flex items-center rounded-lg border border-indigo-600 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
+            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
           >
             {reanalyzeLoading ? 'Re-analysing…' : 'Re-analyse posts'}
           </button>
         </div>
       </div>
-      <div className="px-6 py-6">
+
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-6">
         {brandsLoading ? (
-          <div className="space-y-4">
-            {[0, 1].map((key) => (
-              <div key={key} className="h-20 rounded-xl bg-gray-100 animate-pulse" />
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((key) => (
+              <div key={key} className="h-24 rounded-lg bg-gray-100 animate-pulse" />
             ))}
           </div>
         ) : !selectedBrand ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
-            Select a brand from the sidebar to view post information.
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
+            Select a brand to view post information.
           </div>
         ) : infoLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[0, 1, 2, 3].map((key) => (
-              <div key={key} className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+              <div key={key} className="h-24 rounded-lg bg-gray-100 animate-pulse" />
             ))}
           </div>
         ) : !info ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
             No post information available yet. Connect Facebook or Instagram to generate insights.
           </div>
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="text-lg font-semibold text-gray-900">Facebook Post Examples</h3>
               <p className="mt-1 text-sm text-gray-500">Up to the last 10 Facebook posts.</p>
               <div className="mt-4">
@@ -259,7 +296,7 @@ function PostInformationCard({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="text-lg font-semibold text-gray-900">Instagram Post Examples</h3>
               <p className="mt-1 text-sm text-gray-500">Up to the last 10 Instagram captions.</p>
               <div className="mt-4">
@@ -267,7 +304,7 @@ function PostInformationCard({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="text-lg font-semibold text-gray-900">Post Tone</h3>
               <p className="mt-1 text-sm text-gray-500">Generated from recent Meta posts.</p>
               <div className="mt-4">
@@ -279,18 +316,18 @@ function PostInformationCard({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="text-lg font-semibold text-gray-900">Post Character Length</h3>
               <p className="mt-1 text-sm text-gray-500">Average length across recent posts.</p>
               <div className="mt-4 space-y-2">
                 {info.avg_char_length !== null && info.avg_word_count !== null ? (
                   <>
                     <p className="text-sm text-gray-600">
-                      Average length:{' '}
+                      Average length{' '}
                       <span className="font-semibold text-gray-900">
                         {formatNumber(info.avg_char_length)}
                       </span>{' '}
-                      characters,{' '}
+                      characters &bull;{' '}
                       <span className="font-semibold text-gray-900">
                         {formatNumber(info.avg_word_count)}
                       </span>{' '}
