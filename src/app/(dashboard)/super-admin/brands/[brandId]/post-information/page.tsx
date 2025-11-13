@@ -18,8 +18,12 @@ type BrandPostInformation = {
   updated_at: string | null
 }
 
-export default async function PostInformationPage({ params }: { params: { brandId: string } }) {
-  const { brandId } = params
+export default async function PostInformationPage({
+  params,
+}: {
+  params: Promise<{ brandId: string }>
+}) {
+  const { brandId } = await params
 
   const { data: brand, error: brandError } = await supabaseAdmin
     .from('brands')
