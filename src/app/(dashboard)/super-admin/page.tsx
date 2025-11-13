@@ -20,8 +20,8 @@ const adminCards = [
     ),
   },
   {
-    title: 'Add New Brand & Users',
-    description: 'Create a new brand and onboard the first team members.',
+    title: 'Add New Brand',
+    description: 'Create a new brand.',
     href: '/auth/sign-up',
     cta: 'Start Setup',
     icon: (
@@ -221,21 +221,16 @@ function PostInformationCard({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <div className="flex flex-col gap-5 border-b border-gray-100 pb-5 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-5 border-b border-gray-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Post information</p>
-          <h2 className="text-2xl font-semibold text-gray-950">
-            {selectedBrand ? selectedBrand.name : 'Select a brand'}
-          </h2>
-          <p className="text-sm text-gray-500">
-            Review analysed Facebook and Instagram content for the current brand.
-          </p>
+          <h2 className="text-2xl font-semibold text-gray-950">Post Information</h2>
           {analysedAt && (
             <p className="text-xs text-gray-400">Last analysed {analysedAt}</p>
           )}
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <div className="w-full sm:w-56">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+          <div className="w-full sm:min-w-[14rem] sm:w-auto">
             <label className="mb-1 block text-xs font-medium text-gray-600">Brand</label>
             <Select
               value={selectedBrandId ?? ''}
@@ -252,7 +247,7 @@ function PostInformationCard({
             type="button"
             onClick={handleReanalyse}
             disabled={!selectedBrand || reanalyzeLoading}
-            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 whitespace-nowrap"
           >
             {reanalyzeLoading ? 'Re-analysing…' : 'Re-analyse posts'}
           </button>
