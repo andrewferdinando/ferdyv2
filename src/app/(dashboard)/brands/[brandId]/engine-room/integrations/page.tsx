@@ -7,19 +7,6 @@ import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
 import { supabase } from '@/lib/supabase-browser'
 
-// Icons
-const LinkIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-  </svg>
-);
-
-const UnlinkIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
-  </svg>
-);
-
 // Social Media Platform Icons
 const FacebookIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -272,8 +259,6 @@ export default function IntegrationsPage() {
     )
   }
 
-  const connectedAccounts = accounts.filter((account) => account.status === 'connected')
-
   return (
     <AppLayout>
       <ClientAuthGate />
@@ -290,22 +275,6 @@ export default function IntegrationsPage() {
             {errorMessage && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {errorMessage}
-              </div>
-            )}
-
-            {connectedAccounts.length > 0 && (
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-4">
-                <h3 className="text-sm font-medium text-indigo-900">Connected accounts</h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {connectedAccounts.map((account) => (
-                    <span
-                      key={account.id}
-                      className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800"
-                    >
-                      {account.provider} · {account.handle}
-                    </span>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -380,7 +349,6 @@ export default function IntegrationsPage() {
                             disabled={!!disabledReason}
                             className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
                           >
-                            <UnlinkIcon className="mr-2 h-4 w-4" />
                             Disconnect
                           </button>
                         </div>
