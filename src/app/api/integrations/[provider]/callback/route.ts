@@ -84,8 +84,15 @@ export async function GET(
   }
 
   if (errorParam) {
-    let message = errorDescription
-    let reason = errorParam
+    console.warn('[OAuth callback:error]', {
+      provider,
+      error: errorParam,
+      description: errorDescription,
+      url: request.url,
+    })
+
+    let message = errorDescription || 'OAuth flow was cancelled.'
+    let reason = errorParam || 'general_failure'
 
     if (provider === 'linkedin' && errorParam === 'unauthorized_scope_error') {
       message =
@@ -94,7 +101,7 @@ export async function GET(
     }
 
     const errorRedirect = getRedirectUrl(requestOrigin, '', {
-      error: 'integration_failed',
+      error: 'linkedin_auth_failed',
       error_description: message.substring(0, 200),
       reason,
     })

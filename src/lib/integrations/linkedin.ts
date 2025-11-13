@@ -7,7 +7,7 @@ import {
   OAuthStartResult,
 } from './types'
 
-const LINKEDIN_SCOPES = ['r_liteprofile', 'w_member_social'].join(' ')
+const LINKEDIN_SCOPES = ['w_member_social'].join(' ')
 
 function getLinkedInConfig() {
   const clientId = process.env.LINKEDIN_CLIENT_ID
