@@ -116,22 +116,33 @@ export async function handleLinkedInCallback({
 }: OAuthCallbackArgs, logger?: OAuthLogger): Promise<OAuthCallbackResult> {
   const tokenResponse = await exchangeLinkedInCode(code, redirectUri, logger)
   const profile = await fetchLinkedInMemberProfile(tokenResponse.access_token, logger)
-  const memberUrn = `urn:li:person:${profile.id}`
-  const fullName = [profile.localizedFirstName, profile.localizedLastName].filter(Boolean).join(' ').trim()
 
-  logger?.('linkedin_member_profile', {
-    provider: 'linkedin',
-    id: profile.id,
-    memberUrn,
-    fullName,
-  })
-  console.log('[linkedin member]', { id: profile.id, memberUrn, fullName })
+  if (!profile) {
+    console.warn('[linkedin profile] insufficient permissions for /me endpoint, continuing without profile details')
+  }
+
+  const memberUrn = profile?.id ? `urn:li:person:${profile.id}` : null
+  const fullName = profile
+    ? [profile.localizedFirstName, profile.localizedLastName].filter(Boolean).join(' ').trim()
+    : ''
+
+  if (profile) {
+    logger?.('linkedin_member_profile', {
+      provider: 'linkedin',
+      id: profile.id,
+      memberUrn,
+      fullName,
+    })
+    console.log('[linkedin member]', { id: profile.id, memberUrn, fullName })
+  }
+
+  const accountId = memberUrn ?? 'linkedin-member'
 
   const accounts: ConnectedAccount[] = [
     {
       provider: 'linkedin',
-      accountId: memberUrn,
-      handle: fullName || `LinkedIn User ${profile.id}`,
+      accountId,
+      handle: fullName || 'LinkedIn profile connected',
       accessToken: tokenResponse.access_token,
       refreshToken: tokenResponse.refresh_token,
       expiresAt: tokenResponse.expires_in
@@ -139,9 +150,9 @@ export async function handleLinkedInCallback({
         : undefined,
       metadata: {
         memberUrn,
-        linkedInId: profile.id,
-        localizedFirstName: profile.localizedFirstName ?? null,
-        localizedLastName: profile.localizedLastName ?? null,
+        linkedInId: profile?.id ?? null,
+        localizedFirstName: profile?.localizedFirstName ?? null,
+        localizedLastName: profile?.localizedLastName ?? null,
       },
     },
   ]
@@ -174,6 +185,14 @@ async function fetchLinkedInMemberProfile(accessToken: string, logger?: OAuthLog
   })
 
   if (!response.ok) {
+    if (response.status === 403) {
+      logger?.('linkedin_me_forbidden', {
+        provider: 'linkedin',
+        status: response.status,
+        raw: raw.slice(0, 200),
+      })
+      return null
+    }
     throw new Error(`LINKEDIN_PROFILE_FAILED:${response.status}:${raw.slice(0, 200)}`)
   }
 
