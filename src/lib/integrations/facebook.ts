@@ -221,6 +221,11 @@ export async function handleFacebookCallback({
       expiresAt: tokenResponse.expires_in
         ? new Date(Date.now() + tokenResponse.expires_in * 1000)
         : undefined,
+      metadata: {
+        pageId: primaryPage.id,
+        pageName: primaryPage.name,
+        instagramBusinessAccountId: primaryPage.instagram_business_account?.id ?? null,
+      },
     },
   ]
 
@@ -243,6 +248,7 @@ export async function handleFacebookCallback({
           : undefined,
         metadata: {
           facebookPageId: primaryPage.id,
+          instagramBusinessAccountId: instagramAccount.id,
         },
       })
     } catch (error) {

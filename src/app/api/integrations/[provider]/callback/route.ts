@@ -4,6 +4,7 @@ import { handleOAuthCallback } from '@/lib/integrations'
 import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
 import { verifyOAuthState } from '@/lib/oauthState'
+import { updateBrandPostInformationFromSocialAccount } from '@/server/brandPostInformation/updateBrandPostInformationFromSocialAccount'
 
 export const runtime = 'nodejs'
 
@@ -228,23 +229,28 @@ export async function GET(
       const tokenEncrypted = encryptToken(account.accessToken)
       const refreshEncrypted = account.refreshToken ? encryptToken(account.refreshToken) : null
 
-      const { error: upsertError } = await supabaseAdmin.from('social_accounts').upsert(
-        {
-          brand_id: state.brandId,
-          provider: account.provider,
-          account_id: account.accountId,
-          handle: account.handle,
-          token_encrypted: tokenEncrypted,
-          refresh_token_encrypted: refreshEncrypted,
-          token_expires_at: account.expiresAt ? account.expiresAt.toISOString() : null,
-          status: 'connected',
-          connected_by_user_id: state.userId,
-          last_refreshed_at: nowIso,
-        },
-        {
-          onConflict: 'brand_id,provider',
-        },
-      )
+      const { data: upserted, error: upsertError } = await supabaseAdmin
+        .from('social_accounts')
+        .upsert(
+          {
+            brand_id: state.brandId,
+            provider: account.provider,
+            account_id: account.accountId,
+            handle: account.handle,
+            token_encrypted: tokenEncrypted,
+            refresh_token_encrypted: refreshEncrypted,
+            token_expires_at: account.expiresAt ? account.expiresAt.toISOString() : null,
+            status: 'connected',
+            connected_by_user_id: state.userId,
+            last_refreshed_at: nowIso,
+            metadata: account.metadata ?? null,
+          },
+          {
+            onConflict: 'brand_id,provider',
+          },
+        )
+        .select('id')
+        .single()
 
       if (upsertError) {
         throw new Error(`Failed to store ${account.provider} account: ${upsertError.message}`)
@@ -255,6 +261,18 @@ export async function GET(
         brandId: state.brandId,
         accountId: account.accountId,
       })
+
+      if (upserted?.id && (account.provider === 'facebook' || account.provider === 'instagram')) {
+        try {
+          await updateBrandPostInformationFromSocialAccount(upserted.id)
+        } catch (postInfoError) {
+          console.error('[OAuth callback:post_info]', {
+            provider: account.provider,
+            brandId: state.brandId,
+            error: postInfoError instanceof Error ? postInfoError.message : postInfoError,
+          })
+        }
+      }
     }
 
     const successRedirect = getRedirectUrl(originForRedirect, state.brandId, {

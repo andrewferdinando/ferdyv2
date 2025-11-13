@@ -15,6 +15,20 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
+export async function isSuperAdmin(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data?.role === 'super_admin'
+}
+
 // Helper to require admin access for a brand
 export async function requireAdmin(brandId: string, userId: string) {
   // Check if user is super admin
