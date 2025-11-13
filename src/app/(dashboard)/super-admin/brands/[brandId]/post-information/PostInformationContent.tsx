@@ -207,3 +207,4 @@ export default function PostInformationContent({ brand, info }: Props) {
   )
 }
 
+
