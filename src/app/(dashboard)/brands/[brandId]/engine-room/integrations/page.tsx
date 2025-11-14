@@ -290,13 +290,23 @@ export default function IntegrationsPage() {
                     : null
 
                 const connectLabel =
-                  provider.id === 'instagram' ? 'Connect via Facebook' : isConnected ? 'Change connection' : 'Connect'
+                  provider.id === 'instagram'
+                    ? 'Connect via Facebook'
+                    : provider.id === 'linkedin'
+                      ? isConnected
+                        ? 'Change connection'
+                        : 'Connect as LinkedIn Profile'
+                      : isConnected
+                        ? 'Change connection'
+                        : 'Connect'
 
                 const connectionSummary = isConnected ? (
-                  <>
-                    Connected as{' '}
+                  <span className="inline-flex items-baseline gap-1">
+                    <span>Connected as</span>
                     <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
-                  </>
+                  </span>
+                ) : provider.id === 'linkedin' ? (
+                  <>Connect as LinkedIn Profile</>
                 ) : (
                   <>No account connected yet.</>
                 )
