@@ -294,6 +294,7 @@ export default function IntegrationsPage() {
 
                 const connectionSummary = isConnected ? (
                   <>
+                    Connected as{' '}
                     <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
                   </>
                 ) : (
@@ -316,15 +317,11 @@ export default function IntegrationsPage() {
                       </span>
                     </div>
                     <h3 className="mt-4 text-lg font-semibold text-gray-900">{provider.name}</h3>
-                    <p className="mt-2 text-sm text-gray-600">{provider.description}</p>
+                    <p className="mt-2 min-h-[56px] text-sm text-gray-600">{provider.description}</p>
 
                     <div className="mt-4 flex-1">
-                      <div className="min-h-[56px] rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                        <p className="font-semibold text-gray-900">Connection status</p>
-                        <p className="mt-1 text-gray-600">
-                          {isConnected ? 'Connected as ' : ''}
-                          {connectionSummary}
-                        </p>
+                      <div className="flex min-h-[56px] items-center rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        {connectionSummary}
                       </div>
                     </div>
 
