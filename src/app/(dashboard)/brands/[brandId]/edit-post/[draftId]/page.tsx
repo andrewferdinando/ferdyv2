@@ -28,6 +28,7 @@ interface Draft {
   created_at: string;
   created_at_nzt: string;
   approved: boolean;
+  status: 'draft' | 'scheduled' | 'partially_published' | 'published';
   scheduled_for?: string; // UTC timestamp
   scheduled_for_nzt?: string; // NZT timestamp
   schedule_source?: 'manual' | 'auto';
@@ -515,6 +516,7 @@ export default function EditPostPage() {
           asset_ids: selectedAssets.map((asset) => asset.id),
           channel: selectedChannels.join(','),
           approved: true, // Mark as approved
+          status: 'scheduled',
           scheduled_for: scheduledAt.toISOString(), // UTC timestamp
           scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
           schedule_source: 'manual',

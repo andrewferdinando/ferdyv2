@@ -224,9 +224,12 @@ const platformIcons = {
   facebook: FacebookIcon,
   linkedin: LinkedInIcon,
   instagram: InstagramIcon,
+  instagram_story: InstagramIcon,
   tiktok: TikTokIcon,
   x: XIcon,
 };
+
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
 
 interface DraftCardProps {
   draft: {
@@ -250,6 +253,7 @@ interface DraftCardProps {
     publish_status?: string;
     category_id?: string;
     subcategory_id?: string;
+    status?: DraftStatus;
     // From drafts_with_labels view
     category_name?: string;
     subcategory_name?: string;
@@ -265,10 +269,11 @@ interface DraftCardProps {
     assets?: DraftAsset[];
   };
   onUpdate: () => void;
-  status?: 'draft' | 'scheduled' | 'published';
+  status?: DraftStatus;
 }
 
-export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCardProps) {
+export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
+  const effectiveStatus: DraftStatus = status ?? draft.status ?? 'draft';
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);
@@ -543,7 +548,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
   };
 
   const getStatusBadge = () => {
-    switch (status) {
+    switch (effectiveStatus) {
       case 'draft':
         return (
           <span className="px-3 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 rounded-full">
@@ -554,6 +559,12 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
         return (
           <span className="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-full">
             Scheduled
+          </span>
+        );
+      case 'partially_published':
+        return (
+          <span className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 rounded-full">
+            Partially published
           </span>
         );
       case 'published':
@@ -685,7 +696,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                 <div className="flex items-center text-gray-500">
                   <ClockIcon className="w-4 h-4" />
                   <span className="text-sm ml-2">
-                    {status === 'published' ? 'Published' : 
+                    {effectiveStatus === 'published' ? 'Published' : 
                      draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)}
                   </span>
                   {/* Platform Icons with proper spacing */}
@@ -701,7 +712,7 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
 
               {/* Actions */}
               <div className="flex items-center space-x-2">
-                {status === 'draft' && !draft.approved && (
+                {effectiveStatus === 'draft' && !draft.approved && (
                   <button
                     onClick={handleApprove}
                     disabled={!canApprove || isLoading}
@@ -714,15 +725,15 @@ export default function DraftCard({ draft, onUpdate, status = 'draft' }: DraftCa
                     Approve
                   </button>
                 )}
-                {status === 'draft' && draft.approved && (
+                {effectiveStatus === 'draft' && draft.approved && (
                   <div className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 border border-green-200 rounded-md">
                     ✓ Approved
                   </div>
                 )}
-                {!draft.approved && getStatusBadge()}
+                {getStatusBadge()}
                 
                 {/* Approved by indicator for scheduled posts */}
-                {status === 'scheduled' && draft.scheduled_by && (
+                {effectiveStatus === 'scheduled' && draft.scheduled_by && (
                   <div className="flex items-center space-x-1 text-xs text-gray-500">
                     <span>Approved by</span>
                     <UserAvatar userId={draft.scheduled_by} size="sm" />

@@ -47,6 +47,8 @@ type RawAsset = {
   }>;
 };
 
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+
 interface ScheduledPost {
   id: string;
   brand_id: string;
@@ -60,6 +62,7 @@ interface ScheduledPost {
   created_by: string;
   created_at: string;
   approved: boolean;
+  status: DraftStatus;
   scheduled_for?: string; // UTC timestamp
   scheduled_for_nzt?: string; // NZT timestamp
   schedule_source?: 'manual' | 'auto';
@@ -102,6 +105,7 @@ export function useScheduled(brandId: string) {
           .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
+          .in('status', ['scheduled', 'partially_published'])
           .eq('approved', true)
           .order('created_at', { ascending: true });
 
@@ -151,6 +155,7 @@ export function useScheduled(brandId: string) {
           .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
+          .in('status', ['scheduled', 'partially_published'])
           .eq('approved', true)
           .order('created_at', { ascending: true });
 

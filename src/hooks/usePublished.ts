@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Asset } from '@/hooks/assets/useAssets';
 
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+
 interface PublishedPost {
   id: string;
   brand_id: string;
@@ -17,6 +19,7 @@ interface PublishedPost {
   created_by: string;
   created_at: string;
   approved: boolean;
+  status: DraftStatus;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -41,31 +44,46 @@ export function usePublished(brandId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchPublished = async () => {
+    if (!brandId) {
+      setPublished([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!supabase) {
+      console.log('usePublished: Supabase client not available');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('drafts_with_labels')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const normalized = (data || []).map((draft) => ({
+        ...draft,
+        assets: [] as Asset[],
+      })) as PublishedPost[];
+
+      setPublished(normalized);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch published posts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!brandId) return;
-
-    const fetchPublished = async () => {
-      if (!supabase) {
-        console.log('usePublished: Supabase client not available');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Published posts should have actual publish records, not just approved drafts
-        // For now, return empty array since we don't have a publishes table yet
-        // This will be implemented when we add the actual publishing functionality
-        setPublished([]);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch published posts');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPublished();
   }, [brandId]);
 
@@ -73,9 +91,6 @@ export function usePublished(brandId: string) {
     published,
     loading,
     error,
-    refetch: () => {
-      setLoading(true);
-      setPublished([]);
-    }
+    refetch: fetchPublished,
   };
 }

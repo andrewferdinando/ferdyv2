@@ -12,6 +12,8 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { Asset } from '@/hooks/assets/useAssets';
 
 // Type definitions
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+
 interface Draft {
   id: string;
   brand_id: string;
@@ -25,6 +27,7 @@ interface Draft {
   created_by: string;
   created_at: string;
   approved: boolean;
+  status: DraftStatus;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -49,6 +52,7 @@ interface ScheduledPost {
   created_by: string;
   created_at: string;
   approved: boolean;
+  status: DraftStatus;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -73,6 +77,7 @@ interface PublishedPost {
   created_by: string;
   created_at: string;
   approved: boolean;
+  status: DraftStatus;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -115,7 +120,7 @@ export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState('drafts');
 
   // Fetch data for all tabs
-  const { drafts, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId, 'pending,generated,ready');
+  const { drafts, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId);
   const { scheduled, loading: scheduledLoading, refetch: refetchScheduled } = useScheduled(brandId);
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
 
@@ -287,7 +292,7 @@ function DraftsTab({ drafts, loading, onUpdate }: DraftsTabProps) {
   return (
     <div className="space-y-4">
       {drafts.map((draft) => (
-        <DraftCard key={draft.id} draft={draft} onUpdate={onUpdate} status="draft" />
+        <DraftCard key={draft.id} draft={draft} onUpdate={onUpdate} status={draft.status} />
       ))}
     </div>
   );
@@ -326,7 +331,7 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
   return (
     <div className="space-y-4">
       {scheduled.map((post) => (
-        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status="scheduled" />
+        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status={post.status} />
       ))}
     </div>
   );
@@ -365,7 +370,7 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   return (
     <div className="space-y-4">
       {published.map((post) => (
-        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status="published" />
+        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status={post.status} />
       ))}
     </div>
   );

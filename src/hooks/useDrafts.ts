@@ -47,6 +47,8 @@ type RawAsset = {
   }>;
 };
 
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+
 interface Draft {
   id: string;
   brand_id: string;
@@ -69,6 +71,7 @@ interface Draft {
   // Optional linkage from framework
   category_id?: string;
   subcategory_id?: string;
+  status: DraftStatus;
   // From drafts_with_labels view
   category_name?: string;
   subcategory_name?: string;
@@ -83,7 +86,7 @@ interface Draft {
   assets?: Asset[];
 }
 
-export function useDrafts(brandId: string, statusFilter?: string) {
+export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,8 +97,6 @@ export function useDrafts(brandId: string, statusFilter?: string) {
       console.log('useDrafts: No brandId provided');
       return;
     }
-
-    console.log('useDrafts: Fetching drafts for brandId:', brandId, 'statusFilter:', statusFilter);
 
     const fetchDrafts = async () => {
       if (!supabase) {
@@ -109,18 +110,14 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         setError(null);
 
         // Fetch drafts with category/subcategory names from view
+        const isDraftOnly = statuses.every((status) => status === 'draft');
+
         const query = supabase
           .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
-          .eq('approved', false); // Only show non-approved drafts
-
-        // Apply status filter if provided
-        if (statusFilter) {
-          // Temporarily disable status filter to debug
-          console.log('useDrafts: Status filter disabled for debugging:', statusFilter);
-          // query = query.not('post_jobs', 'is', null).in('post_jobs.status', statusFilter.split(','));
-        }
+          .in('status', statuses)
+          .eq('approved', isDraftOnly ? false : true);
 
         const { data, error } = await query
           .order('scheduled_for', { ascending: true, nullsFirst: false })
@@ -225,7 +222,8 @@ export function useDrafts(brandId: string, statusFilter?: string) {
               .from('drafts_with_labels')
               .select('*')
               .eq('brand_id', brandId)
-              .eq('approved', false)
+              .in('status', statuses)
+              .eq('approved', statuses.every((status) => status === 'draft') ? false : true)
               .order('scheduled_for', { ascending: true, nullsFirst: false })
               .order('created_at', { ascending: true });
             const { data: refreshed } = await refetchQuery;
@@ -250,7 +248,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     };
 
     fetchDrafts();
-  }, [brandId, statusFilter]);
+  }, [brandId, statuses]);
 
   const updateDraft = async (
     draftId: string,
@@ -313,6 +311,7 @@ export function useDrafts(brandId: string, statusFilter?: string) {
         .from('drafts')
         .update({ 
           approved: true,
+          status: 'scheduled',
           scheduled_by: user?.id || null
         })
         .eq('id', draftId)
@@ -361,18 +360,14 @@ export function useDrafts(brandId: string, statusFilter?: string) {
     
     try {
         // Fetch drafts with category/subcategory names from view
+        const isDraftOnly = statuses.every((status) => status === 'draft');
+
         const query = supabase
           .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
-          .eq('approved', false); // Only show non-approved drafts
-
-      // Apply status filter if provided
-      if (statusFilter) {
-        // Temporarily disable status filter to debug
-        console.log('useDrafts: Status filter disabled for debugging in refetch:', statusFilter);
-        // query = query.not('post_jobs', 'is', null).in('post_jobs.status', statusFilter.split(','));
-      }
+          .in('status', statuses)
+          .eq('approved', isDraftOnly ? false : true);
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
