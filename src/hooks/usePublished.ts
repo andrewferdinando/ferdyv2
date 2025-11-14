@@ -3,8 +3,28 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Asset } from '@/hooks/assets/useAssets';
+import { normalizeHashtags } from '@/lib/utils/hashtags';
+import { getSignedUrl } from '@/lib/storage/getSignedUrl';
 
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+
+type RawAsset = {
+  id: string;
+  brand_id: string;
+  title: string;
+  storage_path: string;
+  aspect_ratio: string;
+  crop_windows?: Record<string, unknown>;
+  image_crops?: Record<string, { scale?: number; x?: number; y?: number }> | null;
+  width?: number;
+  height?: number;
+  created_at: string;
+  asset_type?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  thumbnail_url?: string | null;
+  duration_seconds?: number | null;
+};
 
 interface PublishedPost {
   id: string;
@@ -70,12 +90,21 @@ export function usePublished(brandId: string) {
 
       if (error) throw error;
 
-      const normalized = (data || []).map((draft) => ({
-        ...draft,
-        assets: [] as Asset[],
-      })) as PublishedPost[];
+      const publishedWithAssets = await Promise.all((data || []).map(async (draft) => {
+        const normalizedDraft = {
+          ...draft,
+          hashtags: normalizeHashtags(draft.hashtags || []),
+        };
 
-      setPublished(normalized);
+        if (draft.asset_ids && draft.asset_ids.length > 0) {
+          const assets = await loadAssetsByIds(draft.asset_ids);
+          return { ...normalizedDraft, assets };
+        }
+
+        return { ...normalizedDraft, assets: [] as Asset[] };
+      }));
+
+      setPublished(publishedWithAssets as PublishedPost[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch published posts');
     } finally {
@@ -93,4 +122,69 @@ export function usePublished(brandId: string) {
     error,
     refetch: fetchPublished,
   };
+}
+
+async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
+  if (!supabase || assetIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('assets')
+    .select(
+      `
+        id,
+        brand_id,
+        title,
+        storage_path,
+        aspect_ratio,
+        crop_windows,
+        image_crops,
+        width,
+        height,
+        created_at,
+        asset_type,
+        mime_type,
+        file_size,
+        thumbnail_url,
+        duration_seconds
+      `,
+    )
+    .in('id', assetIds);
+
+  if (error || !data) {
+    console.error('usePublished: error fetching assets by ids', error);
+    return [];
+  }
+
+  const assets = (data as RawAsset[]).map((raw) => ({
+    id: raw.id,
+    brand_id: raw.brand_id,
+    title: raw.title,
+    storage_path: raw.storage_path,
+    aspect_ratio: raw.aspect_ratio,
+    crop_windows: raw.crop_windows,
+    image_crops: raw.image_crops,
+    width: raw.width,
+    height: raw.height,
+    created_at: raw.created_at,
+    asset_type: raw.asset_type,
+    mime_type: raw.mime_type,
+    file_size: raw.file_size,
+    thumbnail_url: raw.thumbnail_url,
+    duration_seconds: raw.duration_seconds,
+  }));
+
+  // Attempt to generate signed URLs for assets
+  const withSignedUrls = await Promise.all(
+    assets.map(async (asset) => {
+      const signedUrl = await getSignedUrl(asset.storage_path);
+      return {
+        ...asset,
+        signed_url: signedUrl,
+      };
+    }),
+  );
+
+  return withSignedUrls as Asset[];
 }
