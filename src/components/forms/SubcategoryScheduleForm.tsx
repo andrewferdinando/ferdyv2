@@ -93,11 +93,10 @@ const NTH_WEEK_OPTIONS = [
 ]
 
 const CHANNELS = [
-  { value: 'instagram', label: 'Instagram' },
+  { value: 'instagram', label: 'Instagram Feed' },
+  { value: 'instagram_story', label: 'Instagram Story' },
   { value: 'facebook', label: 'Facebook' },
-  { value: 'linkedin', label: 'LinkedIn' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'x', label: 'X (Twitter)' }
+  { value: 'linkedin', label: 'LinkedIn Profile' },
 ]
 
 export function SubcategoryScheduleForm({

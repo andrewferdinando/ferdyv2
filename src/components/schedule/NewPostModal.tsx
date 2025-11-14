@@ -434,11 +434,10 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
         <FormField label="Channels" required>
           <div className="space-y-2">
             {[
+              { id: 'instagram', label: 'Instagram Feed' },
+              { id: 'instagram_story', label: 'Instagram Story' },
               { id: 'facebook', label: 'Facebook' },
-              { id: 'instagram', label: 'Instagram' },
-              { id: 'linkedin', label: 'LinkedIn' },
-              { id: 'twitter', label: 'Twitter' },
-              { id: 'tiktok', label: 'TikTok' },
+              { id: 'linkedin', label: 'LinkedIn Profile' },
             ].map((channel) => {
               const isSelected = formData.channels.includes(channel.id);
               return (

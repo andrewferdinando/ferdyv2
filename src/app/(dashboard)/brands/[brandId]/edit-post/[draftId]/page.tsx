@@ -829,7 +829,7 @@ export default function EditPostPage() {
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Channels</h3>
                     <div className="space-y-3">
-                      {/* Instagram */}
+                      {/* Instagram Feed */}
                       <div 
                         onClick={() => toggleChannel('instagram')}
                         className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
@@ -845,11 +845,38 @@ export default function EditPostPage() {
                             </svg>
                           </div>
                           <div className="flex flex-col text-left">
-                            <span className="font-medium text-gray-900">Instagram</span>
+                            <span className="font-medium text-gray-900">Instagram Feed</span>
                             <span className="text-xs text-gray-500">{describeChannelSupport('instagram')}</span>
                           </div>
                         </div>
                         {selectedChannels.includes('instagram') && (
+                          <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Instagram Story */}
+                      <div 
+                        onClick={() => toggleChannel('instagram_story')}
+                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                          selectedChannels.includes('instagram_story')
+                            ? 'border-[#6366F1] bg-[#EEF2FF]'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#8134AF] rounded-lg flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2.2c3.2 0 3.6.01 4.9.07 3.26.15 4.78 1.7 4.93 4.93.06 1.27.07 1.65.07 4.9s-.01 3.63-.07 4.9c-.15 3.22-1.67 4.78-4.93 4.93-1.27.06-1.65.07-4.9.07s-3.63-.01-4.9-.07c-3.22-.15-4.78-1.71-4.93-4.93-.06-1.27-.07-1.65-.07-4.9s.01-3.63.07-4.9C2.29 3.97 3.81 2.41 7.03 2.26 8.3 2.2 8.68 2.2 12 2.2zm0 1.8c-3.17 0-3.54.01-4.78.07-2.37.11-3.47 1.24-3.58 3.58-.06 1.24-.06 1.61-.06 4.78s0 3.54.06 4.78c.11 2.33 1.2 3.47 3.58 3.58 1.24.06 1.61.07 4.78.07 3.17 0 3.54-.01 4.78-.07 2.36-.11 3.47-1.23 3.58-3.58.06-1.24.06-1.61.06-4.78s0-3.54-.06-4.78c-.11-2.33-1.2-3.47-3.58-3.58-1.24-.06-1.61-.07-4.78-.07zm0 3.3a4.7 4.7 0 110 9.4 4.7 4.7 0 010-9.4zm0 7.6a2.9 2.9 0 100-5.8 2.9 2.9 0 000 5.8zm5.4-7.9a1.1 1.1 0 11-2.2 0 1.1 1.1 0 012.2 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium text-gray-900">Instagram Story</span>
+                            <span className="text-xs text-gray-500">{describeChannelSupport('instagram')}</span>
+                          </div>
+                        </div>
+                        {selectedChannels.includes('instagram_story') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
@@ -883,7 +910,7 @@ export default function EditPostPage() {
                         )}
                       </div>
 
-                      {/* LinkedIn */}
+                      {/* LinkedIn Profile */}
                       <div 
                         onClick={() => toggleChannel('linkedin')}
                         className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
@@ -899,38 +926,11 @@ export default function EditPostPage() {
                             </svg>
                           </div>
                           <div className="flex flex-col text-left">
-                            <span className="font-medium text-gray-900">LinkedIn</span>
+                            <span className="font-medium text-gray-900">LinkedIn Profile</span>
                             <span className="text-xs text-gray-500">{describeChannelSupport('linkedin')}</span>
                           </div>
                         </div>
                         {selectedChannels.includes('linkedin') && (
-                          <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* X (Twitter) */}
-                      <div 
-                        onClick={() => toggleChannel('x')}
-                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                          selectedChannels.includes('x')
-                            ? 'border-[#6366F1] bg-[#EEF2FF]'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                            </svg>
-                          </div>
-                          <div className="flex flex-col text-left">
-                            <span className="font-medium text-gray-900">X (Twitter)</span>
-                            <span className="text-xs text-gray-500">{describeChannelSupport('x')}</span>
-                          </div>
-                        </div>
-                        {selectedChannels.includes('x') && (
                           <svg className="w-5 h-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
