@@ -295,7 +295,7 @@ export default function IntegrationsPage() {
                     : provider.id === 'linkedin'
                       ? isConnected
                         ? 'Change connection'
-                        : 'Connect as LinkedIn Profile'
+                        : 'Connect LinkedIn Profile'
                       : isConnected
                         ? 'Change connection'
                         : 'Connect'
@@ -306,7 +306,7 @@ export default function IntegrationsPage() {
                     <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
                   </span>
                 ) : provider.id === 'linkedin' ? (
-                  <>Connect as LinkedIn Profile</>
+                  <>Connect LinkedIn Profile</>
                 ) : (
                   <>No account connected yet.</>
                 )
