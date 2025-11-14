@@ -289,6 +289,16 @@ export default function IntegrationsPage() {
                     ? 'Processing…'
                     : null
 
+                const displayHandle =
+                  connectedAccount?.handle
+                    ? provider.id === 'linkedin'
+                      ? (() => {
+                          const sanitized = connectedAccount.handle.replace(/\s*connected$/i, '').trim()
+                          return sanitized.length ? sanitized : connectedAccount.handle
+                        })()
+                      : connectedAccount.handle
+                    : null
+
                 const connectLabel =
                   provider.id === 'instagram'
                     ? 'Connect via Facebook'
@@ -303,7 +313,7 @@ export default function IntegrationsPage() {
                 const connectionSummary = isConnected ? (
                   <span className="inline-flex items-baseline gap-1">
                     <span>Connected as</span>
-                    <span className="font-medium text-gray-900">{connectedAccount?.handle}</span>
+                    <span className="font-medium text-gray-900">{displayHandle}</span>
                   </span>
                 ) : provider.id === 'linkedin' ? (
                   <>Connect LinkedIn Profile</>
