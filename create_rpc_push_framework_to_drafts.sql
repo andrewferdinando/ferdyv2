@@ -74,17 +74,25 @@ BEGIN
         v_target_month := date_trunc('month', v_scheduled_at)::date;
         v_scheduled_local := v_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
 
-        -- Determine channels from schedule rule or default to instagram
-        v_channels := ARRAY['instagram'];
+        -- Determine channels from schedule rule or default to instagram_feed
+        v_channels := ARRAY['instagram_feed'];
         IF v_schedule_rule IS NOT NULL AND v_schedule_rule.channels IS NOT NULL AND array_length(v_schedule_rule.channels, 1) > 0 THEN
-            v_channels := v_schedule_rule.channels;
+            -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+            v_channels := ARRAY(
+                SELECT CASE 
+                    WHEN channel = 'instagram' THEN 'instagram_feed'
+                    WHEN channel = 'linkedin' THEN 'linkedin_profile'
+                    ELSE channel
+                END
+                FROM unnest(v_schedule_rule.channels) AS channel
+            );
         END IF;
 
         -- Convert channels array to comma-separated string for storage in drafts
         v_channel := array_to_string(v_channels, ',');
         
         -- Extract first channel for post_jobs (to satisfy CHECK constraint)
-        -- post_jobs.channel has a constraint that only allows single channel values: CHECK (channel IN ('facebook','instagram','tiktok','linkedin','x'))
+        -- post_jobs.channel has a constraint that only allows single channel values: CHECK (channel IN ('facebook','instagram_feed','instagram_story','linkedin_profile','tiktok','x'))
         v_first_channel := v_channels[1];  -- Get first channel from array
 
         -- Check if a draft already exists for this scheduled_at time

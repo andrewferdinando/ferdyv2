@@ -41,6 +41,13 @@ BEGIN
     -- Process each channel
     FOREACH v_channel IN ARRAY p_channels
     LOOP
+        -- Normalize channel: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+        v_channel := CASE 
+            WHEN v_channel = 'instagram' THEN 'instagram_feed'
+            WHEN v_channel = 'linkedin' THEN 'linkedin_profile'
+            ELSE v_channel
+        END;
+        
         -- Insert post job
         INSERT INTO post_jobs (
             brand_id, 
@@ -125,8 +132,18 @@ BEGIN
     v_target_month := date_trunc('month', p_scheduled_at)::date;
     v_scheduled_local := p_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
     
-    -- Convert channels array to comma-separated string for storage
-    v_channels_text := array_to_string(p_channels, ',');
+    -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+    v_channels_text := array_to_string(
+        ARRAY(
+            SELECT CASE 
+                WHEN channel = 'instagram' THEN 'instagram_feed'
+                WHEN channel = 'linkedin' THEN 'linkedin_profile'
+                ELSE channel
+            END
+            FROM unnest(p_channels) AS channel
+        ),
+        ','
+    );
     
     -- Insert single post job with all channels
     INSERT INTO post_jobs (
@@ -203,6 +220,13 @@ BEGIN
     
     -- Get old channel
     SELECT channel INTO v_old_channel FROM post_jobs WHERE id = v_post_job_id;
+    
+    -- Normalize channel: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+    p_channel := CASE 
+        WHEN p_channel = 'instagram' THEN 'instagram_feed'
+        WHEN p_channel = 'linkedin' THEN 'linkedin_profile'
+        ELSE p_channel
+    END;
     
     -- Update draft
     UPDATE drafts SET

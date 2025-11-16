@@ -106,6 +106,13 @@ BEGIN
             IF v_rule.channels IS NOT NULL AND array_length(v_rule.channels, 1) > 0 THEN
               FOREACH v_channel IN ARRAY v_rule.channels
               LOOP
+                -- Normalize channel: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+                v_channel := CASE 
+                    WHEN v_channel = 'instagram' THEN 'instagram_feed'
+                    WHEN v_channel = 'linkedin' THEN 'linkedin_profile'
+                    ELSE v_channel
+                END;
+                
                 -- Create post_job first (required for draft)
               INSERT INTO post_jobs (
                 brand_id,
@@ -207,6 +214,13 @@ BEGIN
             IF v_rule.channels IS NOT NULL AND array_length(v_rule.channels, 1) > 0 THEN
               FOREACH v_channel IN ARRAY v_rule.channels
               LOOP
+                -- Normalize channel: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+                v_channel := CASE 
+                    WHEN v_channel = 'instagram' THEN 'instagram_feed'
+                    WHEN v_channel = 'linkedin' THEN 'linkedin_profile'
+                    ELSE v_channel
+                END;
+                
                 -- Check if draft already exists
                 SELECT d.id INTO v_existing_draft_id
                 FROM drafts d

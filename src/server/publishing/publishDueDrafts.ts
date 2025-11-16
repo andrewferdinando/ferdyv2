@@ -1,4 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabase-server'
+import {
+  canonicalizeChannel,
+  CHANNEL_PROVIDER_MAP,
+  LEGACY_CHANNEL_ALIASES,
+  SUPPORTED_CHANNELS,
+} from '@/lib/channels'
 
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published'
 
@@ -38,7 +44,7 @@ type PublishAttemptResult =
   | { success: true; externalId: string; externalUrl: string | null }
   | { success: false; error: string }
 
-type PublishSummary = {
+export type PublishSummary = {
   draftsConsidered: number
   draftsProcessed: number
   draftsPublished: number
@@ -51,41 +57,11 @@ type PublishSummary = {
 
 const PENDING_STATUSES = new Set(['pending', 'generated', 'ready', 'publishing'])
 const SUCCESS_STATUSES = new Set(['success', 'published'])
+const RETRY_STATUSES = new Set(['failed'])
+const SUPPORTED_CHANNEL_SET = new Set(SUPPORTED_CHANNELS)
 
-const CHANNEL_CANONICAL_MAP: Record<string, string> = {
-  facebook: 'facebook',
-  'facebook page': 'facebook',
-  instagram: 'instagram_feed',
-  instagram_feed: 'instagram_feed',
-  'instagram feed': 'instagram_feed',
-  instagram_story: 'instagram_story',
-  'instagram story': 'instagram_story',
-  linkedin: 'linkedin_profile',
-  linkedin_profile: 'linkedin_profile',
-  'linkedin profile': 'linkedin_profile',
-}
-
-const LEGACY_CHANNELS: Record<string, string[]> = {
-  instagram_feed: ['instagram'],
-  linkedin_profile: ['linkedin'],
-}
-
-const PROVIDER_BY_CHANNEL: Record<string, string> = {
-  facebook: 'facebook',
-  instagram_feed: 'instagram',
-  instagram_story: 'instagram',
-  linkedin_profile: 'linkedin',
-}
-
-const SUPPORTED_CHANNELS = new Set([
-  'facebook',
-  'instagram_feed',
-  'instagram_story',
-  'linkedin_profile',
-])
-
-export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
-  const summary: PublishSummary = {
+function createEmptySummary(): PublishSummary {
+  return {
     draftsConsidered: 0,
     draftsProcessed: 0,
     draftsPublished: 0,
@@ -95,7 +71,10 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
     jobsFailed: 0,
     errors: [],
   }
+}
 
+export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
+  const summary = createEmptySummary()
   const nowIso = new Date().toISOString()
 
   const { data: dueDrafts, error: dueError } = await supabaseAdmin
@@ -118,59 +97,112 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
   summary.draftsConsidered = dueDrafts.length
 
   for (const draft of dueDrafts) {
-    const targetChannels = getCanonicalChannels(draft.channel)
-    if (targetChannels.length === 0) {
-      continue
-    }
-
-    const scheduledAt = draft.scheduled_for ?? nowIso
-    const { data: socialAccountsData } = await supabaseAdmin
-      .from('social_accounts')
-      .select('id, provider, handle, status')
-      .eq('brand_id', draft.brand_id)
-      .in('provider', ['facebook', 'instagram', 'linkedin'])
-      .eq('status', 'connected')
-
-    const socialAccounts =
-      socialAccountsData?.reduce<Record<string, SocialAccountRow>>((acc, account) => {
-        acc[account.provider] = account
-        return acc
-      }, {}) ?? {}
-
-    const { data: existingJobsData, error: jobsError } = await supabaseAdmin
-      .from('post_jobs')
-      .select('*')
-      .eq('draft_id', draft.id)
-
-    if (jobsError) {
-      summary.errors.push({
-        draftId: draft.id,
-        channel: 'all',
-        error: jobsError.message,
-      })
-      continue
-    }
-
-    const jobs: PostJobRow[] = (existingJobsData ?? []).map((job) => {
-      const canonical = canonicalizeChannel(job.channel)
-      return canonical && job.channel !== canonical
-        ? { ...job, channel: canonical }
-        : (job as PostJobRow)
+    const attempted = await processDraft(draft, {
+      allowedStatuses: PENDING_STATUSES,
+      ensureJobs: true,
+      summary,
     })
 
-    // Normalize job channels if legacy values exist
-    await Promise.all(
-      jobs
-        .filter((job) => canonicalizeChannel(job.channel) !== job.channel)
-        .map((job) =>
-          supabaseAdmin
-            .from('post_jobs')
-            .update({ channel: canonicalizeChannel(job.channel)! })
-            .eq('id', job.id),
-        ),
-    )
+    if (attempted) {
+      summary.draftsProcessed += 1
+    }
+  }
 
-    // Ensure we have a job per channel
+  return summary
+}
+
+export async function retryFailedChannels(draftId: string): Promise<PublishSummary> {
+  const summary = createEmptySummary()
+  summary.draftsConsidered = 1
+
+  const { data: draft, error } = await supabaseAdmin
+    .from('drafts')
+    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, published_at')
+    .eq('id', draftId)
+    .single()
+
+  if (error || !draft) {
+    summary.errors.push({
+      draftId,
+      channel: 'all',
+      error: error?.message ?? 'Draft not found',
+    })
+    return summary
+  }
+
+  const attempted = await processDraft(draft, {
+    allowedStatuses: RETRY_STATUSES,
+    ensureJobs: false,
+    summary,
+  })
+
+  if (attempted) {
+    summary.draftsProcessed += 1
+  }
+
+  return summary
+}
+
+async function processDraft(
+  draft: DraftRow,
+  options: { allowedStatuses: Set<string>; ensureJobs: boolean; summary: PublishSummary },
+): Promise<boolean> {
+  const { allowedStatuses, ensureJobs, summary } = options
+  const nowIso = new Date().toISOString()
+
+  const targetChannels = getCanonicalChannels(draft.channel)
+  if (targetChannels.length === 0) {
+    return false
+  }
+
+  const scheduledAt = draft.scheduled_for ?? nowIso
+  const { data: socialAccountsData } = await supabaseAdmin
+    .from('social_accounts')
+    .select('id, provider, handle, status')
+    .eq('brand_id', draft.brand_id)
+    .in('provider', ['facebook', 'instagram', 'linkedin'])
+    .eq('status', 'connected')
+
+  const socialAccounts =
+    socialAccountsData?.reduce<Record<string, SocialAccountRow>>((acc, account) => {
+      acc[account.provider] = account
+      return acc
+    }, {}) ?? {}
+
+  const { data: existingJobsData, error: jobsError } = await supabaseAdmin
+    .from('post_jobs')
+    .select('*')
+    .eq('draft_id', draft.id)
+
+  if (jobsError) {
+    summary.errors.push({
+      draftId: draft.id,
+      channel: 'all',
+      error: jobsError.message,
+    })
+    return false
+  }
+
+  const jobs: PostJobRow[] = (existingJobsData ?? []).map((job) => {
+    const canonical = canonicalizeChannel(job.channel)
+    return canonical && job.channel !== canonical
+      ? { ...job, channel: canonical }
+      : (job as PostJobRow)
+  })
+
+  // Normalize job channels if legacy values exist
+  await Promise.all(
+    jobs
+      .filter((job) => canonicalizeChannel(job.channel) !== job.channel)
+      .map((job) =>
+        supabaseAdmin
+          .from('post_jobs')
+          .update({ channel: canonicalizeChannel(job.channel)! })
+          .eq('id', job.id),
+      ),
+  )
+
+  if (ensureJobs) {
     for (const channel of targetChannels) {
       let job = jobs.find((existingJob) => canonicalizeChannel(existingJob.channel) === channel)
       if (!job) {
@@ -186,98 +218,103 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
         }
       }
     }
+  }
 
-    const relevantJobs = jobs.filter((job) => {
-      const canonical = canonicalizeChannel(job.channel)
-      return canonical ? SUPPORTED_CHANNELS.has(canonical) : false
-    })
+  const relevantJobs = jobs.filter((job) => {
+    const canonical = canonicalizeChannel(job.channel)
+    return canonical ? SUPPORTED_CHANNEL_SET.has(canonical) : false
+  })
 
-    if (relevantJobs.length === 0) {
+  if (relevantJobs.length === 0) {
+    return false
+  }
+
+  let attempted = 0
+
+  for (const job of relevantJobs) {
+    const jobChannel = canonicalizeChannel(job.channel)
+    if (!jobChannel) {
       continue
     }
 
-    summary.draftsProcessed += 1
-
-    for (const job of relevantJobs) {
-      const jobChannel = canonicalizeChannel(job.channel)
-      if (!jobChannel) {
-        continue
-      }
-
-      if (!PENDING_STATUSES.has(job.status)) {
-        continue
-      }
-
-      summary.jobsAttempted += 1
-
-      await supabaseAdmin
-        .from('post_jobs')
-        .update({ status: 'publishing', last_attempt_at: new Date().toISOString() })
-        .eq('id', job.id)
-
-      const provider = PROVIDER_BY_CHANNEL[jobChannel]
-      const socialAccount = provider ? socialAccounts[provider] : undefined
-
-      const publishResult = await publishToChannel(jobChannel, draft, socialAccount)
-
-      if (publishResult.success) {
-        summary.jobsSucceeded += 1
-        const { data: updatedJobs } = await supabaseAdmin
-          .from('post_jobs')
-          .update({
-            status: 'success',
-            error: null,
-            external_post_id: publishResult.externalId,
-            external_url: publishResult.externalUrl,
-          })
-          .eq('id', job.id)
-          .select()
-          .single()
-
-        if (updatedJobs) {
-          job.status = updatedJobs.status
-          job.error = updatedJobs.error
-          job.external_post_id = updatedJobs.external_post_id
-          job.external_url = updatedJobs.external_url
-        } else {
-          job.status = 'success'
-          job.error = null
-          job.external_post_id = publishResult.externalId
-          job.external_url = publishResult.externalUrl
-        }
-      } else {
-        summary.jobsFailed += 1
-        summary.errors.push({
-          draftId: draft.id,
-          channel: jobChannel,
-          error: publishResult.error,
-        })
-
-        const { data: updatedJobs } = await supabaseAdmin
-          .from('post_jobs')
-          .update({
-            status: 'failed',
-            error: publishResult.error,
-          })
-          .eq('id', job.id)
-          .select()
-          .single()
-
-        if (updatedJobs) {
-          job.status = updatedJobs.status
-          job.error = updatedJobs.error
-        } else {
-          job.status = 'failed'
-          job.error = publishResult.error
-        }
-      }
+    if (!allowedStatuses.has(job.status)) {
+      continue
     }
 
-    const updatedJobs = await reloadDraftJobs(draft.id, targetChannels)
-    await applyDraftStatusFromJobs(draft, updatedJobs, summary)
+    attempted += 1
+    summary.jobsAttempted += 1
+
+    await supabaseAdmin
+      .from('post_jobs')
+      .update({ status: 'publishing', last_attempt_at: new Date().toISOString() })
+      .eq('id', job.id)
+
+    const provider = CHANNEL_PROVIDER_MAP[jobChannel]
+    const socialAccount = provider ? socialAccounts[provider] : undefined
+
+    const publishResult = await publishToChannel(jobChannel, draft, socialAccount)
+
+    if (publishResult.success) {
+      summary.jobsSucceeded += 1
+      const { data: updatedJobs } = await supabaseAdmin
+        .from('post_jobs')
+        .update({
+          status: 'success',
+          error: null,
+          external_post_id: publishResult.externalId,
+          external_url: publishResult.externalUrl,
+        })
+        .eq('id', job.id)
+        .select()
+        .single()
+
+      if (updatedJobs) {
+        job.status = updatedJobs.status
+        job.error = updatedJobs.error
+        job.external_post_id = updatedJobs.external_post_id
+        job.external_url = updatedJobs.external_url
+      } else {
+        job.status = 'success'
+        job.error = null
+        job.external_post_id = publishResult.externalId
+        job.external_url = publishResult.externalUrl
+      }
+    } else {
+      summary.jobsFailed += 1
+      summary.errors.push({
+        draftId: draft.id,
+        channel: jobChannel,
+        error: publishResult.error,
+      })
+
+      const { data: updatedJobs } = await supabaseAdmin
+        .from('post_jobs')
+        .update({
+          status: 'failed',
+          error: publishResult.error,
+        })
+        .eq('id', job.id)
+        .select()
+        .single()
+
+      if (updatedJobs) {
+        job.status = updatedJobs.status
+        job.error = updatedJobs.error
+      } else {
+        job.status = 'failed'
+        job.error = publishResult.error
+      }
+    }
   }
 
-  return summary
+  if (attempted === 0) {
+    return false
+  }
+
+  const updatedJobs = await reloadDraftJobs(draft.id, targetChannels)
+  await applyDraftStatusFromJobs(draft, updatedJobs, summary)
+
+  return true
 }
 
 async function createPostJob({
@@ -320,7 +357,7 @@ async function createPostJob({
 async function reloadDraftJobs(draftId: string, targetChannels: string[]) {
   const candidates = [
     ...targetChannels,
-    ...targetChannels.flatMap((channel) => LEGACY_CHANNELS[channel] ?? []),
+    ...targetChannels.flatMap((channel) => LEGACY_CHANNEL_ALIASES[channel] ?? []),
   ]
 
   const { data: jobsData } = await supabaseAdmin
@@ -392,12 +429,6 @@ function getCanonicalChannels(rawChannel: string | null): string[] {
     .filter((token): token is string => Boolean(token))
 
   return Array.from(new Set(tokens))
-}
-
-function canonicalizeChannel(channel: string | null | undefined): string | null {
-  if (!channel) return null
-  const normalized = channel.trim().toLowerCase()
-  return CHANNEL_CANONICAL_MAP[normalized] ?? null
 }
 
 function getTargetMonth(isoString: string) {

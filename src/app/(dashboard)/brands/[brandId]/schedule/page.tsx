@@ -10,6 +10,8 @@ import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
 import { useToast } from '@/components/ui/ToastProvider';
 import { Asset } from '@/hooks/assets/useAssets';
+import { canonicalizeChannel } from '@/lib/channels';
+import type { PostJobSummary } from '@/types/postJobs';
 
 // Type definitions
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
@@ -121,7 +123,8 @@ export default function SchedulePage() {
 
   // Fetch data for all tabs
   const { drafts, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId);
-  const { scheduled, loading: scheduledLoading, refetch: refetchScheduled } = useScheduled(brandId);
+  const { scheduled, jobsByDraftId, loading: scheduledLoading, refetch: refetchScheduled } =
+    useScheduled(brandId);
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
 
   const tabs: Tab[] = [
@@ -186,6 +189,7 @@ export default function SchedulePage() {
             scheduled={scheduled} 
             loading={scheduledLoading} 
             onUpdate={refetchScheduled}
+            jobsByDraftId={jobsByDraftId}
           />
         );
       case 'published':
@@ -303,9 +307,10 @@ interface ScheduledTabProps {
   scheduled: ScheduledPost[];
   loading: boolean;
   onUpdate: () => void;
+  jobsByDraftId: Record<string, PostJobSummary[]>;
 }
 
-function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
+function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: ScheduledTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -331,7 +336,22 @@ function ScheduledTab({ scheduled, loading, onUpdate }: ScheduledTabProps) {
   return (
     <div className="space-y-4">
       {scheduled.map((post) => (
-        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status={post.status} />
+        <DraftCard
+          key={post.id}
+          draft={post}
+          onUpdate={onUpdate}
+          status={post.status}
+          jobs={(jobsByDraftId[post.id] || []).filter((job) => {
+            if (!post.channel) {
+              return true;
+            }
+            const selected = post.channel
+              .split(',')
+              .map((token) => canonicalizeChannel(token))
+              .filter((token): token is string => Boolean(token));
+            return selected.length === 0 ? true : selected.includes(job.channel);
+          })}
+        />
       ))}
     </div>
   );

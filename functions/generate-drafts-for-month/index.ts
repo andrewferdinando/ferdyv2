@@ -10,6 +10,27 @@ import { assetLRU, loadAssetUsageFromDB } from '../_shared/lru.ts';
 import { generateCaption } from '../_shared/ai.ts';
 import { channelSupportsMedia, SUPPORTED_MEDIA_TYPES, MediaType } from '../_shared/channelSupport.ts';
 
+/**
+ * Normalize channel name to canonical values
+ * - 'instagram' → 'instagram_feed' (default) or 'instagram_story' (if format is 9:16)
+ * - 'linkedin' → 'linkedin_profile'
+ * - Other channels remain unchanged
+ */
+function normalizeChannel(channel: string, format?: string): string {
+  if (channel === 'instagram') {
+    // Map based on format if available
+    if (format === '9:16') {
+      return 'instagram_story';
+    }
+    // Default to instagram_feed for square, 4:5, 1.91:1, or unknown formats
+    return 'instagram_feed';
+  }
+  if (channel === 'linkedin') {
+    return 'linkedin_profile';
+  }
+  return channel;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -190,6 +211,9 @@ async function processScheduleRule(
     // Process each channel
     for (const channel of rule.channels || []) {
       try {
+        // Normalize channel to canonical values
+        const normalizedChannel = normalizeChannel(channel);
+        
         // Check if post job already exists
         // For specific frequency, also check that the existing job's schedule_rule overlaps the target month
         // This prevents issues where multiple rules for the same subcategory create duplicate posts
@@ -198,7 +222,7 @@ async function processScheduleRule(
             .from('post_jobs')
             .select('id, schedule_rule_id')
             .eq('brand_id', rule.brand_id)
-            .eq('channel', channel)
+            .eq('channel', normalizedChannel)
             .eq('scheduled_at', scheduledAtUTC.toISOString());
 
           if (existingJobs && existingJobs.length > 0) {
@@ -234,7 +258,7 @@ async function processScheduleRule(
           .insert({
             brand_id: rule.brand_id,
             schedule_rule_id: rule.id,
-            channel,
+            channel: normalizedChannel,
             target_month: targetDate.toISOString().substring(0, 7) + '-01',
             scheduled_at: scheduledAtUTC.toISOString(),
             scheduled_local: slot.date + 'T' + slot.time,
@@ -250,7 +274,7 @@ async function processScheduleRule(
 
         result.jobsCreated++;
 
-        // Generate draft content
+        // Generate draft content (postJob.channel is already normalized)
         await generateDraftForJob(supabase, postJob, rule, brand, prefs, result);
 
       } catch (error) {

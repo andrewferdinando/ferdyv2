@@ -34,15 +34,29 @@ BEGIN
     v_target_month := date_trunc('month', p_scheduled_at)::date;
     v_scheduled_local := p_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
     
-    -- Convert channels array to comma-separated string for storage
-    v_channels_text := array_to_string(p_channels, ',');
+    -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+    v_channels_text := array_to_string(
+        ARRAY(
+            SELECT CASE 
+                WHEN channel = 'instagram' THEN 'instagram_feed'
+                WHEN channel = 'linkedin' THEN 'linkedin_profile'
+                ELSE channel
+            END
+            FROM unnest(p_channels) AS channel
+        ),
+        ','
+    );
     
     -- Create NZT timestamp for scheduled_for_nzt field (as timestamptz)
     v_scheduled_for_nzt := (p_scheduled_at AT TIME ZONE 'Pacific/Auckland')::timestamptz;
     
     -- Create a post_job for the first channel (to satisfy foreign key constraint)
     -- We'll use the first channel for the post_job, but store all channels in the draft
-    v_channel := p_channels[1];
+    v_channel := CASE 
+        WHEN p_channels[1] = 'instagram' THEN 'instagram_feed'
+        WHEN p_channels[1] = 'linkedin' THEN 'linkedin_profile'
+        ELSE p_channels[1]
+    END;
     
     -- Insert post job with first channel (to satisfy constraint)
     INSERT INTO post_jobs (

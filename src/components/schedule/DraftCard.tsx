@@ -12,6 +12,8 @@ import { supabase } from '@/lib/supabase-browser';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatDateTimeLocal } from '@/lib/utils/timezone';
 import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
+import type { PostJobSummary } from '@/types/postJobs';
+import { canonicalizeChannel, getChannelLabel, SUPPORTED_CHANNELS } from '@/lib/channels';
 
 const FORMAT_RATIOS: Record<string, number> = {
   '1:1': 1,
@@ -223,7 +225,9 @@ const XIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 const platformIcons = {
   facebook: FacebookIcon,
   linkedin: LinkedInIcon,
+  linkedin_profile: LinkedInIcon,
   instagram: InstagramIcon,
+  instagram_feed: InstagramIcon,
   instagram_story: InstagramIcon,
   tiktok: TikTokIcon,
   x: XIcon,
@@ -270,9 +274,13 @@ interface DraftCardProps {
   };
   onUpdate: () => void;
   status?: DraftStatus;
+  jobs?: PostJobSummary[];
 }
 
-export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
+const CHANNEL_ORDER = SUPPORTED_CHANNELS;
+const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
+
+export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardProps) {
   const effectiveStatus: DraftStatus = status ?? draft.status ?? 'draft';
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -320,16 +328,45 @@ export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
+  const normalizedJobs = useMemo(() => {
+    if (!jobs || jobs.length === 0) {
+      return [] as PostJobSummary[];
+    }
+
+    return jobs
+      .map((job) => ({
+        ...job,
+        channel: canonicalizeChannel(job.channel) ?? job.channel,
+      }))
+      .sort((a, b) => {
+        const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+        if (aIndex === bIndex) {
+          return a.channel.localeCompare(b.channel);
+        }
+        return aIndex - bIndex;
+      });
+  }, [jobs]);
+
   // Parse channels (handle null, single channel, and comma-separated channels)
   const channelsFromString = draft.channel
-    ? (draft.channel.includes(',')
-        ? draft.channel.split(',').map(c => c.trim()).filter(Boolean)
-        : [draft.channel])
+    ? draft.channel
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean)
     : [];
-  const baseChannels = Array.isArray(draft.channels) && draft.channels.length > 0
-    ? draft.channels
-    : channelsFromString;
-  const channels = Array.from(new Set([...(baseChannels || []), ...(siblingChannels || [])]));
+  const baseChannels =
+    Array.isArray(draft.channels) && draft.channels.length > 0 ? draft.channels : channelsFromString;
+  const rawChannels = Array.from(new Set([...(baseChannels || []), ...(siblingChannels || [])]));
+  const displayChannels = useMemo(() => {
+    return Array.from(
+      new Set(
+        rawChannels
+          .map((channel) => canonicalizeChannel(channel) ?? channel)
+          .filter((channel): channel is string => Boolean(channel)),
+      ),
+    );
+  }, [rawChannels]);
 
   useEffect(() => {
     const fetchSiblings = async () => {
@@ -358,13 +395,16 @@ export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
             all.push(...row.channels);
           } else if (row.channel) {
             if (row.channel.includes(',')) {
-              all.push(...row.channel.split(',').map(c => c.trim()).filter(Boolean));
+              all.push(...row.channel.split(',').map((c) => c.trim()).filter(Boolean));
             } else {
               all.push(row.channel);
             }
           }
         });
-        setSiblingChannels(Array.from(new Set(all)));
+        const canonical = all
+          .map((item) => canonicalizeChannel(item) ?? item)
+          .filter((item): item is string => Boolean(item));
+        setSiblingChannels(Array.from(new Set(canonical)));
       } catch {}
     };
     fetchSiblings();
@@ -587,6 +627,68 @@ export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
     return IconComponent ? <IconComponent className="w-4 h-4" /> : null;
   };
 
+  const getChannelStatusVisual = (statusValue: string) => {
+    const normalized = statusValue.toLowerCase();
+    if (normalized === 'success' || normalized === 'published') {
+      return {
+        indicatorClass: 'bg-emerald-500',
+        label: 'Published',
+        icon: '✓',
+        textClass: 'text-emerald-600',
+      };
+    }
+    if (normalized === 'failed') {
+      return {
+        indicatorClass: 'bg-rose-500',
+        label: 'Failed',
+        icon: '!',
+        textClass: 'text-rose-600',
+      };
+    }
+    return {
+      indicatorClass: 'bg-amber-400',
+      label: 'Pending',
+      icon: '•',
+      textClass: 'text-amber-600',
+    };
+  };
+
+  const channelStatusStrip =
+    normalizedJobs.length > 0 ? (
+      <div className="mb-4 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
+        {normalizedJobs.map((job) => {
+          const { indicatorClass, label, icon, textClass } = getChannelStatusVisual(job.status);
+          const tooltip =
+            job.status.toLowerCase() === 'failed' && job.error
+              ? `${getChannelLabel(job.channel)} • Failed: ${job.error}`
+              : `${getChannelLabel(job.channel)} • ${label}`;
+
+          return (
+            <div
+              key={job.id ?? `${job.channel}-${job.status}`}
+              className="flex items-center space-x-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm"
+              title={tooltip}
+            >
+              <div className="relative">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-50">
+                  {getPlatformIcon(job.channel)}
+                </div>
+                <span
+                  className={`absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold text-white ${indicatorClass}`}
+                >
+                  {icon}
+                </span>
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-xs font-medium text-gray-700">{getChannelLabel(job.channel)}</span>
+                <span className={`text-[11px] font-medium ${textClass}`}>{label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : null;
+
   const handleCardClick = () => {
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
@@ -689,6 +791,8 @@ export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
               </div>
             )}
 
+            {channelStatusStrip}
+
             {/* Footer */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
@@ -701,7 +805,7 @@ export default function DraftCard({ draft, onUpdate, status }: DraftCardProps) {
                   </span>
                   {/* Platform Icons with proper spacing */}
                   <div className="flex items-center ml-4 space-x-1">
-                    {channels.map((channel, index) => (
+                    {displayChannels.map((channel, index) => (
                       <div key={index}>
                         {getPlatformIcon(channel)}
                       </div>

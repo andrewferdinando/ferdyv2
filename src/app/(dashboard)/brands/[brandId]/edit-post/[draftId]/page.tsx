@@ -11,6 +11,8 @@ import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
 import { channelSupportsMedia, describeChannelSupport } from '@/lib/channelSupport';
+import type { PostJobSummary } from '@/types/postJobs';
+import { canonicalizeChannel, getChannelLabel } from '@/lib/channels';
 
 console.log('Edit Post page component loaded');
 
@@ -76,6 +78,8 @@ export default function EditPostPage() {
   const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [postJobs, setPostJobs] = useState<PostJobSummary[]>([]);
+  const [isRetrying, setIsRetrying] = useState(false);
   const { imageAssets, videoAssets } = useMemo(() => {
     const grouped = assets.reduce(
       (acc, asset) => {
@@ -110,6 +114,81 @@ export default function EditPostPage() {
 
   const hasSelectedMedia = selectedAssets.length > 0;
   const hasVideoSelected = selectedMediaTypes.has('video');
+  const canonicalSelectedChannels = useMemo(() => {
+    return selectedChannels
+      .map((channel) => canonicalizeChannel(channel))
+      .filter((channel): channel is string => Boolean(channel));
+  }, [selectedChannels]);
+
+  const channelStatusItems = useMemo(() => {
+    if (canonicalSelectedChannels.length === 0) {
+      return postJobs;
+    }
+    return postJobs.filter((job) => canonicalSelectedChannels.includes(job.channel));
+  }, [canonicalSelectedChannels, postJobs]);
+
+  const hasFailedJobs = useMemo(
+    () => channelStatusItems.some((job) => job.status.toLowerCase() === 'failed'),
+    [channelStatusItems],
+  );
+
+  const getChannelStatusMeta = (status: string) => {
+    const normalized = status.toLowerCase();
+    if (normalized === 'success' || normalized === 'published') {
+      return {
+        text: 'Published',
+        textClass: 'text-emerald-600',
+        indicatorClass: 'bg-emerald-500',
+      };
+    }
+    if (normalized === 'failed') {
+      return {
+        text: 'Failed',
+        textClass: 'text-rose-600',
+        indicatorClass: 'bg-rose-500',
+      };
+    }
+    return {
+      text: 'Pending',
+      textClass: 'text-amber-600',
+      indicatorClass: 'bg-amber-400',
+    };
+  };
+
+  const renderChannelAvatar = (channel: string) => {
+    switch (channel) {
+      case 'facebook':
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#1877F2] text-xs font-semibold uppercase text-white">
+            f
+          </div>
+        );
+      case 'instagram_feed':
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-xs font-semibold uppercase text-white">
+            ig
+          </div>
+        );
+      case 'instagram_story':
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-[#FCAF45] via-[#D62976] to-[#962FBF] text-xs font-semibold uppercase text-white">
+            story
+          </div>
+        );
+      case 'linkedin_profile':
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#0A66C2] text-xs font-semibold uppercase text-white">
+            in
+          </div>
+        );
+      default:
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-xs font-semibold uppercase text-gray-700">
+            {channel.slice(0, 2)}
+          </div>
+        );
+    }
+  };
 
   // Check if post can be approved (allow without connected social accounts for now)
   const canApprove =
@@ -120,74 +199,100 @@ export default function EditPostPage() {
     hasSelectedMedia &&
     channelsSupportSelection;
 
-  // Load draft data
-  useEffect(() => {
-    const loadDraft = async () => {
-      try {
-        console.log('Edit Post: Loading draft with ID:', draftId, 'Brand ID:', brandId);
-        const { supabase } = await import('@/lib/supabase-browser');
-        
-        // Fetch draft with all required fields including new scheduling fields
-        const { data, error } = await supabase
-          .from('drafts')
-          .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt, scheduled_for, scheduled_for_nzt, schedule_source, scheduled_by, publish_status')
-          .eq('id', draftId)
-          .eq('brand_id', brandId)
-          .single();
+  const fetchPostJobs = useCallback(async () => {
+    if (!draftId) return;
+    try {
+      const { supabase } = await import('@/lib/supabase-browser');
+      const { data, error } = await supabase
+        .from('post_jobs')
+        .select('id, channel, status, error, external_url')
+        .eq('draft_id', draftId);
 
-        console.log('Edit Post: Draft query result:', { data, error });
-
-        if (error) {
-          console.error('Error loading draft:', error);
-          if (error.code === 'PGRST116') {
-            setError('Draft not found');
-          } else {
-            setError('Failed to load post');
-          }
-          return;
-        }
-
-        if (!data) {
-          console.log('Edit Post: No data returned from query');
-          setError('Draft not found');
-          return;
-        }
-
-        console.log('Edit Post: Setting draft data:', data);
-        setDraft(data);
-        
-        // Populate form with draft data
-        console.log('Edit Post: Populating form with data:', {
-          copy: data.copy,
-          hashtags: data.hashtags,
-          channel: data.channel
-        });
-        setPostCopy(data.copy || '');
-        // Normalize hashtags when loading from database
-        setHashtags(normalizeHashtags(data.hashtags || []));
-        
-        // Handle comma-separated channels
-        if (data.channel) {
-          const channels = data.channel.split(',').map((c: string) => c.trim()).filter((c: string) => c);
-          console.log('Edit Post: Setting channels:', channels);
-          setSelectedChannels(channels);
-        }
-        
-             // Parse scheduled date and time - will convert to brand local time in separate useEffect
-             // Just store the draft data here, conversion happens when brand loads
-        
-      } catch (err) {
-        console.error('Error loading draft:', err);
-        setError('Failed to load post');
-      } finally {
-        setLoading(false);
+      if (error) {
+        console.error('Error loading channel statuses:', error);
+        return;
       }
-    };
 
-    if (draftId && brandId) {
-      loadDraft();
+      const normalized =
+        (data || [])
+          .map((job) => {
+            const canonical = canonicalizeChannel(job.channel);
+            if (!canonical) return null;
+            return {
+              id: job.id,
+              channel: canonical,
+              status: job.status,
+              error: job.error ?? null,
+              external_url: job.external_url ?? null,
+            } as PostJobSummary;
+          })
+          .filter((job): job is PostJobSummary => Boolean(job));
+
+      setPostJobs(normalized);
+    } catch (err) {
+      console.error('Error loading post jobs:', err);
     }
-  }, [draftId, brandId]);
+  }, [draftId]);
+
+  const loadDraft = useCallback(async () => {
+    if (!draftId || !brandId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Edit Post: Loading draft with ID:', draftId, 'Brand ID:', brandId);
+      const { supabase } = await import('@/lib/supabase-browser');
+
+      const { data, error } = await supabase
+        .from('drafts')
+        .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt, scheduled_for, scheduled_for_nzt, schedule_source, scheduled_by, publish_status, status')
+        .eq('id', draftId)
+        .eq('brand_id', brandId)
+        .single();
+
+      console.log('Edit Post: Draft query result:', { data, error });
+
+      if (error) {
+        console.error('Error loading draft:', error);
+        if (error.code === 'PGRST116') {
+          setError('Draft not found');
+        } else {
+          setError('Failed to load post');
+        }
+        return;
+      }
+
+      if (!data) {
+        console.log('Edit Post: No data returned from query');
+        setError('Draft not found');
+        return;
+      }
+
+      setDraft(data);
+      setPostCopy(data.copy || '');
+      setHashtags(normalizeHashtags(data.hashtags || []));
+
+      if (data.channel) {
+        const channels = data.channel
+          .split(',')
+          .map((c: string) => c.trim())
+          .filter((c: string) => c);
+        setSelectedChannels(channels);
+      }
+
+      await fetchPostJobs();
+    } catch (err) {
+      console.error('Error loading draft:', err);
+      setError('Failed to load post');
+    } finally {
+      setLoading(false);
+    }
+  }, [brandId, draftId, fetchPostJobs]);
+
+  useEffect(() => {
+    if (draftId && brandId) {
+      void loadDraft();
+    }
+  }, [draftId, brandId, loadDraft]);
 
   // Convert UTC scheduled_for to brand local time when both draft and brand are loaded
   useEffect(() => {
@@ -467,6 +572,35 @@ export default function EditPostPage() {
       setIsSaving(false);
     }
   };
+
+  const handleRetryFailedChannels = useCallback(async () => {
+    if (!draftId) return;
+    try {
+      setIsRetrying(true);
+      const response = await fetch('/api/publishing/retry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ draftId }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const message = typeof payload?.error === 'string' ? payload.error : 'Retry failed';
+        throw new Error(message);
+      }
+
+      await loadDraft();
+      await fetchPostJobs();
+      alert('Retry requested. We will attempt to republish failed channels shortly.');
+    } catch (err) {
+      console.error('Failed to retry channels:', err);
+      alert('Failed to retry channels. Please try again.');
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [draftId, fetchPostJobs, loadDraft]);
 
   const handleApprove = async () => {
     if (!postCopy.trim()) {
@@ -826,6 +960,68 @@ export default function EditPostPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Channel Status */}
+                  {channelStatusItems.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 p-6">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">Channel status</h3>
+                        {hasFailedJobs && (
+                          <button
+                            onClick={handleRetryFailedChannels}
+                            disabled={isRetrying}
+                            className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                              isRetrying
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'
+                            }`}
+                          >
+                            {isRetrying ? 'Retrying…' : 'Retry failed channels'}
+                          </button>
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        {channelStatusItems.map((job) => {
+                          const meta = getChannelStatusMeta(job.status);
+                          return (
+                            <div
+                              key={job.id}
+                              className="flex items-start justify-between rounded-lg border border-gray-100 px-3 py-2"
+                            >
+                              <div className="flex items-start space-x-3">
+                                {renderChannelAvatar(job.channel)}
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {getChannelLabel(job.channel)}
+                                  </p>
+                                  <p className={`text-xs font-medium ${meta.textClass}`}>
+                                    {meta.text}
+                                  </p>
+                                  {job.status.toLowerCase() === 'failed' && job.error ? (
+                                    <p className="mt-1 text-xs text-rose-600">{job.error}</p>
+                                  ) : null}
+                                  {job.status.toLowerCase() === 'success' && job.external_url ? (
+                                    <a
+                                      href={job.external_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="mt-1 inline-flex text-xs font-medium text-[#6366F1] hover:text-[#4F46E5]"
+                                    >
+                                      View post
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <span
+                                className={`mt-1 inline-flex h-2.5 w-2.5 flex-shrink-0 rounded-full ${meta.indicatorClass}`}
+                                aria-hidden
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Channels */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
