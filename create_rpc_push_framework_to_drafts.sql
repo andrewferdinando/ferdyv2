@@ -94,6 +94,13 @@ BEGIN
         -- Extract first channel for post_jobs (to satisfy CHECK constraint)
         -- post_jobs.channel has a constraint that only allows single channel values: CHECK (channel IN ('facebook','instagram_feed','instagram_story','linkedin_profile','tiktok','x'))
         v_first_channel := v_channels[1];  -- Get first channel from array
+        
+        -- Safety check: ensure v_first_channel is normalized (in case array is empty or normalization failed)
+        v_first_channel := CASE 
+            WHEN v_first_channel = 'instagram' THEN 'instagram_feed'
+            WHEN v_first_channel = 'linkedin' THEN 'linkedin_profile'
+            ELSE COALESCE(v_first_channel, 'instagram_feed')
+        END;
 
         -- Check if a draft already exists for this scheduled_at time
         SELECT id INTO v_draft_id
