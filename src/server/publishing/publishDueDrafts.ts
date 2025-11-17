@@ -31,6 +31,7 @@ type PostJobRow = {
   external_url: string | null
   scheduled_at: string
   target_month: string
+  last_attempt_at?: string | null
 }
 
 type SocialAccountRow = {
