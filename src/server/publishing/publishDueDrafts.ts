@@ -17,7 +17,7 @@ type DraftRow = {
   asset_ids: string[] | null
   hashtags: string[] | null
   copy: string | null
-  published_at: string | null
+  published_at?: string | null
 }
 
 type PostJobRow = {
