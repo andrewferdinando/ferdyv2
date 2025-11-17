@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, requireAdmin, supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-server'
 import { publishJob } from '@/server/publishing/publishJob'
 import { canonicalizeChannel } from '@/lib/channels'
 
@@ -41,16 +41,6 @@ const SUCCESS_STATUSES = new Set(['success', 'published'])
 
 export async function POST(req: NextRequest) {
   try {
-    // Get current user session (same pattern as /api/invite)
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     // Parse request body
     const body = await req.json()
     const { draftId } = body
@@ -62,7 +52,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Load the draft and verify it exists
+    // Load the draft and verify it exists (same client pattern as /api/publishing/run)
     const { data: draft, error: draftError } = await supabaseAdmin
       .from('drafts')
       .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, published_at')
@@ -74,16 +64,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Draft not found' },
         { status: 404 }
-      )
-    }
-
-    // Verify user has admin access to this brand
-    const hasAdminAccess = await requireAdmin(draft.brand_id, session.user.id)
-
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
       )
     }
 
