@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import type { Asset } from '@/hooks/assets/useAssets';
@@ -91,6 +91,9 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const backfillingRef = useRef(false);
+  
+  // Memoize statuses to prevent unnecessary refetches
+  const statusesKey = useMemo(() => [...statuses].sort().join(','), [statuses]);
 
   useEffect(() => {
     if (!brandId) {
@@ -116,23 +119,35 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
           .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
-          .in('status', statuses)
-          .eq('approved', isDraftOnly ? false : true);
+          .in('status', statuses);
 
-        const { data, error } = await query
-          .order('scheduled_for', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: true });
+        // Only filter by approved if we're looking for drafts only
+        if (isDraftOnly) {
+          query.eq('approved', false);
+        }
+
+        // Order by created_at desc (matching working SQL query)
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         console.log('useDrafts: Query result:', { data, error });
         console.log('useDrafts: Raw data length:', data?.length || 0);
+        
+        if (error) {
+          console.error('useDrafts: Query error:', error);
+          console.error('useDrafts: Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          setError(error.message || 'Failed to fetch drafts');
+          setDrafts([]); // Set empty array on error to prevent UI issues
+          return; // Exit early on error to prevent further processing
+        }
+
         if (data && data.length > 0) {
           console.log('useDrafts: First draft:', data[0]);
           console.log('useDrafts: First draft approved field:', data[0].approved);
-        }
-
-        if (error) {
-          console.error('useDrafts: Query error:', error);
-          throw error;
         }
 
         // Now fetch assets for each draft that has asset_ids, and normalize hashtags
@@ -218,15 +233,23 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
             }));
 
             // Refetch to load updated assets/copy
+            const isDraftOnlyRefetch = statuses.every((status) => status === 'draft');
             const refetchQuery = supabase
               .from('drafts_with_labels')
               .select('*')
               .eq('brand_id', brandId)
-              .in('status', statuses)
-              .eq('approved', statuses.every((status) => status === 'draft') ? false : true)
-              .order('scheduled_for', { ascending: true, nullsFirst: false })
-              .order('created_at', { ascending: true });
-            const { data: refreshed } = await refetchQuery;
+              .in('status', statuses);
+            
+            if (isDraftOnlyRefetch) {
+              refetchQuery.eq('approved', false);
+            }
+            
+            const { data: refreshed, error: refetchError } = await refetchQuery.order('created_at', { ascending: false });
+            
+            if (refetchError) {
+              console.error('useDrafts: Refetch error:', refetchError);
+              throw refetchError;
+            }
             const refreshedWithAssets = await Promise.all((refreshed || []).map(async (draft) => {
               if (draft.asset_ids && draft.asset_ids.length > 0) {
             const assets = await loadAssetsByIds(draft.asset_ids);
@@ -241,14 +264,17 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         }
       } catch (err) {
         console.error('useDrafts: Error fetching drafts:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch drafts';
+        setError(errorMessage);
+        setDrafts([]); // Set empty array on error
+        // Don't throw - we've handled the error, prevent infinite refetch loops
       } finally {
         setLoading(false);
       }
     };
 
     fetchDrafts();
-  }, [brandId, statuses]);
+  }, [brandId, statusesKey]); // Use memoized statuses key to prevent refetch on array reference changes
 
   const updateDraft = async (
     draftId: string,
@@ -366,12 +392,26 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
           .from('drafts_with_labels')
           .select('*')
           .eq('brand_id', brandId)
-          .in('status', statuses)
-          .eq('approved', isDraftOnly ? false : true);
+          .in('status', statuses);
+
+        if (isDraftOnly) {
+          query.eq('approved', false);
+        }
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('useDrafts: Refetch error:', error);
+        console.error('useDrafts: Refetch error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        setError(error.message || 'Failed to fetch drafts');
+        setDrafts([]);
+        return;
+      }
 
       // Now fetch assets for each draft that has asset_ids
       const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
@@ -384,7 +424,10 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
 
       setDrafts(draftsWithAssets);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch drafts');
+      console.error('useDrafts: Refetch exception:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch drafts';
+      setError(errorMessage);
+      setDrafts([]);
     } finally {
       setLoading(false);
     }
