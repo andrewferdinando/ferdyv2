@@ -123,6 +123,14 @@ export default function EditPostPage() {
     [channelStatusItems],
   );
 
+  const canRetry = useMemo(
+    () =>
+      hasFailedJobs &&
+      draft &&
+      (draft.status === 'scheduled' || draft.status === 'partially_published'),
+    [hasFailedJobs, draft],
+  );
+
   const getChannelStatusMeta = (status: string) => {
     const normalized = status.toLowerCase();
     if (normalized === 'success' || normalized === 'published') {
@@ -1067,7 +1075,7 @@ export default function EditPostPage() {
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
                       <div className="mb-4 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">Channel status</h3>
-                        {hasFailedJobs && (
+                        {canRetry && (
                           <button
                             onClick={handleRetryFailedChannels}
                             disabled={isRetrying}

@@ -137,13 +137,36 @@ export async function POST(req: NextRequest) {
       .select('*')
       .eq('draft_id', draftId)
 
-    const updatedDraftStatus = computeDraftStatusFromJobs(allJobs || [])
+    // Count job statuses
+    const jobs = allJobs || []
+    const total = jobs.length
+    const successCount = jobs.filter((j) => j.status === 'success').length
+    const failedCount = jobs.filter((j) => j.status === 'failed').length
+    const pendingCount = jobs.filter(
+      (j) => j.status === 'pending' || j.status === 'ready' || j.status === 'generated' || j.status === 'publishing',
+    ).length
 
-    // Update draft status if it changed
-    if (updatedDraftStatus !== draft.status) {
+    let newStatus = draft.status // default to current status
+
+    if (draft.status === 'draft') {
+      // Never move a pure draft based on retry – keep as draft
+      newStatus = 'draft'
+    } else {
+      if (successCount === total && total > 0 && failedCount === 0 && pendingCount === 0) {
+        newStatus = 'published'
+      } else if (successCount > 0 && failedCount > 0) {
+        newStatus = 'partially_published'
+      } else {
+        // All still failing or still pending: keep existing status
+        newStatus = draft.status
+      }
+    }
+
+    // Only write back if it actually changed
+    if (newStatus !== draft.status) {
       await supabaseAdmin
         .from('drafts')
-        .update({ status: updatedDraftStatus })
+        .update({ status: newStatus })
         .eq('id', draftId)
     }
 
@@ -151,7 +174,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       retried,
-      draftStatus: updatedDraftStatus,
+      draftStatus: newStatus,
       jobs: jobResults.map((job) => ({
         id: job.id,
         draft_id: job.draft_id,
@@ -174,24 +197,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function computeDraftStatusFromJobs(jobs: PostJobRow[]): string {
-  if (jobs.length === 0) {
-    return 'scheduled'
-  }
-
-  const statuses = jobs.map((job) => job.status)
-  const hasPending = statuses.some((status) => PENDING_STATUSES.has(status))
-  const hasSuccess = statuses.some((status) => SUCCESS_STATUSES.has(status))
-  const hasFailed = statuses.some((status) => status === 'failed')
-
-  if (!hasPending && hasSuccess && !hasFailed) {
-    return 'published'
-  } else if (!hasPending && hasSuccess && hasFailed) {
-    return 'partially_published'
-  } else if (!hasSuccess && hasFailed && !hasPending) {
-    return 'scheduled'
-  }
-
-  // Default: keep current status (scheduled or partially_published)
-  return 'scheduled'
-}
