@@ -122,8 +122,8 @@ export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState('drafts');
 
   // Fetch data for all tabs
-  const { drafts, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId);
-  const { scheduled, jobsByDraftId, loading: scheduledLoading, refetch: refetchScheduled } =
+  const { drafts, jobsByDraftId: draftsJobsByDraftId, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId);
+  const { scheduled, jobsByDraftId: scheduledJobsByDraftId, loading: scheduledLoading, refetch: refetchScheduled } =
     useScheduled(brandId);
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
 
@@ -181,6 +181,7 @@ export default function SchedulePage() {
             drafts={drafts} 
             loading={draftsLoading} 
             onUpdate={handleGlobalUpdate}
+            jobsByDraftId={draftsJobsByDraftId}
           />
         );
       case 'scheduled':
@@ -189,7 +190,7 @@ export default function SchedulePage() {
             scheduled={scheduled} 
             loading={scheduledLoading} 
             onUpdate={refetchScheduled}
-            jobsByDraftId={jobsByDraftId}
+            jobsByDraftId={scheduledJobsByDraftId}
           />
         );
       case 'published':
@@ -268,9 +269,10 @@ interface DraftsTabProps {
   drafts: Draft[];
   loading: boolean;
   onUpdate: () => void;
+  jobsByDraftId: Record<string, PostJobSummary[]>;
 }
 
-function DraftsTab({ drafts, loading, onUpdate }: DraftsTabProps) {
+function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -296,7 +298,13 @@ function DraftsTab({ drafts, loading, onUpdate }: DraftsTabProps) {
   return (
     <div className="space-y-4">
       {drafts.map((draft) => (
-        <DraftCard key={draft.id} draft={draft} onUpdate={onUpdate} status={draft.status} />
+        <DraftCard 
+          key={draft.id} 
+          draft={draft} 
+          onUpdate={onUpdate} 
+          status={draft.status}
+          jobs={jobsByDraftId[draft.id] || []}
+        />
       ))}
     </div>
   );

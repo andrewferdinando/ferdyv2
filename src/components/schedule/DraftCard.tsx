@@ -328,25 +328,42 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
+  // Build jobs from props, or fallback to draft.channel if no jobs exist
   const normalizedJobs = useMemo(() => {
-    if (!jobs || jobs.length === 0) {
-      return [] as PostJobSummary[];
+    // If jobs are provided, use them
+    if (jobs && jobs.length > 0) {
+      return jobs
+        .map((job) => ({
+          ...job,
+          channel: canonicalizeChannel(job.channel) ?? job.channel,
+        }))
+        .sort((a, b) => {
+          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+          if (aIndex === bIndex) {
+            return a.channel.localeCompare(b.channel);
+          }
+          return aIndex - bIndex;
+        });
     }
 
-    return jobs
-      .map((job) => ({
-        ...job,
-        channel: canonicalizeChannel(job.channel) ?? job.channel,
-      }))
-      .sort((a, b) => {
-        const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
-        const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
-        if (aIndex === bIndex) {
-          return a.channel.localeCompare(b.channel);
-        }
-        return aIndex - bIndex;
-      });
-  }, [jobs]);
+    // Fallback: create a single job from draft.channel (legacy behavior)
+    if (draft.channel) {
+      const canonicalChannel = canonicalizeChannel(draft.channel) ?? draft.channel;
+      return [{
+        id: draft.post_job_id || draft.id,
+        draft_id: draft.id,
+        channel: canonicalChannel,
+        status: 'pending', // Default status for legacy drafts
+        error: null,
+        external_post_id: null,
+        external_url: null,
+        last_attempt_at: null,
+      }];
+    }
+
+    return [] as PostJobSummary[];
+  }, [jobs, draft.channel, draft.post_job_id, draft.id]);
 
   // Parse channels (handle null, single channel, and comma-separated channels)
   const channelsFromString = draft.channel
@@ -645,9 +662,27 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
         textClass: 'text-rose-600',
       };
     }
+    if (normalized === 'ready') {
+      return {
+        indicatorClass: 'bg-green-500',
+        label: 'Ready',
+        icon: '✓',
+        textClass: 'text-green-600',
+      };
+    }
+    if (normalized === 'generated') {
+      return {
+        indicatorClass: 'bg-blue-500',
+        label: 'Generated',
+        icon: '•',
+        textClass: 'text-blue-600',
+      };
+    }
+    // Default: capitalize first letter
+    const capitalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
     return {
       indicatorClass: 'bg-amber-400',
-      label: 'Pending',
+      label: capitalized,
       icon: '•',
       textClass: 'text-amber-600',
     };

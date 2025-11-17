@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import type { Asset } from '@/hooks/assets/useAssets';
 import { getSignedUrl } from '@/lib/storage/getSignedUrl';
+import { canonicalizeChannel, SUPPORTED_CHANNELS } from '@/lib/channels';
+import type { PostJobSummary } from '@/types/postJobs';
 
 type Tag = {
   id: string;
@@ -86,8 +88,12 @@ interface Draft {
   assets?: Asset[];
 }
 
+const CHANNEL_ORDER = SUPPORTED_CHANNELS;
+const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
+
 export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [jobsByDraftId, setJobsByDraftId] = useState<Record<string, PostJobSummary[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const backfillingRef = useRef(false);
@@ -167,6 +173,58 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
 
         setDrafts(draftsWithAssets);
         console.log('useDrafts: Set drafts:', draftsWithAssets?.length || 0, 'items');
+
+        // Fetch post_jobs for all drafts and group by draft_id
+        const draftIds = (data || []).map((draft) => draft.id).filter((id): id is string => Boolean(id));
+        if (draftIds.length > 0) {
+          const { data: jobsData, error: jobsError } = await supabase
+            .from('post_jobs')
+            .select('id, draft_id, channel, status, error, external_post_id, external_url, last_attempt_at')
+            .in('draft_id', draftIds);
+
+          if (jobsError) {
+            console.error('useDrafts: Failed to load post_jobs', jobsError);
+            setJobsByDraftId({});
+          } else {
+            const map: Record<string, PostJobSummary[]> = {};
+            (jobsData ?? []).forEach((job) => {
+              if (!job.draft_id) return;
+              const canonical = canonicalizeChannel(job.channel) ?? job.channel;
+              const entry: PostJobSummary = {
+                id: job.id,
+                draft_id: job.draft_id,
+                channel: canonical,
+                status: job.status,
+                error: job.error ?? null,
+                external_post_id: job.external_post_id ?? null,
+                external_url: job.external_url ?? null,
+                last_attempt_at: job.last_attempt_at ?? null,
+              };
+
+              if (!map[job.draft_id]) {
+                map[job.draft_id] = [];
+              }
+
+              map[job.draft_id].push(entry);
+            });
+
+            // Sort jobs by channel order
+            for (const draftId of Object.keys(map)) {
+              map[draftId].sort((a, b) => {
+                const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+                const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+                if (aIndex === bIndex) {
+                  return a.channel.localeCompare(b.channel);
+                }
+                return aIndex - bIndex;
+              });
+            }
+
+            setJobsByDraftId(map);
+          }
+        } else {
+          setJobsByDraftId({});
+        }
 
         // Backfill any drafts missing copy or assets (framework-created without client post-processing)
         const needsBackfill = (data || []).filter(d => (!d.copy || d.copy.trim() === '') || !d.asset_ids || d.asset_ids.length === 0);
@@ -423,6 +481,58 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
       }));
 
       setDrafts(draftsWithAssets);
+
+      // Fetch post_jobs for all drafts and group by draft_id
+      const draftIds = (data || []).map((draft) => draft.id).filter((id): id is string => Boolean(id));
+      if (draftIds.length > 0) {
+        const { data: jobsData, error: jobsError } = await supabase
+          .from('post_jobs')
+          .select('id, draft_id, channel, status, error, external_post_id, external_url, last_attempt_at')
+          .in('draft_id', draftIds);
+
+        if (jobsError) {
+          console.error('useDrafts: Failed to load post_jobs in refetch', jobsError);
+          setJobsByDraftId({});
+        } else {
+          const map: Record<string, PostJobSummary[]> = {};
+          (jobsData ?? []).forEach((job) => {
+            if (!job.draft_id) return;
+            const canonical = canonicalizeChannel(job.channel) ?? job.channel;
+            const entry: PostJobSummary = {
+              id: job.id,
+              draft_id: job.draft_id,
+              channel: canonical,
+              status: job.status,
+              error: job.error ?? null,
+              external_post_id: job.external_post_id ?? null,
+              external_url: job.external_url ?? null,
+              last_attempt_at: job.last_attempt_at ?? null,
+            };
+
+            if (!map[job.draft_id]) {
+              map[job.draft_id] = [];
+            }
+
+            map[job.draft_id].push(entry);
+          });
+
+          // Sort jobs by channel order
+          for (const draftId of Object.keys(map)) {
+            map[draftId].sort((a, b) => {
+              const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+              const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+              if (aIndex === bIndex) {
+                return a.channel.localeCompare(b.channel);
+              }
+              return aIndex - bIndex;
+            });
+          }
+
+          setJobsByDraftId(map);
+        }
+      } else {
+        setJobsByDraftId({});
+      }
     } catch (err) {
       console.error('useDrafts: Refetch exception:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch drafts';
@@ -435,6 +545,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
 
   return {
     drafts,
+    jobsByDraftId,
     loading,
     error,
     updateDraft,

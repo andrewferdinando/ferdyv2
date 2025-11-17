@@ -3,6 +3,8 @@ export const CHANNEL_LABELS: Record<string, string> = {
   instagram_feed: 'Instagram Feed',
   instagram_story: 'Instagram Story',
   linkedin_profile: 'LinkedIn Profile',
+  tiktok: 'TikTok',
+  x: 'X',
 }
 
 export const CHANNEL_CANONICAL_MAP: Record<string, string> = {
