@@ -11,6 +11,7 @@ import { usePublished } from '@/hooks/usePublished';
 import { useToast } from '@/components/ui/ToastProvider';
 import { Asset } from '@/hooks/assets/useAssets';
 import type { PostJobSummary } from '@/types/postJobs';
+import { fetchJobsByDraftId } from '@/hooks/usePostJobs';
 
 // Type definitions
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
@@ -363,6 +364,21 @@ interface PublishedTabProps {
 }
 
 function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
+  const [publishedJobsByDraftId, setPublishedJobsByDraftId] = useState<Record<string, PostJobSummary[]>>({});
+
+  useEffect(() => {
+    const loadJobs = async () => {
+      const draftIds = published.map((post) => post.id).filter((id): id is string => Boolean(id));
+      if (draftIds.length > 0) {
+        const jobsMap = await fetchJobsByDraftId(draftIds);
+        setPublishedJobsByDraftId(jobsMap);
+      }
+    };
+    if (published.length > 0) {
+      void loadJobs();
+    }
+  }, [published]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -388,7 +404,13 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   return (
     <div className="space-y-4">
       {published.map((post) => (
-        <DraftCard key={post.id} draft={post} onUpdate={onUpdate} status={post.status} />
+        <DraftCard 
+          key={post.id} 
+          draft={post} 
+          onUpdate={onUpdate} 
+          status={post.status}
+          jobs={publishedJobsByDraftId[post.id] || []}
+        />
       ))}
     </div>
   );

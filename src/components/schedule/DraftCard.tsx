@@ -589,6 +589,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
         label: 'Published',
         icon: '✓',
         textClass: 'text-emerald-600',
+        pillBgClass: 'bg-emerald-100',
       };
     }
     if (normalized === 'failed') {
@@ -597,31 +598,16 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
         label: 'Failed',
         icon: '!',
         textClass: 'text-rose-600',
+        pillBgClass: 'bg-rose-100',
       };
     }
-    if (normalized === 'ready') {
-      return {
-        indicatorClass: 'bg-green-500',
-        label: 'Ready',
-        icon: '✓',
-        textClass: 'text-green-600',
-      };
-    }
-    if (normalized === 'generated') {
-      return {
-        indicatorClass: 'bg-blue-500',
-        label: 'Generated',
-        icon: '•',
-        textClass: 'text-blue-600',
-      };
-    }
-    // Default: capitalize first letter
-    const capitalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    // pending, ready, generated, publishing all show as "Pending" with yellow/amber
     return {
       indicatorClass: 'bg-amber-400',
-      label: capitalized,
+      label: 'Pending',
       icon: '•',
       textClass: 'text-amber-600',
+      pillBgClass: 'bg-amber-100',
     };
   };
 
@@ -629,7 +615,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     normalizedJobs.length > 0 ? (
       <div className="mb-4 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
         {normalizedJobs.map((job) => {
-          const { indicatorClass, label, icon, textClass } = getChannelStatusVisual(job.status);
+          const { indicatorClass, label, icon, textClass, pillBgClass } = getChannelStatusVisual(job.status);
           const tooltip =
             job.status.toLowerCase() === 'failed' && job.error
               ? `${getChannelLabel(job.channel)} • Failed: ${job.error}`
@@ -653,7 +639,9 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-xs font-medium text-gray-700">{getChannelLabel(job.channel)}</span>
-                <span className={`text-[11px] font-medium ${textClass}`}>{label}</span>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${textClass} ${pillBgClass}`}>
+                  {label}
+                </span>
               </div>
             </div>
           );
