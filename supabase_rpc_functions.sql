@@ -41,15 +41,23 @@ BEGIN
     v_target_month := date_trunc('month', p_scheduled_at)::date;
     v_scheduled_local := p_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
     
-    -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+    -- DEBUG: Log raw input channels
+    RAISE NOTICE 'rpc_create_manual_post: Raw p_channels = %', p_channels;
+    
+    -- Normalize channels: trim whitespace, lowercase, and map to canonical values
+    -- Allowed values: 'facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'
     v_normalized_channels := ARRAY(
         SELECT CASE 
-            WHEN channel = 'instagram' THEN 'instagram_feed'
-            WHEN channel = 'linkedin' THEN 'linkedin_profile'
-            ELSE channel
+            WHEN LOWER(TRIM(channel)) = 'instagram' THEN 'instagram_feed'
+            WHEN LOWER(TRIM(channel)) = 'linkedin' THEN 'linkedin_profile'
+            WHEN LOWER(TRIM(channel)) IN ('facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x') THEN LOWER(TRIM(channel))
+            ELSE LOWER(TRIM(channel))  -- Pass through after trimming/lowercasing (will fail constraint if invalid)
         END
         FROM unnest(p_channels) AS channel
     );
+    
+    -- DEBUG: Log normalized channels
+    RAISE NOTICE 'rpc_create_manual_post: Normalized channels = %', v_normalized_channels;
     
     -- Get first channel for draft.channel (backward compatibility)
     v_first_channel := v_normalized_channels[1];
@@ -80,6 +88,9 @@ BEGIN
     -- Create ONE post_job per channel, each linked to the draft
     FOREACH v_channel IN ARRAY v_normalized_channels
     LOOP
+        -- DEBUG: Log channel being inserted
+        RAISE NOTICE 'rpc_create_manual_post: Inserting post_job with channel = %', v_channel;
+        
         INSERT INTO post_jobs (
             brand_id, 
             schedule_rule_id, 
@@ -155,15 +166,23 @@ BEGIN
     v_target_month := date_trunc('month', p_scheduled_at)::date;
     v_scheduled_local := p_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
     
-    -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+    -- DEBUG: Log raw input channels
+    RAISE NOTICE 'rpc_create_single_manual_post: Raw p_channels = %', p_channels;
+    
+    -- Normalize channels: trim whitespace, lowercase, and map to canonical values
+    -- Allowed values: 'facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'
     v_normalized_channels := ARRAY(
         SELECT CASE 
-            WHEN channel = 'instagram' THEN 'instagram_feed'
-            WHEN channel = 'linkedin' THEN 'linkedin_profile'
-            ELSE channel
+            WHEN LOWER(TRIM(channel)) = 'instagram' THEN 'instagram_feed'
+            WHEN LOWER(TRIM(channel)) = 'linkedin' THEN 'linkedin_profile'
+            WHEN LOWER(TRIM(channel)) IN ('facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x') THEN LOWER(TRIM(channel))
+            ELSE LOWER(TRIM(channel))  -- Pass through after trimming/lowercasing (will fail constraint if invalid)
         END
         FROM unnest(p_channels) AS channel
     );
+    
+    -- DEBUG: Log normalized channels
+    RAISE NOTICE 'rpc_create_single_manual_post: Normalized channels = %', v_normalized_channels;
     
     -- Get first channel for draft.channel (backward compatibility)
     v_first_channel := v_normalized_channels[1];
@@ -194,6 +213,9 @@ BEGIN
     -- Create ONE post_job per channel, each linked to the draft
     FOREACH v_channel IN ARRAY v_normalized_channels
     LOOP
+        -- DEBUG: Log channel being inserted
+        RAISE NOTICE 'rpc_create_single_manual_post: Inserting post_job with channel = %', v_channel;
+        
         INSERT INTO post_jobs (
             brand_id, 
             schedule_rule_id, 
