@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, requireAdmin } from '@/lib/supabase-server'
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { createSupabaseClientFromRequest, requireAdmin, supabaseAdmin } from '@/lib/supabase-server'
 import { publishJob } from '@/server/publishing/publishJob'
 import { canonicalizeChannel } from '@/lib/channels'
 
@@ -42,8 +41,16 @@ const SUCCESS_STATUSES = new Set(['success', 'published'])
 
 export async function POST(req: NextRequest) {
   try {
+    // Create Supabase client with cookies from request
+    const supabase = await createSupabaseClientFromRequest()
+
     // Get current user session
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    if (sessionError) {
+      console.error('Error getting session:', sessionError)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

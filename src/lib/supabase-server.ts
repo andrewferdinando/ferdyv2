@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -69,4 +70,50 @@ export async function getServerSession() {
     return null
   }
   return session
+}
+
+// Helper to create Supabase client with cookies (for API routes)
+// This ensures the client can read the session from request cookies
+export async function createSupabaseClientFromRequest() {
+  const cookieStore = await cookies()
+  
+  // Find Supabase auth token cookie (format: sb-<project-ref>-auth-token)
+  const supabaseUrlObj = new URL(supabaseUrl)
+  const projectRef = supabaseUrlObj.hostname.split('.')[0]
+  const authTokenCookieName = `sb-${projectRef}-auth-token`
+  
+  // Get all cookies as a record
+  const cookieMap: Record<string, string> = {}
+  cookieStore.getAll().forEach((cookie) => {
+    cookieMap[cookie.name] = cookie.value
+  })
+  
+  // Create a client with cookie-based storage
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: {
+        getItem: (key: string) => {
+          // Supabase looks for these specific keys
+          if (key.includes('access-token') || key === authTokenCookieName) {
+            return cookieMap[authTokenCookieName] || cookieMap[`sb-${projectRef}-auth-token`] || null
+          }
+          if (key.includes('refresh-token')) {
+            // Refresh token might be in the same cookie or separate
+            return cookieMap[authTokenCookieName] || null
+          }
+          // Try to find any Supabase-related cookie
+          const supabaseCookieName = Object.keys(cookieMap).find(k => 
+            k.includes('sb-') && (k.includes('auth') || k.includes('token'))
+          )
+          return supabaseCookieName ? cookieMap[supabaseCookieName] : null
+        },
+        setItem: () => {}, // No-op for API routes
+        removeItem: () => {}, // No-op for API routes
+      },
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+
+  return client
 }
