@@ -139,6 +139,147 @@ export async function retryFailedChannels(draftId: string): Promise<PublishSumma
   return summary
 }
 
+export type PublishDraftNowResult = {
+  ok: true
+  draftId: string
+  draftStatus: DraftStatus
+  jobs: Array<{
+    id: string
+    draft_id: string | null
+    channel: string
+    status: string
+    error: string | null
+    external_post_id: string | null
+    external_url: string | null
+    last_attempt_at: string | null
+  }>
+}
+
+export async function publishDraftNow(draftId: string): Promise<PublishDraftNowResult> {
+  const nowIso = new Date().toISOString()
+
+  // Load the draft
+  const { data: draft, error: draftError } = await supabaseAdmin
+    .from('drafts')
+    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy')
+    .eq('id', draftId)
+    .single()
+
+  if (draftError || !draft) {
+    throw new Error('Draft not found')
+  }
+
+  // Load all post_jobs for this draft
+  const { data: existingJobsData, error: jobsError } = await supabaseAdmin
+    .from('post_jobs')
+    .select('*')
+    .eq('draft_id', draftId)
+
+  if (jobsError) {
+    throw new Error(`Failed to load post jobs: ${jobsError.message}`)
+  }
+
+  const jobs: PostJobRow[] = (existingJobsData ?? []).map((job) => {
+    const canonical = canonicalizeChannel(job.channel)
+    return canonical && job.channel !== canonical
+      ? { ...job, channel: canonical }
+      : (job as PostJobRow)
+  })
+
+  if (jobs.length === 0) {
+    throw new Error('No post jobs found for this draft')
+  }
+
+  // Update post_jobs to be ready for immediate publishing
+  // Set scheduled_at to now() and status to 'ready' if it's in a publishable state
+  const publishableStatuses = new Set(['pending', 'ready', 'generated', 'failed'])
+  const jobsToUpdate = jobs.filter((job) => publishableStatuses.has(job.status))
+
+  if (jobsToUpdate.length > 0) {
+    await Promise.all(
+      jobsToUpdate.map((job) =>
+        supabaseAdmin
+          .from('post_jobs')
+          .update({
+            scheduled_at: nowIso,
+            status: job.status === 'failed' ? 'ready' : job.status === 'pending' ? 'ready' : job.status,
+            last_attempt_at: null, // Clear previous attempt timestamp
+          })
+          .eq('id', job.id),
+      ),
+    )
+  }
+
+  // Use processDraft to publish the jobs
+  const summary = createEmptySummary()
+  summary.draftsConsidered = 1
+
+  const attempted = await processDraft(draft, {
+    allowedStatuses: new Set(['pending', 'ready', 'generated', 'failed']),
+    ensureJobs: false,
+    summary,
+  })
+
+  if (!attempted) {
+    throw new Error('No jobs were processed')
+  }
+
+  // Reload all jobs to get updated statuses
+  const { data: updatedJobsData } = await supabaseAdmin
+    .from('post_jobs')
+    .select('*')
+    .eq('draft_id', draftId)
+
+  const updatedJobs: PostJobRow[] = (updatedJobsData ?? []).map((job) => {
+    const canonical = canonicalizeChannel(job.channel)
+    return canonical && job.channel !== canonical
+      ? { ...job, channel: canonical }
+      : (job as PostJobRow)
+  })
+
+  // Recalculate draft status from jobs
+  const statuses = updatedJobs.map((job) => job.status)
+  const hasPending = statuses.some((status) => PENDING_STATUSES.has(status))
+  const hasSuccess = statuses.some((status) => SUCCESS_STATUSES.has(status))
+  const hasFailed = statuses.some((status) => status === 'failed')
+
+  let newStatus: DraftStatus = draft.status
+
+  if (!hasPending && hasSuccess && !hasFailed) {
+    newStatus = 'published'
+  } else if (!hasPending && hasSuccess && hasFailed) {
+    newStatus = 'partially_published'
+  } else if (!hasSuccess && hasFailed && !hasPending) {
+    newStatus = 'scheduled'
+  }
+  // Otherwise keep existing status
+
+  // Update draft status if it changed
+  if (newStatus !== draft.status) {
+    await supabaseAdmin
+      .from('drafts')
+      .update({ status: newStatus })
+      .eq('id', draftId)
+  }
+
+  // Return result
+  return {
+    ok: true,
+    draftId: draft.id,
+    draftStatus: newStatus,
+    jobs: updatedJobs.map((job) => ({
+      id: job.id,
+      draft_id: job.draft_id,
+      channel: canonicalizeChannel(job.channel) ?? job.channel,
+      status: job.status,
+      error: job.error,
+      external_post_id: job.external_post_id,
+      external_url: job.external_url,
+      last_attempt_at: job.last_attempt_at ?? null,
+    })),
+  }
+}
+
 async function processDraft(
   draft: DraftRow,
   options: { allowedStatuses: Set<string>; ensureJobs: boolean; summary: PublishSummary },
