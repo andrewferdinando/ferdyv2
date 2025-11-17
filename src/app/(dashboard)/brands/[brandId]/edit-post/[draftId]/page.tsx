@@ -661,7 +661,7 @@ export default function EditPostPage() {
         // Sort by channel order
         const CHANNEL_ORDER = ['facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'];
         const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
-        normalized.sort((a, b) => {
+        normalized.sort((a: PostJobSummary, b: PostJobSummary) => {
           const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
           const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
           if (aIndex === bIndex) {
