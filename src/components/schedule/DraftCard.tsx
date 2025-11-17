@@ -285,7 +285,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);
-  const [siblingChannels, setSiblingChannels] = useState<string[]>([]);
   const [frequency, setFrequency] = useState<FrequencyInput | undefined>(undefined);
   const [eventWindow, setEventWindow] = useState<{ start: string; end: string } | undefined>(undefined);
   const copyRef = useRef<HTMLDivElement>(null);
@@ -364,68 +363,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
 
     return [] as PostJobSummary[];
   }, [jobs, draft.channel, draft.post_job_id, draft.id]);
-
-  // Parse channels (handle null, single channel, and comma-separated channels)
-  const channelsFromString = draft.channel
-    ? draft.channel
-        .split(',')
-        .map((c) => c.trim())
-        .filter(Boolean)
-    : [];
-  const baseChannels =
-    Array.isArray(draft.channels) && draft.channels.length > 0 ? draft.channels : channelsFromString;
-  const rawChannels = Array.from(new Set([...(baseChannels || []), ...(siblingChannels || [])]));
-  const displayChannels = useMemo(() => {
-    return Array.from(
-      new Set(
-        rawChannels
-          .map((channel) => canonicalizeChannel(channel) ?? channel)
-          .filter((channel): channel is string => Boolean(channel)),
-      ),
-    );
-  }, [rawChannels]);
-
-  useEffect(() => {
-    const fetchSiblings = async () => {
-      try {
-        if (!draft.post_job_id && !draft.scheduled_for) return;
-        let query = supabase
-          .from('drafts')
-          .select('channel, channels')
-          .eq('brand_id', draft.brand_id);
-        if (draft.post_job_id) {
-          query = query.eq('post_job_id', draft.post_job_id);
-        } else if (draft.scheduled_for) {
-          // Group by tight time window around scheduled_for (handles automation rows per-channel skews)
-          // Use a 5-second tolerance to match drafts created for the same scheduled time
-          const center = new Date(draft.scheduled_for);
-          const before = new Date(center.getTime() - 5 * 1000).toISOString();
-          const after = new Date(center.getTime() + 5 * 1000).toISOString();
-          query = query.gte('scheduled_for', before).lte('scheduled_for', after);
-        }
-        // Do not restrict schedule_source; some automated rows may have NULL here
-        const { data, error } = await query;
-        if (error) return;
-        const all: string[] = [];
-        (data || []).forEach((row: { channel: string; channels?: string[] }) => {
-          if (Array.isArray(row.channels) && row.channels.length > 0) {
-            all.push(...row.channels);
-          } else if (row.channel) {
-            if (row.channel.includes(',')) {
-              all.push(...row.channel.split(',').map((c) => c.trim()).filter(Boolean));
-            } else {
-              all.push(row.channel);
-            }
-          }
-        });
-        const canonical = all
-          .map((item) => canonicalizeChannel(item) ?? item)
-          .filter((item): item is string => Boolean(item));
-        setSiblingChannels(Array.from(new Set(canonical)));
-      } catch {}
-    };
-    fetchSiblings();
-  }, [draft.brand_id, draft.post_job_id, draft.scheduled_for]);
 
   // Fetch schedule rule data for frequency (category/subcategory comes from view)
   useEffect(() => {
@@ -838,14 +775,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                     {effectiveStatus === 'published' ? 'Published' : 
                      draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)}
                   </span>
-                  {/* Platform Icons with proper spacing */}
-                  <div className="flex items-center ml-4 space-x-1">
-                    {displayChannels.map((channel, index) => (
-                      <div key={index}>
-                        {getPlatformIcon(channel)}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
 
