@@ -713,7 +713,7 @@ export default function EditPostPage() {
     }
   }, [draftId, fetchPostJobs, loadDraft, draft]);
 
-  const approveAndScheduleDraft = async (navigateAfterSuccess = true): Promise<{ success: boolean; data?: any; error?: any }> => {
+  const approveAndScheduleDraft = async (navigateAfterSuccess = true): Promise<{ success: boolean; data?: Draft | null; error?: Error | unknown }> => {
     if (!postCopy.trim()) {
       alert('Please enter post content');
       return { success: false };
@@ -908,8 +908,6 @@ export default function EditPostPage() {
     }
   };
 
-  // Keep handleApprove for backward compatibility (if used elsewhere)
-  const handleApprove = approveAndScheduleDraft;
 
   if (loading) {
     return (
