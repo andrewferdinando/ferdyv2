@@ -642,7 +642,7 @@ export default function EditPostPage() {
             external_post_id: string | null;
             external_url: string | null;
             last_attempt_at: string | null;
-          }) => {
+          }): PostJobSummary | null => {
             const canonical = canonicalizeChannel(job.channel);
             if (!canonical) return null;
             return {
@@ -656,7 +656,7 @@ export default function EditPostPage() {
               last_attempt_at: job.last_attempt_at ?? null,
             } as PostJobSummary;
           })
-          .filter((job): job is PostJobSummary => Boolean(job));
+          .filter((job: PostJobSummary | null): job is PostJobSummary => Boolean(job));
 
         // Sort by channel order
         const CHANNEL_ORDER = ['facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'];
