@@ -120,12 +120,10 @@ export default function EditPostPage() {
       .filter((channel): channel is string => Boolean(channel));
   }, [selectedChannels]);
 
+  // Show all jobs for this draft, not filtered by selected channels
   const channelStatusItems = useMemo(() => {
-    if (canonicalSelectedChannels.length === 0) {
-      return postJobs;
-    }
-    return postJobs.filter((job) => canonicalSelectedChannels.includes(job.channel));
-  }, [canonicalSelectedChannels, postJobs]);
+    return postJobs;
+  }, [postJobs]);
 
   const hasFailedJobs = useMemo(
     () => channelStatusItems.some((job) => job.status.toLowerCase() === 'failed'),
@@ -139,6 +137,7 @@ export default function EditPostPage() {
         text: 'Published',
         textClass: 'text-emerald-600',
         indicatorClass: 'bg-emerald-500',
+        icon: '✓',
       };
     }
     if (normalized === 'failed') {
@@ -146,12 +145,30 @@ export default function EditPostPage() {
         text: 'Failed',
         textClass: 'text-rose-600',
         indicatorClass: 'bg-rose-500',
+        icon: '✕',
+      };
+    }
+    if (normalized === 'publishing') {
+      return {
+        text: 'Publishing',
+        textClass: 'text-blue-600',
+        indicatorClass: 'bg-blue-500',
+        icon: '⟳',
+      };
+    }
+    if (normalized === 'ready' || normalized === 'generated') {
+      return {
+        text: normalized === 'ready' ? 'Ready' : 'Generated',
+        textClass: 'text-green-600',
+        indicatorClass: 'bg-green-500',
+        icon: '○',
       };
     }
     return {
       text: 'Pending',
       textClass: 'text-amber-600',
       indicatorClass: 'bg-amber-400',
+      icon: '○',
     };
   };
 
@@ -181,6 +198,18 @@ export default function EditPostPage() {
             in
           </div>
         );
+      case 'tiktok':
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-black text-xs font-semibold uppercase text-white">
+            tt
+          </div>
+        );
+      case 'x':
+        return (
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-black text-xs font-semibold uppercase text-white">
+            X
+          </div>
+        );
       default:
         return (
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-xs font-semibold uppercase text-gray-700">
@@ -205,7 +234,7 @@ export default function EditPostPage() {
       const { supabase } = await import('@/lib/supabase-browser');
       const { data, error } = await supabase
         .from('post_jobs')
-        .select('id, channel, status, error, external_url')
+        .select('id, draft_id, channel, status, error, external_post_id, external_url, last_attempt_at')
         .eq('draft_id', draftId);
 
       if (error) {
@@ -220,13 +249,28 @@ export default function EditPostPage() {
             if (!canonical) return null;
             return {
               id: job.id,
+              draft_id: job.draft_id,
               channel: canonical,
               status: job.status,
               error: job.error ?? null,
+              external_post_id: job.external_post_id ?? null,
               external_url: job.external_url ?? null,
+              last_attempt_at: job.last_attempt_at ?? null,
             } as PostJobSummary;
           })
           .filter((job): job is PostJobSummary => Boolean(job));
+
+      // Sort by channel order
+      const CHANNEL_ORDER = ['facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'];
+      const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
+      normalized.sort((a, b) => {
+        const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+        if (aIndex === bIndex) {
+          return a.channel.localeCompare(b.channel);
+        }
+        return aIndex - bIndex;
+      });
 
       setPostJobs(normalized);
     } catch (err) {
@@ -591,16 +635,64 @@ export default function EditPostPage() {
         throw new Error(message);
       }
 
-      await loadDraft();
+      const result = await response.json();
+      
+      // Update post_jobs state with the returned jobs
+      if (result.jobs && Array.isArray(result.jobs)) {
+        const normalized = result.jobs
+          .map((job: any) => {
+            const canonical = canonicalizeChannel(job.channel);
+            if (!canonical) return null;
+            return {
+              id: job.id,
+              draft_id: job.draft_id,
+              channel: canonical,
+              status: job.status,
+              error: job.error ?? null,
+              external_post_id: job.external_post_id ?? null,
+              external_url: job.external_url ?? null,
+              last_attempt_at: job.last_attempt_at ?? null,
+            } as PostJobSummary;
+          })
+          .filter((job): job is PostJobSummary => Boolean(job));
+
+        // Sort by channel order
+        const CHANNEL_ORDER = ['facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'];
+        const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
+        normalized.sort((a, b) => {
+          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+          if (aIndex === bIndex) {
+            return a.channel.localeCompare(b.channel);
+          }
+          return aIndex - bIndex;
+        });
+
+        setPostJobs(normalized);
+      }
+
+      // Update draft status if provided
+      if (result.draftStatus && draft) {
+        setDraft((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: result.draftStatus as Draft['status'],
+          };
+        });
+      }
+
+      // Refetch to ensure we have the latest data
       await fetchPostJobs();
-      alert('Retry requested. We will attempt to republish failed channels shortly.');
+      await loadDraft();
     } catch (err) {
       console.error('Failed to retry channels:', err);
-      alert('Failed to retry channels. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to retry channels. Please try again.';
+      alert(errorMessage);
     } finally {
       setIsRetrying(false);
     }
-  }, [draftId, fetchPostJobs, loadDraft]);
+  }, [draftId, fetchPostJobs, loadDraft, draft]);
 
   const handleApprove = async () => {
     if (!postCopy.trim()) {
