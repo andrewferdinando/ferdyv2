@@ -1,0 +1,452 @@
+import { decryptToken } from '@/lib/encryption'
+import { supabaseAdmin } from '@/lib/supabase-server'
+
+const GRAPH_API_VERSION = 'v19.0'
+
+type InstagramPublishParams = {
+  brandId: string
+  jobId: string
+  channel: 'instagram_feed' | 'instagram_story'
+  draft: {
+    id: string
+    copy: string | null
+    hashtags: string[] | null
+    asset_ids: string[] | null
+  }
+  socialAccount: {
+    id: string
+    account_id: string
+    token_encrypted: string | null
+    metadata?: Record<string, unknown> | null
+  }
+}
+
+type InstagramPublishResult =
+  | { success: true; externalId: string; externalUrl: string | null }
+  | { success: false; error: string }
+
+/**
+ * Publishes a post to Instagram Feed using the Graph API
+ */
+export async function publishInstagramFeedPost(
+  params: InstagramPublishParams,
+): Promise<InstagramPublishResult> {
+  const { brandId, jobId, draft, socialAccount } = params
+
+  try {
+    // Validate social account
+    if (!socialAccount.token_encrypted) {
+      return {
+        success: false,
+        error: 'No access token available for Instagram account',
+      }
+    }
+
+    // Decrypt token
+    let accessToken: string
+    try {
+      accessToken = decryptToken(socialAccount.token_encrypted)
+    } catch (error) {
+      console.error('[instagram feed publish] Failed to decrypt token', {
+        brandId,
+        jobId,
+        socialAccountId: socialAccount.id,
+        error: error instanceof Error ? error.message : 'unknown',
+      })
+      return {
+        success: false,
+        error: 'Failed to decrypt access token',
+      }
+    }
+
+    // Get Instagram Business Account ID
+    // It might be in metadata or account_id directly
+    const igAccountId =
+      getMetadataValue<string>(socialAccount.metadata, 'instagramBusinessAccountId') ||
+      getMetadataValue<string>(socialAccount.metadata, 'instagram_business_account_id') ||
+      socialAccount.account_id
+
+    if (!igAccountId) {
+      return {
+        success: false,
+        error: 'Instagram Business Account ID not found',
+      }
+    }
+
+    // Get asset URL (required for Instagram)
+    if (!draft.asset_ids || draft.asset_ids.length === 0) {
+      return {
+        success: false,
+        error: 'Instagram Feed posts require at least one image',
+      }
+    }
+
+    const imageUrl = await getAssetSignedUrl(draft.asset_ids[0])
+    if (!imageUrl) {
+      return {
+        success: false,
+        error: 'Failed to get image URL for Instagram post',
+      }
+    }
+
+    const caption = buildPostMessage(draft.copy, draft.hashtags)
+
+    console.log('[instagram feed publish] Publishing post', {
+      brandId,
+      jobId,
+      igAccountId,
+      captionLength: caption.length,
+    })
+
+    // Step 1: Create media container
+    const containerUrl = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media`,
+    )
+    containerUrl.searchParams.set('image_url', imageUrl)
+    containerUrl.searchParams.set('caption', caption)
+    containerUrl.searchParams.set('access_token', accessToken)
+
+    const containerResponse = await fetch(containerUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const containerData = await containerResponse.json()
+
+    if (!containerResponse.ok) {
+      const errorMessage =
+        containerData.error?.message ||
+        `HTTP ${containerResponse.status}: ${containerResponse.statusText}`
+      console.error('[instagram feed publish] Container creation error', {
+        igAccountId,
+        status: containerResponse.status,
+        error: containerData.error,
+      })
+      return {
+        success: false,
+        error: `Instagram container creation failed: ${errorMessage}`,
+      }
+    }
+
+    const creationId = containerData.id
+
+    if (!creationId) {
+      return {
+        success: false,
+        error: 'Instagram container creation did not return creation_id',
+      }
+    }
+
+    console.log('[instagram feed publish] Container created', {
+      igAccountId,
+      creationId,
+    })
+
+    // Step 2: Publish the media
+    const publishUrl = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media_publish`,
+    )
+    publishUrl.searchParams.set('creation_id', creationId)
+    publishUrl.searchParams.set('access_token', accessToken)
+
+    const publishResponse = await fetch(publishUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const publishData = await publishResponse.json()
+
+    if (!publishResponse.ok) {
+      const errorMessage =
+        publishData.error?.message || `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
+      console.error('[instagram feed publish] Publish error', {
+        igAccountId,
+        creationId,
+        status: publishResponse.status,
+        error: publishData.error,
+      })
+      return {
+        success: false,
+        error: `Instagram publish failed: ${errorMessage}`,
+      }
+    }
+
+    const mediaId = publishData.id
+    const postUrl = mediaId ? `https://instagram.com/p/${mediaId}` : null
+
+    console.log('[instagram feed publish] Success', {
+      igAccountId,
+      creationId,
+      mediaId,
+      postUrl,
+    })
+
+    return {
+      success: true,
+      externalId: mediaId,
+      externalUrl: postUrl,
+    }
+  } catch (error) {
+    console.error('[instagram feed publish] Unexpected error', {
+      brandId,
+      jobId,
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error publishing to Instagram Feed',
+    }
+  }
+}
+
+/**
+ * Publishes a post to Instagram Story using the Graph API
+ */
+export async function publishInstagramStory(
+  params: InstagramPublishParams,
+): Promise<InstagramPublishResult> {
+  const { brandId, jobId, draft, socialAccount } = params
+
+  try {
+    // Validate social account
+    if (!socialAccount.token_encrypted) {
+      return {
+        success: false,
+        error: 'No access token available for Instagram account',
+      }
+    }
+
+    // Decrypt token
+    let accessToken: string
+    try {
+      accessToken = decryptToken(socialAccount.token_encrypted)
+    } catch (error) {
+      console.error('[instagram story publish] Failed to decrypt token', {
+        brandId,
+        jobId,
+        socialAccountId: socialAccount.id,
+        error: error instanceof Error ? error.message : 'unknown',
+      })
+      return {
+        success: false,
+        error: 'Failed to decrypt access token',
+      }
+    }
+
+    // Get Instagram Business Account ID
+    const igAccountId =
+      getMetadataValue<string>(socialAccount.metadata, 'instagramBusinessAccountId') ||
+      getMetadataValue<string>(socialAccount.metadata, 'instagram_business_account_id') ||
+      socialAccount.account_id
+
+    if (!igAccountId) {
+      return {
+        success: false,
+        error: 'Instagram Business Account ID not found',
+      }
+    }
+
+    // Get asset URL (required for Instagram Story)
+    if (!draft.asset_ids || draft.asset_ids.length === 0) {
+      return {
+        success: false,
+        error: 'Instagram Story posts require at least one image',
+      }
+    }
+
+    const imageUrl = await getAssetSignedUrl(draft.asset_ids[0])
+    if (!imageUrl) {
+      return {
+        success: false,
+        error: 'Failed to get image URL for Instagram Story',
+      }
+    }
+
+    console.log('[instagram story publish] Publishing story', {
+      brandId,
+      jobId,
+      igAccountId,
+    })
+
+    // Instagram Story uses a similar two-step process but with media_type=STORIES
+    // Step 1: Create story media container
+    const containerUrl = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media`,
+    )
+    containerUrl.searchParams.set('image_url', imageUrl)
+    containerUrl.searchParams.set('media_type', 'STORIES')
+    // Stories can have a caption but it's optional
+    if (draft.copy || (draft.hashtags && draft.hashtags.length > 0)) {
+      const caption = buildPostMessage(draft.copy, draft.hashtags)
+      containerUrl.searchParams.set('caption', caption)
+    }
+    containerUrl.searchParams.set('access_token', accessToken)
+
+    const containerResponse = await fetch(containerUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const containerData = await containerResponse.json()
+
+    if (!containerResponse.ok) {
+      const errorMessage =
+        containerData.error?.message ||
+        `HTTP ${containerResponse.status}: ${containerResponse.statusText}`
+      console.error('[instagram story publish] Container creation error', {
+        igAccountId,
+        status: containerResponse.status,
+        error: containerData.error,
+      })
+      return {
+        success: false,
+        error: `Instagram Story container creation failed: ${errorMessage}`,
+      }
+    }
+
+    const creationId = containerData.id
+
+    if (!creationId) {
+      return {
+        success: false,
+        error: 'Instagram Story container creation did not return creation_id',
+      }
+    }
+
+    console.log('[instagram story publish] Container created', {
+      igAccountId,
+      creationId,
+    })
+
+    // Step 2: Publish the story
+    const publishUrl = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media_publish`,
+    )
+    publishUrl.searchParams.set('creation_id', creationId)
+    publishUrl.searchParams.set('access_token', accessToken)
+
+    const publishResponse = await fetch(publishUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const publishData = await publishResponse.json()
+
+    if (!publishResponse.ok) {
+      const errorMessage =
+        publishData.error?.message || `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
+      console.error('[instagram story publish] Publish error', {
+        igAccountId,
+        creationId,
+        status: publishResponse.status,
+        error: publishData.error,
+      })
+      return {
+        success: false,
+        error: `Instagram Story publish failed: ${errorMessage}`,
+      }
+    }
+
+    const mediaId = publishData.id
+    const postUrl = mediaId ? `https://instagram.com/stories/${igAccountId}/${mediaId}` : null
+
+    console.log('[instagram story publish] Success', {
+      igAccountId,
+      creationId,
+      mediaId,
+      postUrl,
+    })
+
+    return {
+      success: true,
+      externalId: mediaId,
+      externalUrl: postUrl,
+    }
+  } catch (error) {
+    console.error('[instagram story publish] Unexpected error', {
+      brandId,
+      jobId,
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error publishing to Instagram Story',
+    }
+  }
+}
+
+/**
+ * Build post message from copy and hashtags
+ */
+function buildPostMessage(copy: string | null, hashtags: string[] | null): string {
+  let message = copy || ''
+  if (hashtags && hashtags.length > 0) {
+    const hashtagString = hashtags.map((tag) => (tag.startsWith('#') ? tag : `#${tag}`)).join(' ')
+    if (message) {
+      message += `\n\n${hashtagString}`
+    } else {
+      message = hashtagString
+    }
+  }
+  return message.trim()
+}
+
+/**
+ * Get signed URL for an asset
+ */
+async function getAssetSignedUrl(assetId: string): Promise<string | null> {
+  try {
+    const { data: asset, error } = await supabaseAdmin
+      .from('assets')
+      .select('storage_path')
+      .eq('id', assetId)
+      .single()
+
+    if (error || !asset) {
+      console.warn('[instagram publish] Asset not found', { assetId, error })
+      return null
+    }
+
+    const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
+      .from('ferdy-assets')
+      .createSignedUrl(asset.storage_path, 3600) // 1 hour expiry
+
+    if (urlError || !signedUrlData?.signedUrl) {
+      console.warn('[instagram publish] Failed to create signed URL', {
+        assetId,
+        storagePath: asset.storage_path,
+        error: urlError,
+      })
+      return null
+    }
+
+    return signedUrlData.signedUrl
+  } catch (error) {
+    console.error('[instagram publish] Error getting asset signed URL', {
+      assetId,
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+    return null
+  }
+}
+
+/**
+ * Get metadata value helper
+ */
+function getMetadataValue<T = unknown>(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string,
+): T | undefined {
+  if (!metadata) return undefined
+  const value = metadata[key]
+  return value as T | undefined
+}
+

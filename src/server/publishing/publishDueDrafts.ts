@@ -37,8 +37,11 @@ type PostJobRow = {
 type SocialAccountRow = {
   id: string
   provider: string
+  account_id: string
   handle: string | null
   status: string
+  token_encrypted: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 export type PublishSummary = {
@@ -296,7 +299,7 @@ async function processDraft(
   const scheduledAt = draft.scheduled_for ?? nowIso
   const { data: socialAccountsData } = await supabaseAdmin
     .from('social_accounts')
-    .select('id, provider, handle, status')
+    .select('id, provider, account_id, handle, status, token_encrypted, metadata')
     .eq('brand_id', draft.brand_id)
     .in('provider', ['facebook', 'instagram', 'linkedin'])
     .eq('status', 'connected')

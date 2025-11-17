@@ -4,6 +4,8 @@ import {
   CHANNEL_PROVIDER_MAP,
   SUPPORTED_CHANNELS,
 } from '@/lib/channels'
+import { publishFacebookPost } from './providers/facebook'
+import { publishInstagramFeedPost, publishInstagramStory } from './providers/instagram'
 
 type DraftRow = {
   id: string
@@ -32,8 +34,11 @@ type PostJobRow = {
 type SocialAccountRow = {
   id: string
   provider: string
+  account_id: string
   handle: string | null
   status: string
+  token_encrypted: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 type PublishAttemptResult =
@@ -66,7 +71,15 @@ export async function publishJob(
   const provider = CHANNEL_PROVIDER_MAP[jobChannel]
   const socialAccount = provider ? socialAccounts[provider] : undefined
 
-  const publishResult = await publishToChannel(jobChannel, draft, socialAccount)
+  console.log('[publishJob] Starting publish', {
+    jobId: job.id,
+    channel: jobChannel,
+    provider,
+    hasSocialAccount: !!socialAccount,
+    brandId: draft.brand_id,
+  })
+
+  const publishResult = await publishToChannel(jobChannel, draft, job, socialAccount)
 
   if (publishResult.success) {
     await supabaseAdmin
@@ -79,6 +92,12 @@ export async function publishJob(
       })
       .eq('id', job.id)
 
+    console.log('[publishJob] Success', {
+      jobId: job.id,
+      channel: jobChannel,
+      externalId: publishResult.externalId,
+    })
+
     return { success: true }
   } else {
     await supabaseAdmin
@@ -88,6 +107,12 @@ export async function publishJob(
         error: publishResult.error,
       })
       .eq('id', job.id)
+
+    console.error('[publishJob] Failed', {
+      jobId: job.id,
+      channel: jobChannel,
+      error: publishResult.error,
+    })
 
     return {
       success: false,
@@ -99,6 +124,7 @@ export async function publishJob(
 async function publishToChannel(
   channel: string,
   draft: DraftRow,
+  job: PostJobRow,
   socialAccount?: SocialAccountRow,
 ): Promise<PublishAttemptResult> {
   if (!socialAccount) {
@@ -108,17 +134,72 @@ async function publishToChannel(
     }
   }
 
-  // TODO: Replace with real channel-specific publishing logic
-  await delay(200)
-  const suffix = `${channel}_${Date.now()}`
-  return {
-    success: true,
-    externalId: suffix,
-    externalUrl: `https://example.com/${channel}/${suffix}`,
+  if (socialAccount.status !== 'connected') {
+    return {
+      success: false,
+      error: `Social account is not connected (status: ${socialAccount.status})`,
+    }
   }
-}
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  // Route to appropriate provider based on channel
+  if (channel === 'facebook') {
+    return await publishFacebookPost({
+      brandId: draft.brand_id,
+      jobId: job.id,
+      draft: {
+        id: draft.id,
+        copy: draft.copy,
+        hashtags: draft.hashtags,
+        asset_ids: draft.asset_ids,
+      },
+      socialAccount: {
+        id: socialAccount.id,
+        account_id: socialAccount.account_id,
+        token_encrypted: socialAccount.token_encrypted,
+      },
+    })
+  } else if (channel === 'instagram_feed') {
+    return await publishInstagramFeedPost({
+      brandId: draft.brand_id,
+      jobId: job.id,
+      channel: 'instagram_feed',
+      draft: {
+        id: draft.id,
+        copy: draft.copy,
+        hashtags: draft.hashtags,
+        asset_ids: draft.asset_ids,
+      },
+      socialAccount: {
+        id: socialAccount.id,
+        account_id: socialAccount.account_id,
+        token_encrypted: socialAccount.token_encrypted,
+        metadata: socialAccount.metadata,
+      },
+    })
+  } else if (channel === 'instagram_story') {
+    return await publishInstagramStory({
+      brandId: draft.brand_id,
+      jobId: job.id,
+      channel: 'instagram_story',
+      draft: {
+        id: draft.id,
+        copy: draft.copy,
+        hashtags: draft.hashtags,
+        asset_ids: draft.asset_ids,
+      },
+      socialAccount: {
+        id: socialAccount.id,
+        account_id: socialAccount.account_id,
+        token_encrypted: socialAccount.token_encrypted,
+        metadata: socialAccount.metadata,
+      },
+    })
+  } else {
+    // Unsupported channel
+    return {
+      success: false,
+      error: `Publishing to ${channel} is not yet implemented`,
+    }
+  }
 }
 

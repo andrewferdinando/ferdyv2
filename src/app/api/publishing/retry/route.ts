@@ -31,8 +31,11 @@ type DraftRow = {
 type SocialAccountRow = {
   id: string
   provider: string
+  account_id: string
   handle: string | null
   status: string
+  token_encrypted: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 const PENDING_STATUSES = new Set(['pending', 'generated', 'ready', 'publishing'])
@@ -97,19 +100,19 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Load social accounts for this brand
-    const { data: socialAccountsData } = await supabaseAdmin
-      .from('social_accounts')
-      .select('id, provider, handle, status')
-      .eq('brand_id', draft.brand_id)
-      .in('provider', ['facebook', 'instagram', 'linkedin'])
-      .eq('status', 'connected')
+            // Load social accounts for this brand
+            const { data: socialAccountsData } = await supabaseAdmin
+              .from('social_accounts')
+              .select('id, provider, account_id, handle, status, token_encrypted, metadata')
+              .eq('brand_id', draft.brand_id)
+              .in('provider', ['facebook', 'instagram', 'linkedin'])
+              .eq('status', 'connected')
 
-    const socialAccounts =
-      socialAccountsData?.reduce<Record<string, SocialAccountRow>>((acc, account) => {
-        acc[account.provider] = account
-        return acc
-      }, {}) ?? {}
+            const socialAccounts =
+              socialAccountsData?.reduce<Record<string, SocialAccountRow>>((acc, account) => {
+                acc[account.provider] = account
+                return acc
+              }, {}) ?? {}
 
     // Retry each failed job
     let retried = 0
