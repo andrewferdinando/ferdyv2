@@ -1,10 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabase-server'
 import {
   canonicalizeChannel,
-  CHANNEL_PROVIDER_MAP,
   LEGACY_CHANNEL_ALIASES,
   SUPPORTED_CHANNELS,
 } from '@/lib/channels'
+import { publishJob } from './publishJob'
 
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published'
 
@@ -39,10 +39,6 @@ type SocialAccountRow = {
   handle: string | null
   status: string
 }
-
-type PublishAttemptResult =
-  | { success: true; externalId: string; externalUrl: string | null }
-  | { success: false; error: string }
 
 export type PublishSummary = {
   draftsConsidered: number
@@ -244,28 +240,15 @@ async function processDraft(
     attempted += 1
     summary.jobsAttempted += 1
 
-    await supabaseAdmin
-      .from('post_jobs')
-      .update({ status: 'publishing', last_attempt_at: new Date().toISOString() })
-      .eq('id', job.id)
+    const result = await publishJob(job, draft, socialAccounts)
 
-    const provider = CHANNEL_PROVIDER_MAP[jobChannel]
-    const socialAccount = provider ? socialAccounts[provider] : undefined
-
-    const publishResult = await publishToChannel(jobChannel, draft, socialAccount)
-
-    if (publishResult.success) {
+    if (result.success) {
       summary.jobsSucceeded += 1
+      // Reload job to get updated status
       const { data: updatedJobs } = await supabaseAdmin
         .from('post_jobs')
-        .update({
-          status: 'success',
-          error: null,
-          external_post_id: publishResult.externalId,
-          external_url: publishResult.externalUrl,
-        })
+        .select('*')
         .eq('id', job.id)
-        .select()
         .single()
 
       if (updatedJobs) {
@@ -273,36 +256,25 @@ async function processDraft(
         job.error = updatedJobs.error
         job.external_post_id = updatedJobs.external_post_id
         job.external_url = updatedJobs.external_url
-      } else {
-        job.status = 'success'
-        job.error = null
-        job.external_post_id = publishResult.externalId
-        job.external_url = publishResult.externalUrl
       }
     } else {
       summary.jobsFailed += 1
       summary.errors.push({
         draftId: draft.id,
         channel: jobChannel,
-        error: publishResult.error,
+        error: result.error || 'Unknown error',
       })
 
+      // Reload job to get updated status
       const { data: updatedJobs } = await supabaseAdmin
         .from('post_jobs')
-        .update({
-          status: 'failed',
-          error: publishResult.error,
-        })
+        .select('*')
         .eq('id', job.id)
-        .select()
         .single()
 
       if (updatedJobs) {
         job.status = updatedJobs.status
         job.error = updatedJobs.error
-      } else {
-        job.status = 'failed'
-        job.error = publishResult.error
       }
     }
   }
@@ -437,29 +409,4 @@ function getTargetMonth(isoString: string) {
   return `${date.getUTCFullYear()}-${month}-01`
 }
 
-async function publishToChannel(
-  channel: string,
-  draft: DraftRow,
-  socialAccount?: SocialAccountRow,
-): Promise<PublishAttemptResult> {
-  if (!socialAccount) {
-    return {
-      success: false,
-      error: `No connected social account available for ${channel}`,
-    }
-  }
-
-  // TODO: Replace with real channel-specific publishing logic
-  await delay(200)
-  const suffix = `${channel}_${Date.now()}`
-  return {
-    success: true,
-    externalId: suffix,
-    externalUrl: `https://example.com/${channel}/${suffix}`,
-  }
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
 
