@@ -20,10 +20,13 @@ DECLARE
     v_draft_ids uuid[] := '{}';
     v_draft_id uuid;
     v_post_job_id uuid;
+    v_first_post_job_id uuid;
     v_channel text;
     v_brand_timezone text;
     v_target_month date;
     v_scheduled_local timestamptz;
+    v_normalized_channels text[];
+    v_first_channel text;
 BEGIN
     -- Get brand timezone
     SELECT timezone INTO v_brand_timezone 
@@ -38,20 +41,49 @@ BEGIN
     v_target_month := date_trunc('month', p_scheduled_at)::date;
     v_scheduled_local := p_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
     
-    -- Process each channel
-    FOREACH v_channel IN ARRAY p_channels
+    -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
+    v_normalized_channels := ARRAY(
+        SELECT CASE 
+            WHEN channel = 'instagram' THEN 'instagram_feed'
+            WHEN channel = 'linkedin' THEN 'linkedin_profile'
+            ELSE channel
+        END
+        FROM unnest(p_channels) AS channel
+    );
+    
+    -- Get first channel for draft.channel (backward compatibility)
+    v_first_channel := v_normalized_channels[1];
+    
+    -- Create ONE draft first (before post_jobs)
+    INSERT INTO drafts (
+        brand_id,
+        post_job_id,  -- Will be set after first post_job is created
+        channel,      -- Store first channel only (not comma-separated)
+        copy,
+        hashtags,
+        asset_ids,
+        generated_by,
+        approved,
+        created_by
+    ) VALUES (
+        p_brand_id,
+        NULL,  -- Will be set after first post_job is created
+        v_first_channel,  -- First channel only
+        p_copy,
+        p_hashtags,
+        p_asset_ids,
+        'human',
+        p_approve_now,
+        auth.uid()
+    ) RETURNING id INTO v_draft_id;
+    
+    -- Create ONE post_job per channel, each linked to the draft
+    FOREACH v_channel IN ARRAY v_normalized_channels
     LOOP
-        -- Normalize channel: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
-        v_channel := CASE 
-            WHEN v_channel = 'instagram' THEN 'instagram_feed'
-            WHEN v_channel = 'linkedin' THEN 'linkedin_profile'
-            ELSE v_channel
-        END;
-        
-        -- Insert post job
         INSERT INTO post_jobs (
             brand_id, 
             schedule_rule_id, 
+            draft_id,  -- Link to draft (source of truth)
             channel, 
             target_month, 
             scheduled_at, 
@@ -61,7 +93,8 @@ BEGIN
         ) VALUES (
             p_brand_id,
             NULL,
-            v_channel,
+            v_draft_id,  -- Link to draft
+            v_channel,   -- One channel per post_job
             v_target_month,
             p_scheduled_at,
             v_scheduled_local,
@@ -69,37 +102,19 @@ BEGIN
             CASE WHEN p_approve_now THEN 'ready' ELSE 'generated' END
         ) RETURNING id INTO v_post_job_id;
         
-        -- Insert draft
-        INSERT INTO drafts (
-            brand_id,
-            post_job_id,
-            channel,
-            copy,
-            hashtags,
-            asset_ids,
-            generated_by,
-            approved,
-            created_by
-        ) VALUES (
-            p_brand_id,
-            v_post_job_id,
-            v_channel,
-            p_copy,
-            p_hashtags,
-            p_asset_ids,
-            'human',
-            p_approve_now,
-            auth.uid()
-        ) RETURNING id INTO v_draft_id;
-        
-        -- Update post_job to set draft_id (source of truth link)
-        UPDATE post_jobs
-        SET draft_id = v_draft_id
-        WHERE id = v_post_job_id;
-        
-        -- Add to return array
-        v_draft_ids := array_append(v_draft_ids, v_draft_id);
+        -- Store first post_job_id for draft.post_job_id (backward compatibility)
+        IF v_first_post_job_id IS NULL THEN
+            v_first_post_job_id := v_post_job_id;
+        END IF;
     END LOOP;
+    
+    -- Update draft with first post_job_id (backward compatibility)
+    UPDATE drafts
+    SET post_job_id = v_first_post_job_id
+    WHERE id = v_draft_id;
+    
+    -- Return array with single draft_id (maintains backward compatibility)
+    v_draft_ids := array_append(v_draft_ids, v_draft_id);
     
     RETURN v_draft_ids;
 END;
@@ -119,10 +134,13 @@ RETURNS uuid AS $$
 DECLARE
     v_draft_id uuid;
     v_post_job_id uuid;
+    v_first_post_job_id uuid;
     v_brand_timezone text;
     v_target_month date;
     v_scheduled_local timestamptz;
-    v_channels_text text;
+    v_channel text;
+    v_normalized_channels text[];
+    v_first_channel text;
 BEGIN
     -- Get brand timezone
     SELECT timezone INTO v_brand_timezone 
@@ -138,44 +156,23 @@ BEGIN
     v_scheduled_local := p_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE v_brand_timezone;
     
     -- Normalize channels: replace 'instagram' with 'instagram_feed' (default), 'linkedin' with 'linkedin_profile'
-    v_channels_text := array_to_string(
-        ARRAY(
-            SELECT CASE 
-                WHEN channel = 'instagram' THEN 'instagram_feed'
-                WHEN channel = 'linkedin' THEN 'linkedin_profile'
-                ELSE channel
-            END
-            FROM unnest(p_channels) AS channel
-        ),
-        ','
+    v_normalized_channels := ARRAY(
+        SELECT CASE 
+            WHEN channel = 'instagram' THEN 'instagram_feed'
+            WHEN channel = 'linkedin' THEN 'linkedin_profile'
+            ELSE channel
+        END
+        FROM unnest(p_channels) AS channel
     );
     
-    -- Insert single post job with all channels
-    INSERT INTO post_jobs (
-        brand_id, 
-        schedule_rule_id, 
-        channel, 
-        target_month, 
-        scheduled_at, 
-        scheduled_local, 
-        scheduled_tz, 
-        status
-    ) VALUES (
-        p_brand_id,
-        NULL,
-        v_channels_text, -- Store all channels as comma-separated string
-        v_target_month,
-        p_scheduled_at,
-        v_scheduled_local,
-        v_brand_timezone,
-        CASE WHEN p_approve_now THEN 'ready' ELSE 'generated' END
-    ) RETURNING id INTO v_post_job_id;
+    -- Get first channel for draft.channel (backward compatibility)
+    v_first_channel := v_normalized_channels[1];
     
-    -- Insert single draft
+    -- Create ONE draft first (before post_jobs)
     INSERT INTO drafts (
         brand_id,
-        post_job_id,
-        channel,
+        post_job_id,  -- Will be set after first post_job is created
+        channel,      -- Store first channel only (not comma-separated)
         copy,
         hashtags,
         asset_ids,
@@ -184,8 +181,8 @@ BEGIN
         created_by
     ) VALUES (
         p_brand_id,
-        v_post_job_id,
-        v_channels_text, -- Store all channels as comma-separated string
+        NULL,  -- Will be set after first post_job is created
+        v_first_channel,  -- First channel only
         p_copy,
         p_hashtags,
         p_asset_ids,
@@ -194,10 +191,41 @@ BEGIN
         auth.uid()
     ) RETURNING id INTO v_draft_id;
     
-    -- Update post_job to set draft_id (source of truth link)
-    UPDATE post_jobs
-    SET draft_id = v_draft_id
-    WHERE id = v_post_job_id;
+    -- Create ONE post_job per channel, each linked to the draft
+    FOREACH v_channel IN ARRAY v_normalized_channels
+    LOOP
+        INSERT INTO post_jobs (
+            brand_id, 
+            schedule_rule_id, 
+            draft_id,  -- Link to draft (source of truth)
+            channel, 
+            target_month, 
+            scheduled_at, 
+            scheduled_local, 
+            scheduled_tz, 
+            status
+        ) VALUES (
+            p_brand_id,
+            NULL,
+            v_draft_id,  -- Link to draft
+            v_channel,   -- One channel per post_job
+            v_target_month,
+            p_scheduled_at,
+            v_scheduled_local,
+            v_brand_timezone,
+            CASE WHEN p_approve_now THEN 'ready' ELSE 'generated' END
+        ) RETURNING id INTO v_post_job_id;
+        
+        -- Store first post_job_id for draft.post_job_id (backward compatibility)
+        IF v_first_post_job_id IS NULL THEN
+            v_first_post_job_id := v_post_job_id;
+        END IF;
+    END LOOP;
+    
+    -- Update draft with first post_job_id (backward compatibility)
+    UPDATE drafts
+    SET post_job_id = v_first_post_job_id
+    WHERE id = v_draft_id;
     
     RETURN v_draft_id;
 END;

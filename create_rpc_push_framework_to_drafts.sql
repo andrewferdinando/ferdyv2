@@ -20,8 +20,9 @@ DECLARE
     v_subcategory_id uuid;
     v_draft_id uuid;
     v_post_job_id uuid;
-    v_channel text;  -- Will store comma-separated channels string for drafts
-    v_first_channel text;  -- Will store first channel for post_jobs (to satisfy CHECK constraint)
+    v_first_post_job_id uuid;
+    v_channel text;  -- Used in loop for each channel
+    v_first_channel text;  -- Will store first channel for draft.channel (backward compatibility)
     v_schedule_rule RECORD;
     v_channels text[];
 BEGIN
@@ -88,12 +89,8 @@ BEGIN
             );
         END IF;
 
-        -- Convert channels array to comma-separated string for storage in drafts
-        v_channel := array_to_string(v_channels, ',');
-        
-        -- Extract first channel for post_jobs (to satisfy CHECK constraint)
-        -- post_jobs.channel has a constraint that only allows single channel values: CHECK (channel IN ('facebook','instagram_feed','instagram_story','linkedin_profile','tiktok','x'))
-        v_first_channel := v_channels[1];  -- Get first channel from array
+        -- Get first channel for draft.channel (backward compatibility, not comma-separated)
+        v_first_channel := v_channels[1];
         
         -- Safety check: ensure v_first_channel is normalized (in case array is empty or normalization failed)
         v_first_channel := CASE 
@@ -111,42 +108,11 @@ BEGIN
         LIMIT 1;
 
         IF v_draft_id IS NULL THEN
-            -- Check if a post_job already exists for this scheduled_at time
-            SELECT id INTO v_post_job_id
-            FROM post_jobs
-            WHERE brand_id = p_brand_id
-              AND scheduled_at = v_scheduled_at
-            LIMIT 1;
-
-            IF v_post_job_id IS NULL THEN
-                -- Create post_job with FIRST channel only (to satisfy CHECK constraint)
-                -- The constraint only allows single channel values, not comma-separated strings
-                INSERT INTO post_jobs (
-                    brand_id,
-                    schedule_rule_id,
-                    channel,
-                    target_month,
-                    scheduled_at,
-                    scheduled_local,
-                    scheduled_tz,
-                    status
-                ) VALUES (
-                    p_brand_id,
-                    v_rule_id,
-                    v_first_channel,  -- Use first channel only (satisfies CHECK constraint)
-                    v_target_month,
-                    v_scheduled_at,
-                    v_scheduled_local,
-                    v_brand_timezone,
-                    'pending'  -- Status will be updated by background job
-                ) RETURNING id INTO v_post_job_id;
-            END IF;
-
-            -- Create ONE draft per scheduled time with all channels stored as comma-separated string
+            -- Create ONE draft first (before post_jobs)
             INSERT INTO drafts (
                 brand_id,
-                post_job_id,
-                channel,
+                post_job_id,  -- Will be set after first post_job is created
+                channel,      -- Store first channel only (not comma-separated)
                 scheduled_for,
                 scheduled_for_nzt,
                 schedule_source,
@@ -156,8 +122,8 @@ BEGIN
                 subcategory_id   -- Include subcategory_id from rpc_framework_targets
             ) VALUES (
                 p_brand_id,
-                v_post_job_id,
-                v_channel,  -- Store all channels as comma-separated string (e.g., "instagram,facebook,linkedin")
+                NULL,  -- Will be set after first post_job is created
+                v_first_channel,  -- First channel only
                 v_scheduled_at,
                 v_scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'Pacific/Auckland',  -- NZT conversion
                 'framework',
@@ -167,10 +133,42 @@ BEGIN
                 v_subcategory_id  -- Use subcategory_id from rpc_framework_targets
             ) RETURNING id INTO v_draft_id;
             
-            -- Update post_job to set draft_id (source of truth link)
-            UPDATE post_jobs
-            SET draft_id = v_draft_id
-            WHERE id = v_post_job_id;
+            -- Create ONE post_job per channel, each linked to the draft
+            v_first_post_job_id := NULL;
+            FOREACH v_channel IN ARRAY v_channels
+            LOOP
+                INSERT INTO post_jobs (
+                    brand_id,
+                    schedule_rule_id,
+                    draft_id,  -- Link to draft (source of truth)
+                    channel,
+                    target_month,
+                    scheduled_at,
+                    scheduled_local,
+                    scheduled_tz,
+                    status
+                ) VALUES (
+                    p_brand_id,
+                    v_rule_id,
+                    v_draft_id,  -- Link to draft
+                    v_channel,   -- One channel per post_job
+                    v_target_month,
+                    v_scheduled_at,
+                    v_scheduled_local,
+                    v_brand_timezone,
+                    'pending'  -- Status will be updated by background job
+                ) RETURNING id INTO v_post_job_id;
+                
+                -- Store first post_job_id for draft.post_job_id (backward compatibility)
+                IF v_first_post_job_id IS NULL THEN
+                    v_first_post_job_id := v_post_job_id;
+                END IF;
+            END LOOP;
+            
+            -- Update draft with first post_job_id (backward compatibility)
+            UPDATE drafts
+            SET post_job_id = v_first_post_job_id
+            WHERE id = v_draft_id;
             
             v_count := v_count + 1;
         END IF;

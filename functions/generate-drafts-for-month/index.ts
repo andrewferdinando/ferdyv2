@@ -208,57 +208,130 @@ async function processScheduleRule(
       brand.timezone
     );
 
-    // Process each channel
-    for (const channel of rule.channels || []) {
-      try {
-        // Normalize channel to canonical values
-        const normalizedChannel = normalizeChannel(channel);
-        
-        // Check if post job already exists
-        // For specific frequency, also check that the existing job's schedule_rule overlaps the target month
-        // This prevents issues where multiple rules for the same subcategory create duplicate posts
-        if (!force) {
-          const { data: existingJobs } = await supabase
-            .from('post_jobs')
-            .select('id, schedule_rule_id')
-            .eq('brand_id', rule.brand_id)
-            .eq('channel', normalizedChannel)
-            .eq('scheduled_at', scheduledAtUTC.toISOString());
+    try {
+      // Normalize all channels first
+      const normalizedChannels = (rule.channels || []).map((ch: string) => normalizeChannel(ch));
+      
+      if (normalizedChannels.length === 0) {
+        continue; // Skip if no channels
+      }
 
-          if (existingJobs && existingJobs.length > 0) {
-            // For specific frequency rules, verify the existing job's rule is for the same occurrence
-            // by checking if the schedule_rule_id matches or if it's for the same subcategory
-            // and the same target month
-            if (rule.frequency === 'specific') {
-              // Check if any existing job is for this specific rule (same occurrence)
-              const jobForThisRule = existingJobs.find((j: any) => j.schedule_rule_id === rule.id);
-              if (jobForThisRule) {
-                result.skipped++;
-                continue;
-              }
-              // If not for this rule, check if it's for a different occurrence of the same subcategory
-              // In that case, we should still create the job (different occurrence)
-              // But we need to verify the existing job's rule doesn't overlap the target month
-              // For now, we'll allow it and let the uniqueness constraint handle duplicates
-              // Actually, if there's already a job for this exact time, we should skip
-              // The issue is that we might have multiple rules creating jobs for the same time
-              // So we should check if the existing job's rule is for the same subcategory AND target month
-              // If so, skip to avoid duplicates
-            } else {
-              // For non-specific frequencies, if any job exists, skip
-              result.skipped++;
-              continue;
+      // Check if a draft already exists for this slot (by checking if any post_job exists for this time and rule)
+      let existingDraftId: string | null = null;
+      if (!force) {
+        const { data: existingJobs } = await supabase
+          .from('post_jobs')
+          .select('draft_id, schedule_rule_id')
+          .eq('brand_id', rule.brand_id)
+          .eq('scheduled_at', scheduledAtUTC.toISOString())
+          .eq('schedule_rule_id', rule.id)
+          .limit(1);
+
+        if (existingJobs && existingJobs.length > 0 && existingJobs[0].draft_id) {
+          existingDraftId = existingJobs[0].draft_id;
+        }
+      }
+
+      // Create ONE draft for this slot (if it doesn't exist)
+      let draftId: string;
+      let firstPostJobId: string | null = null;
+
+      if (existingDraftId) {
+        // Draft already exists, use it
+        draftId = existingDraftId;
+        
+        // Get existing post_jobs for this draft to find first one
+        const { data: existingPostJobs } = await supabase
+          .from('post_jobs')
+          .select('id')
+          .eq('draft_id', draftId)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        
+        if (existingPostJobs && existingPostJobs.length > 0) {
+          firstPostJobId = existingPostJobs[0].id;
+        }
+      } else {
+        // Generate draft content first (we need copy and assets)
+        const generatedContent = await generateCaption({
+          brand: {
+            name: brand.name,
+            timezone: brand.timezone
+          },
+          rule: {
+            tone: rule.tone,
+            hashtag_rule: rule.hashtag_rule,
+            channels: rule.channels
+          },
+          subcategory: rule.subcategories || {},
+          prefs: prefs || {}
+        });
+
+        // Load asset usage for LRU rotation
+        if (rule.subcategory_id) {
+          await loadAssetUsageFromDB(supabase, brand.id, rule.subcategory_id);
+        }
+
+        // Select assets
+        const { assetIds } = await selectAssets(
+          supabase,
+          rule,
+          brand.id,
+          normalizedChannels[0], // Use first channel for asset selection
+        );
+
+        // Create ONE draft
+        const { data: draft, error: draftError } = await supabase
+          .from('drafts')
+          .insert({
+            brand_id: rule.brand_id,
+            post_job_id: null, // Will be set after first post_job is created
+            channel: normalizedChannels[0], // First channel only (backward compatibility)
+            copy: generatedContent.copy,
+            hashtags: generatedContent.hashtags,
+            asset_ids: assetIds,
+            generated_by: 'ai',
+            approved: false,
+            subcategory_id: rule.subcategory_id || null
+          })
+          .select()
+          .single();
+
+        if (draftError) {
+          throw new Error(`Failed to create draft: ${draftError.message}`);
+        }
+
+        draftId = draft.id;
+        result.draftsCreated++;
+      }
+
+      // Create ONE post_job per channel, each linked to the draft
+      for (const normalizedChannel of normalizedChannels) {
+        // Check if post job already exists for this channel
+        if (!force) {
+          const { data: existingJob } = await supabase
+            .from('post_jobs')
+            .select('id')
+            .eq('draft_id', draftId)
+            .eq('channel', normalizedChannel)
+            .single();
+
+          if (existingJob) {
+            if (!firstPostJobId) {
+              firstPostJobId = existingJob.id;
             }
+            continue; // Skip if post_job already exists for this channel
           }
         }
 
-        // Create post job
+        // Create post job for this channel
         const { data: postJob, error: jobError } = await supabase
           .from('post_jobs')
           .insert({
             brand_id: rule.brand_id,
             schedule_rule_id: rule.id,
-            channel: normalizedChannel,
+            draft_id: draftId, // Link to draft (source of truth)
+            channel: normalizedChannel, // One channel per post_job
             target_month: targetDate.toISOString().substring(0, 7) + '-01',
             scheduled_at: scheduledAtUTC.toISOString(),
             scheduled_local: slot.date + 'T' + slot.time,
@@ -274,13 +347,23 @@ async function processScheduleRule(
 
         result.jobsCreated++;
 
-        // Generate draft content (postJob.channel is already normalized)
-        await generateDraftForJob(supabase, postJob, rule, brand, prefs, result);
-
-      } catch (error) {
-        console.error(`Error processing slot ${slot.date} ${slot.time} for ${channel}:`, error);
-        result.errors.push(`Slot ${slot.date} ${slot.time} ${channel}: ${error.message}`);
+        // Store first post_job_id for draft.post_job_id (backward compatibility)
+        if (!firstPostJobId) {
+          firstPostJobId = postJob.id;
+        }
       }
+
+      // Update draft with first post_job_id (backward compatibility)
+      if (firstPostJobId) {
+        await supabase
+          .from('drafts')
+          .update({ post_job_id: firstPostJobId })
+          .eq('id', draftId);
+      }
+
+    } catch (error) {
+      console.error(`Error processing slot ${slot.date} ${slot.time}:`, error);
+      result.errors.push(`Slot ${slot.date} ${slot.time}: ${error.message}`);
     }
   }
 }
