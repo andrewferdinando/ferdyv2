@@ -81,11 +81,12 @@ export async function publishInstagramFeedPost(
       }
     }
 
-    const imageUrl = await getAssetSignedUrl(draft.asset_ids[0])
+    // Instagram requires publicly accessible URLs, not signed URLs
+    const imageUrl = await getAssetPublicUrl(draft.asset_ids[0])
     if (!imageUrl) {
       return {
         success: false,
-        error: 'Failed to get image URL for Instagram post',
+        error: 'Failed to get public image URL for Instagram post',
       }
     }
 
@@ -94,7 +95,9 @@ export async function publishInstagramFeedPost(
     console.log('[instagram feed publish] Publishing post', {
       brandId,
       jobId,
+      channel: 'instagram_feed',
       igAccountId,
+      imageUrl: imageUrl.substring(0, 100) + '...', // Log partial URL (no secrets)
       captionLength: caption.length,
     })
 
@@ -116,26 +119,52 @@ export async function publishInstagramFeedPost(
     const containerData = await containerResponse.json()
 
     if (!containerResponse.ok) {
+      // Log full response for debugging
       const errorMessage =
         containerData.error?.message ||
+        containerData.error?.error_user_msg ||
+        JSON.stringify(containerData.error) ||
         `HTTP ${containerResponse.status}: ${containerResponse.statusText}`
+      
       console.error('[instagram feed publish] Container creation error', {
+        brandId,
+        jobId,
+        channel: 'instagram_feed',
         igAccountId,
         status: containerResponse.status,
+        statusText: containerResponse.statusText,
         error: containerData.error,
+        fullResponse: JSON.stringify(containerData),
       })
+      
       return {
         success: false,
         error: `Instagram container creation failed: ${errorMessage}`,
       }
     }
 
+    // Check for creation_id in response
     const creationId = containerData.id
 
     if (!creationId) {
+      // Log full response when creation_id is missing
+      console.error('[instagram feed publish] Container creation did not return id', {
+        brandId,
+        jobId,
+        channel: 'instagram_feed',
+        igAccountId,
+        fullResponse: JSON.stringify(containerData),
+        responseKeys: Object.keys(containerData),
+      })
+      
+      const errorMessage = containerData.error?.message || 
+        containerData.error?.error_user_msg ||
+        JSON.stringify(containerData) ||
+        'Container creation did not return creation_id'
+      
       return {
         success: false,
-        error: 'Instagram container creation did not return creation_id',
+        error: `Instagram container creation failed: ${errorMessage}`,
       }
     }
 
@@ -162,13 +191,23 @@ export async function publishInstagramFeedPost(
 
     if (!publishResponse.ok) {
       const errorMessage =
-        publishData.error?.message || `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
+        publishData.error?.message ||
+        publishData.error?.error_user_msg ||
+        JSON.stringify(publishData.error) ||
+        `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
+      
       console.error('[instagram feed publish] Publish error', {
+        brandId,
+        jobId,
+        channel: 'instagram_feed',
         igAccountId,
         creationId,
         status: publishResponse.status,
+        statusText: publishResponse.statusText,
         error: publishData.error,
+        fullResponse: JSON.stringify(publishData),
       })
+      
       return {
         success: false,
         error: `Instagram publish failed: ${errorMessage}`,
@@ -176,9 +215,35 @@ export async function publishInstagramFeedPost(
     }
 
     const mediaId = publishData.id
+
+    if (!mediaId) {
+      console.error('[instagram feed publish] Publish did not return media id', {
+        brandId,
+        jobId,
+        channel: 'instagram_feed',
+        igAccountId,
+        creationId,
+        fullResponse: JSON.stringify(publishData),
+        responseKeys: Object.keys(publishData),
+      })
+      
+      const errorMessage = publishData.error?.message ||
+        publishData.error?.error_user_msg ||
+        JSON.stringify(publishData) ||
+        'Publish did not return media id'
+      
+      return {
+        success: false,
+        error: `Instagram publish failed: ${errorMessage}`,
+      }
+    }
+
     const postUrl = mediaId ? `https://instagram.com/p/${mediaId}` : null
 
     console.log('[instagram feed publish] Success', {
+      brandId,
+      jobId,
+      channel: 'instagram_feed',
       igAccountId,
       creationId,
       mediaId,
@@ -258,18 +323,21 @@ export async function publishInstagramStory(
       }
     }
 
-    const imageUrl = await getAssetSignedUrl(draft.asset_ids[0])
+    // Instagram requires publicly accessible URLs, not signed URLs
+    const imageUrl = await getAssetPublicUrl(draft.asset_ids[0])
     if (!imageUrl) {
       return {
         success: false,
-        error: 'Failed to get image URL for Instagram Story',
+        error: 'Failed to get public image URL for Instagram Story',
       }
     }
 
     console.log('[instagram story publish] Publishing story', {
       brandId,
       jobId,
+      channel: 'instagram_story',
       igAccountId,
+      imageUrl: imageUrl.substring(0, 100) + '...', // Log partial URL (no secrets)
     })
 
     // Instagram Story uses a similar two-step process but with media_type=STORIES
@@ -298,12 +366,21 @@ export async function publishInstagramStory(
     if (!containerResponse.ok) {
       const errorMessage =
         containerData.error?.message ||
+        containerData.error?.error_user_msg ||
+        JSON.stringify(containerData.error) ||
         `HTTP ${containerResponse.status}: ${containerResponse.statusText}`
+      
       console.error('[instagram story publish] Container creation error', {
+        brandId,
+        jobId,
+        channel: 'instagram_story',
         igAccountId,
         status: containerResponse.status,
+        statusText: containerResponse.statusText,
         error: containerData.error,
+        fullResponse: JSON.stringify(containerData),
       })
+      
       return {
         success: false,
         error: `Instagram Story container creation failed: ${errorMessage}`,
@@ -313,9 +390,23 @@ export async function publishInstagramStory(
     const creationId = containerData.id
 
     if (!creationId) {
+      console.error('[instagram story publish] Container creation did not return id', {
+        brandId,
+        jobId,
+        channel: 'instagram_story',
+        igAccountId,
+        fullResponse: JSON.stringify(containerData),
+        responseKeys: Object.keys(containerData),
+      })
+      
+      const errorMessage = containerData.error?.message ||
+        containerData.error?.error_user_msg ||
+        JSON.stringify(containerData) ||
+        'Container creation did not return creation_id'
+      
       return {
         success: false,
-        error: 'Instagram Story container creation did not return creation_id',
+        error: `Instagram Story container creation failed: ${errorMessage}`,
       }
     }
 
@@ -342,13 +433,23 @@ export async function publishInstagramStory(
 
     if (!publishResponse.ok) {
       const errorMessage =
-        publishData.error?.message || `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
+        publishData.error?.message ||
+        publishData.error?.error_user_msg ||
+        JSON.stringify(publishData.error) ||
+        `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
+      
       console.error('[instagram story publish] Publish error', {
+        brandId,
+        jobId,
+        channel: 'instagram_story',
         igAccountId,
         creationId,
         status: publishResponse.status,
+        statusText: publishResponse.statusText,
         error: publishData.error,
+        fullResponse: JSON.stringify(publishData),
       })
+      
       return {
         success: false,
         error: `Instagram Story publish failed: ${errorMessage}`,
@@ -356,9 +457,35 @@ export async function publishInstagramStory(
     }
 
     const mediaId = publishData.id
+
+    if (!mediaId) {
+      console.error('[instagram story publish] Publish did not return media id', {
+        brandId,
+        jobId,
+        channel: 'instagram_story',
+        igAccountId,
+        creationId,
+        fullResponse: JSON.stringify(publishData),
+        responseKeys: Object.keys(publishData),
+      })
+      
+      const errorMessage = publishData.error?.message ||
+        publishData.error?.error_user_msg ||
+        JSON.stringify(publishData) ||
+        'Publish did not return media id'
+      
+      return {
+        success: false,
+        error: `Instagram Story publish failed: ${errorMessage}`,
+      }
+    }
+
     const postUrl = mediaId ? `https://instagram.com/stories/${igAccountId}/${mediaId}` : null
 
     console.log('[instagram story publish] Success', {
+      brandId,
+      jobId,
+      channel: 'instagram_story',
       igAccountId,
       creationId,
       mediaId,
@@ -400,9 +527,11 @@ function buildPostMessage(copy: string | null, hashtags: string[] | null): strin
 }
 
 /**
- * Get signed URL for an asset
+ * Get public URL for an asset
+ * Instagram Graph API requires publicly accessible URLs (not signed URLs)
+ * Meta's servers need to be able to fetch the image
  */
-async function getAssetSignedUrl(assetId: string): Promise<string | null> {
+async function getAssetPublicUrl(assetId: string): Promise<string | null> {
   try {
     const { data: asset, error } = await supabaseAdmin
       .from('assets')
@@ -415,22 +544,23 @@ async function getAssetSignedUrl(assetId: string): Promise<string | null> {
       return null
     }
 
-    const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
+    // Use getPublicUrl instead of createSignedUrl for Instagram
+    // Instagram Graph API requires publicly accessible URLs
+    const { data: publicUrlData } = supabaseAdmin.storage
       .from('ferdy-assets')
-      .createSignedUrl(asset.storage_path, 3600) // 1 hour expiry
+      .getPublicUrl(asset.storage_path)
 
-    if (urlError || !signedUrlData?.signedUrl) {
-      console.warn('[instagram publish] Failed to create signed URL', {
+    if (!publicUrlData?.publicUrl) {
+      console.warn('[instagram publish] Failed to get public URL', {
         assetId,
         storagePath: asset.storage_path,
-        error: urlError,
       })
       return null
     }
 
-    return signedUrlData.signedUrl
+    return publicUrlData.publicUrl
   } catch (error) {
-    console.error('[instagram publish] Error getting asset signed URL', {
+    console.error('[instagram publish] Error getting asset public URL', {
       assetId,
       error: error instanceof Error ? error.message : 'unknown',
     })
