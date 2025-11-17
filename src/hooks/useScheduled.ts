@@ -5,8 +5,7 @@ import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import type { Asset } from '@/hooks/assets/useAssets';
 import { getSignedUrl } from '@/lib/storage/getSignedUrl';
-import { canonicalizeChannel, SUPPORTED_CHANNELS } from '@/lib/channels';
-import type { PostJobSummary } from '@/types/postJobs';
+import { fetchJobsByDraftId } from './usePostJobs';
 
 type Tag = {
   id: string;
@@ -84,9 +83,6 @@ interface ScheduledPost {
   assets?: Asset[];
 }
 
-const CHANNEL_ORDER = SUPPORTED_CHANNELS;
-const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
-
 export function useScheduled(brandId: string) {
   const [scheduled, setScheduled] = useState<ScheduledPost[]>([]);
   const [jobsByDraftId, setJobsByDraftId] = useState<Record<string, PostJobSummary[]>>({});
@@ -138,56 +134,8 @@ export function useScheduled(brandId: string) {
       setScheduled(scheduledWithAssets);
 
       const draftIds = (data || []).map((draft) => draft.id).filter((id): id is string => Boolean(id));
-      if (draftIds.length === 0) {
-        setJobsByDraftId({});
-        return;
-      }
-
-      const { data: jobsData, error: jobsError } = await supabase
-        .from('post_jobs')
-        .select('id, draft_id, channel, status, error, external_post_id, external_url, last_attempt_at')
-        .in('draft_id', draftIds);
-
-      if (jobsError) {
-        console.error('useScheduled: Failed to load post_jobs', jobsError);
-        setJobsByDraftId({});
-        return;
-      }
-
-      const map: Record<string, PostJobSummary[]> = {};
-      (jobsData ?? []).forEach((job) => {
-        if (!job.draft_id) return;
-        const canonical = canonicalizeChannel(job.channel) ?? job.channel;
-        const entry: PostJobSummary = {
-          id: job.id,
-          draft_id: job.draft_id,
-          channel: canonical,
-          status: job.status,
-          error: job.error ?? null,
-          external_post_id: job.external_post_id ?? null,
-          external_url: job.external_url ?? null,
-          last_attempt_at: job.last_attempt_at ?? null,
-        };
-
-        if (!map[job.draft_id]) {
-          map[job.draft_id] = [];
-        }
-
-        map[job.draft_id].push(entry);
-      });
-
-      for (const draftId of Object.keys(map)) {
-        map[draftId].sort((a, b) => {
-          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
-          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
-          if (aIndex === bIndex) {
-            return a.channel.localeCompare(b.channel);
-          }
-          return aIndex - bIndex;
-        });
-      }
-
-      setJobsByDraftId(map);
+      const jobsMap = await fetchJobsByDraftId(draftIds);
+      setJobsByDraftId(jobsMap);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch scheduled posts');
     } finally {

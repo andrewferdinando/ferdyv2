@@ -10,7 +10,6 @@ import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
 import { useToast } from '@/components/ui/ToastProvider';
 import { Asset } from '@/hooks/assets/useAssets';
-import { canonicalizeChannel } from '@/lib/channels';
 import type { PostJobSummary } from '@/types/postJobs';
 
 // Type definitions
@@ -349,16 +348,7 @@ function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: Scheduled
           draft={post}
           onUpdate={onUpdate}
           status={post.status}
-          jobs={(jobsByDraftId[post.id] || []).filter((job) => {
-            if (!post.channel) {
-              return true;
-            }
-            const selected = post.channel
-              .split(',')
-              .map((token) => canonicalizeChannel(token))
-              .filter((token): token is string => Boolean(token));
-            return selected.length === 0 ? true : selected.includes(job.channel);
-          })}
+          jobs={jobsByDraftId[post.id] || []}
         />
       ))}
     </div>
