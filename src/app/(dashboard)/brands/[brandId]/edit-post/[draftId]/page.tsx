@@ -12,6 +12,7 @@ import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone
 import { channelSupportsMedia, describeChannelSupport } from '@/lib/channelSupport';
 import type { PostJobSummary } from '@/types/postJobs';
 import { canonicalizeChannel, getChannelLabel } from '@/lib/channels';
+import { useToast } from '@/components/ui/ToastProvider';
 
 console.log('Edit Post page component loaded');
 
@@ -51,6 +52,7 @@ export default function EditPostPage() {
   const router = useRouter();
   const brandId = params.brandId as string;
   const draftId = params.draftId as string;
+  const { showToast } = useToast();
   
   // Fetch brand with timezone
   const { brand } = useBrand(brandId);
@@ -830,7 +832,11 @@ export default function EditPostPage() {
         const errorMessage = approveResult?.error instanceof Error 
           ? approveResult.error.message 
           : 'Failed to approve and schedule draft';
-        alert(errorMessage);
+        showToast({
+          title: 'Failed to approve draft',
+          message: errorMessage,
+          type: 'error',
+        });
         return;
       }
 
@@ -845,8 +851,50 @@ export default function EditPostPage() {
 
       if (!response.ok || !data.ok) {
         const errorMessage = data.error || 'Failed to publish now';
-        alert(errorMessage);
+        showToast({
+          title: 'Publishing failed',
+          message: errorMessage,
+          type: 'error',
+        });
         return;
+      }
+
+      // Compute successful and failed channels from jobs
+      const jobs = data.jobs || [];
+      const successfulChannels: string[] = [];
+      const failedChannels: string[] = [];
+
+      jobs.forEach((job: PostJobSummary) => {
+        const channelLabel = getChannelLabel(job.channel);
+        if (job.status.toLowerCase() === 'success' || job.status.toLowerCase() === 'published') {
+          successfulChannels.push(channelLabel);
+        } else if (job.status.toLowerCase() === 'failed') {
+          failedChannels.push(channelLabel);
+        }
+      });
+
+      // Show appropriate toast based on results
+      if (successfulChannels.length > 0 && failedChannels.length === 0) {
+        // All success
+        showToast({
+          title: 'Post published successfully',
+          message: `Post published successfully to ${successfulChannels.join(', ')}.`,
+          type: 'success',
+        });
+      } else if (successfulChannels.length > 0 && failedChannels.length > 0) {
+        // Partial success
+        showToast({
+          title: 'Post partially published',
+          message: `Post published to ${successfulChannels.join(', ')}. Failed on: ${failedChannels.join(', ')}. See channel status for details.`,
+          type: 'error', // Using 'error' type for warnings since Toast only supports success/error
+        });
+      } else if (failedChannels.length > 0) {
+        // All failed
+        showToast({
+          title: 'Publishing failed',
+          message: `Publishing failed on all channels. See channel status for details.`,
+          type: 'error',
+        });
       }
 
       // Update local state with the response
@@ -897,12 +945,14 @@ export default function EditPostPage() {
       // Refetch to ensure we have the latest data
       await fetchPostJobs();
       await loadDraft();
-
-      alert('Post approved and published successfully!');
     } catch (error) {
       console.error('Error publishing now:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to publish now. Please try again.';
-      alert(errorMessage);
+      showToast({
+        title: 'Publishing failed',
+        message: errorMessage,
+        type: 'error',
+      });
     } finally {
       setIsPublishingNow(false);
     }
@@ -1262,7 +1312,7 @@ export default function EditPostPage() {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={isSaving || isPublishingNow}
                   className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-6 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? 'Saving...' : 'Save Changes'}
@@ -1272,13 +1322,19 @@ export default function EditPostPage() {
                     <button
                       onClick={() => approveAndScheduleDraft()}
                       disabled={isSaving || isApproving || isPublishingNow || !canApprove}
-                      className={`px-6 py-2 rounded-l-lg font-medium transition-colors ${
+                      className={`px-6 py-2 rounded-l-lg font-medium transition-colors flex items-center space-x-2 ${
                         canApprove && !isPublishingNow
                           ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
                           : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       }`}
                     >
-                      {isPublishingNow ? 'Publishing...' : isApproving ? 'Approving...' : 'Approve & Schedule'}
+                      {isPublishingNow && (
+                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
+                      <span>{isPublishingNow ? 'Publishing...' : isApproving ? 'Approving...' : 'Approve & Schedule'}</span>
                     </button>
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
