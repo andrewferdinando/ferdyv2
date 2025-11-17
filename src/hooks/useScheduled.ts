@@ -6,6 +6,7 @@ import { normalizeHashtags } from '@/lib/utils/hashtags';
 import type { Asset } from '@/hooks/assets/useAssets';
 import { getSignedUrl } from '@/lib/storage/getSignedUrl';
 import { fetchJobsByDraftId } from './usePostJobs';
+import type { PostJobSummary } from '@/types/postJobs';
 
 type Tag = {
   id: string;
