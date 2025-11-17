@@ -77,6 +77,8 @@ export default function EditPostPage() {
   const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isPublishingNow, setIsPublishingNow] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [postJobs, setPostJobs] = useState<PostJobSummary[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
   const { imageAssets, videoAssets } = useMemo(() => {
@@ -711,27 +713,27 @@ export default function EditPostPage() {
     }
   }, [draftId, fetchPostJobs, loadDraft, draft]);
 
-  const handleApprove = async () => {
+  const approveAndScheduleDraft = async (navigateAfterSuccess = true): Promise<{ success: boolean; data?: any; error?: any }> => {
     if (!postCopy.trim()) {
       alert('Please enter post content');
-      return;
+      return { success: false };
     }
 
     if (selectedChannels.length === 0) {
       alert('Please select at least one channel');
-      return;
+      return { success: false };
     }
 
     if (!scheduleDate || !scheduleTime) {
       alert('Please select a date and time');
-      return;
+      return { success: false };
     }
 
     // Validate assets have tags before approving
     if (selectedAssets.length > 0) {
       const assetsValid = await validateAssetsHaveTags(selectedAssets.map((asset) => asset.id));
       if (!assetsValid) {
-        return // Validation failed, error message already shown
+        return { success: false }; // Validation failed, error message already shown
       }
     }
 
@@ -743,7 +745,7 @@ export default function EditPostPage() {
       // Convert local date/time (in brand timezone) to UTC
       if (!brand?.timezone) {
         alert('Brand timezone not configured. Please update brand settings.')
-        return
+        return { success: false };
       }
       
       const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
@@ -794,17 +796,120 @@ export default function EditPostPage() {
       }
 
       console.log('Post approved successfully:', data);
-      alert('Post approved and scheduled successfully!');
       
-      // Navigate back to schedule page
-      router.push(`/brands/${brandId}/schedule`);
+      // Update local state
+      if (data) {
+        setDraft((prev) => (prev ? { ...prev, ...data } : null));
+      }
+      
+      // Navigate back to schedule page if this was called directly
+      if (navigateAfterSuccess) {
+        alert('Post approved and scheduled successfully!');
+        router.push(`/brands/${brandId}/schedule`);
+      }
+      
+      return { success: true, data };
     } catch (error) {
       console.error('Error approving post:', error);
       alert('Failed to approve post. Please try again.');
+      return { success: false, error };
     } finally {
       setIsApproving(false);
     }
   };
+
+  const approveAndPublishNow = async () => {
+    setIsPublishingNow(true);
+    setIsDropdownOpen(false);
+
+    try {
+      // First, ensure the draft is approved and scheduled (don't navigate)
+      const approveResult = await approveAndScheduleDraft(false);
+      
+      if (!approveResult || !approveResult.success) {
+        const errorMessage = approveResult?.error instanceof Error 
+          ? approveResult.error.message 
+          : 'Failed to approve and schedule draft';
+        alert(errorMessage);
+        return;
+      }
+
+      // Now call the publish-now endpoint
+      const response = await fetch('/api/publishing/publish-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draftId: draftId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        const errorMessage = data.error || 'Failed to publish now';
+        alert(errorMessage);
+        return;
+      }
+
+      // Update local state with the response
+      if (data.draftStatus) {
+        setDraft((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: data.draftStatus as Draft['status'],
+            approved: true,
+          };
+        });
+      }
+
+      // Update post jobs if provided
+      if (data.jobs && Array.isArray(data.jobs)) {
+        const normalized = data.jobs
+          .map((job: {
+            id: string; draft_id: string | null; channel: string; status: string;
+            error: string | null; external_post_id: string | null;
+            external_url: string | null; last_attempt_at: string | null;
+          }): PostJobSummary | null => {
+            const canonical = canonicalizeChannel(job.channel);
+            if (!canonical) return null;
+            return {
+              id: job.id, draft_id: job.draft_id, channel: canonical, status: job.status,
+              error: job.error ?? null, external_post_id: job.external_post_id ?? null,
+              external_url: job.external_url ?? null, last_attempt_at: job.last_attempt_at ?? null,
+            } as PostJobSummary;
+          })
+          .filter((job: PostJobSummary | null): job is PostJobSummary => Boolean(job));
+
+        // Sort by channel order
+        const CHANNEL_ORDER = ['facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'];
+        const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
+        normalized.sort((a: PostJobSummary, b: PostJobSummary) => {
+          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+          if (aIndex === bIndex) {
+            return a.channel.localeCompare(b.channel);
+          }
+          return aIndex - bIndex;
+        });
+
+        setPostJobs(normalized);
+      }
+
+      // Refetch to ensure we have the latest data
+      await fetchPostJobs();
+      await loadDraft();
+
+      alert('Post approved and published successfully!');
+    } catch (error) {
+      console.error('Error publishing now:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to publish now. Please try again.';
+      alert(errorMessage);
+    } finally {
+      setIsPublishingNow(false);
+    }
+  };
+
+  // Keep handleApprove for backward compatibility (if used elsewhere)
+  const handleApprove = approveAndScheduleDraft;
 
   if (loading) {
     return (
@@ -1165,17 +1270,63 @@ export default function EditPostPage() {
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
                 {!draft?.approved && (
-                  <button
-                    onClick={handleApprove}
-                    disabled={isSaving || isApproving || !canApprove}
-                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                      canApprove
-                        ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {isApproving ? 'Approving...' : 'Approve & Schedule'}
-                  </button>
+                  <div className="relative inline-flex rounded-lg">
+                    <button
+                      onClick={approveAndScheduleDraft}
+                      disabled={isSaving || isApproving || isPublishingNow || !canApprove}
+                      className={`px-6 py-2 rounded-l-lg font-medium transition-colors ${
+                        canApprove && !isPublishingNow
+                          ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isPublishingNow ? 'Publishing...' : isApproving ? 'Approving...' : 'Approve & Schedule'}
+                    </button>
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      disabled={isSaving || isApproving || isPublishingNow || !canApprove}
+                      className={`px-2 py-2 rounded-r-lg border-l border-white/20 font-medium transition-colors ${
+                        canApprove && !isPublishingNow
+                          ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {isDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setIsDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg bg-white border border-gray-200 shadow-lg">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              approveAndScheduleDraft();
+                              setIsDropdownOpen(false);
+                            }}
+                            disabled={isSaving || isApproving || isPublishingNow || !canApprove}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed first:rounded-t-lg"
+                          >
+                            Approve & Schedule
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              approveAndPublishNow();
+                            }}
+                            disabled={isSaving || isApproving || isPublishingNow || !canApprove}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed last:rounded-b-lg"
+                          >
+                            Approve & Publish now
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
                 {draft?.approved && (
                   <div className="px-6 py-2 bg-green-100 text-green-800 rounded-lg font-medium">
