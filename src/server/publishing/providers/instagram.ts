@@ -3,6 +3,100 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 
 const GRAPH_API_VERSION = 'v19.0'
 
+/**
+ * Polls Instagram media container status until it's ready
+ * Returns true if FINISHED, false if ERROR or timeout
+ */
+async function waitForInstagramMediaReady(
+  creationId: string,
+  accessToken: string,
+  brandId: string,
+  jobId: string,
+  channel: string,
+): Promise<{ ready: boolean; statusCode: string | null }> {
+  const maxAttempts = 20
+  const delayMs = 1000 // 1 second
+  let containerStatus: string | null = null
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const statusUrl = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${creationId}`,
+    )
+    statusUrl.searchParams.set('fields', 'status_code')
+    statusUrl.searchParams.set('access_token', accessToken)
+
+    const statusResponse = await fetch(statusUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const statusData = await statusResponse.json()
+
+    if (!statusResponse.ok) {
+      console.error('[instagram publish] Status check error', {
+        brandId,
+        jobId,
+        channel,
+        creationId,
+        attempt,
+        status: statusResponse.status,
+        error: statusData.error,
+      })
+      // Continue to next attempt
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+        continue
+      }
+      break
+    }
+
+    containerStatus = statusData.status_code
+
+    console.log('[instagram publish] Container status check', {
+      brandId,
+      jobId,
+      channel,
+      creationId,
+      attempt,
+      status_code: containerStatus,
+    })
+
+    if (containerStatus === 'FINISHED') {
+      return { ready: true, statusCode: containerStatus }
+    }
+
+    if (containerStatus === 'ERROR') {
+      console.error('[instagram publish] Container status is ERROR', {
+        brandId,
+        jobId,
+        channel,
+        creationId,
+        attempt,
+        status_code: containerStatus,
+      })
+      return { ready: false, statusCode: containerStatus }
+    }
+
+    // If PROCESSING or other status, wait before next attempt
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+
+  // Timeout - container not ready after all attempts
+  console.error('[instagram publish] Container not ready after polling', {
+    brandId,
+    jobId,
+    channel,
+    creationId,
+    maxAttempts,
+    finalStatus: containerStatus,
+  })
+  return { ready: false, statusCode: containerStatus }
+}
+
 type InstagramPublishParams = {
   brandId: string
   jobId: string
@@ -169,11 +263,35 @@ export async function publishInstagramFeedPost(
     }
 
     console.log('[instagram feed publish] Container created', {
+      brandId,
+      jobId,
+      channel: 'instagram_feed',
       igAccountId,
       creationId,
     })
 
-    // Step 2: Publish the media
+    // Step 2: Wait for media container to be ready
+    const waitResult = await waitForInstagramMediaReady(
+      creationId,
+      accessToken,
+      brandId,
+      jobId,
+      'instagram_feed',
+    )
+
+    if (!waitResult.ready) {
+      const errorMessage =
+        waitResult.statusCode === 'ERROR'
+          ? 'Instagram media container creation failed with ERROR status'
+          : 'Instagram media container is still processing after waiting, please retry later'
+      
+      return {
+        success: false,
+        error: errorMessage,
+      }
+    }
+
+    // Step 3: Publish the media (now that container is ready)
     const publishUrl = new URL(
       `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media_publish`,
     )
@@ -418,100 +536,24 @@ export async function publishInstagramStory(
       creationId,
     })
 
-    // Step 2: Wait for media container to be ready (Instagram Story requires this)
-    // Poll the container status until it's FINISHED
-    const maxAttempts = 5
-    const delayMs = 3000 // 3 seconds
-    let containerStatus: string | null = null
-    let isReady = false
+    // Step 2: Wait for media container to be ready
+    const waitResult = await waitForInstagramMediaReady(
+      creationId,
+      accessToken,
+      brandId,
+      jobId,
+      'instagram_story',
+    )
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const statusUrl = new URL(
-        `https://graph.facebook.com/${GRAPH_API_VERSION}/${creationId}`,
-      )
-      statusUrl.searchParams.set('fields', 'status_code')
-      statusUrl.searchParams.set('access_token', accessToken)
-
-      const statusResponse = await fetch(statusUrl.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      const statusData = await statusResponse.json()
-
-      if (!statusResponse.ok) {
-        console.error('[instagram story publish] Status check error', {
-          brandId,
-          jobId,
-          channel: 'instagram_story',
-          igAccountId,
-          creationId,
-          attempt,
-          status: statusResponse.status,
-          error: statusData.error,
-        })
-        // Continue to next attempt
-        if (attempt < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, delayMs))
-          continue
-        }
-        break
-      }
-
-      containerStatus = statusData.status_code
-
-      console.log('[instagram story publish] Container status check', {
-        brandId,
-        jobId,
-        channel: 'instagram_story',
-        igAccountId,
-        creationId,
-        attempt,
-        status_code: containerStatus,
-      })
-
-      if (containerStatus === 'FINISHED') {
-        isReady = true
-        break
-      }
-
-      if (containerStatus === 'ERROR') {
-        console.error('[instagram story publish] Container status is ERROR', {
-          brandId,
-          jobId,
-          channel: 'instagram_story',
-          igAccountId,
-          creationId,
-          attempt,
-          status_code: containerStatus,
-        })
-        return {
-          success: false,
-          error: 'Instagram Story container creation failed with ERROR status',
-        }
-      }
-
-      // If not FINISHED or ERROR, wait before next attempt
-      if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, delayMs))
-      }
-    }
-
-    if (!isReady) {
-      console.error('[instagram story publish] Container not ready after polling', {
-        brandId,
-        jobId,
-        channel: 'instagram_story',
-        igAccountId,
-        creationId,
-        maxAttempts,
-        finalStatus: containerStatus,
-      })
+    if (!waitResult.ready) {
+      const errorMessage =
+        waitResult.statusCode === 'ERROR'
+          ? 'Instagram Story media container creation failed with ERROR status'
+          : 'Instagram Story media container is still processing after waiting, please retry later'
+      
       return {
         success: false,
-        error: 'Instagram Story media is still processing, please retry later.',
+        error: errorMessage,
       }
     }
 
