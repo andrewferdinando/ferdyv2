@@ -411,11 +411,111 @@ export async function publishInstagramStory(
     }
 
     console.log('[instagram story publish] Container created', {
+      brandId,
+      jobId,
+      channel: 'instagram_story',
       igAccountId,
       creationId,
     })
 
-    // Step 2: Publish the story
+    // Step 2: Wait for media container to be ready (Instagram Story requires this)
+    // Poll the container status until it's FINISHED
+    const maxAttempts = 5
+    const delayMs = 3000 // 3 seconds
+    let containerStatus: string | null = null
+    let isReady = false
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const statusUrl = new URL(
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${creationId}`,
+      )
+      statusUrl.searchParams.set('fields', 'status_code')
+      statusUrl.searchParams.set('access_token', accessToken)
+
+      const statusResponse = await fetch(statusUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const statusData = await statusResponse.json()
+
+      if (!statusResponse.ok) {
+        console.error('[instagram story publish] Status check error', {
+          brandId,
+          jobId,
+          channel: 'instagram_story',
+          igAccountId,
+          creationId,
+          attempt,
+          status: statusResponse.status,
+          error: statusData.error,
+        })
+        // Continue to next attempt
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs))
+          continue
+        }
+        break
+      }
+
+      containerStatus = statusData.status_code
+
+      console.log('[instagram story publish] Container status check', {
+        brandId,
+        jobId,
+        channel: 'instagram_story',
+        igAccountId,
+        creationId,
+        attempt,
+        status_code: containerStatus,
+      })
+
+      if (containerStatus === 'FINISHED') {
+        isReady = true
+        break
+      }
+
+      if (containerStatus === 'ERROR') {
+        console.error('[instagram story publish] Container status is ERROR', {
+          brandId,
+          jobId,
+          channel: 'instagram_story',
+          igAccountId,
+          creationId,
+          attempt,
+          status_code: containerStatus,
+        })
+        return {
+          success: false,
+          error: 'Instagram Story container creation failed with ERROR status',
+        }
+      }
+
+      // If not FINISHED or ERROR, wait before next attempt
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+      }
+    }
+
+    if (!isReady) {
+      console.error('[instagram story publish] Container not ready after polling', {
+        brandId,
+        jobId,
+        channel: 'instagram_story',
+        igAccountId,
+        creationId,
+        maxAttempts,
+        finalStatus: containerStatus,
+      })
+      return {
+        success: false,
+        error: 'Instagram Story media is still processing, please retry later.',
+      }
+    }
+
+    // Step 3: Publish the story (now that container is ready)
     const publishUrl = new URL(
       `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media_publish`,
     )
@@ -432,9 +532,39 @@ export async function publishInstagramStory(
     const publishData = await publishResponse.json()
 
     if (!publishResponse.ok) {
+      const errorCode = publishData.error?.code
+      const errorSubcode = publishData.error?.error_subcode
+      
+      // Check for the specific "Media ID is not available" error (9007/2207027)
+      // This can happen even after waiting if the container isn't fully ready
+      if (errorCode === 9007 && errorSubcode === 2207027) {
+        const errorMessage =
+          publishData.error?.error_user_msg ||
+          publishData.error?.message ||
+          'The media is not ready for publishing, please wait for a moment'
+        
+        console.error('[instagram story publish] Media not ready error after polling', {
+          brandId,
+          jobId,
+          channel: 'instagram_story',
+          igAccountId,
+          creationId,
+          errorCode,
+          errorSubcode,
+          errorMessage,
+          finalStatus: containerStatus,
+        })
+        
+        return {
+          success: false,
+          error: `Instagram Story publish failed: ${errorMessage}`,
+        }
+      }
+      
+      // Other errors
       const errorMessage =
-        publishData.error?.message ||
         publishData.error?.error_user_msg ||
+        publishData.error?.message ||
         JSON.stringify(publishData.error) ||
         `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
       
