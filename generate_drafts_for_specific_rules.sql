@@ -24,6 +24,7 @@ DECLARE
   v_time_of_day time;
   v_scheduled_for_utc timestamptz;
   v_existing_draft_id uuid;
+  v_post_job_id_for_update uuid;
   v_subcategory RECORD;
   v_hashtags text[];
   v_channel text;
@@ -134,7 +135,7 @@ BEGIN
                 COALESCE(v_rule.timezone, 'UTC'),
                 'pending'
               )
-              RETURNING id INTO v_existing_draft_id;  -- Reuse variable for post_job_id
+              RETURNING id INTO v_post_job_id_for_update;  -- Store post_job_id
               
               -- Insert draft linked to post_job
               INSERT INTO drafts (
@@ -152,7 +153,7 @@ BEGIN
               )
               VALUES (
                 v_rule.brand_id,
-                v_existing_draft_id,
+                v_post_job_id_for_update,
                 v_channel,
                 v_hashtags,
                 v_scheduled_for_utc,
@@ -162,7 +163,13 @@ BEGIN
                 false,
                 v_current_time,
                 v_rule.subcategory_id  -- Include subcategory_id from schedule_rule
-              );
+              )
+              RETURNING id INTO v_existing_draft_id;  -- Store draft_id
+              
+              -- Update post_job to set draft_id (source of truth link)
+              UPDATE post_jobs
+              SET draft_id = v_existing_draft_id
+              WHERE id = v_post_job_id_for_update;
               
               v_created_count := v_created_count + 1;
               END LOOP;
@@ -257,7 +264,7 @@ BEGIN
               COALESCE(v_rule.timezone, 'UTC'),
               'pending'
             )
-            RETURNING id INTO v_existing_draft_id;  -- Reuse variable for post_job_id
+            RETURNING id INTO v_post_job_id_for_update;  -- Store post_job_id
             
             -- Insert draft linked to post_job
             INSERT INTO drafts (
@@ -275,7 +282,7 @@ BEGIN
             )
             VALUES (
               v_rule.brand_id,
-              v_existing_draft_id,
+              v_post_job_id_for_update,
               v_channel,
               v_hashtags,
               v_scheduled_for_utc,
@@ -285,7 +292,13 @@ BEGIN
               false,
               v_current_time,
               v_rule.subcategory_id  -- Include subcategory_id from schedule_rule
-            );
+            )
+            RETURNING id INTO v_existing_draft_id;  -- Store draft_id
+            
+            -- Update post_job to set draft_id (source of truth link)
+            UPDATE post_jobs
+            SET draft_id = v_existing_draft_id
+            WHERE id = v_post_job_id_for_update;
             
             v_created_count := v_created_count + 1;
               END LOOP;

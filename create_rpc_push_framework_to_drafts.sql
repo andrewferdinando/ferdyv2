@@ -165,7 +165,13 @@ BEGIN
                 false,
                 now(),
                 v_subcategory_id  -- Use subcategory_id from rpc_framework_targets
-            );
+            ) RETURNING id INTO v_draft_id;
+            
+            -- Update post_job to set draft_id (source of truth link)
+            UPDATE post_jobs
+            SET draft_id = v_draft_id
+            WHERE id = v_post_job_id;
+            
             v_count := v_count + 1;
         END IF;
     END LOOP;

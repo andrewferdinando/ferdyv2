@@ -113,6 +113,11 @@ BEGIN
         NULL                 -- No publish status yet
     ) RETURNING id INTO v_draft_id;
     
+    -- Update post_job to set draft_id (source of truth link)
+    UPDATE post_jobs
+    SET draft_id = v_draft_id
+    WHERE id = v_post_job_id;
+    
     RETURN v_draft_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -541,11 +541,14 @@ async function generateDraftForJob(
 
     result.draftsCreated++;
 
-    // Update post job status
+    // Update post job status and set draft_id (source of truth link)
     const newStatus = (generatedContent.copy && assetIds.length > 0) ? 'generated' : 'pending';
     await supabase
       .from('post_jobs')
-      .update({ status: newStatus })
+      .update({ 
+        status: newStatus,
+        draft_id: draft.id  // Set draft_id as source of truth link
+      })
       .eq('id', postJob.id);
 
     // Record asset usage for LRU
