@@ -1296,10 +1296,10 @@ export default function EditPostPage() {
                     {isDropdownOpen && (
                       <>
                         <div
-                          className="fixed inset-0 z-10"
+                          className="fixed inset-0 z-[100]"
                           onClick={() => setIsDropdownOpen(false)}
                         />
-                        <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg bg-white border border-gray-200 shadow-lg">
+                        <div className="absolute right-0 bottom-full mb-1 z-[101] w-56 rounded-lg bg-white border border-gray-200 shadow-lg overflow-hidden">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
