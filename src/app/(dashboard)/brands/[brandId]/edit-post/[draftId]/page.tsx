@@ -1270,7 +1270,7 @@ export default function EditPostPage() {
                 {!draft?.approved && (
                   <div className="relative inline-flex rounded-lg">
                     <button
-                      onClick={approveAndScheduleDraft}
+                      onClick={() => approveAndScheduleDraft()}
                       disabled={isSaving || isApproving || isPublishingNow || !canApprove}
                       className={`px-6 py-2 rounded-l-lg font-medium transition-colors ${
                         canApprove && !isPublishingNow
