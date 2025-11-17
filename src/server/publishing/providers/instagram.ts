@@ -594,7 +594,6 @@ export async function publishInstagramStory(
           errorCode,
           errorSubcode,
           errorMessage,
-          finalStatus: containerStatus,
         })
         
         return {
