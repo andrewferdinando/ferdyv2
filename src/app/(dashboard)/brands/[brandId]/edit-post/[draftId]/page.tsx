@@ -626,7 +626,7 @@ export default function EditPostPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ draftId }),
+        body: JSON.stringify({ draftId: draftId }),
       });
 
       if (!response.ok) {

@@ -43,11 +43,17 @@ export async function POST(req: NextRequest) {
   try {
     // Parse request body
     const body = await req.json()
-    const { draftId } = body
+    
+    // Tolerant parsing: accept draftId, draft_id, or id
+    const draftId = body.draftId || body.draft_id || body.id
+
+    // Temporary logging for debugging
+    console.log('[retry] draftId from body:', draftId)
+    console.log('[retry] full body:', JSON.stringify(body))
 
     if (!draftId || typeof draftId !== 'string') {
       return NextResponse.json(
-        { error: 'Missing or invalid draftId' },
+        { error: 'draftId is required' },
         { status: 400 }
       )
     }
