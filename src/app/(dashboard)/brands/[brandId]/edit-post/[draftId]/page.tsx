@@ -6,7 +6,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
-import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
@@ -54,7 +53,7 @@ export default function EditPostPage() {
   const draftId = params.draftId as string;
   
   // Fetch brand with timezone
-  const { brand, loading: brandLoading } = useBrand(brandId);
+  const { brand } = useBrand(brandId);
   
   console.log('Edit Post page rendered with params:', { brandId, draftId });
   
@@ -113,12 +112,6 @@ export default function EditPostPage() {
   }, [selectedChannels, selectedMediaTypes]);
 
   const hasSelectedMedia = selectedAssets.length > 0;
-  const hasVideoSelected = selectedMediaTypes.has('video');
-  const canonicalSelectedChannels = useMemo(() => {
-    return selectedChannels
-      .map((channel) => canonicalizeChannel(channel))
-      .filter((channel): channel is string => Boolean(channel));
-  }, [selectedChannels]);
 
   // Show all jobs for this draft, not filtered by selected channels
   const channelStatusItems = useMemo(() => {
@@ -640,7 +633,16 @@ export default function EditPostPage() {
       // Update post_jobs state with the returned jobs
       if (result.jobs && Array.isArray(result.jobs)) {
         const normalized = result.jobs
-          .map((job: any) => {
+          .map((job: {
+            id: string;
+            draft_id: string | null;
+            channel: string;
+            status: string;
+            error: string | null;
+            external_post_id: string | null;
+            external_url: string | null;
+            last_attempt_at: string | null;
+          }) => {
             const canonical = canonicalizeChannel(job.channel);
             if (!canonical) return null;
             return {
