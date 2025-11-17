@@ -775,7 +775,7 @@ export default function EditPostPage() {
       if (error) {
         console.error('Error updating draft:', error);
         alert(`Failed to approve post: ${error.message}`);
-        return;
+        return { success: false, error };
       }
 
       // Update the post_job if it exists
