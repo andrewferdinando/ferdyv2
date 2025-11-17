@@ -60,6 +60,69 @@ const SUCCESS_STATUSES = new Set(['success', 'published'])
 const RETRY_STATUSES = new Set(['failed'])
 const SUPPORTED_CHANNEL_SET = new Set(SUPPORTED_CHANNELS)
 
+/**
+ * Updates draft status based on post_jobs statuses
+ * - All jobs = 'success' → 'published'
+ * - Some success + some failed → 'partially_published'
+ * - All pending/ready/generated → 'scheduled'
+ * Returns the new status
+ */
+export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftStatus> {
+  // Load all post_jobs for this draft
+  const { data: jobsData, error: jobsError } = await supabaseAdmin
+    .from('post_jobs')
+    .select('status')
+    .eq('draft_id', draftId)
+
+  if (jobsError || !jobsData || jobsData.length === 0) {
+    // If no jobs, return current status (don't change)
+    const { data: draft } = await supabaseAdmin
+      .from('drafts')
+      .select('status')
+      .eq('id', draftId)
+      .single()
+    return (draft?.status as DraftStatus) || 'scheduled'
+  }
+
+  const statuses = jobsData.map((job) => job.status)
+  const successCount = statuses.filter((status) => SUCCESS_STATUSES.has(status)).length
+  const failedCount = statuses.filter((status) => status === 'failed').length
+  const pendingCount = statuses.filter((status) => PENDING_STATUSES.has(status)).length
+  const total = statuses.length
+
+  let newStatus: DraftStatus
+
+  // All jobs are success → published
+  if (successCount === total && total > 0 && failedCount === 0 && pendingCount === 0) {
+    newStatus = 'published'
+  }
+  // Some success + some failed → partially_published
+  else if (successCount > 0 && failedCount > 0) {
+    newStatus = 'partially_published'
+  }
+  // All pending/ready/generated → scheduled
+  else if (pendingCount === total && total > 0) {
+    newStatus = 'scheduled'
+  }
+  // Otherwise, keep existing status
+  else {
+    const { data: draft } = await supabaseAdmin
+      .from('drafts')
+      .select('status')
+      .eq('id', draftId)
+      .single()
+    return (draft?.status as DraftStatus) || 'scheduled'
+  }
+
+  // Update draft status
+  await supabaseAdmin
+    .from('drafts')
+    .update({ status: newStatus })
+    .eq('id', draftId)
+
+  return newStatus
+}
+
 function createEmptySummary(): PublishSummary {
   return {
     draftsConsidered: 0,
@@ -241,30 +304,8 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
       : (job as PostJobRow)
   })
 
-  // Recalculate draft status from jobs
-  const statuses = updatedJobs.map((job) => job.status)
-  const hasPending = statuses.some((status) => PENDING_STATUSES.has(status))
-  const hasSuccess = statuses.some((status) => SUCCESS_STATUSES.has(status))
-  const hasFailed = statuses.some((status) => status === 'failed')
-
-  let newStatus: DraftStatus = draft.status
-
-  if (!hasPending && hasSuccess && !hasFailed) {
-    newStatus = 'published'
-  } else if (!hasPending && hasSuccess && hasFailed) {
-    newStatus = 'partially_published'
-  } else if (!hasSuccess && hasFailed && !hasPending) {
-    newStatus = 'scheduled'
-  }
-  // Otherwise keep existing status
-
-  // Update draft status if it changed
-  if (newStatus !== draft.status) {
-    await supabaseAdmin
-      .from('drafts')
-      .update({ status: newStatus })
-      .eq('id', draftId)
-  }
+  // Update draft status from jobs
+  const newStatus = await updateDraftStatusFromJobs(draftId)
 
   // Return result
   return {
@@ -428,8 +469,8 @@ async function processDraft(
     return false
   }
 
-  const updatedJobs = await reloadDraftJobs(draft.id, targetChannels)
-  await applyDraftStatusFromJobs(draft, updatedJobs, summary)
+  // Update draft status from jobs after processing
+  await updateDraftStatusFromJobs(draft.id)
 
   return true
 }
@@ -489,53 +530,7 @@ async function reloadDraftJobs(draftId: string, targetChannels: string[]) {
   })) as PostJobRow[]
 }
 
-async function applyDraftStatusFromJobs(
-  draft: DraftRow,
-  jobs: PostJobRow[],
-  summary: PublishSummary,
-): Promise<void> {
-  if (jobs.length === 0) {
-    return
-  }
-
-  const statuses = jobs.map((job) => job.status)
-  const hasPending = statuses.some((status) => PENDING_STATUSES.has(status))
-  const hasSuccess = statuses.some((status) => SUCCESS_STATUSES.has(status))
-  const hasFailed = statuses.some((status) => status === 'failed')
-
-  let nextStatus: DraftStatus = draft.status
-  const updates: Partial<DraftRow> & { published_at?: string | null } = {}
-
-  if (!hasPending && hasSuccess && !hasFailed) {
-    nextStatus = 'published'
-    updates.published_at = draft.published_at ?? new Date().toISOString()
-    summary.draftsPublished += 1
-  } else if (!hasPending && hasSuccess && hasFailed) {
-    nextStatus = 'partially_published'
-    summary.draftsPartiallyPublished += 1
-  } else if (!hasSuccess && hasFailed && !hasPending) {
-    nextStatus = 'scheduled'
-  }
-
-  if (nextStatus !== draft.status) {
-    updates.status = nextStatus
-    draft.status = nextStatus
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return
-  }
-
-  const { error } = await supabaseAdmin.from('drafts').update(updates).eq('id', draft.id)
-
-  if (error) {
-    summary.errors.push({
-      draftId: draft.id,
-      channel: 'all',
-      error: error.message,
-    })
-  }
-}
+// Removed applyDraftStatusFromJobs - replaced by updateDraftStatusFromJobs
 
 function getCanonicalChannels(rawChannel: string | null): string[] {
   if (!rawChannel) return []

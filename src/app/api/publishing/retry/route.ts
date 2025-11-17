@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { publishJob } from '@/server/publishing/publishJob'
+import { updateDraftStatusFromJobs } from '@/server/publishing/publishDueDrafts'
 import { canonicalizeChannel } from '@/lib/channels'
 
 type PostJobRow = {
@@ -134,44 +135,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Reload all jobs for this draft to compute status
-    const { data: allJobs } = await supabaseAdmin
-      .from('post_jobs')
-      .select('*')
-      .eq('draft_id', draftId)
+            // Reload all jobs for this draft to compute status
+            const { data: allJobs } = await supabaseAdmin
+              .from('post_jobs')
+              .select('*')
+              .eq('draft_id', draftId)
 
-    // Count job statuses
-    const jobs = allJobs || []
-    const total = jobs.length
-    const successCount = jobs.filter((j) => j.status === 'success').length
-    const failedCount = jobs.filter((j) => j.status === 'failed').length
-    const pendingCount = jobs.filter(
-      (j) => j.status === 'pending' || j.status === 'ready' || j.status === 'generated' || j.status === 'publishing',
-    ).length
-
-    let newStatus = draft.status // default to current status
-
-    if (draft.status === 'draft') {
-      // Never move a pure draft based on retry – keep as draft
-      newStatus = 'draft'
-    } else {
-      if (successCount === total && total > 0 && failedCount === 0 && pendingCount === 0) {
-        newStatus = 'published'
-      } else if (successCount > 0 && failedCount > 0) {
-        newStatus = 'partially_published'
-      } else {
-        // All still failing or still pending: keep existing status
-        newStatus = draft.status
-      }
-    }
-
-    // Only write back if it actually changed
-    if (newStatus !== draft.status) {
-      await supabaseAdmin
-        .from('drafts')
-        .update({ status: newStatus })
-        .eq('id', draftId)
-    }
+            // Update draft status from jobs (but preserve 'draft' status)
+            let newStatus: string
+            if (draft.status === 'draft') {
+              // Never move a pure draft based on retry – keep as draft
+              newStatus = 'draft'
+              // Still update if needed (though it should stay as draft)
+              if (newStatus !== draft.status) {
+                await supabaseAdmin
+                  .from('drafts')
+                  .update({ status: newStatus })
+                  .eq('id', draftId)
+              }
+            } else {
+              // Use shared helper for non-draft statuses
+              newStatus = await updateDraftStatusFromJobs(draftId)
+            }
 
     // Return response
     return NextResponse.json({
