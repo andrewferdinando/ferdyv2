@@ -113,8 +113,7 @@ export function useScheduled(brandId: string) {
         .select('*')
         .eq('brand_id', brandId)
         .in('status', ['scheduled', 'partially_published'])
-        .eq('approved', true)
-        .order('created_at', { ascending: true });
+        .order('scheduled_for', { ascending: true, nullsFirst: false });
 
       if (fetchError) throw fetchError;
 

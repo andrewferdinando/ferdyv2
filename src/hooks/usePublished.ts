@@ -86,7 +86,7 @@ export function usePublished(brandId: string) {
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('created_at', { ascending: false });
+        .order('scheduled_for', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
 
