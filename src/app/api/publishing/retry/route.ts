@@ -26,7 +26,6 @@ type DraftRow = {
   asset_ids: string[] | null
   hashtags: string[] | null
   copy: string | null
-  published_at: string | null
 }
 
 type SocialAccountRow = {
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Load the draft and verify it exists (same client pattern as /api/publishing/run)
     const { data: draft, error: draftError } = await supabaseAdmin
       .from('drafts')
-      .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, published_at')
+      .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy')
       .eq('id', draftId)
       .single()
 
@@ -142,16 +141,9 @@ export async function POST(req: NextRequest) {
 
     // Update draft status if it changed
     if (updatedDraftStatus !== draft.status) {
-      const updates: Partial<DraftRow> & { published_at?: string | null } = {}
-      updates.status = updatedDraftStatus
-
-      if (updatedDraftStatus === 'published' && !draft.published_at) {
-        updates.published_at = new Date().toISOString()
-      }
-
       await supabaseAdmin
         .from('drafts')
-        .update(updates)
+        .update({ status: updatedDraftStatus })
         .eq('id', draftId)
     }
 
