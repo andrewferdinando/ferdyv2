@@ -10,13 +10,31 @@ function parseLimitFromRequest(req: NextRequest): number {
 }
 
 function assertCronAuthorized(req: Request) {
-  const secret = process.env.CRON_SECRET
+  const secret = (process.env.CRON_SECRET || '').trim()
 
-  if (!secret) return
+  if (!secret) {
+    console.warn('[cron auth] CRON_SECRET missing in environment')
+    return
+  }
 
-  const auth = req.headers.get('authorization') || ''
+  const authRaw = (req.headers.get('authorization') || '').trim()
 
-  if (auth !== `Bearer ${secret}`) {
+  // Accept both "Bearer <token>" and just "<token>"
+  const token = authRaw.startsWith('Bearer ')
+    ? authRaw.slice(7).trim()
+    : authRaw
+
+  const ok = token === secret
+
+  console.log('[cron auth]', {
+    hasSecret: !!secret,
+    authRawLength: authRaw.length,
+    tokenLength: token.length,
+    secretLength: secret.length,
+    match: ok,
+  })
+
+  if (!ok) {
     return new Response('Unauthorized', { status: 401 })
   }
 }
