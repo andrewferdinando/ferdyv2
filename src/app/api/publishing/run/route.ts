@@ -22,17 +22,11 @@ function assertCronAuthorized(req: Request) {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-
-  if (auth !== process.env.CRON_SECRET) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   console.log('[cron] /api/publishing/run called', {
     at: new Date().toISOString(),
     method: req.method,
     fromCron: req.headers.get('x-vercel-cron') ?? null,
-  });
+  })
 
   const unauthorized = assertCronAuthorized(req)
   if (unauthorized) return unauthorized
@@ -51,17 +45,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-
-  if (auth !== process.env.CRON_SECRET) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   console.log('[cron] /api/publishing/run called', {
     at: new Date().toISOString(),
     method: req.method,
     fromCron: req.headers.get('x-vercel-cron') ?? null,
-  });
+  })
 
   const unauthorized = assertCronAuthorized(req)
   if (unauthorized) return unauthorized
@@ -78,4 +66,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
 
