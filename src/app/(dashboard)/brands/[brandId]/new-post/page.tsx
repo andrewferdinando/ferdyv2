@@ -9,6 +9,8 @@ import { useAssets, Asset } from '@/hooks/assets/useAssets';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
+import { usePublishNow } from '@/hooks/usePublishNow';
+import PublishProgressModal from '@/components/schedule/PublishProgressModal';
 
 export default function NewPostPage() {
   const params = useParams();
@@ -174,8 +176,19 @@ export default function NewPostPage() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
+  const [publishMode, setPublishMode] = useState<'schedule' | 'publish-now'>('schedule');
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const scheduleTimeInputRef = useRef<HTMLInputElement>(null);
+  
+  // Use shared publish-now hook
+  const {
+    isPublishing: isPublishingNow,
+    isModalOpen: isPublishModalOpen,
+    modalMessage: publishModalMessage,
+    isModalComplete: isPublishModalComplete,
+    publishNow: publishDraftNow,
+    closeModal: closePublishModal,
+  } = usePublishNow();
 
   const { imageAssets, videoAssets } = useMemo(() => {
     const grouped = assets.reduce(
@@ -300,7 +313,9 @@ export default function NewPostPage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = async (mode?: 'schedule' | 'publish-now') => {
+    const submitMode = mode || publishMode;
+    
     if (!postCopy.trim()) {
       alert('Please enter post content');
       return;
@@ -311,7 +326,9 @@ export default function NewPostPage() {
       return;
     }
 
-    if (!scheduleDate || !scheduleTime) {
+    // For publish-now, scheduled_at is optional (we'll use now())
+    // For schedule, it's required
+    if (submitMode === 'schedule' && (!scheduleDate || !scheduleTime)) {
       alert('Please select a date and time');
       return;
     }
@@ -329,13 +346,19 @@ export default function NewPostPage() {
     try {
       const { supabase } = await import('@/lib/supabase-browser');
       
-      // Convert local date/time (in brand timezone) to UTC
-      if (!brand?.timezone) {
-        alert('Brand timezone not configured. Please update brand settings.')
-        return
+      // For publish-now, use current time (or a couple minutes in the future)
+      // The publish-now endpoint will publish immediately regardless
+      let scheduledAt: Date;
+      if (submitMode === 'publish-now') {
+        scheduledAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes from now
+      } else {
+        // Convert local date/time (in brand timezone) to UTC
+        if (!brand?.timezone) {
+          alert('Brand timezone not configured. Please update brand settings.')
+          return
+        }
+        scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
       }
-
-      const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
       
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
@@ -348,7 +371,7 @@ export default function NewPostPage() {
         p_asset_ids: selectedAssetIds,
         p_channels: selectedChannels,
         p_scheduled_at: scheduledAt.toISOString(), // UTC timestamp
-        p_approve_now: false
+        p_approve_now: submitMode === 'publish-now' ? true : false
       });
 
       if (error) {
@@ -365,16 +388,48 @@ export default function NewPostPage() {
       }
 
       console.log('Post created successfully:', data);
-      const channelCount = selectedChannels.length;
-      const channelText = channelCount === 1 ? 'channel' : 'channels';
-      alert(`Post created successfully! Will be posted to ${channelCount} ${channelText}.`);
-      
-      // Navigate back to schedule page
-      router.push(`/brands/${brandId}/schedule`);
+
+      // Extract draftId from RPC response
+      // RPC may return a single UUID or an array of UUIDs
+      let draftId: string | null = null;
+      if (Array.isArray(data)) {
+        draftId = data.length > 0 ? data[0] : null;
+      } else if (typeof data === 'string') {
+        draftId = data;
+      } else if (data && typeof data === 'object' && 'id' in data) {
+        draftId = (data as { id: string }).id;
+      }
+
+      if (!draftId) {
+        throw new Error('RPC did not return a draft ID');
+      }
+
+      // If publish-now mode, trigger publishing
+      if (submitMode === 'publish-now') {
+        await publishDraftNow(draftId, {
+          channels: selectedChannels,
+          onSuccess: async () => {
+            // Navigate to Schedule → Published tab
+            router.push(`/brands/${brandId}/schedule?tab=published`);
+          },
+          onError: () => {
+            // Keep page open on error, form data preserved
+            setIsSaving(false);
+          },
+        });
+      } else {
+        // Regular schedule mode - just navigate back
+        const channelCount = selectedChannels.length;
+        const channelText = channelCount === 1 ? 'channel' : 'channels';
+        alert(`Post created successfully! Will be posted to ${channelCount} ${channelText}.`);
+        
+        // Navigate back to schedule page
+        router.push(`/brands/${brandId}/schedule`);
+        setIsSaving(false);
+      }
     } catch (error) {
       console.error('Error creating post:', error);
       alert('Failed to create post. Please try again.');
-    } finally {
       setIsSaving(false);
     }
   };
@@ -830,20 +885,58 @@ export default function NewPostPage() {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => router.push(`/brands/${brandId}/schedule`)}
-                className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                disabled={isSaving || isPublishingNow}
+                className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? 'Saving...' : 'Save Post'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setPublishMode('schedule');
+                    handleSave('schedule');
+                  }}
+                  disabled={isSaving || isPublishingNow}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSaving && publishMode === 'schedule' ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    'Schedule'
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setPublishMode('publish-now');
+                    handleSave('publish-now');
+                  }}
+                  disabled={isSaving || isPublishingNow}
+                  className="px-4 py-2 text-sm font-medium bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSaving || isPublishingNow ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>{isPublishingNow ? 'Publishing...' : 'Creating...'}</span>
+                    </>
+                  ) : (
+                    'Publish now'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Publish Progress Modal */}
+        <PublishProgressModal
+          isOpen={isPublishModalOpen}
+          message={publishModalMessage}
+          isComplete={isPublishModalComplete}
+          onClose={closePublishModal}
+        />
       </AppLayout>
     </RequireAuth>
   );
