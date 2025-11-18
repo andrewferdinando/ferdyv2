@@ -10,23 +10,40 @@ function parseLimitFromRequest(req: NextRequest): number {
 }
 
 function checkCronAuth(req: NextRequest): NextResponse | null {
+  // In production, require CRON_SECRET authentication
+  // In non-production (local dev), allow without auth for easy testing
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  if (!isProduction) {
+    return null // Allow in non-production environments
+  }
+
+  // In production, check for Authorization header
   const header =
     req.headers.get('authorization') || req.headers.get('Authorization')
 
-  // If the header is present, it must match CRON_SECRET.
-  // This keeps Vercel cron secured, but still allows manual calls
-  // from the browser (which won't send an Authorization header).
-  if (header) {
-    const expected = process.env.CRON_SECRET
-    if (!expected || header !== `Bearer ${expected}`) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-    }
+  const expected = process.env.CRON_SECRET
+
+  // In production, CRON_SECRET must be set
+  if (!expected) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // In production, Authorization header must be present and match
+  if (!header || header !== `Bearer ${expected}`) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   return null
 }
 
 export async function GET(req: NextRequest) {
+  console.log('[cron] /api/publishing/run called', {
+    at: new Date().toISOString(),
+    method: req.method,
+    fromCron: req.headers.get('x-vercel-cron') ?? null,
+  });
+
   const authError = checkCronAuth(req)
   if (authError) return authError
 
@@ -44,6 +61,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  console.log('[cron] /api/publishing/run called', {
+    at: new Date().toISOString(),
+    method: req.method,
+    fromCron: req.headers.get('x-vercel-cron') ?? null,
+  });
+
   const authError = checkCronAuth(req)
   if (authError) return authError
 
