@@ -2,11 +2,12 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 
+// Safe __dirname replacement for Node and Edge compatibility
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const baseDir = typeof __dirname !== 'undefined' ? __dirname : dirname(__filename);
 
 const compat = new FlatCompat({
-  baseDirectory: __dirname,
+  baseDirectory: baseDir,
 });
 
 const eslintConfig = [
