@@ -809,18 +809,23 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                   </div>
                 )}
                 
-                <button
-                  onClick={handleEditClick}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <EditIcon className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
+                {/* Published posts are immutable from the UI - hide edit/delete actions */}
+                {effectiveStatus !== 'published' && (
+                  <>
+                    <button
+                      onClick={handleEditClick}
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <EditIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
