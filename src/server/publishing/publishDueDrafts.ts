@@ -17,7 +17,7 @@ type DraftRow = {
   asset_ids: string[] | null
   hashtags: string[] | null
   copy: string | null
-  published_at?: string | null
+  approved: boolean
 }
 
 type PostJobRow = {
@@ -142,8 +142,9 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
 
   const { data: dueDrafts, error: dueError } = await supabaseAdmin
     .from('drafts')
-    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, published_at')
-    .eq('status', 'scheduled')
+    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, approved')
+    .in('status', ['scheduled', 'partially_published'])
+    .eq('approved', true)
     .lte('scheduled_for', nowIso)
     .order('scheduled_for', { ascending: true })
     .limit(limit)
@@ -180,7 +181,7 @@ export async function retryFailedChannels(draftId: string): Promise<PublishSumma
 
   const { data: draft, error } = await supabaseAdmin
     .from('drafts')
-    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, published_at')
+    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, approved')
     .eq('id', draftId)
     .single()
 
