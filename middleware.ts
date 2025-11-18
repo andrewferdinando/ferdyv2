@@ -6,8 +6,9 @@ export function middleware(_req: NextRequest) {
   return NextResponse.next();
 }
 
-// Keep matcher if you need middleware only on certain paths,
-// otherwise you can omit this export completely.
+// Optional – if a config exists already, keep it, but make sure it does NOT
+// reference any logic or environment variables. If unsure, just remove the
+// config export entirely:
 // export const config = {
 //   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 // };
