@@ -13,6 +13,7 @@ import { channelSupportsMedia, describeChannelSupport } from '@/lib/channelSuppo
 import type { PostJobSummary } from '@/types/postJobs';
 import { canonicalizeChannel, getChannelLabel } from '@/lib/channels';
 import { useToast } from '@/components/ui/ToastProvider';
+import PublishProgressModal from '@/components/schedule/PublishProgressModal';
 
 console.log('Edit Post page component loaded');
 
@@ -83,6 +84,9 @@ export default function EditPostPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [postJobs, setPostJobs] = useState<PostJobSummary[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishModalMessage, setPublishModalMessage] = useState<string>('');
+  const [isPublishModalComplete, setIsPublishModalComplete] = useState(false);
   const { imageAssets, videoAssets } = useMemo(() => {
     const grouped = assets.reduce(
       (acc, asset) => {
@@ -824,6 +828,13 @@ export default function EditPostPage() {
     setIsPublishingNow(true);
     setIsDropdownOpen(false);
 
+    // Build initial modal message from selected channels
+    const channelLabels = selectedChannels.map(ch => getChannelLabel(ch)).join(', ');
+    const initialMessage = `Publishing your post to ${channelLabels}…`;
+    setPublishModalMessage(initialMessage);
+    setIsPublishModalComplete(false);
+    setIsPublishModalOpen(true);
+
     try {
       // First, ensure the draft is approved and scheduled (don't navigate)
       const approveResult = await approveAndScheduleDraft(false);
@@ -832,6 +843,8 @@ export default function EditPostPage() {
         const errorMessage = approveResult?.error instanceof Error 
           ? approveResult.error.message 
           : 'Failed to approve and schedule draft';
+        setPublishModalMessage(`Failed to approve draft: ${errorMessage}`);
+        setIsPublishModalComplete(true);
         showToast({
           title: 'Failed to approve draft',
           message: errorMessage,
@@ -851,6 +864,8 @@ export default function EditPostPage() {
 
       if (!response.ok || !data.ok) {
         const errorMessage = data.error || 'Failed to publish now';
+        setPublishModalMessage(`Publishing failed: ${errorMessage}`);
+        setIsPublishModalComplete(true);
         showToast({
           title: 'Publishing failed',
           message: errorMessage,
@@ -873,29 +888,23 @@ export default function EditPostPage() {
         }
       });
 
-      // Show appropriate toast based on results
+      // Update modal message based on results
+      let modalMessage = '';
       if (successfulChannels.length > 0 && failedChannels.length === 0) {
         // All success
-        showToast({
-          title: 'Post published successfully',
-          message: `Post published successfully to ${successfulChannels.join(', ')}.`,
-          type: 'success',
-        });
+        modalMessage = `Published to ${successfulChannels.join(', ')}.`;
       } else if (successfulChannels.length > 0 && failedChannels.length > 0) {
         // Partial success
-        showToast({
-          title: 'Post partially published',
-          message: `Post published to ${successfulChannels.join(', ')}. Failed on: ${failedChannels.join(', ')}. See channel status for details.`,
-          type: 'error', // Using 'error' type for warnings since Toast only supports success/error
-        });
+        modalMessage = `Published to ${successfulChannels.join(', ')}. Failed on: ${failedChannels.join(', ')}.`;
       } else if (failedChannels.length > 0) {
         // All failed
-        showToast({
-          title: 'Publishing failed',
-          message: `Publishing failed on all channels. See channel status for details.`,
-          type: 'error',
-        });
+        modalMessage = `Publishing failed on all channels. See channel status for details.`;
+      } else {
+        modalMessage = 'Publishing completed.';
       }
+      
+      setPublishModalMessage(modalMessage);
+      setIsPublishModalComplete(true);
 
       // Update local state with the response
       if (data.draftStatus) {
@@ -948,6 +957,8 @@ export default function EditPostPage() {
     } catch (error) {
       console.error('Error publishing now:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to publish now. Please try again.';
+      setPublishModalMessage(`Publishing failed: ${errorMessage}`);
+      setIsPublishModalComplete(true);
       showToast({
         title: 'Publishing failed',
         message: errorMessage,
@@ -955,6 +966,8 @@ export default function EditPostPage() {
       });
     } finally {
       setIsPublishingNow(false);
+      // Note: Modal stays open if publish succeeded (isComplete will be true)
+      // User will close it manually via the Close button
     }
   };
 
@@ -1493,6 +1506,18 @@ export default function EditPostPage() {
             </>
           )}
         </Modal>
+
+        {/* Publish Progress Modal */}
+        <PublishProgressModal
+          isOpen={isPublishModalOpen}
+          message={publishModalMessage}
+          isComplete={isPublishModalComplete}
+          onClose={() => {
+            setIsPublishModalOpen(false);
+            setIsPublishModalComplete(false);
+            setPublishModalMessage('');
+          }}
+        />
       </AppLayout>
     </RequireAuth>
   );
