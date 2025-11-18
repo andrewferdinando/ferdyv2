@@ -9,32 +9,16 @@ function parseLimitFromRequest(req: NextRequest): number {
   return Number.isNaN(parsed) || parsed <= 0 ? 20 : Math.min(parsed, 100)
 }
 
-function checkCronAuth(req: NextRequest): NextResponse | null {
-  // In production, require CRON_SECRET authentication
-  // In non-production (local dev), allow without auth for easy testing
-  const isProduction = process.env.NODE_ENV === 'production'
+function assertCronAuthorized(req: Request) {
+  const secret = process.env.CRON_SECRET
 
-  if (!isProduction) {
-    return null // Allow in non-production environments
+  if (!secret) return
+
+  const auth = req.headers.get('authorization') || ''
+
+  if (auth !== `Bearer ${secret}`) {
+    return new Response('Unauthorized', { status: 401 })
   }
-
-  // In production, check for Authorization header
-  const header =
-    req.headers.get('authorization') || req.headers.get('Authorization')
-
-  const expected = process.env.CRON_SECRET
-
-  // In production, CRON_SECRET must be set
-  if (!expected) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // In production, Authorization header must be present and match
-  if (!header || header !== `Bearer ${expected}`) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  }
-
-  return null
 }
 
 export async function GET(req: NextRequest) {
@@ -44,8 +28,8 @@ export async function GET(req: NextRequest) {
     fromCron: req.headers.get('x-vercel-cron') ?? null,
   });
 
-  const authError = checkCronAuth(req)
-  if (authError) return authError
+  const unauthorized = assertCronAuthorized(req)
+  if (unauthorized) return unauthorized
 
   try {
     const limit = parseLimitFromRequest(req)
@@ -67,8 +51,8 @@ export async function POST(req: NextRequest) {
     fromCron: req.headers.get('x-vercel-cron') ?? null,
   });
 
-  const authError = checkCronAuth(req)
-  if (authError) return authError
+  const unauthorized = assertCronAuthorized(req)
+  if (unauthorized) return unauthorized
 
   try {
     const limit = parseLimitFromRequest(req)
