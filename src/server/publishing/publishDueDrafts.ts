@@ -229,7 +229,7 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
   // Load the draft
   const { data: draft, error: draftError } = await supabaseAdmin
     .from('drafts')
-    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy')
+    .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, approved')
     .eq('id', draftId)
     .single()
 
