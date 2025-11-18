@@ -639,9 +639,22 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-xs font-medium text-gray-700">{getChannelLabel(job.channel)}</span>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${textClass} ${pillBgClass}`}>
-                  {label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${textClass} ${pillBgClass}`}>
+                    {label}
+                  </span>
+                  {(job.status.toLowerCase() === 'success' || job.status.toLowerCase() === 'published') && job.external_url ? (
+                    <a
+                      href={job.external_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[11px] font-medium text-[#6366F1] hover:text-[#4F46E5]"
+                    >
+                      View post
+                    </a>
+                  ) : null}
+                </div>
               </div>
             </div>
           );

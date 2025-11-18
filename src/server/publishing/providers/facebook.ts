@@ -136,18 +136,66 @@ async function publishTextPost(
   }
 
   const postId = responseData.id
-  const postUrl = postId ? `https://facebook.com/${pageId}/posts/${postId.split('_')[1]}` : null
+
+  if (!postId) {
+    console.error('[facebook publish] Post ID not returned', {
+      pageId,
+      responseData,
+    })
+    return {
+      success: false,
+      error: 'Facebook API did not return a post ID',
+    }
+  }
+
+  // Fetch the permalink from Graph API
+  let permalinkUrl: string | null = null
+  try {
+    const permalinkUrlObj = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${postId}`,
+    )
+    permalinkUrlObj.searchParams.set('fields', 'permalink_url')
+    permalinkUrlObj.searchParams.set('access_token', accessToken)
+
+    const permalinkResponse = await fetch(permalinkUrlObj.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const permalinkData = await permalinkResponse.json()
+
+    if (permalinkResponse.ok && permalinkData.permalink_url) {
+      permalinkUrl = permalinkData.permalink_url
+    } else {
+      console.warn('[facebook publish] Failed to fetch permalink', {
+        pageId,
+        postId,
+        status: permalinkResponse.status,
+        error: permalinkData.error,
+      })
+      // Continue without permalink - still mark as success
+    }
+  } catch (error) {
+    console.warn('[facebook publish] Error fetching permalink', {
+      pageId,
+      postId,
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+    // Continue without permalink - still mark as success
+  }
 
   console.log('[facebook publish] Success', {
     pageId,
     postId,
-    postUrl,
+    permalinkUrl,
   })
 
   return {
     success: true,
     externalId: postId,
-    externalUrl: postUrl,
+    externalUrl: permalinkUrl,
   }
 }
 
@@ -191,21 +239,68 @@ async function publishPhotoPost(
 
   const photoId = photoData.id
   const postId = photoData.post_id || photoId
-  const postUrl = postId
-    ? `https://facebook.com/${pageId}/posts/${postId.split('_')[1] || postId}`
-    : null
+
+  if (!postId) {
+    console.error('[facebook publish] Post ID not returned', {
+      pageId,
+      photoId,
+      photoData,
+    })
+    return {
+      success: false,
+      error: 'Facebook API did not return a post ID',
+    }
+  }
+
+  // Fetch the permalink from Graph API
+  let permalinkUrl: string | null = null
+  try {
+    const permalinkUrlObj = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${postId}`,
+    )
+    permalinkUrlObj.searchParams.set('fields', 'permalink_url')
+    permalinkUrlObj.searchParams.set('access_token', accessToken)
+
+    const permalinkResponse = await fetch(permalinkUrlObj.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const permalinkData = await permalinkResponse.json()
+
+    if (permalinkResponse.ok && permalinkData.permalink_url) {
+      permalinkUrl = permalinkData.permalink_url
+    } else {
+      console.warn('[facebook publish] Failed to fetch permalink', {
+        pageId,
+        postId,
+        status: permalinkResponse.status,
+        error: permalinkData.error,
+      })
+      // Continue without permalink - still mark as success
+    }
+  } catch (error) {
+    console.warn('[facebook publish] Error fetching permalink', {
+      pageId,
+      postId,
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+    // Continue without permalink - still mark as success
+  }
 
   console.log('[facebook publish] Photo post success', {
     pageId,
     photoId,
     postId,
-    postUrl,
+    permalinkUrl,
   })
 
   return {
     success: true,
     externalId: postId,
-    externalUrl: postUrl,
+    externalUrl: permalinkUrl,
   }
 }
 

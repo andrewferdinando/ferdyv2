@@ -356,7 +356,49 @@ export async function publishInstagramFeedPost(
       }
     }
 
-    const postUrl = mediaId ? `https://instagram.com/p/${mediaId}` : null
+    // Fetch the permalink from Graph API
+    let permalinkUrl: string | null = null
+    try {
+      const permalinkUrlObj = new URL(
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${mediaId}`,
+      )
+      permalinkUrlObj.searchParams.set('fields', 'permalink')
+      permalinkUrlObj.searchParams.set('access_token', accessToken)
+
+      const permalinkResponse = await fetch(permalinkUrlObj.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const permalinkData = await permalinkResponse.json()
+
+      if (permalinkResponse.ok && permalinkData.permalink) {
+        permalinkUrl = permalinkData.permalink
+      } else {
+        console.warn('[instagram feed publish] Failed to fetch permalink', {
+          brandId,
+          jobId,
+          channel: 'instagram_feed',
+          igAccountId,
+          mediaId,
+          status: permalinkResponse.status,
+          error: permalinkData.error,
+        })
+        // Continue without permalink - still mark as success
+      }
+    } catch (error) {
+      console.warn('[instagram feed publish] Error fetching permalink', {
+        brandId,
+        jobId,
+        channel: 'instagram_feed',
+        igAccountId,
+        mediaId,
+        error: error instanceof Error ? error.message : 'unknown',
+      })
+      // Continue without permalink - still mark as success
+    }
 
     console.log('[instagram feed publish] Success', {
       brandId,
@@ -365,13 +407,13 @@ export async function publishInstagramFeedPost(
       igAccountId,
       creationId,
       mediaId,
-      postUrl,
+      permalinkUrl,
     })
 
     return {
       success: true,
       externalId: mediaId,
-      externalUrl: postUrl,
+      externalUrl: permalinkUrl,
     }
   } catch (error) {
     console.error('[instagram feed publish] Unexpected error', {
@@ -651,8 +693,8 @@ export async function publishInstagramStory(
       }
     }
 
-    const postUrl = mediaId ? `https://instagram.com/stories/${igAccountId}/${mediaId}` : null
-
+    // For Instagram Stories, we don't set external_url because the permalink pattern is unreliable
+    // We only store the external_post_id for reference
     console.log('[instagram story publish] Success', {
       brandId,
       jobId,
@@ -660,13 +702,13 @@ export async function publishInstagramStory(
       igAccountId,
       creationId,
       mediaId,
-      postUrl,
+      note: 'external_url not set for Instagram Story (unreliable permalink pattern)',
     })
 
     return {
       success: true,
       externalId: mediaId,
-      externalUrl: postUrl,
+      externalUrl: null, // Do not set external_url for Instagram Story
     }
   } catch (error) {
     console.error('[instagram story publish] Unexpected error', {
