@@ -1,23 +1,13 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Allow social OAuth handshake routes through untouched
-  if (pathname.startsWith('/api/integrations/')) {
-    return NextResponse.next()
-  }
-
-  if (pathname.match(/^\/brands\/[^/]+\/engine-room\/integrations/)) {
-    return NextResponse.next()
-  }
-
-  return NextResponse.next()
+export function middleware(_req: NextRequest) {
+  // Temporary pass-through middleware so the app does not crash.
+  return NextResponse.next();
 }
 
-export const config = {
-  matcher: ['/((?!api/integrations|_next|static|favicon.ico|.*\\.(?:js|css|png|jpg|svg|ico)).*)'],
-}
-
-
+// Keep matcher if you need middleware only on certain paths,
+// otherwise you can omit this export completely.
+// export const config = {
+//   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+// };
