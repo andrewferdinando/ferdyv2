@@ -14,6 +14,7 @@ import type { PostJobSummary } from '@/types/postJobs';
 import { canonicalizeChannel, getChannelLabel } from '@/lib/channels';
 import { useToast } from '@/components/ui/ToastProvider';
 import PublishProgressModal from '@/components/schedule/PublishProgressModal';
+import { usePublishNow } from '@/hooks/usePublishNow';
 
 console.log('Edit Post page component loaded');
 
@@ -80,13 +81,19 @@ export default function EditPostPage() {
   const [assetTab, setAssetTab] = useState<'images' | 'videos'>('images');
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
-  const [isPublishingNow, setIsPublishingNow] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [postJobs, setPostJobs] = useState<PostJobSummary[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
-  const [publishModalMessage, setPublishModalMessage] = useState<string>('');
-  const [isPublishModalComplete, setIsPublishModalComplete] = useState(false);
+  
+  // Use shared publish-now hook
+  const {
+    isPublishing: isPublishingNow,
+    isModalOpen: isPublishModalOpen,
+    modalMessage: publishModalMessage,
+    isModalComplete: isPublishModalComplete,
+    publishNow: publishDraftNow,
+    closeModal: closePublishModal,
+  } = usePublishNow();
   const { imageAssets, videoAssets } = useMemo(() => {
     const grouped = assets.reduce(
       (acc, asset) => {
@@ -825,15 +832,7 @@ export default function EditPostPage() {
   };
 
   const approveAndPublishNow = async () => {
-    setIsPublishingNow(true);
     setIsDropdownOpen(false);
-
-    // Build initial modal message from selected channels
-    const channelLabels = selectedChannels.map(ch => getChannelLabel(ch)).join(', ');
-    const initialMessage = `Publishing your post to ${channelLabels}…`;
-    setPublishModalMessage(initialMessage);
-    setIsPublishModalComplete(false);
-    setIsPublishModalOpen(true);
 
     try {
       // First, ensure the draft is approved and scheduled (don't navigate)
@@ -843,8 +842,6 @@ export default function EditPostPage() {
         const errorMessage = approveResult?.error instanceof Error 
           ? approveResult.error.message 
           : 'Failed to approve and schedule draft';
-        setPublishModalMessage(`Failed to approve draft: ${errorMessage}`);
-        setIsPublishModalComplete(true);
         showToast({
           title: 'Failed to approve draft',
           message: errorMessage,
@@ -853,121 +850,35 @@ export default function EditPostPage() {
         return;
       }
 
-      // Now call the publish-now endpoint
-      const response = await fetch('/api/publishing/publish-now', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draftId: draftId }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        const errorMessage = data.error || 'Failed to publish now';
-        setPublishModalMessage(`Publishing failed: ${errorMessage}`);
-        setIsPublishModalComplete(true);
-        showToast({
-          title: 'Publishing failed',
-          message: errorMessage,
-          type: 'error',
-        });
-        return;
-      }
-
-      // Compute successful and failed channels from jobs
-      const jobs = data.jobs || [];
-      const successfulChannels: string[] = [];
-      const failedChannels: string[] = [];
-
-      jobs.forEach((job: PostJobSummary) => {
-        const channelLabel = getChannelLabel(job.channel);
-        if (job.status.toLowerCase() === 'success' || job.status.toLowerCase() === 'published') {
-          successfulChannels.push(channelLabel);
-        } else if (job.status.toLowerCase() === 'failed') {
-          failedChannels.push(channelLabel);
-        }
-      });
-
-      // Update modal message based on results
-      let modalMessage = '';
-      if (successfulChannels.length > 0 && failedChannels.length === 0) {
-        // All success
-        modalMessage = `Published to ${successfulChannels.join(', ')}.`;
-      } else if (successfulChannels.length > 0 && failedChannels.length > 0) {
-        // Partial success
-        modalMessage = `Published to ${successfulChannels.join(', ')}. Failed on: ${failedChannels.join(', ')}.`;
-      } else if (failedChannels.length > 0) {
-        // All failed
-        modalMessage = `Publishing failed on all channels. See channel status for details.`;
-      } else {
-        modalMessage = 'Publishing completed.';
-      }
-      
-      setPublishModalMessage(modalMessage);
-      setIsPublishModalComplete(true);
-
-      // Update local state with the response
-      if (data.draftStatus) {
-        setDraft((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            status: data.draftStatus as Draft['status'],
-            approved: true,
-          };
-        });
-      }
-
-      // Update post jobs if provided
-      if (data.jobs && Array.isArray(data.jobs)) {
-        const normalized = data.jobs
-          .map((job: {
-            id: string; draft_id: string | null; channel: string; status: string;
-            error: string | null; external_post_id: string | null;
-            external_url: string | null; last_attempt_at: string | null;
-          }): PostJobSummary | null => {
-            const canonical = canonicalizeChannel(job.channel);
-            if (!canonical) return null;
-            return {
-              id: job.id, draft_id: job.draft_id, channel: canonical, status: job.status,
-              error: job.error ?? null, external_post_id: job.external_post_id ?? null,
-              external_url: job.external_url ?? null, last_attempt_at: job.last_attempt_at ?? null,
-            } as PostJobSummary;
-          })
-          .filter((job: PostJobSummary | null): job is PostJobSummary => Boolean(job));
-
-        // Sort by channel order
-        const CHANNEL_ORDER = ['facebook', 'instagram_feed', 'instagram_story', 'linkedin_profile', 'tiktok', 'x'];
-        const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
-        normalized.sort((a: PostJobSummary, b: PostJobSummary) => {
-          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
-          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
-          if (aIndex === bIndex) {
-            return a.channel.localeCompare(b.channel);
+      // Use shared publish-now hook
+      await publishDraftNow(draftId, {
+        channels: selectedChannels,
+        onSuccess: async (result) => {
+          // Update local state with the response
+          if (result.draftStatus) {
+            setDraft((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: result.draftStatus as Draft['status'],
+                approved: true,
+              };
+            });
           }
-          return aIndex - bIndex;
-        });
 
-        setPostJobs(normalized);
-      }
+          // Update post jobs if provided
+          if (result.jobs && result.jobs.length > 0) {
+            setPostJobs(result.jobs);
+          }
 
-      // Refetch to ensure we have the latest data
-      await fetchPostJobs();
-      await loadDraft();
-    } catch (error) {
-      console.error('Error publishing now:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to publish now. Please try again.';
-      setPublishModalMessage(`Publishing failed: ${errorMessage}`);
-      setIsPublishModalComplete(true);
-      showToast({
-        title: 'Publishing failed',
-        message: errorMessage,
-        type: 'error',
+          // Refetch to ensure we have the latest data
+          await fetchPostJobs();
+          await loadDraft();
+        },
       });
-    } finally {
-      setIsPublishingNow(false);
-      // Note: Modal stays open if publish succeeded (isComplete will be true)
-      // User will close it manually via the Close button
+    } catch (error) {
+      console.error('Error in approveAndPublishNow:', error);
+      // Error handling is done by the hook
     }
   };
 
@@ -1512,11 +1423,7 @@ export default function EditPostPage() {
           isOpen={isPublishModalOpen}
           message={publishModalMessage}
           isComplete={isPublishModalComplete}
-          onClose={() => {
-            setIsPublishModalOpen(false);
-            setIsPublishModalComplete(false);
-            setPublishModalMessage('');
-          }}
+          onClose={closePublishModal}
         />
       </AppLayout>
     </RequireAuth>

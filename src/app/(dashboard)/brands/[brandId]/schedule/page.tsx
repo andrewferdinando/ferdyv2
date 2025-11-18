@@ -119,7 +119,19 @@ export default function SchedulePage() {
   const brandId = params.brandId as string;
   const { showToast } = useToast();
   
-  const [activeTab, setActiveTab] = useState('drafts');
+  // Initialize activeTab from URL query parameter, default to 'drafts'
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    return tabParam && ['drafts', 'scheduled', 'published'].includes(tabParam) ? tabParam : 'drafts';
+  });
+  
+  // Update activeTab when URL query parameter changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['drafts', 'scheduled', 'published'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Fetch data for all tabs
   const { drafts, jobsByDraftId: draftsJobsByDraftId, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId);
