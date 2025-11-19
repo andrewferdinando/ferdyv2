@@ -57,7 +57,7 @@ interface PublishedPost {
     external_url: string;
     status: string;
     error: string;
-  };
+  } | null;
   assets?: Asset[];
 }
 
@@ -83,14 +83,45 @@ export function usePublished(brandId: string) {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
+      // First, fetch drafts
+      const { data: draftsData, error: draftsError } = await supabase
         .from('drafts_with_labels')
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
         .order('scheduled_for', { ascending: false, nullsFirst: false });
 
-      if (error) throw error;
+      if (draftsError) throw draftsError;
+      if (!draftsData || draftsData.length === 0) {
+        setPublished([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch publishes for all drafts
+      const draftIds = draftsData.map((d) => d.id);
+      const { data: publishesData, error: publishesError } = await supabase
+        .from('publishes')
+        .select('*')
+        .in('draft_id', draftIds)
+        .eq('status', 'success')
+        .order('published_at', { ascending: false });
+
+      if (publishesError) throw publishesError;
+
+      // Group publishes by draft_id (get the first/latest successful publish per draft)
+      const publishesByDraftId = new Map<string, any>();
+      (publishesData || []).forEach((publish) => {
+        if (publish.draft_id && !publishesByDraftId.has(publish.draft_id)) {
+          publishesByDraftId.set(publish.draft_id, publish);
+        }
+      });
+
+      // Merge publishes into drafts data
+      const data = draftsData.map((draft) => ({
+        ...draft,
+        publishes: publishesByDraftId.get(draft.id) || null,
+      }));
 
       const publishedWithAssets = await Promise.all((data || []).map(async (draft) => {
         const normalizedDraft = {

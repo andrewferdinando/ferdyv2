@@ -97,7 +97,7 @@ interface PublishedPost {
     external_url: string;
     status: string;
     error: string;
-  };
+  } | null;
   assets?: Asset[];
 }
 
@@ -569,7 +569,7 @@ function PublishedCard({ post }: { post: PublishedPost; onUpdate: () => void }) 
               <span className="text-sm text-gray-500 capitalize">{post.channel}</span>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {formatDateTime(post.publishes.published_at)}
+              {formatDateTime(post.publishes?.published_at || post.published_at || post.scheduled_for || post.created_at)}
             </p>
           </div>
         </div>
@@ -588,17 +588,23 @@ function PublishedCard({ post }: { post: PublishedPost; onUpdate: () => void }) 
           </div>
         )}
         
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <a 
-            href={post.publishes.external_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-[#6366F1] hover:underline"
-          >
-            View Post →
-          </a>
-          <span>ID: {post.publishes.external_post_id}</span>
-        </div>
+        {post.publishes && (
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            {post.publishes.external_url && (
+              <a 
+                href={post.publishes.external_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[#6366F1] hover:underline"
+              >
+                View Post →
+              </a>
+            )}
+            {post.publishes.external_post_id && (
+              <span>ID: {post.publishes.external_post_id}</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
