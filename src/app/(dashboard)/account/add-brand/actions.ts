@@ -2,7 +2,6 @@
 
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { generateBrandSummaryForBrand } from '@/server/brands/generateBrandSummary'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
@@ -85,12 +84,21 @@ export async function createBrandAction(payload: CreateBrandPayload) {
   }
 
   // Fire-and-forget: Generate AI summary in the background
-  // This doesn't block the response and errors are handled internally
+  // Using dynamic import ensures it doesn't block the response
   if (websiteUrl && websiteUrl.trim()) {
-    generateBrandSummaryForBrand(brand.id as string).catch((err) => {
+    // Import and call asynchronously - don't await to ensure non-blocking
+    import('@/server/brands/generateBrandSummary').then(({ generateBrandSummaryForBrand }) => {
+      return generateBrandSummaryForBrand(brand.id as string)
+    }).then(() => {
+      console.log(`[createBrandAction] Successfully generated AI summary for brand ${brand.id}`)
+    }).catch((err) => {
       // Log but don't throw - we don't want to break brand creation if AI summarization fails
-      console.error('createBrandAction: Failed to generate AI summary (non-blocking):', err)
+      console.error('[createBrandAction] Failed to generate AI summary (non-blocking):', err)
     })
+    
+    console.log(`[createBrandAction] Triggering AI summary generation for brand ${brand.id} (${brand.name})`)
+  } else {
+    console.log(`[createBrandAction] Skipping AI summary generation - no website URL for brand ${brand.id}`)
   }
 
   return brand.id as string
