@@ -16,22 +16,36 @@ BEGIN
 END $$;
 
 -- Step 2: Update rpc_delete_draft function to soft delete instead of hard delete
+-- IMPORTANT: This function must use SECURITY DEFINER to bypass RLS policies
 CREATE OR REPLACE FUNCTION rpc_delete_draft(p_draft_id uuid)
 RETURNS void AS $$
 DECLARE
     v_draft_exists boolean;
+    v_draft_status text;
+    v_updated_rows integer;
 BEGIN
-    -- Check if draft exists (RLS will ensure user has access)
-    SELECT EXISTS(SELECT 1 FROM drafts WHERE id = p_draft_id) INTO v_draft_exists;
+    -- Check if draft exists (using service role context via SECURITY DEFINER)
+    SELECT EXISTS(SELECT 1 FROM drafts WHERE id = p_draft_id), 
+           status 
+    INTO v_draft_exists, v_draft_status
+    FROM drafts 
+    WHERE id = p_draft_id;
     
     IF NOT v_draft_exists THEN
         RAISE EXCEPTION 'Draft not found';
     END IF;
     
     -- Soft delete: set draft status to 'deleted' instead of hard deleting
+    -- Use SECURITY DEFINER to ensure this UPDATE bypasses RLS
     UPDATE drafts 
     SET status = 'deleted' 
     WHERE id = p_draft_id;
+    
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    
+    IF v_updated_rows = 0 THEN
+        RAISE EXCEPTION 'Failed to update draft status - no rows affected';
+    END IF;
     
     -- Mark all pending/in_progress post_jobs for this draft as cancelled
     -- This prevents any future publishing attempts for this draft
