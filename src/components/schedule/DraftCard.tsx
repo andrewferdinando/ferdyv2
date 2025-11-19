@@ -250,8 +250,8 @@ interface DraftCardProps {
     created_by: string;
     created_at: string;
     approved: boolean;
-    scheduled_for?: string; // UTC timestamp
-    scheduled_for_nzt?: string; // NZT timestamp
+    scheduled_for?: string | null; // UTC timestamp
+    scheduled_for_nzt?: string | null; // NZT timestamp
     published_at?: string | null; // UTC timestamp - when draft was actually published
     schedule_source?: 'manual' | 'auto';
     scheduled_by?: string;
