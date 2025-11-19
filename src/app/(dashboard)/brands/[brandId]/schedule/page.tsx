@@ -307,9 +307,16 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
     );
   }
 
+  // Sort drafts by scheduled date (most current at top), fallback to created_at if no scheduled date
+  const sortedDrafts = [...drafts].sort((a, b) => {
+    const dateA = a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : new Date(a.created_at).getTime();
+    const dateB = b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : new Date(b.created_at).getTime();
+    return dateB - dateA; // Descending order (most recent first)
+  });
+
   return (
     <div className="space-y-4">
-      {drafts.map((draft) => (
+      {sortedDrafts.map((draft) => (
         <DraftCard 
           key={draft.id} 
           draft={draft} 
@@ -353,9 +360,16 @@ function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: Scheduled
     );
   }
 
+  // Sort scheduled posts by scheduled date (most current at top)
+  const sortedScheduled = [...scheduled].sort((a, b) => {
+    const dateA = a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : 0;
+    const dateB = b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : 0;
+    return dateB - dateA; // Descending order (most recent first)
+  });
+
   return (
     <div className="space-y-4">
-      {scheduled.map((post) => (
+      {sortedScheduled.map((post) => (
         <DraftCard
           key={post.id}
           draft={post}
@@ -413,9 +427,16 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
     );
   }
 
+  // Sort published posts by published date (most recently published at top)
+  const sortedPublished = [...published].sort((a, b) => {
+    const dateA = a.publishes?.published_at ? new Date(a.publishes.published_at).getTime() : 0;
+    const dateB = b.publishes?.published_at ? new Date(b.publishes.published_at).getTime() : 0;
+    return dateB - dateA; // Descending order (most recent first)
+  });
+
   return (
     <div className="space-y-4">
-      {published.map((post) => (
+      {sortedPublished.map((post) => (
         <DraftCard 
           key={post.id} 
           draft={post} 
