@@ -84,12 +84,13 @@ export function usePublished(brandId: string) {
       setError(null);
 
       // First, fetch drafts
+      // Try to order by published_at first (if migration has been run), fallback to scheduled_for
       const { data: draftsData, error: draftsError } = await supabase
         .from('drafts_with_labels')
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('scheduled_for', { ascending: false, nullsFirst: false });
+        .order('published_at', { ascending: false, nullsFirst: false });
 
       if (draftsError) throw draftsError;
       if (!draftsData || draftsData.length === 0) {
@@ -110,10 +111,16 @@ export function usePublished(brandId: string) {
       if (publishesError) throw publishesError;
 
       // Group publishes by draft_id (get the first/latest successful publish per draft)
+      // If multiple publishes exist for a draft, we already ordered by published_at DESC,
+      // so the first one we encounter will be the most recent
       const publishesByDraftId = new Map<string, any>();
       (publishesData || []).forEach((publish) => {
         if (publish.draft_id && !publishesByDraftId.has(publish.draft_id)) {
-          publishesByDraftId.set(publish.draft_id, publish);
+          // Use published_at if available, otherwise fall back to created_at
+          publishesByDraftId.set(publish.draft_id, {
+            ...publish,
+            published_at: publish.published_at || publish.created_at,
+          });
         }
       });
 

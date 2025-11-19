@@ -785,7 +785,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                     {effectiveStatus === 'published' ? 'Published' : 
                      draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(
                       effectiveStatus === 'published' 
-                        ? (draft.published_at || draft.publishes?.published_at || draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
+                        ? (draft.publishes?.published_at || draft.published_at || draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
                         : (draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
                     )}
                   </span>
