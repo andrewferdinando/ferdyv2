@@ -52,7 +52,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const [fallbackBrandName, setFallbackBrandName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAccountAdmin, setIsAccountAdmin] = useState(false);
-  const { brands, loading: brandsLoading } = useBrands();
+  const { brands, loading: brandsLoading, refetch: refetchBrands } = useBrands();
 
   // Check if user is super admin
   useEffect(() => {
@@ -88,6 +88,13 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
 
     checkSuperAdmin();
   }, []);
+
+  // Refetch brands when navigating to /brands or when pathname changes to include /brands
+  useEffect(() => {
+    if (pathname.includes('/brands')) {
+      refetchBrands();
+    }
+  }, [pathname, refetchBrands]);
 
   // Initialize selectedBrandId from URL or localStorage
   useEffect(() => {

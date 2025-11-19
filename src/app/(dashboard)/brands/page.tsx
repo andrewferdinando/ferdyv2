@@ -8,8 +8,13 @@ import { useBrands } from '@/hooks/useBrands'
 
 export default function BrandsPage() {
   const router = useRouter()
-  const { brands, loading, error } = useBrands()
+  const { brands, loading, error, refetch } = useBrands()
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null)
+
+  // Refetch brands when page becomes visible (in case a new brand was just created)
+  useEffect(() => {
+    refetch()
+  }, [refetch])
 
   useEffect(() => {
     if (brands.length === 1) {
