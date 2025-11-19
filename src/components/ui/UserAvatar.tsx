@@ -21,21 +21,41 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // First try to get user from user_profiles table
+        // First try to get user from profiles table (has full_name field)
         const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .eq('user_id', userId)
+          .single();
+
+        if (!profileError && profileData) {
+          console.log('UserAvatar: Found user in profiles:', profileData);
+          
+          setUser({
+            id: profileData.user_id,
+            email: undefined,
+            full_name: profileData.full_name,
+            avatar_url: undefined
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Fallback: try user_profiles table
+        const { data: userProfileData, error: userProfileError } = await supabase
           .from('user_profiles')
           .select('id, name, profile_image_url')
           .eq('id', userId)
           .single();
 
-        if (!profileError && profileData) {
-          console.log('UserAvatar: Found user in user_profiles:', profileData);
+        if (!userProfileError && userProfileData) {
+          console.log('UserAvatar: Found user in user_profiles:', userProfileData);
           
           setUser({
-            id: profileData.id,
-            email: undefined, // user_profiles doesn't have email field
-            full_name: profileData.name, // Use 'name' field as full_name
-            avatar_url: profileData.profile_image_url // Already has full URL
+            id: userProfileData.id,
+            email: undefined,
+            full_name: userProfileData.name,
+            avatar_url: userProfileData.profile_image_url
           });
           setLoading(false);
           return;
