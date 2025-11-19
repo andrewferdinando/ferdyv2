@@ -1,22 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { useBrands } from '@/hooks/useBrands';
 import Link from 'next/link';
-import Breadcrumb from '@/components/navigation/Breadcrumb';
-
 export default function BrandDetailsListPage() {
   const router = useRouter();
   const { brands, loading } = useBrands();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Auto-redirect to first brand if only one brand exists
+  // Filter brands based on search query
+  const filteredBrands = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return brands;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return brands.filter((brand) =>
+      brand.name.toLowerCase().includes(query)
+    );
+  }, [brands, searchQuery]);
+
+  // Auto-redirect to first brand if only one brand exists (only when not searching)
   useEffect(() => {
-    if (!loading && brands.length === 1) {
+    if (!loading && brands.length === 1 && !searchQuery.trim()) {
       router.replace(`/super-admin/brands/${brands[0].id}/details`);
     }
-  }, [brands, loading, router]);
+  }, [brands, loading, router, searchQuery]);
 
   if (loading) {
     return (
@@ -38,14 +48,62 @@ export default function BrandDetailsListPage() {
       <div className="flex-1 overflow-auto">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-          <Breadcrumb className="mb-4" />
-          <div>
+          <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">
               Brand Details
             </h1>
             <p className="mt-1 text-sm text-gray-600">
               View and manage brand information and AI summaries
             </p>
+          </div>
+
+          {/* Search Box */}
+          <div className="max-w-md">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search brands by name..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#6366F1] focus:border-[#6366F1] sm:text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  aria-label="Clear search"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -59,9 +117,22 @@ export default function BrandDetailsListPage() {
                   There are no brands available to view.
                 </p>
               </div>
+            ) : filteredBrands.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">No brands match your search</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  No brands found matching &quot;{searchQuery}&quot;
+                </p>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-sm text-[#6366F1] hover:underline"
+                >
+                  Clear search
+                </button>
+              </div>
             ) : (
               <div className="space-y-4">
-                {brands.map((brand) => (
+                {filteredBrands.map((brand) => (
                   <Link
                     key={brand.id}
                     href={`/super-admin/brands/${brand.id}/details`}
