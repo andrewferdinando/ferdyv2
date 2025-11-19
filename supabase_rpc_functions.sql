@@ -376,27 +376,49 @@ CREATE OR REPLACE FUNCTION rpc_delete_draft(p_draft_id uuid)
 RETURNS void AS $$
 DECLARE
     v_updated_rows integer;
+    v_current_status text;
+    v_draft_exists boolean;
 BEGIN
-    -- Soft delete: set draft status to 'deleted' instead of hard deleting
-    -- Use SECURITY DEFINER to ensure this UPDATE bypasses RLS
-    -- This will fail if draft doesn't exist (which is what we want)
-    UPDATE drafts 
-    SET status = 'deleted' 
+    -- First, verify the draft exists and get its current status
+    SELECT status, true INTO v_current_status, v_draft_exists
+    FROM drafts
     WHERE id = p_draft_id;
     
-    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
-    
-    IF v_updated_rows = 0 THEN
-        RAISE EXCEPTION 'Draft not found or could not be updated';
+    -- If draft doesn't exist, raise exception
+    IF NOT v_draft_exists THEN
+        RAISE EXCEPTION 'Draft not found: %', p_draft_id;
     END IF;
     
+    -- Log what we're about to do (for debugging)
+    RAISE NOTICE '[rpc_delete_draft] Soft-deleting draft % (current status: %)', p_draft_id, v_current_status;
+    
+    -- Soft delete: set draft status to 'deleted' instead of hard deleting
+    -- Use SECURITY DEFINER to ensure this UPDATE bypasses RLS
+    UPDATE drafts
+    SET status = 'deleted'
+    WHERE id = p_draft_id;
+
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+
+    -- Verify the update succeeded
+    IF v_updated_rows = 0 THEN
+        RAISE EXCEPTION 'Failed to update draft % - RLS or constraint may be blocking the UPDATE', p_draft_id;
+    END IF;
+    
+    RAISE NOTICE '[rpc_delete_draft] Draft % soft-deleted successfully (% row updated)', p_draft_id, v_updated_rows;
+
     -- Mark all pending/in_progress post_jobs for this draft as cancelled
     -- This prevents any future publishing attempts for this draft
-    UPDATE post_jobs 
-    SET status = 'canceled' 
-    WHERE draft_id = p_draft_id 
+    UPDATE post_jobs
+    SET status = 'canceled'
+    WHERE draft_id = p_draft_id
       AND status IN ('pending', 'generated', 'ready', 'publishing');
-    
+
+    GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
+    IF v_updated_rows > 0 THEN
+        RAISE NOTICE '[rpc_delete_draft] Cancelled % post_jobs for draft %', v_updated_rows, p_draft_id;
+    END IF;
+
     -- Note: We leave 'success' and 'failed' post_jobs as-is for audit trail
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
