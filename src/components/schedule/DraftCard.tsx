@@ -271,6 +271,14 @@ interface DraftCardProps {
       target_month: string;
       schedule_rule_id?: string;
     };
+    publishes?: {
+      id: string;
+      published_at: string;
+      external_post_id: string;
+      external_url: string;
+      status: string;
+      error: string;
+    };
     assets?: DraftAsset[];
   };
   onUpdate: () => void;
@@ -776,8 +784,8 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                   <span className="text-sm ml-2">
                     {effectiveStatus === 'published' ? 'Published' : 
                      draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(
-                      effectiveStatus === 'published' && draft.published_at
-                        ? draft.published_at
+                      effectiveStatus === 'published' 
+                        ? (draft.published_at || draft.publishes?.published_at || draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
                         : (draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
                     )}
                   </span>
