@@ -10,6 +10,8 @@ export interface Brand {
   country_code?: string | null;
   timezone: string;
   default_post_time?: string | null; // TIME format (HH:MM:SS)
+  ai_summary?: string | null;
+  ai_summary_last_generated_at?: string | null;
   created_at: string;
   updated_at: string;
 }

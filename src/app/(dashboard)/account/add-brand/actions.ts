@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { generateBrandSummaryForBrand } from '@/server/brands/generateBrandSummary'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
@@ -81,6 +82,15 @@ export async function createBrandAction(payload: CreateBrandPayload) {
   if (!brand?.id) {
     console.error('createBrandAction: RPC returned no brand id', brand)
     throw new Error('Could not create the brand. Please try again.')
+  }
+
+  // Fire-and-forget: Generate AI summary in the background
+  // This doesn't block the response and errors are handled internally
+  if (websiteUrl && websiteUrl.trim()) {
+    generateBrandSummaryForBrand(brand.id as string).catch((err) => {
+      // Log but don't throw - we don't want to break brand creation if AI summarization fails
+      console.error('createBrandAction: Failed to generate AI summary (non-blocking):', err)
+    })
   }
 
   return brand.id as string
