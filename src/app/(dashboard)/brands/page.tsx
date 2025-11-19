@@ -11,10 +11,11 @@ export default function BrandsPage() {
   const { brands, loading, error, refetch } = useBrands()
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null)
 
-  // Refetch brands when page becomes visible (in case a new brand was just created)
+  // Refetch brands once when page mounts (in case a new brand was just created)
   useEffect(() => {
     refetch()
-  }, [refetch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
 
   useEffect(() => {
     if (brands.length === 1) {

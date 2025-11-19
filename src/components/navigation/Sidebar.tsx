@@ -89,9 +89,10 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
     checkSuperAdmin();
   }, []);
 
-  // Refetch brands when navigating to /brands or when pathname changes to include /brands
+  // Refetch brands when pathname changes to /brands (but not when navigating within brand routes)
   useEffect(() => {
-    if (pathname.includes('/brands')) {
+    // Only refetch when navigating to the base /brands page, not when navigating within /brands/[id]/*
+    if (pathname === '/brands') {
       refetchBrands();
     }
   }, [pathname, refetchBrands]);

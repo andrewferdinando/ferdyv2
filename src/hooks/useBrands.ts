@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export interface Brand {
@@ -53,7 +53,7 @@ export function useBrands() {
     fetchBrands();
   }, []);
 
-  const refetch = async () => {
+  const refetch = useCallback(async () => {
     if (!supabase) {
       console.log('useBrands: Supabase client not available for refetch');
       return;
@@ -76,7 +76,7 @@ export function useBrands() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     brands,
