@@ -114,10 +114,28 @@ export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftS
     return (draft?.status as DraftStatus) || 'scheduled'
   }
 
-  // Update draft status
+  // Check if draft is transitioning to a published status and published_at is not set
+  const isBecomingPublished = (newStatus === 'published' || newStatus === 'partially_published')
+  
+  // Get current draft to check published_at
+  const { data: currentDraft } = await supabaseAdmin
+    .from('drafts')
+    .select('published_at')
+    .eq('id', draftId)
+    .single()
+
+  // Prepare update object
+  const updateData: { status: DraftStatus; published_at?: string } = { status: newStatus }
+
+  // Set published_at if draft is becoming published and published_at is not already set
+  if (isBecomingPublished && !currentDraft?.published_at) {
+    updateData.published_at = new Date().toISOString()
+  }
+
+  // Update draft status (and published_at if needed)
   await supabaseAdmin
     .from('drafts')
-    .update({ status: newStatus })
+    .update(updateData)
     .eq('id', draftId)
 
   return newStatus

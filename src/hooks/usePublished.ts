@@ -40,6 +40,8 @@ interface PublishedPost {
   created_at: string;
   approved: boolean;
   status: DraftStatus;
+  published_at: string | null;
+  scheduled_for: string | null;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -86,7 +88,7 @@ export function usePublished(brandId: string) {
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('scheduled_for', { ascending: false, nullsFirst: false });
+        .order('published_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
 

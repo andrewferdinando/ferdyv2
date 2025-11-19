@@ -82,14 +82,35 @@ export async function publishJob(
   const publishResult = await publishToChannel(jobChannel, draft, job, socialAccount)
 
   if (publishResult.success) {
+    // Get current job to check if published_at is already set
+    const { data: currentJob } = await supabaseAdmin
+      .from('post_jobs')
+      .select('published_at')
+      .eq('id', job.id)
+      .single()
+
+    // Prepare update object
+    const updateData: {
+      status: string
+      error: null
+      external_post_id: string
+      external_url: string | null
+      published_at?: string
+    } = {
+      status: 'success',
+      error: null,
+      external_post_id: publishResult.externalId,
+      external_url: publishResult.externalUrl,
+    }
+
+    // Set published_at if not already set
+    if (!currentJob?.published_at) {
+      updateData.published_at = new Date().toISOString()
+    }
+
     await supabaseAdmin
       .from('post_jobs')
-      .update({
-        status: 'success',
-        error: null,
-        external_post_id: publishResult.externalId,
-        external_url: publishResult.externalUrl,
-      })
+      .update(updateData)
       .eq('id', job.id)
 
     console.log('[publishJob] Success', {

@@ -80,6 +80,8 @@ interface PublishedPost {
   created_at: string;
   approved: boolean;
   status: DraftStatus;
+  published_at: string | null;
+  scheduled_for: string | null;
   post_jobs: {
     id: string;
     scheduled_at: string;
@@ -428,9 +430,14 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   }
 
   // Sort published posts by published date (most recently published at top)
+  // Use draft.published_at as primary source, fallback to scheduled_for for legacy posts
   const sortedPublished = [...published].sort((a, b) => {
-    const dateA = a.publishes?.published_at ? new Date(a.publishes.published_at).getTime() : 0;
-    const dateB = b.publishes?.published_at ? new Date(b.publishes.published_at).getTime() : 0;
+    const dateA = a.published_at 
+      ? new Date(a.published_at).getTime() 
+      : (a.scheduled_for ? new Date(a.scheduled_for).getTime() : 0);
+    const dateB = b.published_at 
+      ? new Date(b.published_at).getTime() 
+      : (b.scheduled_for ? new Date(b.scheduled_for).getTime() : 0);
     return dateB - dateA; // Descending order (most recent first)
   });
 

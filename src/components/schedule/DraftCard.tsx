@@ -252,6 +252,7 @@ interface DraftCardProps {
     approved: boolean;
     scheduled_for?: string; // UTC timestamp
     scheduled_for_nzt?: string; // NZT timestamp
+    published_at?: string | null; // UTC timestamp - when draft was actually published
     schedule_source?: 'manual' | 'auto';
     scheduled_by?: string;
     publish_status?: string;
@@ -774,7 +775,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                   <ClockIcon className="w-4 h-4" />
                   <span className="text-sm ml-2">
                     {effectiveStatus === 'published' ? 'Published' : 
-                     draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)}
+                     draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(
+                      effectiveStatus === 'published' && draft.published_at
+                        ? draft.published_at
+                        : (draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
+                    )}
                   </span>
                 </div>
               </div>
