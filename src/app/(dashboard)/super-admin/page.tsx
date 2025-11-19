@@ -1,11 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
-import { useBrands } from '@/hooks/useBrands';
-import { supabase } from '@/lib/supabase-browser';
-import { Select } from '@/components/ui/Input';
 
 const adminCards = [
   {
@@ -19,324 +15,20 @@ const adminCards = [
       </svg>
     ),
   },
+  {
+    title: 'Post Information',
+    description: 'View and analyse post information',
+    href: '/super-admin/post-information',
+    cta: 'View Post Information',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
 ];
 
-type BrandPostInformation = {
-  fb_post_examples: string[] | null;
-  ig_post_examples: string[] | null;
-  post_tone: string | null;
-  avg_char_length: number | null;
-  avg_word_count: number | null;
-  analysed_at: string | null;
-  updated_at: string | null;
-};
-
-function formatNumber(value: number | null, fractionDigits = 1) {
-  if (value === null || Number.isNaN(value)) return null;
-  return value.toLocaleString(undefined, {
-    maximumFractionDigits: fractionDigits,
-    minimumFractionDigits: fractionDigits,
-  });
-}
-
-function formatDate(value: string | null) {
-  if (!value) return null;
-  try {
-    const date = new Date(value);
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
-  } catch {
-    return null;
-  }
-}
-
-function PostList({ posts, emptyMessage }: { posts: string[]; emptyMessage: string }) {
-  if (!posts.length) {
-    return <p className="text-sm text-gray-500">{emptyMessage}</p>;
-  }
-
-  return (
-    <ul className="space-y-3">
-      {posts.map((post, index) => (
-        <li
-          key={`${index}-${post.slice(0, 8)}`}
-          className="rounded-lg border border-gray-200 bg-white/60 p-3 text-sm text-gray-700 shadow-sm"
-        >
-          <p className="line-clamp-4 whitespace-pre-line">{post}</p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function PostInformationCard({
-  brands,
-  brandsLoading,
-}: {
-  brands: ReturnType<typeof useBrands>['brands'];
-  brandsLoading: boolean;
-}) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
-  const [info, setInfo] = useState<BrandPostInformation | null>(null);
-  const [infoLoading, setInfoLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reanalyzeLoading, setReanalyzeLoading] = useState(false);
-
-  const selectedBrand = useMemo(
-    () => (selectedBrandId ? brands.find((brand) => brand.id === selectedBrandId) ?? null : null),
-    [brands, selectedBrandId],
-  );
-
-  useEffect(() => {
-    if (brandsLoading) return;
-
-    const storedId =
-      typeof window !== 'undefined' ? window.localStorage.getItem('selectedBrandId') : null;
-
-    if (storedId && brands.some((brand) => brand.id === storedId)) {
-      setSelectedBrandId(storedId);
-      return;
-    }
-
-    if (brands.length > 0) {
-      setSelectedBrandId(brands[0].id);
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('selectedBrandId', brands[0].id);
-        window.localStorage.setItem('selectedBrandName', brands[0].name);
-      }
-    }
-  }, [brands, brandsLoading]);
-
-  const fetchPostInformation = useCallback(async (brandId: string) => {
-    setInfoLoading(true);
-    setError(null);
-
-    try {
-      const { data, error: queryError } = await supabase
-        .from('brand_post_information')
-        .select(
-          'fb_post_examples, ig_post_examples, post_tone, avg_char_length, avg_word_count, analysed_at, updated_at',
-        )
-        .eq('brand_id', brandId)
-        .maybeSingle<BrandPostInformation>();
-
-      if (queryError) {
-        throw queryError;
-      }
-
-      setInfo(data ?? null);
-    } catch (err) {
-      console.error('[super-admin post info] failed to load', err);
-      setError('Unable to load post information for this brand.');
-      setInfo(null);
-    } finally {
-      setInfoLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!selectedBrandId) {
-      setInfo(null);
-      return;
-    }
-
-    fetchPostInformation(selectedBrandId);
-  }, [fetchPostInformation, selectedBrandId]);
-
-  const fbPosts = info?.fb_post_examples ?? [];
-  const igPosts = info?.ig_post_examples ?? [];
-  const allPosts = useMemo(
-    () => [...fbPosts, ...igPosts].filter((text) => text && text.trim().length > 0),
-    [fbPosts, igPosts],
-  );
-
-  const analysedAt = useMemo(
-    () => formatDate(info?.analysed_at ?? info?.updated_at ?? null),
-    [info?.analysed_at, info?.updated_at],
-  );
-
-  const handleReanalyse = useCallback(async () => {
-    if (!selectedBrand) return;
-
-    try {
-      setReanalyzeLoading(true);
-      setError(null);
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-
-      if (!token) {
-        throw new Error('You must be signed in to re-analyse posts.');
-      }
-
-      const response = await fetch(
-        `/api/super-admin/brands/${selectedBrand.id}/post-information/reanalyze`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Re-analysis failed. Please try again.');
-      }
-
-      await fetchPostInformation(selectedBrand.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Re-analysis failed. Please try again.');
-    } finally {
-      setReanalyzeLoading(false);
-    }
-  }, [fetchPostInformation, selectedBrand]);
-
-  const handleBrandChange = useCallback(
-    (brandId: string) => {
-      setSelectedBrandId(brandId);
-      if (typeof window !== 'undefined') {
-        const brand = brands.find((b) => b.id === brandId);
-        window.localStorage.setItem('selectedBrandId', brandId);
-        if (brand) {
-          window.localStorage.setItem('selectedBrandName', brand.name);
-        }
-      }
-    },
-    [brands],
-  );
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <div className="flex flex-col gap-5 border-b border-gray-100 pb-5 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1.5">
-          <h2 className="text-2xl font-semibold text-gray-950">Post Information</h2>
-          {analysedAt && (
-            <p className="text-xs text-gray-400">Last analysed {analysedAt}</p>
-          )}
-        </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-          <div className="w-full sm:min-w-[14rem] sm:w-auto">
-            <label className="sr-only" htmlFor="post-info-brand-select">
-              Brand
-            </label>
-            <Select
-              id="post-info-brand-select"
-              value={selectedBrandId ?? ''}
-              onChange={(event) => handleBrandChange(event.target.value)}
-              options={
-                brands.length > 0
-                  ? brands.map((brand) => ({ value: brand.id, label: brand.name }))
-                  : [{ value: '', label: 'No brands available' }]
-              }
-              disabled={brandsLoading || brands.length === 0}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleReanalyse}
-            disabled={!selectedBrand || reanalyzeLoading}
-            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 whitespace-nowrap"
-          >
-            {reanalyzeLoading ? 'Re-analysing…' : 'Re-analyse posts'}
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
-      <div className="mt-6">
-        {brandsLoading ? (
-          <div className="space-y-3">
-            {[0, 1, 2, 3].map((key) => (
-              <div key={key} className="h-24 rounded-lg bg-gray-100 animate-pulse" />
-            ))}
-          </div>
-        ) : !selectedBrand ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
-            Select a brand to view post information.
-          </div>
-        ) : infoLoading ? (
-          <div className="space-y-3">
-            {[0, 1, 2, 3].map((key) => (
-              <div key={key} className="h-24 rounded-lg bg-gray-100 animate-pulse" />
-            ))}
-          </div>
-        ) : !info ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
-            No post information available yet. Connect Facebook or Instagram to generate insights.
-          </div>
-        ) : (
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="text-lg font-semibold text-gray-900">Facebook Post Examples</h3>
-              <p className="mt-1 text-sm text-gray-500">Up to the last 10 Facebook posts.</p>
-              <div className="mt-4">
-                <PostList posts={fbPosts} emptyMessage="No Facebook posts found yet." />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="text-lg font-semibold text-gray-900">Instagram Post Examples</h3>
-              <p className="mt-1 text-sm text-gray-500">Up to the last 10 Instagram captions.</p>
-              <div className="mt-4">
-                <PostList posts={igPosts} emptyMessage="No Instagram posts found yet." />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="text-lg font-semibold text-gray-900">Post Tone</h3>
-              <p className="mt-1 text-sm text-gray-500">Generated from recent Meta posts.</p>
-              <div className="mt-4">
-                {info.post_tone ? (
-                  <p className="text-base font-medium text-gray-900">{info.post_tone}</p>
-                ) : (
-                  <p className="text-sm text-gray-500">Not analysed yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="text-lg font-semibold text-gray-900">Post Character Length</h3>
-              <p className="mt-1 text-sm text-gray-500">Average length across recent posts.</p>
-              <div className="mt-4 space-y-2">
-                {info.avg_char_length !== null && info.avg_word_count !== null ? (
-                  <>
-                    <p className="text-sm text-gray-600">
-                      Average length{' '}
-                      <span className="font-semibold text-gray-900">
-                        {formatNumber(info.avg_char_length)}
-                      </span>{' '}
-                      characters &bull;{' '}
-                      <span className="font-semibold text-gray-900">
-                        {formatNumber(info.avg_word_count)}
-                      </span>{' '}
-                      words
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Based on {allPosts.length} {allPosts.length === 1 ? 'post' : 'posts'}.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-500">Not enough posts to analyse yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function SuperAdminPage() {
-  const { brands, loading } = useBrands();
 
   return (
     <AppLayout>
@@ -354,7 +46,7 @@ export default function SuperAdminPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
-          <div className="mx-auto max-w-4xl space-y-10">
+          <div className="mx-auto max-w-4xl">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {adminCards.map((card) => (
                 <Link
@@ -384,8 +76,6 @@ export default function SuperAdminPage() {
                 </Link>
               ))}
             </div>
-
-            <PostInformationCard brands={brands} brandsLoading={loading} />
           </div>
         </div>
       </div>
