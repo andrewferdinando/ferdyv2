@@ -29,10 +29,20 @@ export async function POST(
       );
     }
 
+    // Optional: Check for internal auth token (CRON_SECRET) if provided
+    // But allow the request to proceed even without it for manual triggers
+    const authHeader = request.headers.get('authorization');
+    const expectedToken = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
+    const isInternalCall = expectedToken && authHeader === expectedToken;
+
+    console.log(`[API /brands/${brandId}/generate-summary] Received request to generate summary (internal: ${!!isInternalCall})`);
+
     // Actually await the summary generation so we can catch and report errors
     // This is still reasonably fast (< 30s) and provides better feedback
     try {
       await generateBrandSummaryForBrand(brandId);
+      
+      console.log(`[API /brands/${brandId}/generate-summary] Successfully generated summary`);
       
       return NextResponse.json({
         ok: true,

@@ -83,20 +83,32 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('Could not create the brand. Please try again.')
   }
 
-  // Fire-and-forget: Generate AI summary in the background
-  // Using dynamic import ensures it doesn't block the response
+  // Fire-and-forget: Generate AI summary via API endpoint
+  // Calling the API endpoint ensures it runs in a separate serverless function
+  // that won't be terminated when this server action completes
   if (websiteUrl && websiteUrl.trim()) {
-    // Import and call asynchronously - don't await to ensure non-blocking
-    import('@/server/brands/generateBrandSummary').then(({ generateBrandSummaryForBrand }) => {
-      return generateBrandSummaryForBrand(brand.id as string)
-    }).then(() => {
-      console.log(`[createBrandAction] Successfully generated AI summary for brand ${brand.id}`)
-    }).catch((err) => {
-      // Log but don't throw - we don't want to break brand creation if AI summarization fails
-      console.error('[createBrandAction] Failed to generate AI summary (non-blocking):', err)
-    })
+    // Construct the API URL
+    // Use VERCEL_URL in production, or NEXT_PUBLIC_APP_URL, or fallback to localhost
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     
-    console.log(`[createBrandAction] Triggering AI summary generation for brand ${brand.id} (${brand.name})`)
+    const apiUrl = `${baseUrl}/api/brands/${brand.id}/generate-summary`
+    
+    console.log(`[createBrandAction] Triggering AI summary generation for brand ${brand.id} (${brand.name}) via ${apiUrl}`)
+    
+    // Call the API endpoint - fire and forget
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Use CRON_SECRET for internal auth if available
+        ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+      },
+    }).catch((err) => {
+      // Log but don't throw - we don't want to break brand creation if API call fails
+      console.error('[createBrandAction] Failed to trigger AI summary generation API (non-blocking):', err)
+    })
   } else {
     console.log(`[createBrandAction] Skipping AI summary generation - no website URL for brand ${brand.id}`)
   }
