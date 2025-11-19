@@ -84,13 +84,13 @@ export function usePublished(brandId: string) {
       setError(null);
 
       // First, fetch drafts
-      // Order by published_at if available, but include NULLs (they'll be sorted by scheduled_for in client)
+      // Order by scheduled_for (always present), then we'll sort by published_at in client
+      // This ensures all posts are returned even if published_at is NULL
       const { data: draftsData, error: draftsError } = await supabase
         .from('drafts_with_labels')
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('published_at', { ascending: false, nullsFirst: true })
         .order('scheduled_for', { ascending: false, nullsFirst: false });
 
       if (draftsError) throw draftsError;
