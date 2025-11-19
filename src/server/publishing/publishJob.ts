@@ -81,6 +81,8 @@ export async function publishJob(
 
   const publishResult = await publishToChannel(jobChannel, draft, job, socialAccount)
 
+  const nowIso = new Date().toISOString()
+
   if (publishResult.success) {
     // Get current job to check if published_at is already set
     const { data: currentJob } = await supabaseAdmin
@@ -105,13 +107,52 @@ export async function publishJob(
 
     // Set published_at if not already set
     if (!currentJob?.published_at) {
-      updateData.published_at = new Date().toISOString()
+      updateData.published_at = nowIso
     }
 
     await supabaseAdmin
       .from('post_jobs')
       .update(updateData)
       .eq('id', job.id)
+
+    // Create or update publishes record with published_at
+    // First check if a publish record already exists for this job
+    const { data: existingPublish } = await supabaseAdmin
+      .from('publishes')
+      .select('id, published_at')
+      .eq('post_job_id', job.id)
+      .eq('draft_id', draft.id)
+      .single()
+
+    if (existingPublish) {
+      // Update existing publish record
+      await supabaseAdmin
+        .from('publishes')
+        .update({
+          status: 'success',
+          published_at: existingPublish.published_at || nowIso,
+          external_post_id: publishResult.externalId,
+          external_url: publishResult.externalUrl,
+          error: null,
+        })
+        .eq('id', existingPublish.id)
+    } else {
+      // Create new publish record
+      // Use socialAccount.id if available (it's already passed in)
+      await supabaseAdmin
+        .from('publishes')
+        .insert({
+          brand_id: draft.brand_id,
+          post_job_id: job.id,
+          draft_id: draft.id,
+          channel: jobChannel,
+          social_account_id: socialAccount?.id || null,
+          status: 'success',
+          published_at: nowIso,
+          external_post_id: publishResult.externalId,
+          external_url: publishResult.externalUrl,
+        })
+    }
 
     console.log('[publishJob] Success', {
       jobId: job.id,
