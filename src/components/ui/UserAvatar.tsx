@@ -97,7 +97,7 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
     );
   }
 
-  // Generate initials from full_name or email (always 2 initials when possible)
+  // Generate initials: first letter of first name + first letter of last name
   const getInitials = () => {
     console.log('UserAvatar: Generating initials for user:', user);
     
@@ -108,15 +108,10 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
         const initials = (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
         console.log('UserAvatar: Generated initials from full_name (first + last):', initials);
         return initials;
-      } else if (nameParts.length === 1 && nameParts[0].length >= 2) {
-        // Single name: take first two letters
-        const initials = nameParts[0].substring(0, 2).toUpperCase();
-        console.log('UserAvatar: Generated initials from single name (first 2 letters):', initials);
-        return initials;
       } else if (nameParts.length === 1) {
-        // Single letter name: repeat it
+        // Single name: use first letter twice (no last name available)
         const initial = nameParts[0].charAt(0).toUpperCase();
-        console.log('UserAvatar: Generated initials from single letter name:', initial + initial);
+        console.log('UserAvatar: Generated initials from single name (first letter repeated):', initial + initial);
         return initial + initial;
       }
     }
@@ -128,16 +123,10 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
         console.log('UserAvatar: Generated initials from email (first.last):', initials);
         return initials;
       }
-      // If no dot, try taking first two letters of username
+      // If no dot, use first letter twice (no clear first/last separation)
       const username = user.email.split('@')[0];
-      if (username.length >= 2) {
-        const initials = username.substring(0, 2).toUpperCase();
-        console.log('UserAvatar: Generated initials from email (first 2 letters):', initials);
-        return initials;
-      }
-      // Single letter username: repeat it
       const initial = username.charAt(0).toUpperCase();
-      console.log('UserAvatar: Generated initials from single letter email:', initial + initial);
+      console.log('UserAvatar: Generated initials from email (first letter repeated):', initial + initial);
       return initial + initial;
     }
     console.log('UserAvatar: Using fallback initials: UU');
@@ -159,12 +148,12 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
             target.style.display = 'none';
             const parent = target.parentElement;
             if (parent) {
-              parent.innerHTML = `<span class="${size === 'sm' ? 'text-xs' : 'text-sm'} font-medium text-indigo-700">${initials}</span>`;
+              parent.innerHTML = `<span class="${size === 'sm' ? 'text-[10px]' : 'text-xs'} font-medium text-indigo-700">${initials}</span>`;
             }
           }}
         />
       ) : (
-        <span className={`${size === 'sm' ? 'text-xs' : 'text-sm'} font-medium text-indigo-700`}>
+        <span className={`${size === 'sm' ? 'text-[10px]' : 'text-xs'} font-medium text-indigo-700`}>
           {initials}
         </span>
       )}
