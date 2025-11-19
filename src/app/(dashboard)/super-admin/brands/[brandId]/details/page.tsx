@@ -91,19 +91,20 @@ export default function BrandDetailsPage() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to generate summary. Please try again.');
+        const errorMsg = payload.error || payload.details || 'Failed to generate summary. Please try again.';
+        throw new Error(errorMsg);
       }
 
+      const result = await response.json().catch(() => ({}));
+      
       showToast({
-        title: 'AI summary generation started',
+        title: result.ok ? 'AI summary generated successfully!' : 'AI summary generation started',
         type: 'success',
-        message: 'The summary will be available shortly. Please refresh the page in a few moments.',
+        message: result.message || 'The summary has been generated and saved.',
       });
 
-      // Refresh brand data after a short delay to check for the summary
-      setTimeout(() => {
-        fetchBrand();
-      }, 3000);
+      // Refresh brand data to show the new summary
+      await fetchBrand();
     } catch (err) {
       console.error('Error generating summary:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate summary');

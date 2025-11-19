@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateBrandSummaryForBrand } from '@/server/brands/generateBrandSummary';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Allow up to 60 seconds for summary generation (OpenAI can be slow)
 
 export async function POST(
   request: NextRequest,
