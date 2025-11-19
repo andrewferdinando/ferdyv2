@@ -871,6 +871,13 @@ export default function EditPostPage() {
             setPostJobs(result.jobs);
           }
 
+          // Show success message
+          showToast({
+            title: 'Post published successfully',
+            message: 'Your post has been approved and published.',
+            type: 'success',
+          });
+
           // Close the modal
           closePublishModal();
 
