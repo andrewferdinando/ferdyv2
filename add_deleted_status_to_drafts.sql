@@ -2,6 +2,7 @@
 -- This allows soft-deleting drafts instead of hard-deleting them
 
 -- Step 1: Update the status constraint to include 'deleted'
+-- IMPORTANT: This must run BEFORE Step 2 (the function definition)
 DO $$
 BEGIN
     -- Drop existing constraint if it exists
@@ -67,4 +68,3 @@ BEGIN
     -- Note: We leave 'success' and 'failed' post_jobs as-is for audit trail
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
