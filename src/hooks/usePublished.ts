@@ -84,13 +84,14 @@ export function usePublished(brandId: string) {
       setError(null);
 
       // First, fetch drafts
-      // Try to order by published_at first (if migration has been run), fallback to scheduled_for
+      // Order by published_at if available, but include NULLs (they'll be sorted by scheduled_for in client)
       const { data: draftsData, error: draftsError } = await supabase
         .from('drafts_with_labels')
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('published_at', { ascending: false, nullsFirst: false });
+        .order('published_at', { ascending: false, nullsFirst: true })
+        .order('scheduled_for', { ascending: false, nullsFirst: false });
 
       if (draftsError) throw draftsError;
       if (!draftsData || draftsData.length === 0) {
