@@ -87,28 +87,51 @@ export async function createBrandAction(payload: CreateBrandPayload) {
   // Calling the API endpoint ensures it runs in a separate serverless function
   // that won't be terminated when this server action completes
   if (websiteUrl && websiteUrl.trim()) {
-    // Construct the API URL
-    // Use VERCEL_URL in production, or NEXT_PUBLIC_APP_URL, or fallback to localhost
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    
+    // Always use the production URL for API calls to ensure consistency
+    // The API endpoint will run in the same deployment, so using the production URL is safe
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.ferdy.io'
     const apiUrl = `${baseUrl}/api/brands/${brand.id}/generate-summary`
     
-    console.log(`[createBrandAction] Triggering AI summary generation for brand ${brand.id} (${brand.name}) via ${apiUrl}`)
+    console.log(`[createBrandAction] Triggering AI summary generation for brand ${brand.id} (${brand.name})`)
+    console.log(`[createBrandAction] API URL: ${apiUrl}`)
     
-    // Call the API endpoint - fire and forget
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Use CRON_SECRET for internal auth if available
-        ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
-      },
-    }).catch((err) => {
-      // Log but don't throw - we don't want to break brand creation if API call fails
-      console.error('[createBrandAction] Failed to trigger AI summary generation API (non-blocking):', err)
-    })
+    // Use setTimeout to defer the fetch slightly, ensuring the server action response
+    // is sent first, but the fetch still executes before the function context terminates
+    // This is a workaround for serverless environments that might kill pending async ops
+    setTimeout(() => {
+      console.log(`[createBrandAction] Executing fetch for ${apiUrl}`)
+      
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Use CRON_SECRET for internal auth if available
+          ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+        },
+      })
+        .then((response) => {
+          console.log(`[createBrandAction] API endpoint responded with status ${response.status} for brand ${brand.id}`)
+          if (!response.ok) {
+            return response.text().then(text => {
+              console.error(`[createBrandAction] API endpoint returned error: ${response.status} - ${text}`)
+            })
+          }
+          return response.json().then(data => {
+            console.log(`[createBrandAction] API endpoint success response:`, data)
+          }).catch(() => {
+            // Ignore JSON parse errors
+          })
+        })
+        .catch((err) => {
+          // Log but don't throw - we don't want to break brand creation if API call fails
+          console.error('[createBrandAction] Failed to trigger AI summary generation API (non-blocking):', err)
+          console.error('[createBrandAction] Error type:', err?.constructor?.name)
+          console.error('[createBrandAction] Error message:', err instanceof Error ? err.message : String(err))
+        })
+    }, 100) // Small delay to ensure response is sent first
+    
+    // Log that we've initiated the fetch (this executes immediately)
+    console.log(`[createBrandAction] Scheduled fetch request (non-blocking) for ${apiUrl}`)
   } else {
     console.log(`[createBrandAction] Skipping AI summary generation - no website URL for brand ${brand.id}`)
   }
