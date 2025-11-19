@@ -375,22 +375,28 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION rpc_delete_draft(p_draft_id uuid)
 RETURNS void AS $$
 DECLARE
-    v_post_job_id uuid;
+    v_draft_exists boolean;
 BEGIN
-    -- Get post job ID (RLS will ensure user has access)
-    SELECT post_job_id INTO v_post_job_id
-    FROM drafts
-    WHERE id = p_draft_id;
+    -- Check if draft exists (RLS will ensure user has access)
+    SELECT EXISTS(SELECT 1 FROM drafts WHERE id = p_draft_id) INTO v_draft_exists;
     
-    IF v_post_job_id IS NULL THEN
+    IF NOT v_draft_exists THEN
         RAISE EXCEPTION 'Draft not found';
     END IF;
     
-    -- Delete draft
-    DELETE FROM drafts WHERE id = p_draft_id;
+    -- Soft delete: set draft status to 'deleted' instead of hard deleting
+    UPDATE drafts 
+    SET status = 'deleted' 
+    WHERE id = p_draft_id;
     
-    -- Reset post job status to pending
-    UPDATE post_jobs SET status = 'pending' WHERE id = v_post_job_id;
+    -- Mark all pending/in_progress post_jobs for this draft as cancelled
+    -- This prevents any future publishing attempts for this draft
+    UPDATE post_jobs 
+    SET status = 'canceled' 
+    WHERE draft_id = p_draft_id 
+      AND status IN ('pending', 'generated', 'ready', 'publishing');
+    
+    -- Note: We leave 'success' and 'failed' post_jobs as-is for audit trail
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

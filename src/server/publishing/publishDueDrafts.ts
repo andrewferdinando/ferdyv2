@@ -61,6 +61,61 @@ const RETRY_STATUSES = new Set(['failed'])
 const SUPPORTED_CHANNEL_SET = new Set(SUPPORTED_CHANNELS)
 
 /**
+ * Safely queries post_jobs that are ready to publish.
+ * Only returns jobs where:
+ * - post_jobs.status is in the allowed statuses
+ * - The associated draft exists and has status = 'scheduled' or 'partially_published'
+ * 
+ * This prevents processing jobs for deleted or invalid drafts.
+ * 
+ * @param allowedJobStatuses - Set of post_jobs.status values to include
+ * @param limit - Maximum number of jobs to return
+ * @returns Array of PostJobRow with draft information
+ */
+export async function getPublishableJobs(
+  allowedJobStatuses: Set<string> = PENDING_STATUSES,
+  limit = 50,
+): Promise<PostJobRow[]> {
+  const statusArray = Array.from(allowedJobStatuses)
+  
+  // Query post_jobs with inner join to drafts to ensure draft exists and is in valid status
+  const { data: jobsData, error: jobsError } = await supabaseAdmin
+    .from('post_jobs')
+    .select(`
+      *,
+      drafts!inner(id, status)
+    `)
+    .in('status', statusArray)
+    .in('drafts.status', ['scheduled', 'partially_published'])
+    .order('scheduled_at', { ascending: true })
+    .limit(limit)
+
+  if (jobsError) {
+    console.error('[getPublishableJobs] Error fetching jobs:', jobsError)
+    return []
+  }
+
+  if (!jobsData || jobsData.length === 0) {
+    return []
+  }
+
+  // Map the data to PostJobRow format
+  return jobsData.map((job: any) => ({
+    id: job.id,
+    draft_id: job.draft_id,
+    brand_id: job.brand_id,
+    channel: job.channel,
+    status: job.status,
+    error: job.error,
+    external_post_id: job.external_post_id,
+    external_url: job.external_url,
+    scheduled_at: job.scheduled_at,
+    target_month: job.target_month,
+    last_attempt_at: job.last_attempt_at ?? null,
+  })) as PostJobRow[]
+}
+
+/**
  * Updates draft status based on post_jobs statuses
  * - All jobs = 'success' → 'published'
  * - Some success + some failed → 'partially_published'
@@ -179,6 +234,33 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
   summary.draftsConsidered = dueDrafts.length
 
   for (const draft of dueDrafts) {
+    // Defensive guard: double-check draft status before processing
+    // This ensures we never process deleted or non-scheduled drafts
+    if (draft.status !== 'scheduled' && draft.status !== 'partially_published') {
+      console.warn(`[publishDueDrafts] Skipping draft ${draft.id} with invalid status: ${draft.status}`)
+      continue
+    }
+
+    // Verify draft still exists and has correct status
+    const { data: currentDraft } = await supabaseAdmin
+      .from('drafts')
+      .select('id, status')
+      .eq('id', draft.id)
+      .single()
+
+    if (!currentDraft || currentDraft.status !== 'scheduled' && currentDraft.status !== 'partially_published') {
+      console.warn(`[publishDueDrafts] Draft ${draft.id} no longer exists or has invalid status, cancelling related jobs`)
+      
+      // Cancel any pending jobs for this draft
+      await supabaseAdmin
+        .from('post_jobs')
+        .update({ status: 'canceled' })
+        .eq('draft_id', draft.id)
+        .in('status', ['pending', 'generated', 'ready', 'publishing'])
+      
+      continue
+    }
+
     const attempted = await processDraft(draft, {
       allowedStatuses: PENDING_STATUSES,
       ensureJobs: true,
@@ -253,6 +335,11 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
 
   if (draftError || !draft) {
     throw new Error('Draft not found')
+  }
+
+  // Defensive guard: never process deleted drafts
+  if (draft.status === 'deleted') {
+    throw new Error('Cannot publish deleted draft')
   }
 
   // Load all post_jobs for this draft
@@ -351,6 +438,35 @@ async function processDraft(
   const { allowedStatuses, ensureJobs, summary } = options
   const nowIso = new Date().toISOString()
 
+  // Defensive guard: verify draft still exists and is in a valid status
+  const { data: currentDraft } = await supabaseAdmin
+    .from('drafts')
+    .select('id, status')
+    .eq('id', draft.id)
+    .single()
+
+  if (!currentDraft) {
+    console.warn(`[processDraft] Draft ${draft.id} no longer exists, cancelling related jobs`)
+    // Cancel any pending jobs for this missing draft
+    await supabaseAdmin
+      .from('post_jobs')
+      .update({ status: 'canceled' })
+      .eq('draft_id', draft.id)
+      .in('status', ['pending', 'generated', 'ready', 'publishing'])
+    return false
+  }
+
+  if (currentDraft.status !== 'scheduled' && currentDraft.status !== 'partially_published') {
+    console.warn(`[processDraft] Draft ${draft.id} has invalid status: ${currentDraft.status}, cancelling related jobs`)
+    // Cancel any pending jobs for this invalid draft
+    await supabaseAdmin
+      .from('post_jobs')
+      .update({ status: 'canceled' })
+      .eq('draft_id', draft.id)
+      .in('status', ['pending', 'generated', 'ready', 'publishing'])
+    return false
+  }
+
   const targetChannels = getCanonicalChannels(draft.channel)
   if (targetChannels.length === 0) {
     return false
@@ -370,10 +486,16 @@ async function processDraft(
       return acc
     }, {}) ?? {}
 
+  // Safely query post_jobs for this draft - only get jobs where draft status is valid
+  // This is a defensive check even though we already verified the draft above
   const { data: existingJobsData, error: jobsError } = await supabaseAdmin
     .from('post_jobs')
-    .select('*')
+    .select(`
+      *,
+      drafts!inner(id, status)
+    `)
     .eq('draft_id', draft.id)
+    .in('drafts.status', ['scheduled', 'partially_published'])
 
   if (jobsError) {
     summary.errors.push({
@@ -381,6 +503,26 @@ async function processDraft(
       channel: 'all',
       error: jobsError.message,
     })
+    return false
+  }
+
+  // If no jobs found, it might be because draft status changed - cancel any orphaned jobs
+  if (!existingJobsData || existingJobsData.length === 0) {
+    // Check if there are any orphaned jobs (jobs without valid draft)
+    const { data: orphanedJobs } = await supabaseAdmin
+      .from('post_jobs')
+      .select('id, status')
+      .eq('draft_id', draft.id)
+      .in('status', ['pending', 'generated', 'ready', 'publishing'])
+    
+    if (orphanedJobs && orphanedJobs.length > 0) {
+      console.warn(`[processDraft] Found ${orphanedJobs.length} orphaned jobs for draft ${draft.id}, cancelling them`)
+      await supabaseAdmin
+        .from('post_jobs')
+        .update({ status: 'canceled' })
+        .eq('draft_id', draft.id)
+        .in('status', ['pending', 'generated', 'ready', 'publishing'])
+    }
     return false
   }
 
