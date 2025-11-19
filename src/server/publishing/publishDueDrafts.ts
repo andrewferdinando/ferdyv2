@@ -294,6 +294,16 @@ export async function retryFailedChannels(draftId: string): Promise<PublishSumma
     return summary
   }
 
+  // Defensive guard: never process deleted drafts
+  if (draft.status === 'deleted') {
+    summary.errors.push({
+      draftId,
+      channel: 'all',
+      error: 'Cannot retry failed channels for deleted draft',
+    })
+    return summary
+  }
+
   const attempted = await processDraft(draft, {
     allowedStatuses: RETRY_STATUSES,
     ensureJobs: false,
