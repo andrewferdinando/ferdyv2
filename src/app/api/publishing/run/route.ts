@@ -12,26 +12,30 @@ function parseLimitFromRequest(req: NextRequest): number {
 function assertCronAuthorized(req: Request) {
   const secret = (process.env.CRON_SECRET || '').trim()
 
+  // If no secret is configured, don't block anything
   if (!secret) {
     console.warn('[cron auth] CRON_SECRET missing in environment')
     return
   }
 
   const authRaw = (req.headers.get('authorization') || '').trim()
-
-  // Accept both "Bearer <token>" and just "<token>"
   const token = authRaw.startsWith('Bearer ')
     ? authRaw.slice(7).trim()
     : authRaw
 
-  const ok = token === secret
+  const fromCron = req.headers.get('x-vercel-cron')
+
+  const ok = token === secret || !!fromCron
 
   console.log('[cron auth]', {
     hasSecret: !!secret,
     authRawLength: authRaw.length,
     tokenLength: token.length,
     secretLength: secret.length,
-    match: ok,
+    fromCron,
+    matchBySecret: token === secret,
+    matchByCronHeader: !!fromCron,
+    ok,
   })
 
   if (!ok) {
