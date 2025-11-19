@@ -16,10 +16,10 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { brandId: string } }
+  context: { params: Promise<{ brandId: string }> }
 ) {
   try {
-    const { brandId } = params;
+    const { brandId } = await context.params;
 
     if (!brandId || typeof brandId !== 'string') {
       return NextResponse.json(
