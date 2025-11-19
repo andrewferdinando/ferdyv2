@@ -97,34 +97,51 @@ export default function UserAvatar({ userId, size = 'sm', className = '' }: User
     );
   }
 
-  // Generate initials from full_name or email
+  // Generate initials from full_name or email (always 2 initials when possible)
   const getInitials = () => {
     console.log('UserAvatar: Generating initials for user:', user);
     
     if (user.full_name) {
-      const initials = user.full_name
-        .split(' ')
-        .map(name => name.charAt(0))
-        .join('')
-        .toUpperCase()
-        .slice(0, 2); // Take up to 2 initials
-      console.log('UserAvatar: Generated initials from full_name:', initials);
-      return initials;
+      const nameParts = user.full_name.trim().split(/\s+/);
+      if (nameParts.length >= 2) {
+        // Multiple names: take first letter of first name and first letter of last name
+        const initials = (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+        console.log('UserAvatar: Generated initials from full_name (first + last):', initials);
+        return initials;
+      } else if (nameParts.length === 1 && nameParts[0].length >= 2) {
+        // Single name: take first two letters
+        const initials = nameParts[0].substring(0, 2).toUpperCase();
+        console.log('UserAvatar: Generated initials from single name (first 2 letters):', initials);
+        return initials;
+      } else if (nameParts.length === 1) {
+        // Single letter name: repeat it
+        const initial = nameParts[0].charAt(0).toUpperCase();
+        console.log('UserAvatar: Generated initials from single letter name:', initial + initial);
+        return initial + initial;
+      }
     }
     if (user.email) {
-      // For email, take first letter and first letter after @ or dot
+      // For email, try to find first.last@ pattern
       const emailParts = user.email.split('@')[0].split('.');
       if (emailParts.length >= 2) {
         const initials = (emailParts[0].charAt(0) + emailParts[1].charAt(0)).toUpperCase();
-        console.log('UserAvatar: Generated initials from email:', initials);
+        console.log('UserAvatar: Generated initials from email (first.last):', initials);
         return initials;
       }
-      const initials = user.email.charAt(0).toUpperCase();
-      console.log('UserAvatar: Generated single initial from email:', initials);
-      return initials;
+      // If no dot, try taking first two letters of username
+      const username = user.email.split('@')[0];
+      if (username.length >= 2) {
+        const initials = username.substring(0, 2).toUpperCase();
+        console.log('UserAvatar: Generated initials from email (first 2 letters):', initials);
+        return initials;
+      }
+      // Single letter username: repeat it
+      const initial = username.charAt(0).toUpperCase();
+      console.log('UserAvatar: Generated initials from single letter email:', initial + initial);
+      return initial + initial;
     }
-    console.log('UserAvatar: Using fallback initial: U');
-    return 'U';
+    console.log('UserAvatar: Using fallback initials: UU');
+    return 'UU';
   };
 
   const initials = getInitials();
