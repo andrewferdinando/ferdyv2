@@ -25,7 +25,15 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
 
     // Extract brandId from pathname
     const brandIdMatch = pathname.match(/\/brands\/([^\/]+)/);
-    const brandId = brandIdMatch ? brandIdMatch[1] : null;
+    let brandId = brandIdMatch ? brandIdMatch[1] : null;
+    
+    // If no brandId in pathname but we're on /account/add-brand, try to get it from localStorage
+    if (!brandId && pathname === '/account/add-brand' && typeof window !== 'undefined') {
+      const storedBrandId = window.localStorage.getItem('selectedBrandId');
+      if (storedBrandId) {
+        brandId = storedBrandId;
+      }
+    }
 
     // Always start with Home - link to Schedule page for the brand
     if (brandId) {
@@ -89,6 +97,10 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         label = 'Automated Monthly Posts';
       } else if (segment === 'account') {
         label = 'Account';
+        // Special case: if we're on /account/add-brand, link to brand-specific account page
+        if (brandId && pathname === '/account/add-brand') {
+          currentPath = `/brands/${brandId}/account`;
+        }
       } else if (segment === 'settings') {
         label = 'Settings';
       } else if (segment === 'categories') {
