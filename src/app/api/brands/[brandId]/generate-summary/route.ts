@@ -28,16 +28,38 @@ export async function POST(
       );
     }
 
-    // Fire-and-forget: Generate summary in the background
-    // We don't await this - return immediately
-    generateBrandSummaryForBrand(brandId).catch((err) => {
+    // Actually await the summary generation so we can catch and report errors
+    // This is still reasonably fast (< 30s) and provides better feedback
+    try {
+      await generateBrandSummaryForBrand(brandId);
+      
+      return NextResponse.json({
+        ok: true,
+        message: 'AI summary generated successfully',
+      });
+    } catch (err) {
       console.error(`[API /brands/${brandId}/generate-summary] Error generating summary:`, err);
-    });
-
-    return NextResponse.json({
-      ok: true,
-      message: 'AI summary generation started',
-    });
+      
+      // Check if it's a database error (columns might not exist)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      if (errorMessage.includes('column') || errorMessage.includes('does not exist')) {
+        return NextResponse.json(
+          { 
+            error: 'Database columns not found. Please run the migration: add_ai_summary_to_brands.sql',
+            details: errorMessage
+          },
+          { status: 500 }
+        );
+      }
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to generate summary',
+          details: errorMessage
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('[API /brands/[brandId]/generate-summary] Unexpected error:', error);
     return NextResponse.json(

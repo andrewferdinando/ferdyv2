@@ -170,68 +170,69 @@ ${websiteText}`;
  * 4. Generates AI summary
  * 5. Saves to database
  * 
- * All errors are caught and logged, but not thrown (fire-and-forget pattern)
+ * Errors are thrown so they can be caught by the API route and reported to the user.
  */
 export async function generateBrandSummaryForBrand(brandId: string): Promise<void> {
-  try {
-    // 1. Load brand from Supabase
-    const { data: brand, error: brandError } = await supabaseAdmin
-      .from('brands')
-      .select('id, name, website_url')
-      .eq('id', brandId)
-      .single();
+  // 1. Load brand from Supabase
+  const { data: brand, error: brandError } = await supabaseAdmin
+    .from('brands')
+    .select('id, name, website_url')
+    .eq('id', brandId)
+    .single();
 
-    if (brandError || !brand) {
-      console.error(`[generateBrandSummary] Brand not found: ${brandId}`, brandError);
-      return; // Don't throw - this is fire-and-forget
-    }
-
-    // 2. Validate website_url exists
-    if (!brand.website_url || !brand.website_url.trim()) {
-      console.warn(`[generateBrandSummary] Brand ${brandId} (${brand.name}) has no website_url, skipping AI summary generation`);
-      return; // Not an error - some brands may not have websites
-    }
-
-    // 3. Fetch and extract homepage text
-    let websiteText: string;
-    try {
-      websiteText = await extractWebsiteText(brand.website_url);
-    } catch (error) {
-      console.error(`[generateBrandSummary] Failed to fetch website for brand ${brandId}:`, error);
-      // Don't throw - just log and return
-      return;
-    }
-
-    // 4. Generate AI summary
-    let summary: string;
-    try {
-      summary = await generateSummaryWithOpenAI(websiteText, brand.name, brand.website_url);
-    } catch (error) {
-      console.error(`[generateBrandSummary] Failed to generate AI summary for brand ${brandId}:`, error);
-      // Don't throw - just log and return
-      return;
-    }
-
-    // 5. Save to database
-    const { error: updateError } = await supabaseAdmin
-      .from('brands')
-      .update({
-        ai_summary: summary,
-        ai_summary_last_generated_at: new Date().toISOString(),
-      })
-      .eq('id', brandId);
-
-    if (updateError) {
-      console.error(`[generateBrandSummary] Failed to save AI summary for brand ${brandId}:`, updateError);
-      // Don't throw - just log
-      return;
-    }
-
-    console.log(`[generateBrandSummary] Successfully generated and saved AI summary for brand ${brandId} (${brand.name})`);
-  } catch (error) {
-    // Catch-all for any unexpected errors
-    console.error(`[generateBrandSummary] Unexpected error for brand ${brandId}:`, error);
-    // Don't throw - this is fire-and-forget
+  if (brandError || !brand) {
+    const errorMsg = brandError?.message || 'Brand not found';
+    console.error(`[generateBrandSummary] Brand not found: ${brandId}`, brandError);
+    throw new Error(`Brand not found: ${errorMsg}`);
   }
+
+  // 2. Validate website_url exists
+  if (!brand.website_url || !brand.website_url.trim()) {
+    const errorMsg = `Brand "${brand.name}" does not have a website URL set. Please add a website URL to generate an AI summary.`;
+    console.warn(`[generateBrandSummary] Brand ${brandId} (${brand.name}) has no website_url`);
+    throw new Error(errorMsg);
+  }
+
+  // 3. Fetch and extract homepage text
+  let websiteText: string;
+  try {
+    websiteText = await extractWebsiteText(brand.website_url);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[generateBrandSummary] Failed to fetch website for brand ${brandId}:`, error);
+    throw new Error(`Failed to fetch website: ${errorMsg}`);
+  }
+
+  // 4. Generate AI summary
+  let summary: string;
+  try {
+    summary = await generateSummaryWithOpenAI(websiteText, brand.name, brand.website_url);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[generateBrandSummary] Failed to generate AI summary for brand ${brandId}:`, error);
+    throw new Error(`Failed to generate AI summary: ${errorMsg}`);
+  }
+
+  // 5. Save to database
+  const { error: updateError } = await supabaseAdmin
+    .from('brands')
+    .update({
+      ai_summary: summary,
+      ai_summary_last_generated_at: new Date().toISOString(),
+    })
+    .eq('id', brandId);
+
+  if (updateError) {
+    console.error(`[generateBrandSummary] Failed to save AI summary for brand ${brandId}:`, updateError);
+    
+    // Check if columns don't exist
+    if (updateError.message.includes('column') || updateError.message.includes('does not exist')) {
+      throw new Error(`Database columns not found. Please run the migration: add_ai_summary_to_brands.sql. Database error: ${updateError.message}`);
+    }
+    
+    throw new Error(`Failed to save summary to database: ${updateError.message}`);
+  }
+
+  console.log(`[generateBrandSummary] Successfully generated and saved AI summary for brand ${brandId} (${brand.name})`);
 }
 
