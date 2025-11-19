@@ -97,7 +97,7 @@ export default function BrandDetailsPage() {
       showToast({
         title: 'AI summary generation started',
         type: 'success',
-        description: 'The summary will be available shortly. Please refresh the page in a few moments.',
+        message: 'The summary will be available shortly. Please refresh the page in a few moments.',
       });
 
       // Refresh brand data after a short delay to check for the summary
@@ -110,7 +110,7 @@ export default function BrandDetailsPage() {
       showToast({
         title: 'Error generating summary',
         type: 'error',
-        description: err instanceof Error ? err.message : 'Please try again later.',
+        message: err instanceof Error ? err.message : 'Please try again later.',
       });
     } finally {
       setGenerating(false);
