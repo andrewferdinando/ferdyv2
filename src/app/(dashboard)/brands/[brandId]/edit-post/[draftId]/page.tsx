@@ -871,9 +871,11 @@ export default function EditPostPage() {
             setPostJobs(result.jobs);
           }
 
-          // Refetch to ensure we have the latest data
-          await fetchPostJobs();
-          await loadDraft();
+          // Close the modal
+          closePublishModal();
+
+          // Redirect to Schedule page on success
+          router.push(`/brands/${brandId}/schedule`);
         },
       });
     } catch (error) {
