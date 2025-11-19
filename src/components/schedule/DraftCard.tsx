@@ -278,7 +278,7 @@ interface DraftCardProps {
       external_url: string;
       status: string;
       error: string;
-    };
+    } | null;
     assets?: DraftAsset[];
   };
   onUpdate: () => void;
