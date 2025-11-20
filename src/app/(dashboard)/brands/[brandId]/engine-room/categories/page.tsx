@@ -452,43 +452,25 @@ export default function CategoriesPage() {
       let copyNumber = 1
       
       // Check if a subcategory with this name already exists in the same category
-      const { data: existingCheck, error: checkError } = await supabase
-        .from('subcategories')
-        .select('id')
-        .eq('brand_id', subcategory.brand_id)
-        .eq('category_id', subcategory.category_id)
-        .ilike('name', `${subcategory.name} (Copy)%`)
-      
-      if (!checkError && existingCheck && existingCheck.length > 0) {
-        // Find the highest copy number
-        const copyPattern = /\(Copy( (\d+))?\)$/
-        const copyNumbers = existingCheck
-          .map(() => {
-            // We can't check names from the select above, so we'll try incrementing
-            return null
-          })
-          .filter((n): n is number => n !== null)
+      // If so, increment until we find a unique name
+      while (true) {
+        const testName = copyNumber === 1 
+          ? `${subcategory.name} (Copy)`
+          : `${subcategory.name} (Copy ${copyNumber})`
         
-        // Simple approach: just increment until we find a unique name
-        while (true) {
-          const testName = copyNumber === 1 
-            ? `${subcategory.name} (Copy)`
-            : `${subcategory.name} (Copy ${copyNumber})`
-          
-          const { data: exists } = await supabase
-            .from('subcategories')
-            .select('id')
-            .eq('brand_id', subcategory.brand_id)
-            .eq('category_id', subcategory.category_id)
-            .ilike('name', testName)
-            .limit(1)
-          
-          if (!exists || exists.length === 0) {
-            newName = testName
-            break
-          }
-          copyNumber++
+        const { data: exists } = await supabase
+          .from('subcategories')
+          .select('id')
+          .eq('brand_id', subcategory.brand_id)
+          .eq('category_id', subcategory.category_id)
+          .ilike('name', testName)
+          .limit(1)
+        
+        if (!exists || exists.length === 0) {
+          newName = testName
+          break
         }
+        copyNumber++
       }
 
       // Create a new subcategory with a unique name
