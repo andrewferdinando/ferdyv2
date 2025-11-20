@@ -457,7 +457,7 @@ export default function ContentLibraryPage() {
                                 <div className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
                                   {VIDEO_GROUP_LABELS[groupKey]}
                                 </div>
-                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                                   {groupAssets.map((asset) => (
                                     <div key={asset.id}>
                                       <AssetCard
@@ -476,18 +476,18 @@ export default function ContentLibraryPage() {
                       )
                     })()
                   : (
-                    <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-                  {filteredAssets.map((asset) => (
-                    <div key={asset.id}>
-                      <AssetCard
-                        asset={asset}
-                        onEdit={handleEditAsset}
-                        onDelete={handleDeleteAsset}
+                    <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                      {filteredAssets.map((asset) => (
+                        <div key={asset.id}>
+                          <AssetCard
+                            asset={asset}
+                            onEdit={handleEditAsset}
+                            onDelete={handleDeleteAsset}
                             onPreview={handlePreviewAsset}
-                      />
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
                   )
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
