@@ -30,6 +30,7 @@ export type PostCopyPayload = {
     url?: string;
     description?: string;
     frequency_type?: string;
+    category_name?: string; // e.g. "Functions"
   };
   schedule?: { frequency: string; event_date?: string; days_until_event?: number };
   scheduledFor?: string; // UTC timestamp when the post is scheduled
@@ -253,9 +254,12 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 6) Build subcategory context with description and frequency_type
+  // 6) Build subcategory context with description, frequency_type, and category_name
   const subcategoryContextParts: string[] = [];
   if (payload.subcategory) {
+    if (payload.subcategory.category_name) {
+      subcategoryContextParts.push(`- Parent Category: ${payload.subcategory.category_name}`);
+    }
     if (payload.subcategory.name) {
       subcategoryContextParts.push(`- Subcategory Name: ${payload.subcategory.name}`);
     }
@@ -294,19 +298,39 @@ export async function generatePostCopyFromContext(
   const subName = payload.subcategory?.name || "";
   const subDesc = payload.subcategory?.description || "";
   const subUrl = payload.subcategory?.url || "";
+  const subCategoryName = payload.subcategory?.category_name || "";
+
+  // Split description into lines / sentences to expose distinct facts
+  const descriptionFacts =
+    subDesc
+      ? subDesc
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
 
   const taskBlock = `TASK
 You are writing a social media post to promote a specific offering/subcategory for this brand.
 
 The post MUST be about this specific subcategory, NOT about the general venue or brand.
 
+Parent category (if given): ${subCategoryName || "(not provided)"}
 Subcategory name: ${subName || "(not provided)"}
-Subcategory description: ${subDesc || "(not provided)"}
+Subcategory description (free text): ${subDesc || "(not provided)"}
 Subcategory URL: ${subUrl || "(not provided)"}
+
+DETAIL FACTS YOU CAN USE:
+${descriptionFacts.length > 0
+  ? descriptionFacts.map((f) => `- ${f}`).join("\n")
+  : "- (no structured facts provided)"}
 
 Post objective: "${prompt}"
 
-Write the post as if you are inviting someone to enquire about or book this specific subcategory/offer. If details are provided (capacity, views, bar service, hours, etc.), use them as concrete selling points.`;
+IMPORTANT:
+- You MUST use at least 2–3 distinct concrete facts from the list above in your post (you may rephrase them in natural language).
+- If the description includes capacities, features, or amenities (e.g. seating numbers, TV, covered/heated, private space), mention at least one capacity detail and at least one feature.
+- The post should feel like a specific promotion for this subcategory/space (e.g. a function space, deck, room, service), not a generic brand awareness post.
+- If the parent category suggests the context (e.g. "Functions"), write the post as an invitation to enquire or book this offering for that context.`;
 
   // 9) Build the enhanced USER prompt string
   const userPrompt = `${taskBlock}
@@ -336,8 +360,9 @@ ${recentLinesJoined || "(none - this is the first post)"}
 
 3. **Context Integration**:
    - The post MUST clearly promote the specific subcategory described in the TASK (e.g. a function space, product, or service).
-   - The main subject, examples, and language should be about this subcategory (e.g. "Charlies Beach Side Deck") rather than the general venue or brand.
-   - Use the subcategory description details (capacity, views, service, hours, etc.) as concrete reasons to enquire or book.
+   - The main subject, examples, and language should be about this specific subcategory (e.g. "Charlies Beach Side Deck") rather than the general venue or brand.
+   - You MUST use at least 2–3 concrete details from the DETAIL FACTS list above. You may paraphrase, but the details must remain recognisable (e.g. covered and heated, private space, large TV, capacity numbers like 40 seated / 50 casual).
+   - Give higher priority to subcategory details than to generic brand summary. Brand context is background only.
    - You may mention the brand name, but only as context for this subcategory (e.g. "Host your next celebration on the Charlies Beach Side Deck at Charlie Farleys...").
    - Do NOT write a generic brand awareness post. The post should feel like a specific promotion for this subcategory.
    - ${isEventBased
@@ -386,7 +411,7 @@ Output ONLY the final post text. No explanations, no markdown, no additional com
   const completion = await withRetry(() =>
     client.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.85, // Slightly increased for more variation
+      temperature: 0.65, // Lower temperature for more faithful use of facts and structure
       n: clamp(variants ?? 1, 1, 3),
       max_tokens: max_tokens ?? 120,
       messages: [
