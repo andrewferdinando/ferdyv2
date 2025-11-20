@@ -154,13 +154,7 @@ function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
       <img
         src={previewUrl ?? fallbackUrl ?? ''}
         alt={asset.title || 'Asset'}
-        className="pointer-events-none absolute left-1/2 top-1/2"
-        style={{
-          width: `${widthPercent}%`,
-          height: `${heightPercent}%`,
-          transform: `translate(-50%, -50%) translate(${translateXPercent}%, ${translateYPercent}%)`,
-          transformOrigin: 'center',
-        }}
+        className="h-full w-full object-cover"
         draggable={false}
       />
     </div>
@@ -714,11 +708,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           {/* Image Section */}
           <div className="flex-shrink-0">
             {draft.assets && draft.assets.length > 0 ? (
-              <div className="h-20 w-20 overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative w-20 h-20 aspect-square overflow-hidden rounded-lg bg-gray-100">
                 <DraftAssetPreview asset={draft.assets[0]} />
               </div>
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-gray-100">
+              <div className="flex h-20 w-20 aspect-square items-center justify-center rounded-lg bg-gray-100">
                 <span className="text-xs text-gray-400">No media</span>
               </div>
             )}
