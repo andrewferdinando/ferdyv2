@@ -26,9 +26,20 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     .maybeSingle();
 
   if (error) {
-    console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', error);
+    console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', {
+      subcategoryId,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+    });
     return;
   }
+  
+  console.log(`[refreshSubcategoryUrlSummary] Fetched subcategory:`, {
+    found: !!subcat,
+    hasUrl: !!subcat?.url,
+    url: subcat?.url || '(none)',
+  });
   
   if (!subcat || !subcat.url) {
     // Nothing to do – no URL, or not found
