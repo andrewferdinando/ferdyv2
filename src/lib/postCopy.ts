@@ -193,7 +193,7 @@ export async function generatePostCopyFromContext(
   }
   
   // Typical post length
-  if (brandPostInfo?.avg_char_length !== null && brandPostInfo?.avg_word_count !== null) {
+  if (brandPostInfo && brandPostInfo.avg_char_length !== null && brandPostInfo.avg_word_count !== null) {
     const charRange = Math.round(brandPostInfo.avg_char_length);
     const wordRange = Math.round(brandPostInfo.avg_word_count);
     // Provide a range (±20% for character count, ±15% for word count)
@@ -291,7 +291,7 @@ ${recentLinesJoined || "(none - this is the first post)"}
 
 2. **Length & Format**:
    - Target length: ${payload.length || "short"} (short ≈ 1–2 sentences, medium ≈ 3–5, long ≈ 6–8)
-   ${brandPostInfo?.avg_char_length !== null && brandPostInfo?.avg_word_count !== null 
+   ${brandPostInfo && brandPostInfo.avg_char_length !== null && brandPostInfo.avg_word_count !== null 
      ? `- Fit within typical post length for this brand (${Math.round(brandPostInfo.avg_char_length * 0.8)}-${Math.round(brandPostInfo.avg_char_length * 1.2)} characters, ${Math.round(brandPostInfo.avg_word_count * 0.85)}-${Math.round(brandPostInfo.avg_word_count * 1.15)} words)`
      : "- Match the requested length"}
 
