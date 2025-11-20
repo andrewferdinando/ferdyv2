@@ -86,19 +86,25 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 3) Load only post_tone from brand_post_information
-  let brandPostInfo: { post_tone: string | null } | null = null;
+  // 3) Load post_tone, avg_word_count, avg_char_length from brand_post_information
+  let brandPostInfo: { 
+    post_tone: string | null;
+    avg_word_count: number | null;
+    avg_char_length: number | null;
+  } | null = null;
   
   try {
     const { data: postInfo } = await supabaseAdmin
       .from("brand_post_information")
-      .select("post_tone")
+      .select("post_tone, avg_word_count, avg_char_length")
       .eq("brand_id", brandId)
       .maybeSingle();
     
     if (postInfo) {
       brandPostInfo = {
         post_tone: postInfo.post_tone,
+        avg_word_count: postInfo.avg_word_count,
+        avg_char_length: postInfo.avg_char_length,
       };
     }
   } catch {
@@ -112,27 +118,85 @@ export async function generatePostCopyFromContext(
   const subUrl = payload.subcategory?.url || "";
   const tone = payload.tone_override || brandPostInfo?.post_tone || "friendly, clear";
   const length = payload.length || "short";
-  const hashtagsMode = payload.hashtags?.mode || "none";
-  const hashtagsList = payload.hashtags?.list?.slice(0, 5) ?? [];
+  
+  // 5) Build length hint based on brand's avg_word_count
+  let lengthHint = "";
+  if (brandPostInfo?.avg_word_count != null) {
+    const w = Math.round(brandPostInfo.avg_word_count);
+    const min = Math.max(5, Math.round(w * 0.8));
+    const max = Math.round(w * 1.2);
+    lengthHint = `${min}–${max} words (brand typical)`;
+  }
+  
+  // Map length to label
+  const lengthLabel = length === "short" 
+    ? "short (≈ 1–2 sentences)" 
+    : length === "medium" 
+    ? "medium (≈ 3–5 sentences)" 
+    : "long (≈ 6–8 sentences)";
 
-  // 5) Build new SYSTEM message
-  const systemMessage = `You are a social media copywriter.
+  // 6) Optional: Fetch subcategory-specific recent posts (same brand + same subcategory only)
+  let recentSubcategoryPosts: string[] = [];
+  if (draftId) {
+    try {
+      // First, get the subcategory_id from the draft
+      const { data: draft } = await supabaseAdmin
+        .from("drafts")
+        .select("subcategory_id")
+        .eq("id", draftId)
+        .maybeSingle();
+      
+      if (draft?.subcategory_id) {
+        // Fetch last 3 posts for same brand AND same subcategory (excluding current draft)
+        const { data: recentDrafts } = await supabaseAdmin
+          .from("drafts")
+          .select("copy")
+          .eq("brand_id", brandId)
+          .eq("subcategory_id", draft.subcategory_id)
+          .neq("id", draftId) // Exclude current draft
+          .not("copy", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(3);
 
-Your job is to write copy that is:
-- accurate to the subcategory details provided,
-- specific and concrete,
-- aligned with the brand tone,
-- clear and human,
-- not generic filler.
+        if (recentDrafts && recentDrafts.length > 0) {
+          recentSubcategoryPosts = recentDrafts
+            .map((d) => d.copy)
+            .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+            .map((c) => c.trim());
+        }
+      }
+    } catch {
+      // Gracefully skip if query fails
+      recentSubcategoryPosts = [];
+    }
+  }
 
-You may NOT invent features, facilities, numbers, or benefits that were not provided.
-You may NOT reuse patterns from other brands or subcategories.
-You may NOT assume the brand has facilities, rooms, events, or spaces unless explicitly given.
+  // 7) Build new SYSTEM message with hard no-cross-brand rule
+  const systemMessage = `You are a professional social media copywriter.
 
-Always treat the SUBCATEGORY section as the primary and most important information.
-Brand tone is secondary and used only for voice and phrasing.`;
+Your #1 priority — above everything else — is:
+NEVER reference, imply, or reuse ANY information, wording, features, facilities, examples, details, or patterns from ANY other brand, subcategory, or previous content.
 
-  // 6) Build new USER prompt
+You MUST:
+- Base ALL facts ONLY on the subcategory description provided.
+- Use the brand's tone of voice.
+- Match roughly the brand's typical word count.
+- Be specific and concrete when details exist.
+- Be general when the description is general.
+- Produce natural, human, non-generic copy.
+
+You MUST NOT:
+- Invent facilities or capacities that were not provided.
+- Add descriptions of venues, spaces, seating, menus, locations, or anything not explicitly in the subcategory.
+- Use template phrases like "Don't miss out…" unless truly appropriate.
+- Include ANY hashtags (Ferdy handles them separately).
+- Apologise, ask for more info, or say details are missing.
+- Copy patterns or ideas from earlier posts, earlier brands, or other subcategories.
+
+Subcategory details are ALWAYS the highest priority source of truth.
+Brand tone affects writing style, NOT content.`;
+
+  // 8) Build new USER prompt
   const userPrompt = `
 ### PRIMARY TOPIC (SUBCATEGORY)
 
@@ -140,71 +204,62 @@ Name: ${subName || "(not provided)"}
 Description: ${subDesc || "(not provided)"}
 URL: ${subUrl || "(not provided)"}
 
-This post must be ONLY about this specific subcategory.
-Do NOT include information from any other subcategory, even if it sounds related.
+ONLY write about THIS subcategory.  
+Do NOT reference anything from any other brand or any other subcategory — EVER.
 
-### BRAND TONE
+### BRAND STYLE
 
-${tone}
-
-### POST OBJECTIVE
-
-${payload.prompt}
+Tone of voice: ${tone}
+Target length: ${lengthLabel}${lengthHint ? `, ${lengthHint}` : ""}
 
 ### POST TYPE
 
 ${isEvent ? "EVENT MODE" : "PRODUCT/SERVICE MODE"}
 
 - EVENT MODE:
-  Write with light urgency (e.g. "coming up", "happening soon", "don't miss it").
-  You MAY reference the event date or date range exactly as provided, if available.
-  Do NOT invent countdown numbers or extra dates.
-  Use ONLY details from the subcategory description.
+  - Treat this as a specific event, promotion, or time-based item.
+  - Use light, natural urgency ("coming up", "happening soon").
+  - You MAY reference the event date(s) shown below.
+  - DO NOT invent countdown numbers.
+  - DO NOT add event details not included in the subcategory description.
 
 - PRODUCT/SERVICE MODE:
-  Describe or promote the product, service, programme, feature, or offer based ONLY on the subcategory description.
-  Do NOT use event-style urgency or countdown language unless explicitly asked in the post objective.
+  - Describe ONLY the programme, product, service, or feature in the subcategory.
+  - No event-style urgency unless explicitly stated in the objective.
 
-${isEvent && eventTiming ? `### EVENT TIMING
+${isEvent && eventTiming ? `### EVENT TIMING\n${eventTiming}\n` : ""}${recentSubcategoryPosts.length > 0 ? `### PREVIOUS COPY FOR THIS SUBCATEGORY (DO NOT REPEAT)
 
-${eventTiming}
+${recentSubcategoryPosts.map((line) => `- "${line}"`).join("\n")}
 
-` : ""}### REQUIREMENTS
+` : ""}### POST OBJECTIVE
 
-- Use ONLY details that are present in the subcategory description (and event timing, if provided).
-- Do NOT invent facilities, capacities, features, or benefits that are not in the description.
-- Stay aligned with the brand tone above.
-- Keep the copy specific and concrete, not generic.
-- Do NOT use information from other brands or subcategories.
-- If the description is general, keep the copy general without adding imagined detail.
-- Target length: ${length} (short ≈ 1–2 sentences, medium ≈ 3–5, long ≈ 6–8).
+${payload.prompt}
 
-### HASHTAGS
+### WRITING RULES
 
-Hashtags mode: ${hashtagsMode}
-${hashtagsMode === "none"
-  ? "- Do NOT include any hashtags in the output."
-  : ""}
-${hashtagsMode === "list" && hashtagsList.length
-  ? `- Include ONLY these hashtags at the end of the post, and do NOT invent any new ones:\n  ${hashtagsList.join(" ")}`
-  : ""}
-${hashtagsMode === "auto"
-  ? "- You may add 2–4 simple, relevant hashtags at the end of the post."
-  : ""}
+- Use ONLY details present in the subcategory description.
+- NEVER reference another brand or subcategory.
+- No invented details.
+- No hashtags.
+- No apologies.
+- No generic filler lines.
+- Keep copy natural, human, and specific.
+- Respect brand tone and length.
 
-Write the final post copy below. Output plain text only, no markdown, no explanations.
+Write the final post text below.  
+Plain text only. No markdown. No explanations.
 `.trim();
 
-  // 7) Log the prompt for debugging
+  // 9) Log the prompt for debugging
   if (draftId) {
     console.log(`[postCopy] Generated prompt for draft ${draftId}:\n${userPrompt}\n`);
   }
 
-  // 8) Call OpenAI with retry logic
+  // 10) Call OpenAI with retry logic
   const completion = await withRetry(() =>
     client.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.6,
+      temperature: 0.65,
       n: clamp(variants ?? 1, 1, 3),
       max_tokens: max_tokens ?? 120,
       messages: [
@@ -214,15 +269,22 @@ Write the final post copy below. Output plain text only, no markdown, no explana
     })
   );
 
-  // 9) Extract and return variants, stripping any stray hashtags
+  // 11) Extract and return variants, stripping any stray hashtags
   const rawResults = completion.choices
     .map((c) => c.message?.content?.trim() || "")
     .filter(Boolean);
 
-  // Post-process to strip any hashtags if mode is "none"
-  const results = hashtagsMode === "none"
-    ? rawResults.map(stripHashtags).filter(Boolean)
-    : rawResults;
+  // Post-process: strip any hashtags that might have slipped through (safety measure)
+  // Also normalize whitespace
+  const results = rawResults
+    .map((text) => {
+      // Remove hashtags as a safety measure
+      let cleaned = stripHashtags(text);
+      // Normalize whitespace
+      cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+      return cleaned;
+    })
+    .filter(Boolean);
 
   if (results.length === 0) {
     throw new Error("No copy variants generated");
