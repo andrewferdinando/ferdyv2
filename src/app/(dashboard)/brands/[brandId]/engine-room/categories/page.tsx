@@ -432,7 +432,8 @@ export default function CategoriesPage() {
         .single()
 
       if (subcatError || !subcategory) {
-        throw new Error('Failed to fetch subcategory details')
+        console.error('Failed to fetch subcategory:', subcatError)
+        throw new Error(`Failed to fetch subcategory details: ${subcatError?.message || 'Unknown error'}`)
       }
 
       // Fetch all schedule rules for this subcategory
@@ -442,65 +443,142 @@ export default function CategoriesPage() {
         .eq('subcategory_id', subcategoryId)
 
       if (rulesError) {
-        throw new Error('Failed to fetch schedule rules')
+        console.error('Failed to fetch schedule rules:', rulesError)
+        throw new Error(`Failed to fetch schedule rules: ${rulesError.message}`)
       }
 
-      // Create a new subcategory with "(Copy)" appended to the name
-      const newName = `${subcategory.name} (Copy)`
+      // Generate a unique name by checking for existing duplicates
+      let newName = `${subcategory.name} (Copy)`
+      let copyNumber = 1
+      
+      // Check if a subcategory with this name already exists in the same category
+      const { data: existingCheck, error: checkError } = await supabase
+        .from('subcategories')
+        .select('id')
+        .eq('brand_id', subcategory.brand_id)
+        .eq('category_id', subcategory.category_id)
+        .ilike('name', `${subcategory.name} (Copy)%`)
+      
+      if (!checkError && existingCheck && existingCheck.length > 0) {
+        // Find the highest copy number
+        const copyPattern = /\(Copy( (\d+))?\)$/
+        const copyNumbers = existingCheck
+          .map(() => {
+            // We can't check names from the select above, so we'll try incrementing
+            return null
+          })
+          .filter((n): n is number => n !== null)
+        
+        // Simple approach: just increment until we find a unique name
+        while (true) {
+          const testName = copyNumber === 1 
+            ? `${subcategory.name} (Copy)`
+            : `${subcategory.name} (Copy ${copyNumber})`
+          
+          const { data: exists } = await supabase
+            .from('subcategories')
+            .select('id')
+            .eq('brand_id', subcategory.brand_id)
+            .eq('category_id', subcategory.category_id)
+            .ilike('name', testName)
+            .limit(1)
+          
+          if (!exists || exists.length === 0) {
+            newName = testName
+            break
+          }
+          copyNumber++
+        }
+      }
+
+      // Create a new subcategory with a unique name
+      // Don't set created_at or updated_at - let the database handle defaults
+      const insertData: {
+        brand_id: string
+        category_id: string
+        name: string
+        detail?: string | null
+        url?: string | null
+        default_hashtags?: string[] | null
+        channels?: string[] | null
+      } = {
+        brand_id: subcategory.brand_id,
+        category_id: subcategory.category_id,
+        name: newName,
+        detail: subcategory.detail || null,
+        url: subcategory.url || null,
+        default_hashtags: subcategory.default_hashtags || null,
+        channels: subcategory.channels || null
+      }
+
       const { data: newSubcategory, error: createError } = await supabase
         .from('subcategories')
-        .insert({
-          brand_id: subcategory.brand_id,
-          category_id: subcategory.category_id,
-          name: newName,
-          detail: subcategory.detail,
-          url: subcategory.url,
-          default_hashtags: subcategory.default_hashtags,
-          channels: subcategory.channels,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .insert(insertData)
         .select()
         .single()
 
-      if (createError || !newSubcategory) {
-        throw new Error('Failed to create duplicate subcategory')
+      if (createError) {
+        console.error('Failed to create duplicate subcategory:', createError)
+        throw new Error(`Failed to create duplicate subcategory: ${createError.message}`)
+      }
+
+      if (!newSubcategory) {
+        throw new Error('Failed to create duplicate subcategory: No data returned')
       }
 
       // Copy all schedule rules to the new subcategory
       if (scheduleRules && scheduleRules.length > 0) {
-        const newRules = scheduleRules.map(rule => ({
-          brand_id: rule.brand_id,
-          category_id: rule.category_id,
-          subcategory_id: newSubcategory.id,
-          frequency: rule.frequency,
-          time_of_day: rule.time_of_day,
-          days_of_week: rule.days_of_week,
-          day_of_month: rule.day_of_month,
-          nth_week: rule.nth_week,
-          weekday: rule.weekday,
-          channels: rule.channels,
-          is_active: rule.is_active,
-          start_date: rule.start_date,
-          end_date: rule.end_date,
-          days_before: rule.days_before,
-          days_during: rule.days_during,
-          timezone: rule.timezone,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }))
+        const newRules = scheduleRules.map(rule => {
+          const ruleData: {
+            brand_id: string
+            category_id: string | null
+            subcategory_id: string
+            frequency: string
+            time_of_day?: string | string[] | null
+            days_of_week?: number[] | null
+            day_of_month?: number[] | number | null
+            nth_week?: number | null
+            weekday?: number | null
+            channels?: string[] | string | null
+            is_active?: boolean
+            start_date?: string | null
+            end_date?: string | null
+            days_before?: number[] | null
+            days_during?: number[] | null
+            timezone?: string | null
+          } = {
+            brand_id: rule.brand_id,
+            category_id: rule.category_id || null,
+            subcategory_id: newSubcategory.id,
+            frequency: rule.frequency,
+            time_of_day: rule.time_of_day || null,
+            days_of_week: rule.days_of_week || null,
+            day_of_month: rule.day_of_month || null,
+            nth_week: rule.nth_week || null,
+            weekday: rule.weekday || null,
+            channels: rule.channels || null,
+            is_active: rule.is_active !== undefined ? rule.is_active : true,
+            start_date: rule.start_date || null,
+            end_date: rule.end_date || null,
+            days_before: rule.days_before || null,
+            days_during: rule.days_during || null,
+            timezone: rule.timezone || null
+          }
+          return ruleData
+        })
 
         const { error: rulesInsertError } = await supabase
           .from('schedule_rules')
           .insert(newRules)
 
         if (rulesInsertError) {
+          console.error('Failed to copy schedule rules:', rulesInsertError)
           // If schedule rules fail to copy, delete the new subcategory to maintain consistency
           await supabase
             .from('subcategories')
             .delete()
             .eq('id', newSubcategory.id)
-          throw new Error('Failed to copy schedule rules')
+          throw new Error(`Failed to copy schedule rules: ${rulesInsertError.message}`)
         }
       }
 
@@ -515,9 +593,10 @@ export default function CategoriesPage() {
       })
     } catch (err) {
       console.error('Failed to duplicate subcategory:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Please try again.'
       showToast({
         title: 'Failed to duplicate subcategory',
-        message: err instanceof Error ? err.message : 'Please try again.',
+        message: errorMessage,
         type: 'error',
         duration: 3000
       })
