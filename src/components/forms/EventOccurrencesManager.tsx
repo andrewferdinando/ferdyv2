@@ -57,6 +57,7 @@ export function EventOccurrencesManager({
   const [url, setUrl] = useState('')
   const [timezone, setTimezone] = useState(brandTimezone)
   const [subcategoryUrl, setSubcategoryUrl] = useState<string | null>(null)
+  const [detail, setDetail] = useState<string>('')
 
   // Bulk add state
   const [bulkInput, setBulkInput] = useState('')
