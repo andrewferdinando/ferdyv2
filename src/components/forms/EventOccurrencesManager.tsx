@@ -16,6 +16,7 @@ interface EventOccurrence {
   channels: string[]
   timezone: string
   is_active: boolean
+  detail?: string | null  // Occurrence detail/description
 }
 
 interface EventOccurrencesManagerProps {
@@ -191,90 +192,9 @@ const renderChannelIcons = (channels: string[]) =>
     }
   }, [minDate, lockedMonths])
 
-  // Clear invalid dates when minDate changes (e.g., when locked months load)
-  // Use Date objects at noon UTC for proper comparison
-  useEffect(() => {
-    if (lockedMonthsLoaded && minDate) {
-      if (startDate) {
-        const startDateObj = toDateAtNoonUTC(startDate)
-        const minDateObj = toDateAtNoonUTC(minDate)
-        if (startDateObj < minDateObj) {
-          console.log('Clearing invalid startDate (before minDate):', startDate, 'minDate:', minDate)
-          setStartDate('')
-          if (startDateInputRef.current) {
-            startDateInputRef.current.value = ''
-          }
-        }
-      }
-      if (endDate) {
-        const endDateObj = toDateAtNoonUTC(endDate)
-        const minDateObj = toDateAtNoonUTC(minDate)
-        if (endDateObj < minDateObj) {
-          console.log('Clearing invalid endDate (before minDate):', endDate, 'minDate:', minDate)
-          setEndDate('')
-          if (endDateInputRef.current) {
-            endDateInputRef.current.value = ''
-          }
-        }
-      }
-    }
-  }, [minDate, lockedMonthsLoaded, startDate, endDate])
-
-  // Validate startDate whenever it changes (backup validation)
-  useEffect(() => {
-    if (startDate && lockedMonthsLoaded && lockedMonths.length > 0) {
-      console.log('Validating startDate:', startDate, 'isDateLocked:', isDateLocked(startDate), 'minDate:', minDate)
-      
-      // Check if date is before minDate (which is the first day after latest locked month)
-      if (minDate && startDate < minDate) {
-        console.log('Blocked via useEffect: Date is before minDate (before first unlocked month)')
-        alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-        setStartDate('')
-        if (startDateInputRef.current) {
-          startDateInputRef.current.value = ''
-        }
-        return
-      }
-      
-      // Also check if date is in any locked month (double-check)
-      if (isDateLocked(startDate)) {
-        console.log('Blocked via useEffect: Date is in locked month')
-        alert(`This date is in a locked month (${startDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-        setStartDate('')
-        if (startDateInputRef.current) {
-          startDateInputRef.current.value = ''
-        }
-      }
-    }
-  }, [startDate, lockedMonths, minDate, lockedMonthsLoaded])
-
-  // Validate endDate whenever it changes (backup validation)
-  useEffect(() => {
-    if (endDate && lockedMonthsLoaded && lockedMonths.length > 0) {
-      console.log('Validating endDate:', endDate, 'isDateLocked:', isDateLocked(endDate), 'minDate:', minDate)
-      
-      // Check if date is before minDate (which is the first day after latest locked month)
-      if (minDate && endDate < minDate) {
-        console.log('Blocked via useEffect: End date is before minDate (before first unlocked month)')
-        alert(`This date is in a locked month. The first available date is ${new Date(minDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-        setEndDate('')
-        if (endDateInputRef.current) {
-          endDateInputRef.current.value = ''
-        }
-        return
-      }
-      
-      // Also check if date is in any locked month (double-check)
-      if (isDateLocked(endDate)) {
-        console.log('Blocked via useEffect: End date is in locked month')
-        alert(`This date is in a locked month (${endDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-        setEndDate('')
-        if (endDateInputRef.current) {
-          endDateInputRef.current.value = ''
-        }
-      }
-    }
-  }, [endDate, lockedMonths, minDate, lockedMonthsLoaded])
+  // EventOccurrencesManager is ONLY used for date/date_range occurrences
+  // So we don't enforce locked month restrictions here
+  // (Locked months should only apply to recurring frequencies like daily/weekly/monthly)
 
   // Notify parent when occurrences change
   useEffect(() => {
@@ -314,7 +234,8 @@ const renderChannelIcons = (channels: string[]) =>
         times_of_day: Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : []),
         channels: rule.channels || [],
         timezone: rule.timezone || brandTimezone,
-        is_active: rule.is_active ?? true
+        is_active: rule.is_active ?? true,
+        detail: rule.detail || null
       }))
 
       console.log('EventOccurrencesManager: Mapped occurrences:', mapped.length)
@@ -423,6 +344,7 @@ const renderChannelIcons = (channels: string[]) =>
     setChannels([])
     setUrl('')
     setTimezone(brandTimezone)
+    setDetail('')
     setIsEditing(null)
   }
 
@@ -490,13 +412,7 @@ const renderChannelIcons = (channels: string[]) =>
         if (rangeMatch) {
           const start = rangeMatch[1]
           const end = rangeMatch[2]
-          // Validate dates are not in locked months
-          if (isDateLocked(start)) {
-            throw new Error(`Start date ${start} is in a locked month`)
-          }
-          if (isDateLocked(end)) {
-            throw new Error(`End date ${end} is in a locked month`)
-          }
+          // EventOccurrencesManager is ONLY for date/date_range, so no locked month checks needed
           return { frequency: 'date_range' as const, start, end }
         }
         
@@ -504,10 +420,7 @@ const renderChannelIcons = (channels: string[]) =>
         const dateMatch = line.match(/^(\d{4}-\d{2}-\d{2})$/)
         if (dateMatch) {
           const start = dateMatch[1]
-          // Validate date is not in locked month
-          if (isDateLocked(start)) {
-            throw new Error(`Date ${start} is in a locked month`)
-          }
+          // EventOccurrencesManager is ONLY for date/date_range, so no locked month checks needed
           return { frequency: 'date' as const, start }
         }
         
@@ -516,51 +429,18 @@ const renderChannelIcons = (channels: string[]) =>
   }
 
   const handleSaveSingle = async () => {
-    // Server-side validation: reject any date before minDate (using noon UTC to avoid TZ rollbacks)
-    if (lockedMonthsLoaded && minDate) {
-      if (startDate) {
-        const startDateObj = toDateAtNoonUTC(startDate)
-        const minDateObj = toDateAtNoonUTC(minDate)
-        if (startDateObj < minDateObj) {
-          alert(`Invalid date: ${startDate} is before the first available date (${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}).`)
-          return
-        }
-        if (isDateLocked(startDate)) {
-          alert(`Invalid date: ${startDate} is in a locked month.`)
-          return
-        }
-      }
-      if (endDate) {
-        const endDateObj = toDateAtNoonUTC(endDate)
-        const minDateObj = toDateAtNoonUTC(minDate)
-        if (endDateObj < minDateObj) {
-          alert(`Invalid date: ${endDate} is before the first available date (${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}).`)
-          return
-        }
-        if (isDateLocked(endDate)) {
-          alert(`Invalid date: ${endDate} is in a locked month.`)
-          return
-        }
-      }
-    }
+    // EventOccurrencesManager is ONLY for date/date_range occurrences
+    // Locked month restrictions should only apply to recurring frequencies (daily/weekly/monthly)
+    // So we don't enforce locked month checks here
+    
     if (!startDate || timesOfDay.length === 0 || channels.length === 0) {
       alert('Please fill in all required fields')
       return
     }
 
-    // Validate that dates are not in locked months
-    if (isDateLocked(startDate)) {
-      alert('Start date cannot be in a month that has already been pushed to drafts')
-      return
-    }
-
     if (isDateRange) {
       if (!endDate || endDate < startDate) {
-      alert('End date must be after start date')
-      return
-      }
-      if (isDateLocked(endDate)) {
-        alert('End date cannot be in a month that has already been pushed to drafts')
+        alert('End date must be after start date')
         return
       }
     }
@@ -592,7 +472,8 @@ const renderChannelIcons = (channels: string[]) =>
         times_of_day: timesOfDay,
         channels,
         timezone,
-        is_active: true
+        is_active: true,
+        detail: detail.trim() || null
       }
 
       if (subcategoryId) {
@@ -608,7 +489,8 @@ const renderChannelIcons = (channels: string[]) =>
           timezone: occurrence.timezone,
           is_active: true,
           days_before: [], // Empty array for specific frequency
-          days_during: null // null is fine when end_date is set
+          days_during: null, // null is fine when end_date is set
+          detail: occurrence.detail || null
         }
 
         if (isEditing) {
@@ -732,31 +614,10 @@ const renderChannelIcons = (channels: string[]) =>
     const startDatePart = extractDatePart(occurrence.start_date)
     const endDatePart = extractDatePart(occurrence.end_date)
 
-    // If the occurrence lies in a locked month, prevent editing entirely
-    if (lockedMonthsLoaded && startDatePart) {
-      if (minDate && startDatePart < minDate) {
-        alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-        return
-      }
-
-      if (isDateLocked(startDatePart)) {
-        alert(`This date is in a locked month (${startDatePart.substring(0, 7)}). Please select a date from an unlocked month.`)
-        return
-      }
-    }
-
-    if (lockedMonthsLoaded && endDatePart) {
-      if (minDate && endDatePart < minDate) {
-        alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-        return
-      }
-
-      if (isDateLocked(endDatePart)) {
-        alert(`This date is in a locked month (${endDatePart.substring(0, 7)}). Please select a date from an unlocked month.`)
-        return
-      }
-    }
-
+    // EventOccurrencesManager is ONLY used for date/date_range occurrences
+    // So we don't need to enforce locked month restrictions here
+    // (Locked months should only apply to recurring frequencies like daily/weekly/monthly)
+    
     setIsEditing(occurrence)
     setIsDateRange(occurrence.frequency === 'date_range')
     setStartDate(startDatePart)
@@ -764,6 +625,7 @@ const renderChannelIcons = (channels: string[]) =>
     setTimesOfDay(occurrence.times_of_day)
     setChannels(occurrence.channels)
     setTimezone(occurrence.timezone)
+    setDetail(occurrence.detail || '')
     // URL is not stored per occurrence, so we'll use subcategory URL
     if (subcategoryUrl) {
       setUrl(subcategoryUrl)
@@ -775,7 +637,8 @@ const renderChannelIcons = (channels: string[]) =>
     try {
       const duplicated: EventOccurrence = {
         ...occurrence,
-        id: `draft-${Date.now()}-${Math.random()}`
+        id: `draft-${Date.now()}-${Math.random()}`,
+        detail: occurrence.detail || null  // Ensure detail is copied
       }
 
       if (subcategoryId) {
@@ -790,7 +653,8 @@ const renderChannelIcons = (channels: string[]) =>
             time_of_day: occurrence.times_of_day,
             channels: occurrence.channels,
             timezone: occurrence.timezone,
-            is_active: true
+            is_active: true,
+            detail: occurrence.detail || null  // Copy detail field
           })
         await fetchOccurrences()
         onOccurrencesChanged?.()
@@ -1040,147 +904,33 @@ const renderChannelIcons = (channels: string[]) =>
           </FormField>
 
           <FormField label={isDateRange ? 'Start Date' : 'Date'} required>
-            {!lockedMonthsLoaded ? (
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                Loading date restrictions...
-              </div>
-            ) : minDate ? (
-              <input
-                id="specificDate"
-                name="specificDate"
-                ref={startDateInputRef}
-                type="date"
-                min={minDate}
-                value={startDate}
-                onChange={(e) => {
-                  const selectedDate = e.target.value
-                  console.log('onChange fired! Date selected:', selectedDate, 'minDate:', minDate)
-                  
-                  if (!selectedDate) {
-                    setStartDate('')
-                    return
-                  }
-                  
-                  // STRICT validation using Date objects at noon UTC
-                  const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                  const minDateObj = toDateAtNoonUTC(minDate)
-                  
-                  if (selectedDateObj < minDateObj) {
-                    console.log('BLOCKED: Date is before minDate', selectedDate, '<', minDate)
-                    alert(`This date is in a locked month. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                    e.target.value = ''
-                    setStartDate('')
-                    e.target.blur()
-                    return
-                  }
-                  
-                  if (isDateLocked(selectedDate)) {
-                    console.log('BLOCKED: Date is in locked month')
-                    alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                    e.target.value = ''
-                    setStartDate('')
-                    e.target.blur()
-                    return
-                  }
-                  
-                  console.log('Date ACCEPTED:', selectedDate)
-                  setStartDate(selectedDate)
-                }}
-                onKeyDown={(e) => {
-                  // Prevent typing when locked months exist
-                  if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
-                    e.preventDefault()
-                    alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                  }
-                }}
-                onPaste={(e) => {
-                  // Prevent pasting when locked months exist
-                  if (lockedMonths.length > 0 && minDate) {
-                    e.preventDefault()
-                    alert(`Please use the date picker. The first available date is ${new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-              />
-            ) : (
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-amber-50 text-amber-700">
-                All upcoming months are already scheduled. Push a future month or contact an admin.
-              </div>
-            )}
-            {lockedMonthsLoaded && lockedMonths.length > 0 && minDate && (
-              <p className="text-xs text-gray-500 mt-1">
-                Months with framework drafts are disabled: {lockedMonths.join(', ')}. First available date: {new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-            )}
+            <input
+              id="specificDate"
+              name="specificDate"
+              ref={startDateInputRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value)
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
           </FormField>
 
           {isDateRange && (
             <FormField label="End Date" required>
-              {!lockedMonthsLoaded ? (
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                  Loading date restrictions...
-                </div>
-              ) : minDate ? (
-                <input
-                  id="specificEndDate"
-                  name="specificEndDate"
-                  ref={endDateInputRef}
-                  type="date"
-                  min={startDate || minDate}
-                  value={endDate}
-                  onChange={(e) => {
-                    const selectedDate = e.target.value
-                    console.log('End date onChange fired! Date:', selectedDate, 'minDate:', minDate)
-                    
-                    if (!selectedDate) {
-                      setEndDate('')
-                      return
-                    }
-                    
-                    // IMMEDIATE validation using Date objects at noon UTC
-                    const minAllowed = startDate || minDate
-                    if (minAllowed) {
-                      const selectedDateObj = toDateAtNoonUTC(selectedDate)
-                      const minAllowedObj = toDateAtNoonUTC(minAllowed)
-                      if (selectedDateObj < minAllowedObj) {
-                        console.log('BLOCKED: End date is before minAllowed')
-                        alert(`End date must be on or after ${startDate ? 'start date' : new Date(minDate + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
-                        e.target.value = ''
-                        setEndDate('')
-                        e.target.blur()
-                        return
-                      }
-                    }
-                    
-                    if (isDateLocked(selectedDate)) {
-                      console.log('BLOCKED: End date is in locked month')
-                      alert(`This date is in a locked month (${selectedDate.substring(0, 7)}). Please select a date from an unlocked month.`)
-                      e.target.value = ''
-                      setEndDate('')
-                      e.target.blur()
-                      return
-                    }
-                    
-                    console.log('End date ACCEPTED:', selectedDate)
-                    setEndDate(selectedDate)
-                  }}
-                  onKeyDown={(e) => {
-                    if (lockedMonths.length > 0 && minDate && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
-                      e.preventDefault()
-                    }
-                  }}
-                  onPaste={(e) => {
-                    if (lockedMonths.length > 0 && minDate) {
-                      e.preventDefault()
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-                />
-              ) : (
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-amber-50 text-amber-700">
-                  All upcoming months are already scheduled.
-                </div>
-              )}
+              <input
+                id="specificEndDate"
+                name="specificEndDate"
+                ref={endDateInputRef}
+                type="date"
+                min={startDate}
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value)
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              />
             </FormField>
           )}
 
@@ -1236,6 +986,16 @@ const renderChannelIcons = (channels: string[]) =>
                 </label>
               ))}
             </div>
+          </FormField>
+
+          <FormField label="Occurrence Details">
+            <textarea
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              placeholder="Add specific details about this occurrence (capacity, features, etc.)"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              rows={3}
+            />
           </FormField>
 
           <FormField label="URL">
@@ -1308,11 +1068,6 @@ const renderChannelIcons = (channels: string[]) =>
             <p className="text-xs text-gray-500 mt-1">
               Format: Single date (YYYY-MM-DD) or range (YYYY-MM-DD to YYYY-MM-DD)
             </p>
-            {lockedMonths.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                Note: Dates in locked months ({lockedMonths.join(', ')}) will be rejected.
-              </p>
-            )}
           </FormField>
 
           <FormField label="Default Times of Day" required>
