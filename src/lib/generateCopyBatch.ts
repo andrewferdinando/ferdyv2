@@ -21,11 +21,14 @@ export type DraftCopyInput = {
   subcategory?: {
     name?: string;
     url?: string;
+    description?: string;
+    frequency_type?: string;
   };
   schedule?: {
     frequency: string;
     event_date?: string;
   };
+  scheduledFor?: string; // UTC timestamp when the post is scheduled
   prompt: string;
   options?: {
     tone_override?: string;
@@ -104,6 +107,7 @@ export async function processBatchCopyGeneration(
         platform: "instagram", // Default, can be inferred from draft.channel if available
         subcategory: draft.subcategory,
         schedule: draft.schedule,
+        scheduledFor: draft.scheduledFor,
         tone_override: draft.options?.tone_override,
         length: draft.options?.length,
         emoji: draft.options?.emoji,

@@ -85,15 +85,15 @@ export async function POST(req: NextRequest) {
     // Fetch schedule rules to get frequency and subcategory mapping
     const { data: scheduleRules } = await supabaseAdmin
       .from('schedule_rules')
-      .select('id, frequency, subcategory_id')
+      .select('id, frequency, subcategory_id, start_date, end_date')
       .eq('brand_id', brandId)
       .eq('is_active', true);
 
-    // Fetch subcategories for name/url
+    // Fetch subcategories for name/url/description/frequency_type
     const subcategoryIds = scheduleRules?.map(r => r.subcategory_id).filter(Boolean) as string[] || [];
     const { data: subcategories } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, url')
+      .select('id, name, url, detail, frequency_type')
       .in('id', subcategoryIds);
 
     const subcategoriesMap = new Map(
@@ -136,17 +136,38 @@ export async function POST(req: NextRequest) {
           const subcategory = subcategoryId ? subcategoriesMap.get(subcategoryId) : null;
           const rule = scheduleRules?.find(r => r.subcategory_id === subcategoryId);
           const eventDate = d.scheduled_for ? new Date(d.scheduled_for).toISOString().split('T')[0] : undefined;
+          
+          // Determine frequency_type: 'daily'/'weekly'/'monthly' for recurring, 'date' for single date, 'date_range' for date range
+          let frequencyType: string | undefined = undefined;
+          if (rule?.frequency) {
+            if (rule.frequency === 'specific') {
+              // 'specific' frequency means date-based
+              // If end_date exists and is different from start_date, it's a date_range
+              if (rule.start_date && rule.end_date) {
+                const startDateStr = new Date(rule.start_date).toISOString().split('T')[0];
+                const endDateStr = new Date(rule.end_date).toISOString().split('T')[0];
+                frequencyType = startDateStr !== endDateStr ? 'date_range' : 'date';
+              } else {
+                frequencyType = 'date';
+              }
+            } else {
+              frequencyType = rule.frequency; // 'daily', 'weekly', or 'monthly'
+            }
+          }
 
           return {
             draftId: d.id,
             subcategory: {
               name: subcategory?.name ?? "",
               url: subcategory?.url ?? "",
+              description: subcategory?.detail ?? undefined,
+              frequency_type: frequencyType,
             },
             schedule: {
               frequency: rule?.frequency ?? target?.frequency ?? "weekly",
               event_date: eventDate,
             },
+            scheduledFor: d.scheduled_for ?? undefined,
             prompt: `Write copy for this post`,
             options: {
               length: "short" as const,
@@ -163,7 +184,7 @@ export async function POST(req: NextRequest) {
         console.log(`Triggering copy generation for ${payload.drafts.length} drafts`);
         
         // Call the batch processing function directly (no HTTP fetch needed)
-        // Map to DraftCopyInput format (exclude days_until_event from schedule)
+        // Map to DraftCopyInput format (include all new fields)
         const draftsInput: DraftCopyInput[] = payload.drafts.map(d => ({
           draftId: d.draftId,
           subcategory: d.subcategory,
@@ -171,6 +192,7 @@ export async function POST(req: NextRequest) {
             frequency: d.schedule.frequency,
             event_date: d.schedule.event_date,
           } : undefined,
+          scheduledFor: d.scheduledFor,
           prompt: d.prompt,
           options: d.options,
         }));

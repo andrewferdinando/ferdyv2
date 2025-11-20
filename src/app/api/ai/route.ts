@@ -38,12 +38,15 @@ const postCopySchema = z.object({
     subcategory: z.object({
       name: z.string().optional(),
       url: z.string().optional(),
+      description: z.string().optional(),
+      frequency_type: z.string().optional(),
     }).optional(),
     schedule: z.object({
       frequency: z.string(),
       event_date: z.string().optional(),
       days_until_event: z.number().optional(),
     }).optional(),
+    scheduledFor: z.string().optional(),
     tone_override: z.string().optional(),
     length: z.enum(["short", "medium", "long"]).optional(),
     emoji: z.enum(["auto", "none"]).optional(),
@@ -329,6 +332,7 @@ export async function POST(req: NextRequest) {
         max_tokens: validationResult.data.payload.max_tokens,
         subcategory: validationResult.data.payload.subcategory,
         schedule: validationResult.data.payload.schedule,
+        scheduledFor: validationResult.data.payload.scheduledFor,
         tone_override: validationResult.data.payload.tone_override,
         length: validationResult.data.payload.length,
         emoji: validationResult.data.payload.emoji,

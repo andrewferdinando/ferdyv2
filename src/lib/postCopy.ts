@@ -25,8 +25,14 @@ export type PostCopyPayload = {
   draftId?: string;
   platform?: "instagram" | "facebook" | "tiktok" | "linkedin";
   prompt: string;
-  subcategory?: { name?: string; url?: string };
+  subcategory?: { 
+    name?: string; 
+    url?: string;
+    description?: string;
+    frequency_type?: string;
+  };
   schedule?: { frequency: string; event_date?: string; days_until_event?: number };
+  scheduledFor?: string; // UTC timestamp when the post is scheduled
   tone_override?: string;
   length?: "short" | "medium" | "long";
   emoji?: "auto" | "none";
@@ -63,12 +69,12 @@ export async function generatePostCopyFromContext(
   client: OpenAI,
   payload: PostCopyPayload
 ): Promise<string[]> {
-  const { brandId, prompt, variants = 1, max_tokens = 120 } = payload;
+  const { brandId, prompt, variants = 1, max_tokens = 120, draftId } = payload;
 
-  // 1) Load brand summary
+  // 1) Load brand data (including new ai_summary column and brand fields)
   const { data: brand, error: brandError } = await supabaseAdmin
     .from("brands")
-    .select("brand_summary")
+    .select("brand_summary, ai_summary, website_url, country_code, timezone")
     .eq("id", brandId)
     .single();
 
@@ -76,7 +82,33 @@ export async function generatePostCopyFromContext(
     throw new Error(`Brand not found: ${brandError?.message || "Unknown error"}`);
   }
 
-  // 2) Parse brand summary
+  // 2) Load brand post information (post tone, typical post length)
+  let brandPostInfo: {
+    post_tone: string | null;
+    avg_char_length: number | null;
+    avg_word_count: number | null;
+  } | null = null;
+  
+  try {
+    const { data: postInfo } = await supabaseAdmin
+      .from("brand_post_information")
+      .select("post_tone, avg_char_length, avg_word_count")
+      .eq("brand_id", brandId)
+      .maybeSingle();
+    
+    if (postInfo) {
+      brandPostInfo = {
+        post_tone: postInfo.post_tone,
+        avg_char_length: postInfo.avg_char_length,
+        avg_word_count: postInfo.avg_word_count,
+      };
+    }
+  } catch {
+    // Gracefully skip if table doesn't exist or query fails
+    brandPostInfo = null;
+  }
+
+  // 3) Parse brand summary (legacy format)
   let brandSummary: z.infer<typeof brandSummarySchema> | null = null;
   if (brand.brand_summary) {
     try {
@@ -109,7 +141,7 @@ export async function generatePostCopyFromContext(
 
   const recentLinesJoined = recentLines.length > 0 ? recentLines.join("\n") : "";
 
-  // 4) Calculate days_until_event if schedule.event_date is provided
+  // 4) Calculate days_until_event if schedule.event_date or scheduledFor is provided
   let daysUntilEvent: string | number = payload.schedule?.days_until_event ?? "n/a";
   if (payload.schedule?.event_date && daysUntilEvent === "n/a") {
     try {
@@ -123,45 +155,114 @@ export async function generatePostCopyFromContext(
     } catch {
       daysUntilEvent = "n/a";
     }
+  } else if (payload.scheduledFor && payload.subcategory?.frequency_type && 
+             (payload.subcategory.frequency_type === "date" || payload.subcategory.frequency_type === "date_range")) {
+    // Calculate days until scheduled post date if it's an event-based post
+    try {
+      const scheduledDate = new Date(payload.scheduledFor);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      scheduledDate.setHours(0, 0, 0, 0);
+      const diffTime = scheduledDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      daysUntilEvent = diffDays >= 0 ? diffDays : "n/a";
+    } catch {
+      daysUntilEvent = "n/a";
+    }
   }
 
-  // 5) Build brand context
+  // 5) Build brand context with new fields
   const brandContextParts: string[] = [];
-  if (brandSummary?.name) brandContextParts.push(`- Name: ${brandSummary.name}`);
-  if (brandSummary?.what_they_sell)
-    brandContextParts.push(`- What they sell: ${brandSummary.what_they_sell}`);
-  if (brandSummary?.target_audience)
-    brandContextParts.push(`- Target audience: ${brandSummary.target_audience}`);
-  if (payload.tone_override || brandSummary?.tone_of_voice) {
-    brandContextParts.push(
-      `- Tone of voice: ${payload.tone_override || brandSummary?.tone_of_voice || ""}`
-    );
+  
+  // Brand AI Summary (new field - preferred over legacy brand_summary)
+  if (brand.ai_summary && typeof brand.ai_summary === "string" && brand.ai_summary.trim()) {
+    brandContextParts.push(`- Brand Summary: ${brand.ai_summary.trim()}`);
+  } else if (brandSummary) {
+    // Fallback to legacy brand_summary
+    if (brandSummary.name) brandContextParts.push(`- Name: ${brandSummary.name}`);
+    if (brandSummary.what_they_sell)
+      brandContextParts.push(`- What they sell: ${brandSummary.what_they_sell}`);
+    if (brandSummary.target_audience)
+      brandContextParts.push(`- Target audience: ${brandSummary.target_audience}`);
   }
-  if (brandSummary?.brand_values && brandSummary.brand_values.length > 0) {
-    brandContextParts.push(`- Brand values: ${brandSummary.brand_values.join(", ")}`);
+  
+  // Post tone (from brand_post_information)
+  const postTone = payload.tone_override || brandPostInfo?.post_tone || brandSummary?.tone_of_voice || null;
+  if (postTone) {
+    brandContextParts.push(`- Post Tone: ${postTone}`);
   }
-  if (brandSummary?.key_offers && brandSummary.key_offers.length > 0) {
-    brandContextParts.push(`- Key offers or services: ${brandSummary.key_offers.join(", ")}`);
+  
+  // Typical post length
+  if (brandPostInfo?.avg_char_length !== null && brandPostInfo?.avg_word_count !== null) {
+    const charRange = Math.round(brandPostInfo.avg_char_length);
+    const wordRange = Math.round(brandPostInfo.avg_word_count);
+    // Provide a range (±20% for character count, ±15% for word count)
+    const charMin = Math.round(charRange * 0.8);
+    const charMax = Math.round(charRange * 1.2);
+    const wordMin = Math.round(wordRange * 0.85);
+    const wordMax = Math.round(wordRange * 1.15);
+    brandContextParts.push(`- Typical Post Length: ${charMin}-${charMax} characters, ${wordMin}-${wordMax} words`);
   }
-  if (brandSummary?.price_positioning) {
-    brandContextParts.push(`- Price positioning: ${brandSummary.price_positioning}`);
+  
+  // Brand fields
+  if (brand.website_url) {
+    brandContextParts.push(`- Website: ${brand.website_url}`);
+  }
+  if (brand.country_code) {
+    brandContextParts.push(`- Country: ${brand.country_code}`);
+  }
+  if (brand.timezone) {
+    brandContextParts.push(`- Timezone: ${brand.timezone}`);
+  }
+  
+  // Legacy brand summary fields (if no ai_summary)
+  if (!brand.ai_summary && brandSummary) {
+    if (brandSummary.brand_values && brandSummary.brand_values.length > 0) {
+      brandContextParts.push(`- Brand values: ${brandSummary.brand_values.join(", ")}`);
+    }
+    if (brandSummary.key_offers && brandSummary.key_offers.length > 0) {
+      brandContextParts.push(`- Key offers or services: ${brandSummary.key_offers.join(", ")}`);
+    }
+    if (brandSummary.price_positioning) {
+      brandContextParts.push(`- Price positioning: ${brandSummary.price_positioning}`);
+    }
   }
 
-  // 6) Build subcategory context
+  // 6) Build subcategory context with description and frequency_type
   const subcategoryContextParts: string[] = [];
   if (payload.subcategory) {
-    subcategoryContextParts.push(
-      `- Subcategory name: ${payload.subcategory.name || ""}`
-    );
-    subcategoryContextParts.push(`- Subcategory URL: ${payload.subcategory.url || ""}`);
+    if (payload.subcategory.name) {
+      subcategoryContextParts.push(`- Subcategory Name: ${payload.subcategory.name}`);
+    }
+    if (payload.subcategory.description) {
+      subcategoryContextParts.push(`- Description: ${payload.subcategory.description}`);
+    }
+    if (payload.subcategory.url) {
+      subcategoryContextParts.push(`- URL: ${payload.subcategory.url}`);
+    }
+    if (payload.subcategory.frequency_type) {
+      subcategoryContextParts.push(`- Frequency Type: ${payload.subcategory.frequency_type}`);
+    }
   }
 
-  // 7) Build schedule context
+  // 7) Build schedule/post timing context
   const scheduleContextParts: string[] = [];
   if (payload.schedule) {
     scheduleContextParts.push(`- Frequency: ${payload.schedule.frequency || ""}`);
-    scheduleContextParts.push(`- Event date: ${payload.schedule.event_date || "none"}`);
-    scheduleContextParts.push(`- Days until event: ${daysUntilEvent}`);
+    if (payload.schedule.event_date) {
+      scheduleContextParts.push(`- Event Date: ${payload.schedule.event_date}`);
+    }
+    if (daysUntilEvent !== "n/a") {
+      scheduleContextParts.push(`- Days Until Event: ${daysUntilEvent}`);
+    }
+  }
+  if (payload.scheduledFor) {
+    try {
+      const scheduledDate = new Date(payload.scheduledFor);
+      scheduleContextParts.push(`- Post Scheduled For: ${scheduledDate.toISOString().split('T')[0]}`);
+    } catch {
+      // Skip if date parsing fails
+    }
   }
 
   // 8) Build hashtags instruction
@@ -170,42 +271,74 @@ export async function generatePostCopyFromContext(
     hashtagsInstruction = `list: ${payload.hashtags.list.slice(0, 5).join(", ")}`;
   }
 
-  // 9) Build the USER prompt string
-  const userPrompt = `Brand context:
+  // 9) Build the enhanced USER prompt string
+  const userPrompt = `### BRAND CONTEXT
 ${brandContextParts.length > 0 ? brandContextParts.join("\n") : "- No brand context available"}
 
-${subcategoryContextParts.length > 0 ? `Subcategory context:\n${subcategoryContextParts.join("\n")}\n` : ""}${scheduleContextParts.length > 0 ? `Schedule context:\n${scheduleContextParts.join("\n")}\n` : ""}Recent lines used for this brand (do NOT repeat phrases/structure):
-${recentLinesJoined || "(none)"}
+${subcategoryContextParts.length > 0 ? `### SUBCATEGORY CONTEXT\n${subcategoryContextParts.join("\n")}\n` : ""}${scheduleContextParts.length > 0 ? `### POST TIMING\n${scheduleContextParts.join("\n")}\n` : ""}### RECENT POSTS (DO NOT REPEAT)
+${recentLinesJoined || "(none - this is the first post)"}
 
-Post objective:
-- "${prompt}"
+### POST OBJECTIVE
+"${prompt}"
 
-Tone & length:
-- Tone: ${payload.tone_override || "match brand tone"}
-- Length: ${payload.length || "short"}  // short ≈ 1–2 sentences, medium ≈ 3–5, long ≈ 6–8
+### WRITING RULES
+1. **Style & Variation**:
+   - DO NOT output formulaic copy or repeat the same template structure
+   - Vary sentence structure, pacing, and opening phrases across posts
+   - Use different sentence lengths and rhythm patterns
+   - Avoid repeating phrases or structures from recent posts shown above
+   - Stay consistent with the brand tone and personality provided above
 
-Writing instructions:
-1. Adapt closely to the brand and subcategory context.
-2. If frequency is daily/weekly/monthly → product/service tone.
-3. If frequency is a single date/date-range and we are within 3 days before event_date → write as a countdown (e.g., "Only 3 days to go until ${payload.subcategory?.name || "the event"}!").
-4. Keep copy specific, concrete, and human. Avoid fluff.
-5. Emojis: ${payload.emoji || "auto"} (if "none", use zero emojis).
-6. Hashtags: ${hashtagsInstruction}
-   - If "auto": add up to 3–5 relevant hashtags at the end.
-   - If "list": use only from this list (max 5): ${payload.hashtags?.list?.slice(0, 5).join(", ") || "[]"}
-   - If "none": add no hashtags.
-7. CTA: ${payload.cta || "none"}
-8. Output plain text only.`;
+2. **Length & Format**:
+   - Target length: ${payload.length || "short"} (short ≈ 1–2 sentences, medium ≈ 3–5, long ≈ 6–8)
+   ${brandPostInfo?.avg_char_length !== null && brandPostInfo?.avg_word_count !== null 
+     ? `- Fit within typical post length for this brand (${Math.round(brandPostInfo.avg_char_length * 0.8)}-${Math.round(brandPostInfo.avg_char_length * 1.2)} characters, ${Math.round(brandPostInfo.avg_word_count * 0.85)}-${Math.round(brandPostInfo.avg_word_count * 1.15)} words)`
+     : "- Match the requested length"}
 
-  // 10) SYSTEM message (fixed)
-  const systemMessage =
-    "You are a professional social media copywriter for brands.\nAlways follow instructions carefully.\nOutput only the final post text (no explanations).\nAvoid repetition across similar posts.";
+3. **Context Integration**:
+   - Naturally integrate brand summary information when relevant
+   - Use subcategory context to inform the post content
+   - ${payload.subcategory?.frequency_type === "date" || payload.subcategory?.frequency_type === "date_range" || daysUntilEvent !== "n/a" 
+     ? `If this is an event/promo post (frequency type: date/date_range), include natural urgency when appropriate (e.g., "3 days to go", "Final weekend", "Happening this Friday") but vary the wording - avoid repeating the same phrases`
+     : "For daily/weekly/monthly posts, use product/service tone"}
 
-  // 11) Call OpenAI with retry logic
+4. **Accuracy**:
+   - DO NOT hallucinate products, prices, or promotions not provided in the context
+   - Only reference information from the brand context and subcategory provided
+   - Use country, timezone, and URL context if appropriate but don't force it
+
+5. **Formatting**:
+   - Emojis: ${payload.emoji || "auto"} ${payload.emoji === "none" ? "(use zero emojis)" : "(use naturally and sparingly if auto)"}
+   - Hashtags: ${hashtagsInstruction}
+     ${payload.hashtags?.mode === "auto" ? "- Add up to 3–5 relevant hashtags at the end" : ""}
+     ${payload.hashtags?.mode === "list" && payload.hashtags?.list ? `- Use only from this list (max 5): ${payload.hashtags.list.slice(0, 5).join(", ")}` : ""}
+     ${payload.hashtags?.mode === "none" ? "- Add no hashtags" : ""}
+   - CTA: ${payload.cta || "none"}
+   - Output plain text only (no markdown, no explanations)`;
+
+  // 10) Enhanced SYSTEM message
+  const systemMessage = `You are a professional social media copywriter specializing in creating engaging, brand-specific social media content.
+
+Your task:
+- Write natural, human, engaging social media copy
+- Stay true to the brand's voice and tone
+- Vary your writing style to avoid formulaic patterns
+- Never repeat the same sentence structure or opening phrases across posts
+- Integrate context naturally without forcing information
+- Be specific and concrete - avoid generic fluff
+
+Output ONLY the final post text. No explanations, no markdown, no additional commentary.`;
+
+  // 11) Log the prompt for debugging (temporarily - can be removed later)
+  if (draftId) {
+    console.log(`[postCopy] Generated prompt for draft ${draftId}:\n${userPrompt}\n`);
+  }
+
+  // 12) Call OpenAI with retry logic
   const completion = await withRetry(() =>
     client.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.8,
+      temperature: 0.85, // Slightly increased for more variation
       n: clamp(variants ?? 1, 1, 3),
       max_tokens: max_tokens ?? 120,
       messages: [
@@ -215,7 +348,7 @@ Writing instructions:
     })
   );
 
-  // 12) Extract and return variants
+  // 13) Extract and return variants
   const results = completion.choices
     .map((c) => c.message?.content?.trim() || "")
     .filter(Boolean);
