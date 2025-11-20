@@ -71,6 +71,11 @@ export async function generatePostCopyFromContext(
 ): Promise<string[]> {
   const { brandId, prompt, variants = 1, max_tokens = 120, draftId } = payload;
 
+  // Determine if this is an event-based post (only date/date_range should be treated as events)
+  const isEventBased =
+    payload.subcategory?.frequency_type === "date" ||
+    payload.subcategory?.frequency_type === "date_range";
+
   // 1) Load brand data (including new ai_summary column and brand fields)
   const { data: brand, error: brandError } = await supabaseAdmin
     .from("brands")
@@ -141,35 +146,44 @@ export async function generatePostCopyFromContext(
 
   const recentLinesJoined = recentLines.length > 0 ? recentLines.join("\n") : "";
 
-  // 4) Calculate days_until_event if schedule.event_date or scheduledFor is provided
-  let daysUntilEvent: string | number = payload.schedule?.days_until_event ?? "n/a";
-  if (payload.schedule?.event_date && daysUntilEvent === "n/a") {
-    try {
-      const eventDate = new Date(payload.schedule.event_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      eventDate.setHours(0, 0, 0, 0);
-      const diffTime = eventDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      daysUntilEvent = diffDays >= 0 ? diffDays : "n/a";
-    } catch {
-      daysUntilEvent = "n/a";
-    }
-  } else if (payload.scheduledFor && payload.subcategory?.frequency_type && 
-             (payload.subcategory.frequency_type === "date" || payload.subcategory.frequency_type === "date_range")) {
-    // Calculate days until scheduled post date if it's an event-based post
-    try {
-      const scheduledDate = new Date(payload.scheduledFor);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      scheduledDate.setHours(0, 0, 0, 0);
-      const diffTime = scheduledDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      daysUntilEvent = diffDays >= 0 ? diffDays : "n/a";
-    } catch {
-      daysUntilEvent = "n/a";
+  // 4) Calculate days_until_event ONLY for event-based posts
+  let daysUntilEvent: string | number = "n/a";
+  
+  // Only calculate days until event for event-based posts (date/date_range)
+  if (isEventBased) {
+    // First check if days_until_event was explicitly provided
+    const providedDaysUntil = payload.schedule?.days_until_event;
+    if (providedDaysUntil !== undefined && typeof providedDaysUntil === "number") {
+      daysUntilEvent = providedDaysUntil;
+    } else if (payload.schedule?.event_date) {
+      // Calculate from event_date
+      try {
+        const eventDate = new Date(payload.schedule.event_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        eventDate.setHours(0, 0, 0, 0);
+        const diffTime = eventDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        daysUntilEvent = diffDays >= 0 ? diffDays : "n/a";
+      } catch {
+        daysUntilEvent = "n/a";
+      }
+    } else if (payload.scheduledFor) {
+      // Calculate from scheduledFor for event-based posts only
+      try {
+        const scheduledDate = new Date(payload.scheduledFor);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        scheduledDate.setHours(0, 0, 0, 0);
+        const diffTime = scheduledDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        daysUntilEvent = diffDays >= 0 ? diffDays : "n/a";
+      } catch {
+        daysUntilEvent = "n/a";
+      }
     }
   }
+  // For non-event posts (daily/weekly/monthly), daysUntilEvent stays "n/a"
 
   // 5) Build brand context with new fields
   const brandContextParts: string[] = [];
@@ -265,14 +279,14 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 8) Build hashtags instruction
-  let hashtagsInstruction: string = payload.hashtags?.mode || "auto";
-  if (payload.hashtags?.mode === "list" && payload.hashtags?.list) {
-    hashtagsInstruction = `list: ${payload.hashtags.list.slice(0, 5).join(", ")}`;
-  }
+  // 8) Build subcategory summary line for primary emphasis
+  const subcategorySummaryLine =
+    payload.subcategory && (payload.subcategory.name || payload.subcategory.description)
+      ? `PRIMARY TOPIC:\n- This post must be about the subcategory "${payload.subcategory.name || ""}" described as: "${payload.subcategory.description || ""}". Use this subcategory as the main focus of the post.\n\n`
+      : "";
 
   // 9) Build the enhanced USER prompt string
-  const userPrompt = `### BRAND CONTEXT
+  const userPrompt = `${subcategorySummaryLine}### BRAND CONTEXT
 ${brandContextParts.length > 0 ? brandContextParts.join("\n") : "- No brand context available"}
 
 ${subcategoryContextParts.length > 0 ? `### SUBCATEGORY CONTEXT\n${subcategoryContextParts.join("\n")}\n` : ""}${scheduleContextParts.length > 0 ? `### POST TIMING\n${scheduleContextParts.join("\n")}\n` : ""}### RECENT POSTS (DO NOT REPEAT)
@@ -297,10 +311,12 @@ ${recentLinesJoined || "(none - this is the first post)"}
 
 3. **Context Integration**:
    - Naturally integrate brand summary information when relevant
-   - Use subcategory context to inform the post content
-   - ${payload.subcategory?.frequency_type === "date" || payload.subcategory?.frequency_type === "date_range" || daysUntilEvent !== "n/a" 
-     ? `If this is an event/promo post (frequency type: date/date_range), include natural urgency when appropriate (e.g., "3 days to go", "Final weekend", "Happening this Friday") but vary the wording - avoid repeating the same phrases`
-     : "For daily/weekly/monthly posts, use product/service tone"}
+   - The content of the post MUST align with the SUBCATEGORY CONTEXT above (name, description, and URL).
+   - Make sure the topic, examples, and language clearly relate to this subcategory.
+   - Do NOT ignore the subcategory details; they are more important than generic brand information.
+   - ${isEventBased
+     ? `This IS an event or date-based promo post. Use the event date and Days Until Event (if provided) to add natural urgency when appropriate (e.g., "3 days to go", "Final weekend", "Happening this Friday"), but vary the wording - avoid repeating the same phrases.`
+     : `This is NOT an event or date-based promo post. DO NOT treat the scheduled date as a special event, and DO NOT use countdown or urgency phrases like "in 3 days", "this weekend", or "only X days to go" unless explicitly asked in the POST OBJECTIVE.`}
 
 4. **Accuracy**:
    - DO NOT hallucinate products, prices, or promotions not provided in the context
@@ -309,15 +325,27 @@ ${recentLinesJoined || "(none - this is the first post)"}
 
 5. **Formatting**:
    - Emojis: ${payload.emoji || "auto"} ${payload.emoji === "none" ? "(use zero emojis)" : "(use naturally and sparingly if auto)"}
-   - Hashtags: ${hashtagsInstruction}
-     ${payload.hashtags?.mode === "auto" ? "- Add up to 3–5 relevant hashtags at the end" : ""}
-     ${payload.hashtags?.mode === "list" && payload.hashtags?.list ? `- Use only from this list (max 5): ${payload.hashtags.list.slice(0, 5).join(", ")}` : ""}
-     ${payload.hashtags?.mode === "none" ? "- Add no hashtags" : ""}
+   - Hashtags:
+     ${payload.hashtags?.mode === "none"
+       ? `- You MUST NOT include any hashtags in the output.`
+       : ""}
+     ${payload.hashtags?.mode === "auto"
+       ? `- You MAY add up to 3–5 relevant hashtags at the end of the post. Do not over-use them.`
+       : ""}
+     ${payload.hashtags?.mode === "list" && payload.hashtags?.list
+       ? `- You MUST use ONLY the following hashtags, exactly as written, and you MUST NOT invent any new hashtags:\n       ${payload.hashtags.list.slice(0, 5).join(" ")}\n       - Place them together at the end of the post.`
+       : ""}
    - CTA: ${payload.cta || "none"}
    - Output plain text only (no markdown, no explanations)`;
 
   // 10) Enhanced SYSTEM message
   const systemMessage = `You are a professional social media copywriter specializing in creating engaging, brand-specific social media content.
+
+Always follow this priority, in order:
+1) Respect hard constraints (no hashtags vs fixed list of hashtags, no emojis when requested, no markdown).
+2) Align the content with the SUBCATEGORY CONTEXT and POST OBJECTIVE.
+3) Stay true to the brand's tone and typical post length.
+4) Vary your writing style to avoid formulaic patterns.
 
 Your task:
 - Write natural, human, engaging social media copy
