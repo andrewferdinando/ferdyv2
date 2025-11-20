@@ -37,6 +37,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
   }
 
   try {
+    console.log(`[refreshSubcategoryUrlSummary] Fetching URL: ${subcat.url}`);
     const response = await fetch(subcat.url, {
       method: 'GET',
       headers: {
