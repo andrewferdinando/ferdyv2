@@ -585,21 +585,24 @@ export function SubcategoryScheduleForm({
         // Always refresh when URL is present - the API will handle if URL hasn't changed
         if (subcategoryData.url && subcategoryData.url.trim()) {
           console.log('[SubcategoryScheduleForm] Triggering URL summary refresh for subcategory:', subcategoryId, 'URL:', subcategoryData.url);
-          // Fire-and-forget: call API to refresh URL summary
-          fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
-            method: 'POST',
-          })
-          .then(response => {
-            if (!response.ok) {
-              console.warn('[SubcategoryScheduleForm] URL summary refresh API returned non-OK status:', response.status);
-            } else {
-              console.log('[SubcategoryScheduleForm] URL summary refresh initiated successfully');
-            }
-          })
-          .catch(err => {
-            console.error('[SubcategoryScheduleForm] Error initiating URL summary refresh:', err);
-            // Don't block the save flow
-          });
+          // Small delay to ensure database transaction is committed
+          setTimeout(() => {
+            // Fire-and-forget: call API to refresh URL summary
+            fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
+              method: 'POST',
+            })
+            .then(response => {
+              if (!response.ok) {
+                console.warn('[SubcategoryScheduleForm] URL summary refresh API returned non-OK status:', response.status);
+              } else {
+                console.log('[SubcategoryScheduleForm] URL summary refresh initiated successfully');
+              }
+            })
+            .catch(err => {
+              console.error('[SubcategoryScheduleForm] Error initiating URL summary refresh:', err);
+              // Don't block the save flow
+            });
+          }, 500); // 500ms delay to ensure DB commit
         }
       } else {
         // Normalize hashtags before saving
