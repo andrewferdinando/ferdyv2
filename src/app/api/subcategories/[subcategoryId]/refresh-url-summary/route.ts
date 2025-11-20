@@ -21,11 +21,13 @@ export async function POST(
       );
     }
 
-    // Fire-and-forget: void the promise so the client isn't blocked
+    // Fire-and-forget: don't await, but catch errors for logging
     // Errors are logged inside refreshSubcategoryUrlSummary
-    void refreshSubcategoryUrlSummary(subcategoryId);
+    refreshSubcategoryUrlSummary(subcategoryId).catch(err => {
+      console.error('[refresh-url-summary API] Error in refresh function:', err);
+    });
 
-    // Return success immediately
+    // Return success immediately (don't block client)
     return NextResponse.json({ 
       success: true,
       message: 'URL summary refresh initiated' 

@@ -15,6 +15,7 @@ import { supabaseAdmin } from '@/lib/supabase-server';
 const MAX_SUMMARY_LENGTH = 4000; // characters
 
 export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
+  console.log(`[refreshSubcategoryUrlSummary] Starting refresh for subcategory ${subcategoryId}`);
   const supabase = supabaseAdmin;
 
   // 1) Get subcategory with URL
@@ -65,12 +66,20 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
 
     const trimmed = text.slice(0, MAX_SUMMARY_LENGTH);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('subcategories')
       .update({ url_page_summary: trimmed || null })
       .eq('id', subcategoryId);
 
-    console.log(`[refreshSubcategoryUrlSummary] Successfully updated summary for subcategory ${subcategoryId}`);
+    if (updateError) {
+      console.error('[refreshSubcategoryUrlSummary] Error updating subcategory with summary:', {
+        subcategoryId,
+        error: updateError,
+      });
+      return;
+    }
+
+    console.log(`[refreshSubcategoryUrlSummary] Successfully updated summary for subcategory ${subcategoryId} (${trimmed.length} characters)`);
   } catch (e) {
     console.error('[refreshSubcategoryUrlSummary] Error fetching/parsing URL', {
       subcategoryId,
