@@ -580,6 +580,33 @@ export function SubcategoryScheduleForm({
           throw error
         }
         subcategoryId = data.id
+        
+        // Refresh URL summary if URL is present or changed (fire-and-forget)
+        const hasUrl = subcategoryData.url && subcategoryData.url.trim();
+        const urlChanged = hasUrl && subcategoryData.url !== (editingSubcategory.url || '');
+        const urlCleared = !hasUrl && editingSubcategory.url;
+        
+        if (hasUrl && urlChanged) {
+          // URL changed to a different non-empty value - refresh the summary
+          // Fire-and-forget: call API to refresh URL summary
+          fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
+            method: 'POST',
+          }).catch(err => {
+            console.error('Error initiating URL summary refresh:', err);
+            // Don't block the save flow
+          });
+        } else if (hasUrl && !editingSubcategory.url) {
+          // URL was added (was empty, now has value) - refresh the summary
+          fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
+            method: 'POST',
+          }).catch(err => {
+            console.error('Error initiating URL summary refresh:', err);
+            // Don't block the save flow
+          });
+        } else if (urlCleared) {
+          // URL was cleared - optionally set url_page_summary to null
+          // We'll leave it as-is for now, it will be overwritten on next URL refresh
+        }
       } else {
         // Normalize hashtags before saving
         const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
@@ -646,6 +673,17 @@ export function SubcategoryScheduleForm({
         subcategoryId = data.id
         // Update currentSubcategoryId so EventOccurrencesManager can work
         setCurrentSubcategoryId(subcategoryId)
+        
+        // Refresh URL summary if URL is present (fire-and-forget)
+        if (subcategoryData.url && subcategoryData.url.trim()) {
+          // Fire-and-forget: call API to refresh URL summary
+          fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
+            method: 'POST',
+          }).catch(err => {
+            console.error('Error initiating URL summary refresh:', err);
+            // Don't block the save flow
+          });
+        }
       }
 
       // Upsert schedule rule - one active rule per subcategory
