@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { supabase } from '@/lib/supabase-browser';
-import Breadcrumb from '@/components/navigation/Breadcrumb';
 import { useToast } from '@/components/ui/ToastProvider';
 
 interface Brand {
@@ -174,7 +173,6 @@ export default function BrandDetailsPage() {
       <div className="flex-1 overflow-auto">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-          <Breadcrumb className="mb-4" />
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">

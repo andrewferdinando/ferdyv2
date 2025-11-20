@@ -37,6 +37,12 @@ const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const DuplicateIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  </svg>
+);
+
 const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -416,6 +422,107 @@ export default function CategoriesPage() {
     }
   }
 
+  const handleDuplicateSubcategory = async (subcategoryId: string, subcategoryName: string) => {
+    try {
+      // Fetch the subcategory details
+      const { data: subcategory, error: subcatError } = await supabase
+        .from('subcategories')
+        .select('*')
+        .eq('id', subcategoryId)
+        .single()
+
+      if (subcatError || !subcategory) {
+        throw new Error('Failed to fetch subcategory details')
+      }
+
+      // Fetch all schedule rules for this subcategory
+      const { data: scheduleRules, error: rulesError } = await supabase
+        .from('schedule_rules')
+        .select('*')
+        .eq('subcategory_id', subcategoryId)
+
+      if (rulesError) {
+        throw new Error('Failed to fetch schedule rules')
+      }
+
+      // Create a new subcategory with "(Copy)" appended to the name
+      const newName = `${subcategory.name} (Copy)`
+      const { data: newSubcategory, error: createError } = await supabase
+        .from('subcategories')
+        .insert({
+          brand_id: subcategory.brand_id,
+          category_id: subcategory.category_id,
+          name: newName,
+          detail: subcategory.detail,
+          url: subcategory.url,
+          default_hashtags: subcategory.default_hashtags,
+          channels: subcategory.channels,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (createError || !newSubcategory) {
+        throw new Error('Failed to create duplicate subcategory')
+      }
+
+      // Copy all schedule rules to the new subcategory
+      if (scheduleRules && scheduleRules.length > 0) {
+        const newRules = scheduleRules.map(rule => ({
+          brand_id: rule.brand_id,
+          category_id: rule.category_id,
+          subcategory_id: newSubcategory.id,
+          frequency: rule.frequency,
+          time_of_day: rule.time_of_day,
+          days_of_week: rule.days_of_week,
+          day_of_month: rule.day_of_month,
+          nth_week: rule.nth_week,
+          weekday: rule.weekday,
+          channels: rule.channels,
+          is_active: rule.is_active,
+          start_date: rule.start_date,
+          end_date: rule.end_date,
+          days_before: rule.days_before,
+          days_during: rule.days_during,
+          timezone: rule.timezone,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }))
+
+        const { error: rulesInsertError } = await supabase
+          .from('schedule_rules')
+          .insert(newRules)
+
+        if (rulesInsertError) {
+          // If schedule rules fail to copy, delete the new subcategory to maintain consistency
+          await supabase
+            .from('subcategories')
+            .delete()
+            .eq('id', newSubcategory.id)
+          throw new Error('Failed to copy schedule rules')
+        }
+      }
+
+      // Refresh the rules list
+      await refetchRules()
+
+      showToast({
+        title: 'Duplicated',
+        message: `Created duplicate of "${subcategoryName}"`,
+        type: 'success',
+        duration: 3000
+      })
+    } catch (err) {
+      console.error('Failed to duplicate subcategory:', err)
+      showToast({
+        title: 'Failed to duplicate subcategory',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+        duration: 3000
+      })
+    }
+  }
 
   if (loading || roleLoading) {
     return (
@@ -803,6 +910,13 @@ export default function CategoriesPage() {
                                             <EditIcon className="w-4 h-4" />
                                           </button>
                                           <button
+                                            onClick={() => handleDuplicateSubcategory(firstRule.subcategory_id, subcat.subcategoryName)}
+                                            className="text-gray-400 hover:text-blue-600"
+                                            title="Duplicate subcategory"
+                                          >
+                                            <DuplicateIcon className="w-4 h-4" />
+                                          </button>
+                                          <button
                                             onClick={async () => {
                                               if (confirm(`Delete entire subcategory "${subcat.subcategoryName}"? This will permanently delete the subcategory and all ${groupRules.length} occurrence(s), along with any associated drafts and posts.`)) {
                                                 try {
@@ -987,6 +1101,13 @@ export default function CategoriesPage() {
                                             className="text-gray-400 hover:text-gray-600"
                                           >
                                             <EditIcon className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDuplicateSubcategory(rule.subcategory_id, rule.subcategories?.name || 'subcategory')}
+                                            className="text-gray-400 hover:text-blue-600"
+                                            title="Duplicate subcategory"
+                                          >
+                                            <DuplicateIcon className="w-4 h-4" />
                                           </button>
                                           <button
                                             onClick={async () => {
