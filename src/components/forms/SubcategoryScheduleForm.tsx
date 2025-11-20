@@ -581,31 +581,25 @@ export function SubcategoryScheduleForm({
         }
         subcategoryId = data.id
         
-        // Refresh URL summary if URL is present or changed (fire-and-forget)
-        const hasUrl = subcategoryData.url && subcategoryData.url.trim();
-        const urlChanged = hasUrl && subcategoryData.url !== (editingSubcategory.url || '');
-        const urlCleared = !hasUrl && editingSubcategory.url;
-        
-        if (hasUrl && urlChanged) {
-          // URL changed to a different non-empty value - refresh the summary
+        // Refresh URL summary if URL is present (fire-and-forget)
+        // Always refresh when URL is present - the API will handle if URL hasn't changed
+        if (subcategoryData.url && subcategoryData.url.trim()) {
+          console.log('[SubcategoryScheduleForm] Triggering URL summary refresh for subcategory:', subcategoryId, 'URL:', subcategoryData.url);
           // Fire-and-forget: call API to refresh URL summary
           fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
             method: 'POST',
-          }).catch(err => {
-            console.error('Error initiating URL summary refresh:', err);
+          })
+          .then(response => {
+            if (!response.ok) {
+              console.warn('[SubcategoryScheduleForm] URL summary refresh API returned non-OK status:', response.status);
+            } else {
+              console.log('[SubcategoryScheduleForm] URL summary refresh initiated successfully');
+            }
+          })
+          .catch(err => {
+            console.error('[SubcategoryScheduleForm] Error initiating URL summary refresh:', err);
             // Don't block the save flow
           });
-        } else if (hasUrl && !editingSubcategory.url) {
-          // URL was added (was empty, now has value) - refresh the summary
-          fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
-            method: 'POST',
-          }).catch(err => {
-            console.error('Error initiating URL summary refresh:', err);
-            // Don't block the save flow
-          });
-        } else if (urlCleared) {
-          // URL was cleared - optionally set url_page_summary to null
-          // We'll leave it as-is for now, it will be overwritten on next URL refresh
         }
       } else {
         // Normalize hashtags before saving

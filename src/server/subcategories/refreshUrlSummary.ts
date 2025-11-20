@@ -24,8 +24,14 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     .eq('id', subcategoryId)
     .maybeSingle();
 
-  if (error || !subcat || !subcat.url) {
+  if (error) {
+    console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', error);
+    return;
+  }
+  
+  if (!subcat || !subcat.url) {
     // Nothing to do – no URL, or not found
+    console.log(`[refreshSubcategoryUrlSummary] Subcategory ${subcategoryId} has no URL, skipping`);
     return;
   }
 
