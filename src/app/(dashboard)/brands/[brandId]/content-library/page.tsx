@@ -960,88 +960,90 @@ function AssetDetailView({
               </div>
             )}
 
-            <div className="relative">
-              {isVideo ? (
-                <div
-                  className="relative w-full overflow-hidden rounded-xl bg-black"
-                  style={{ aspectRatio: `${placementAspectRatio}` }}
-                >
-                  <video
-                    controls
-                    preload="metadata"
-                    poster={displayAsset.thumbnail_signed_url || undefined}
-                    src={displayAsset.signed_url}
-                    className="h-full w-full"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                  {onPreviewAsset && videoPlacement !== 'story' && (
-                    <button
-                      onClick={() => onPreviewAsset(displayAsset)}
-                      className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-sm font-medium text-gray-900 shadow hover:bg-white"
-                    >
-                      <svg className="h-4 w-4 text-[#6366F1]" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                      Open preview
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className={`${aspectClass} relative w-full overflow-hidden rounded-xl bg-gray-100`}>
+            {/* Constrain crop area + zoom slider to fit above the fold */}
+            <div className="flex flex-col gap-3" style={{ maxHeight: '60vh' }}>
+              <div className="relative flex-1 min-h-0 flex items-center justify-center" style={{ maxHeight: 'calc(60vh - 60px)' }}>
+                {isVideo ? (
                   <div
-                    ref={frameRef}
-                    className="absolute inset-0 cursor-move"
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerUp}
-                    onWheel={handleWheel}
+                    className="relative w-full h-full overflow-hidden rounded-xl bg-black"
+                    style={{ aspectRatio: `${placementAspectRatio}`, maxHeight: '100%' }}
                   >
-                    {isImageLoading && (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
-                        Loading image...
-                      </div>
-                    )}
-                    {!isImageLoading && (
-                      <img
-                        src={displayAsset.signed_url}
-                        alt={displayAsset.title}
-                        className="pointer-events-none absolute left-1/2 top-1/2 select-none"
-                        style={{ 
-                          width: imageDimensions.width || '100%',
-                          height: imageDimensions.height || '100%',
-                          maxWidth: 'none',
-                          maxHeight: 'none',
-                          transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
-                          transformOrigin: 'center',
-                        }}
-                        draggable={false}
-                      />
+                    <video
+                      controls
+                      preload="metadata"
+                      poster={displayAsset.thumbnail_signed_url || undefined}
+                      src={displayAsset.signed_url}
+                      className="h-full w-full object-cover"
+                    />
+                    {onPreviewAsset && videoPlacement !== 'story' && (
+                      <button
+                        onClick={() => onPreviewAsset(displayAsset)}
+                        className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-sm font-medium text-gray-900 shadow hover:bg-white"
+                      >
+                        <svg className="h-4 w-4 text-[#6366F1]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        Open preview
+                      </button>
                     )}
                   </div>
-                  <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
-                    Drag to pan • Scroll or use slider to zoom
+                ) : (
+                  <div className={`${aspectClass} relative w-full overflow-hidden rounded-xl bg-gray-100`} style={{ maxHeight: '100%', maxWidth: '100%' }}>
+                    <div
+                      ref={frameRef}
+                      className="absolute inset-0 cursor-move"
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerLeave={handlePointerUp}
+                      onWheel={handleWheel}
+                    >
+                      {isImageLoading && (
+                        <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                          Loading image...
+                        </div>
+                      )}
+                      {!isImageLoading && (
+                        <img
+                          src={displayAsset.signed_url}
+                          alt={displayAsset.title}
+                          className="pointer-events-none absolute left-1/2 top-1/2 select-none"
+                          style={{ 
+                            width: imageDimensions.width || '100%',
+                            height: imageDimensions.height || '100%',
+                            maxWidth: 'none',
+                            maxHeight: 'none',
+                            transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
+                            transformOrigin: 'center',
+                          }}
+                          draggable={false}
+                        />
+                      )}
+                    </div>
+                    <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
+                      Drag to pan • Scroll or use slider to zoom
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {!isVideo && (
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <label className="text-sm font-medium text-gray-700" htmlFor="crop-zoom">
+                    Zoom
+                  </label>
+                  <input
+                    id="crop-zoom"
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={sliderValue}
+                    onChange={handleSliderChange}
+                    className="flex-1 accent-[#6366F1]"
+                  />
                 </div>
               )}
             </div>
-
-            {!isVideo && (
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700" htmlFor="crop-zoom">
-                  Zoom
-                </label>
-                <input
-                  id="crop-zoom"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={sliderValue}
-                  onChange={handleSliderChange}
-                  className="flex-1 accent-[#6366F1]"
-                />
-              </div>
-            )}
               </div>
 
               <div className="space-y-4">
