@@ -239,7 +239,6 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div
         className={`relative overflow-hidden bg-gray-100 ${canPreview ? 'cursor-pointer' : ''}`}
-        style={{ aspectRatio: frameRatio }}
         onClick={canPreview ? handlePreviewClick : undefined}
         role={canPreview ? 'button' : undefined}
         tabIndex={canPreview ? 0 : undefined}
@@ -255,56 +254,53 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
         }
         aria-label={canPreview ? `Preview video ${asset.title}` : undefined}
       >
-        {!previewUrl ? (
-          <div className="flex h-full items-center justify-center text-gray-400">
-            <div className="text-center">
-              <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <div className="text-xs">No preview</div>
-              <div className="text-xs text-gray-300 break-all px-2">{asset.storage_path}</div>
+        {/* Fixed aspect ratio container - use 4:3 for consistent thumbnails */}
+        <div className="aspect-[4/3] w-full">
+          {!previewUrl ? (
+            <div className="flex h-full items-center justify-center text-gray-400">
+              <div className="text-center">
+                <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div className="text-xs">No preview</div>
+                <div className="text-xs text-gray-300 break-all px-2">{asset.storage_path}</div>
+              </div>
             </div>
-          </div>
-        ) : (
-          <img
-            src={previewUrl}
-            alt={asset.title}
-            className="pointer-events-none absolute left-1/2 top-1/2"
-            style={{
-              width: `${widthPercent}%`,
-              height: `${heightPercent}%`,
-              transform: `translate(-50%, -50%) translate(${translateXPercent}%, ${translateYPercent}%)`,
-              transformOrigin: 'center',
-            }}
-            draggable={false}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement
-              target.style.display = 'none'
-              if (target.parentElement) {
-                target.parentElement.innerHTML = `
-                  <div class="flex h-full items-center justify-center text-gray-400">
-                    <div class="text-center">
-                      <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                      </svg>
-                      <div class="text-xs">Preview unavailable</div>
-                      <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
+          ) : (
+            <img
+              src={previewUrl}
+              alt={asset.title}
+              className="h-full w-full object-cover"
+              draggable={false}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                if (target.parentElement) {
+                  target.parentElement.innerHTML = `
+                    <div class="flex h-full items-center justify-center text-gray-400">
+                      <div class="text-center">
+                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <div class="text-xs">Preview unavailable</div>
+                        <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
+                      </div>
                     </div>
-                  </div>
-                `
-              }
-            }}
-          />
-        )}
-        {isVideo && previewUrl && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+                  `
+                }
+              }}
+            />
+          )}
+          {isVideo && previewUrl && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="p-4">
