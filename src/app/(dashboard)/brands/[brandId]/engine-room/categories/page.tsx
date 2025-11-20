@@ -422,6 +422,123 @@ export default function CategoriesPage() {
     }
   }
 
+  const handleDeleteSubcategory = async (subcategoryId: string, subcategoryName: string) => {
+    try {
+      // Delete the entire subcategory (this will cascade delete schedule_rules, post_jobs, and drafts)
+      // Delete in order: drafts -> post_jobs -> schedule_rules -> subcategory
+      // Get all schedule_rule_ids for this subcategory
+      const { data: scheduleRules, error: fetchRulesError } = await supabase
+        .from('schedule_rules')
+        .select('id')
+        .eq('subcategory_id', subcategoryId)
+
+      if (fetchRulesError) {
+        console.error('Failed to fetch schedule rules:', fetchRulesError)
+        throw new Error(`Failed to fetch schedule rules: ${fetchRulesError.message}`)
+      }
+
+      if (scheduleRules && scheduleRules.length > 0) {
+        const ruleIds = scheduleRules.map(r => r.id)
+        
+        // Delete drafts first
+        const { data: postJobs, error: fetchPostJobsError } = await supabase
+          .from('post_jobs')
+          .select('id')
+          .in('schedule_rule_id', ruleIds)
+
+        if (fetchPostJobsError) {
+          console.error('Failed to fetch post jobs:', fetchPostJobsError)
+          // Continue - some post jobs might not exist
+        }
+
+        if (postJobs && postJobs.length > 0) {
+          const postJobIds = postJobs.map(j => j.id)
+          
+          // Delete drafts
+          const { error: draftsError } = await supabase
+            .from('drafts')
+            .delete()
+            .in('post_job_id', postJobIds)
+
+          if (draftsError) {
+            console.error('Failed to delete drafts:', draftsError)
+            // Continue - some drafts might not exist
+          }
+
+          // Delete post_jobs
+          const { error: postJobsError } = await supabase
+            .from('post_jobs')
+            .delete()
+            .in('schedule_rule_id', ruleIds)
+
+          if (postJobsError) {
+            console.error('Failed to delete post_jobs:', postJobsError)
+            throw new Error(`Failed to delete post jobs: ${postJobsError.message}`)
+          }
+        }
+
+        // Delete schedule_rules
+        const { error: scheduleRuleError } = await supabase
+          .from('schedule_rules')
+          .delete()
+          .eq('subcategory_id', subcategoryId)
+
+        if (scheduleRuleError) {
+          console.error('Failed to delete schedule rules:', scheduleRuleError)
+          throw new Error(`Failed to delete schedule rules: ${scheduleRuleError.message}`)
+        }
+      }
+
+      // Delete the subcategory
+      // First verify it exists
+      const { data: existingSubcat, error: checkError } = await supabase
+        .from('subcategories')
+        .select('id, name, category_id')
+        .eq('id', subcategoryId)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 = not found, which is fine
+        console.error('Failed to check subcategory existence:', checkError)
+        throw new Error(`Failed to check subcategory: ${checkError.message}`)
+      }
+
+      if (existingSubcat) {
+        const { error: deleteError } = await supabase
+          .from('subcategories')
+          .delete()
+          .eq('id', subcategoryId)
+
+        if (deleteError) {
+          console.error('Failed to delete subcategory:', deleteError)
+          throw new Error(`Failed to delete subcategory: ${deleteError.message}`)
+        }
+      } else {
+        // Subcategory doesn't exist, which is fine
+        console.warn(`Subcategory ${subcategoryId} does not exist`)
+      }
+
+      // Refresh the rules list
+      await refetchRules()
+
+      showToast({
+        title: 'Deleted',
+        message: `Deleted subcategory "${subcategoryName}" and all associated data`,
+        type: 'success',
+        duration: 3000
+      })
+    } catch (err) {
+      console.error('Failed to delete subcategory:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Please try again.'
+      showToast({
+        title: 'Failed to delete subcategory',
+        message: errorMessage,
+        type: 'error',
+        duration: 3000
+      })
+    }
+  }
+
   const handleDuplicateSubcategory = async (subcategoryId: string, subcategoryName: string) => {
     try {
       // Fetch the subcategory details
@@ -978,88 +1095,9 @@ export default function CategoriesPage() {
                                             <DuplicateIcon className="w-4 h-4" />
                                           </button>
                                           <button
-                                            onClick={async () => {
+                                            onClick={() => {
                                               if (confirm(`Delete entire subcategory "${subcat.subcategoryName}"? This will permanently delete the subcategory and all ${groupRules.length} occurrence(s), along with any associated drafts and posts.`)) {
-                                                try {
-                                                  // Delete the entire subcategory (this will cascade delete schedule_rules, post_jobs, and drafts)
-                                                  // Delete in order: drafts -> post_jobs -> schedule_rules -> subcategory
-                                                  // Get all schedule_rule_ids for this subcategory
-                                                  const { data: scheduleRules } = await supabase
-                                                    .from('schedule_rules')
-                                                    .select('id')
-                                                    .eq('subcategory_id', firstRule.subcategory_id)
-
-                                                  if (scheduleRules && scheduleRules.length > 0) {
-                                                    const ruleIds = scheduleRules.map(r => r.id)
-                                                    
-                                                    // Delete drafts first
-                                                    const { data: postJobs } = await supabase
-                                                      .from('post_jobs')
-                                                      .select('id')
-                                                      .in('schedule_rule_id', ruleIds)
-
-                                                    if (postJobs && postJobs.length > 0) {
-                                                      const postJobIds = postJobs.map(j => j.id)
-                                                      await supabase
-                                                        .from('drafts')
-                                                        .delete()
-                                                        .in('post_job_id', postJobIds)
-                                                    }
-
-                                                    // Delete post_jobs
-                                                    await supabase
-                                                      .from('post_jobs')
-                                                      .delete()
-                                                      .in('schedule_rule_id', ruleIds)
-                                                  }
-
-                                                  // Delete schedule_rules
-                                                  await supabase
-                                                    .from('schedule_rules')
-                                                    .delete()
-                                                    .eq('subcategory_id', firstRule.subcategory_id)
-
-                                                  // Delete the subcategory
-                                                  // First verify it exists
-                                                  const { data: existingSubcat, error: checkError } = await supabase
-                                                    .from('subcategories')
-                                                    .select('id, name, category_id')
-                                                    .eq('id', firstRule.subcategory_id)
-                                                    .single()
-
-                                                  if (checkError && checkError.code !== 'PGRST116') {
-                                                    // PGRST116 = not found, which is fine
-                                                    throw checkError
-                                                  }
-
-                                                  if (existingSubcat) {
-                                                    const { error } = await supabase
-                                                      .from('subcategories')
-                                                      .delete()
-                                                      .eq('id', firstRule.subcategory_id)
-
-                                                    if (error) {
-                                                      console.error('Failed to delete subcategory:', error)
-                                                      throw error
-                                                    }
-                                                  }
-
-                                                  refetchRules()
-                                                  showToast({
-                                                    title: 'Deleted',
-                                                    message: `Deleted subcategory "${subcat.subcategoryName}" and all associated data`,
-                                                    type: 'success',
-                                                    duration: 3000
-                                                  })
-                                                } catch (err) {
-                                                  console.error('Failed to delete subcategory:', err)
-                                                  showToast({
-                                                    title: 'Failed to delete subcategory',
-                                                    message: err instanceof Error ? err.message : 'Please try again.',
-                                                    type: 'error',
-                                                    duration: 3000
-                                                  })
-                                                }
+                                                handleDeleteSubcategory(firstRule.subcategory_id, subcat.subcategoryName)
                                               }
                                             }}
                                             className="text-gray-400 hover:text-red-600"
@@ -1171,21 +1209,13 @@ export default function CategoriesPage() {
                                             <DuplicateIcon className="w-4 h-4" />
                                           </button>
                                           <button
-                                            onClick={async () => {
-                                              if (confirm(`Remove scheduling rule for "${rule.subcategories?.name || 'subcategory'}"?`)) {
-                                                try {
-                                                  await deleteRule(rule.id)
-                                                } catch (err) {
-                                                  showToast({
-                                                    title: 'Failed to delete rule',
-                                                    message: 'Please try again.',
-                                                    type: 'error',
-                                                    duration: 3000
-                                                  })
-                                                }
+                                            onClick={() => {
+                                              if (confirm(`Delete entire subcategory "${rule.subcategories?.name || 'subcategory'}"? This will permanently delete the subcategory and all associated schedule rules, drafts, and posts.`)) {
+                                                handleDeleteSubcategory(rule.subcategory_id, rule.subcategories?.name || 'subcategory')
                                               }
                                             }}
                                             className="text-gray-400 hover:text-red-600"
+                                            title="Delete entire subcategory"
                                           >
                                             <TrashIcon className="w-4 h-4" />
                                           </button>
