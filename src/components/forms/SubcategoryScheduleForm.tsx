@@ -400,10 +400,20 @@ export function SubcategoryScheduleForm({
       newErrors.channels = 'At least one channel is required'
     }
 
+    // Validate daily frequency - time of day is required
+    if (scheduleData.frequency === 'daily') {
+      if (!scheduleData.timeOfDay || !scheduleData.timeOfDay.trim()) {
+        newErrors.timeOfDay = 'Time of day is required'
+      }
+    }
+
     // Validate weekly frequency fields
     if (scheduleData.frequency === 'weekly') {
       if (scheduleData.daysOfWeek.length === 0) {
         newErrors.daysOfWeek = 'At least one day of the week is required'
+      }
+      if (!scheduleData.timeOfDay || !scheduleData.timeOfDay.trim()) {
+        newErrors.timeOfDay = 'Time of day is required'
       }
     }
 
@@ -411,6 +421,9 @@ export function SubcategoryScheduleForm({
     if (scheduleData.frequency === 'monthly') {
       if (scheduleData.daysOfMonth.length === 0 && (!scheduleData.nthWeek || !scheduleData.weekday)) {
         newErrors.monthlyType = 'Select either specific days of the month or nth weekday option'
+      }
+      if (!scheduleData.timeOfDay || !scheduleData.timeOfDay.trim()) {
+        newErrors.timeOfDay = 'Time of day is required'
       }
     }
 
@@ -902,6 +915,27 @@ export function SubcategoryScheduleForm({
     if (!subcategoryData.name.trim()) return false
     if (!subcategoryData.channels || subcategoryData.channels.length === 0) return false
 
+    // Check timeOfDay for daily, weekly, and monthly frequencies
+    if (scheduleData.frequency === 'daily' || scheduleData.frequency === 'weekly' || scheduleData.frequency === 'monthly') {
+      if (!scheduleData.timeOfDay || !scheduleData.timeOfDay.trim()) {
+        return false
+      }
+    }
+
+    // Check weekly frequency requirements
+    if (scheduleData.frequency === 'weekly') {
+      if (scheduleData.daysOfWeek.length === 0) {
+        return false
+      }
+    }
+
+    // Check monthly frequency requirements
+    if (scheduleData.frequency === 'monthly') {
+      if (scheduleData.daysOfMonth.length === 0 && (!scheduleData.nthWeek || !scheduleData.weekday)) {
+        return false
+      }
+    }
+
     // Check specific frequency requirements
     if (scheduleData.frequency === 'specific') {
       // When editing existing subcategory with specific frequency:
@@ -1130,6 +1164,7 @@ export function SubcategoryScheduleForm({
                       value={scheduleData.timeOfDay}
                       onChange={(e) => setScheduleData(prev => ({ ...prev, timeOfDay: e.target.value }))}
                       error={errors.timeOfDay}
+                      required
                     />
                   </FormField>
                 </div>
@@ -1171,6 +1206,7 @@ export function SubcategoryScheduleForm({
                       value={scheduleData.timeOfDay}
                       onChange={(e) => setScheduleData(prev => ({ ...prev, timeOfDay: e.target.value }))}
                       error={errors.timeOfDay}
+                      required
                     />
                   </FormField>
                 </div>
@@ -1240,6 +1276,7 @@ export function SubcategoryScheduleForm({
                       value={scheduleData.timeOfDay}
                       onChange={(e) => setScheduleData(prev => ({ ...prev, timeOfDay: e.target.value }))}
                       error={errors.timeOfDay}
+                      required
                     />
                   </FormField>
                   {errors.monthlyType && <p className="text-red-500 text-sm">{errors.monthlyType}</p>}
