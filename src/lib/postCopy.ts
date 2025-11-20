@@ -47,6 +47,14 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+function stripHashtags(text: string): string {
+  // Remove any words starting with # and clean up extra spaces
+  return text
+    .replace(/(^|\s)#([^\s#]+)/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 async function withRetry<T>(
   fn: () => Promise<T>,
   tries = 3,
@@ -189,8 +197,11 @@ export async function generatePostCopyFromContext(
   const brandContextParts: string[] = [];
   
   // Brand AI Summary (new field - preferred over legacy brand_summary)
+  // Truncate overly long summaries to prevent them from dwarfing subcategory context
   if (brand.ai_summary && typeof brand.ai_summary === "string" && brand.ai_summary.trim()) {
-    brandContextParts.push(`- Brand Summary: ${brand.ai_summary.trim()}`);
+    const trimmed = brand.ai_summary.trim();
+    const limited = trimmed.length > 600 ? trimmed.slice(0, 600) + "..." : trimmed;
+    brandContextParts.push(`- Brand Summary: ${limited}`);
   } else if (brandSummary) {
     // Fallback to legacy brand_summary
     if (brandSummary.name) brandContextParts.push(`- Name: ${brandSummary.name}`);
@@ -279,14 +290,28 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 8) Build subcategory summary line for primary emphasis
-  const subcategorySummaryLine =
-    payload.subcategory && (payload.subcategory.name || payload.subcategory.description)
-      ? `PRIMARY TOPIC:\n- This post must be about the subcategory "${payload.subcategory.name || ""}" described as: "${payload.subcategory.description || ""}". Use this subcategory as the main focus of the post.\n\n`
-      : "";
+  // 8) Build TASK block - make subcategory the true subject of the post
+  const subName = payload.subcategory?.name || "";
+  const subDesc = payload.subcategory?.description || "";
+  const subUrl = payload.subcategory?.url || "";
+
+  const taskBlock = `TASK
+You are writing a social media post to promote a specific offering/subcategory for this brand.
+
+The post MUST be about this specific subcategory, NOT about the general venue or brand.
+
+Subcategory name: ${subName || "(not provided)"}
+Subcategory description: ${subDesc || "(not provided)"}
+Subcategory URL: ${subUrl || "(not provided)"}
+
+Post objective: "${prompt}"
+
+Write the post as if you are inviting someone to enquire about or book this specific subcategory/offer. If details are provided (capacity, views, bar service, hours, etc.), use them as concrete selling points.`;
 
   // 9) Build the enhanced USER prompt string
-  const userPrompt = `${subcategorySummaryLine}### BRAND CONTEXT
+  const userPrompt = `${taskBlock}
+
+### BRAND CONTEXT
 ${brandContextParts.length > 0 ? brandContextParts.join("\n") : "- No brand context available"}
 
 ${subcategoryContextParts.length > 0 ? `### SUBCATEGORY CONTEXT\n${subcategoryContextParts.join("\n")}\n` : ""}${scheduleContextParts.length > 0 ? `### POST TIMING\n${scheduleContextParts.join("\n")}\n` : ""}### RECENT POSTS (DO NOT REPEAT)
@@ -310,10 +335,11 @@ ${recentLinesJoined || "(none - this is the first post)"}
      : "- Match the requested length"}
 
 3. **Context Integration**:
-   - Naturally integrate brand summary information when relevant
-   - The content of the post MUST align with the SUBCATEGORY CONTEXT above (name, description, and URL).
-   - Make sure the topic, examples, and language clearly relate to this subcategory.
-   - Do NOT ignore the subcategory details; they are more important than generic brand information.
+   - The post MUST clearly promote the specific subcategory described in the TASK (e.g. a function space, product, or service).
+   - The main subject, examples, and language should be about this subcategory (e.g. "Charlies Beach Side Deck") rather than the general venue or brand.
+   - Use the subcategory description details (capacity, views, service, hours, etc.) as concrete reasons to enquire or book.
+   - You may mention the brand name, but only as context for this subcategory (e.g. "Host your next celebration on the Charlies Beach Side Deck at Charlie Farleys...").
+   - Do NOT write a generic brand awareness post. The post should feel like a specific promotion for this subcategory.
    - ${isEventBased
      ? `This IS an event or date-based promo post. Use the event date and Days Until Event (if provided) to add natural urgency when appropriate (e.g., "3 days to go", "Final weekend", "Happening this Friday"), but vary the wording - avoid repeating the same phrases.`
      : `This is NOT an event or date-based promo post. DO NOT treat the scheduled date as a special event, and DO NOT use countdown or urgency phrases like "in 3 days", "this weekend", or "only X days to go" unless explicitly asked in the POST OBJECTIVE.`}
@@ -326,15 +352,8 @@ ${recentLinesJoined || "(none - this is the first post)"}
 5. **Formatting**:
    - Emojis: ${payload.emoji || "auto"} ${payload.emoji === "none" ? "(use zero emojis)" : "(use naturally and sparingly if auto)"}
    - Hashtags:
-     ${payload.hashtags?.mode === "none"
-       ? `- You MUST NOT include any hashtags in the output.`
-       : ""}
-     ${payload.hashtags?.mode === "auto"
-       ? `- You MAY add up to 3–5 relevant hashtags at the end of the post. Do not over-use them.`
-       : ""}
-     ${payload.hashtags?.mode === "list" && payload.hashtags?.list
-       ? `- You MUST use ONLY the following hashtags, exactly as written, and you MUST NOT invent any new hashtags:\n       ${payload.hashtags.list.slice(0, 5).join(" ")}\n       - Place them together at the end of the post.`
-       : ""}
+     - You MUST NOT include any hashtags in the output.
+     - Do not use the "#" symbol at all. Hashtags are handled separately by the system.
    - CTA: ${payload.cta || "none"}
    - Output plain text only (no markdown, no explanations)`;
 
@@ -342,7 +361,7 @@ ${recentLinesJoined || "(none - this is the first post)"}
   const systemMessage = `You are a professional social media copywriter specializing in creating engaging, brand-specific social media content.
 
 Always follow this priority, in order:
-1) Respect hard constraints (no hashtags vs fixed list of hashtags, no emojis when requested, no markdown).
+1) Respect hard constraints (no hashtags, no emojis when requested, no markdown).
 2) Align the content with the SUBCATEGORY CONTEXT and POST OBJECTIVE.
 3) Stay true to the brand's tone and typical post length.
 4) Vary your writing style to avoid formulaic patterns.
@@ -354,6 +373,7 @@ Your task:
 - Never repeat the same sentence structure or opening phrases across posts
 - Integrate context naturally without forcing information
 - Be specific and concrete - avoid generic fluff
+- Never include hashtags or the "#" symbol; hashtags are handled elsewhere.
 
 Output ONLY the final post text. No explanations, no markdown, no additional commentary.`;
 
@@ -376,10 +396,13 @@ Output ONLY the final post text. No explanations, no markdown, no additional com
     })
   );
 
-  // 13) Extract and return variants
-  const results = completion.choices
+  // 13) Extract and return variants, stripping any stray hashtags
+  const rawResults = completion.choices
     .map((c) => c.message?.content?.trim() || "")
     .filter(Boolean);
+
+  // Post-process to strip any hashtags that might have slipped through
+  const results = rawResults.map(stripHashtags).filter(Boolean);
 
   if (results.length === 0) {
     throw new Error("No copy variants generated");
