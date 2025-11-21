@@ -412,19 +412,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       }
     }
     
-    // FINAL SAFETY CHECK: Ensure we never end mid-word
-    // Check the last character - if it's not whitespace or punctuation, find the last space
-    const lastChar = trimmed.slice(-1);
-    if (!/[.!?\s]/.test(lastChar)) {
-      const finalLastSpace = trimmed.lastIndexOf(' ');
-      if (finalLastSpace > 0 && finalLastSpace >= trimmed.length * 0.9) {
-        trimmed = trimmed.slice(0, finalLastSpace).trim();
-        console.log(`[refreshSubcategoryUrlSummary] Final safety check - truncated at word boundary: ${trimmed.length} chars`);
-      }
-    }
-    
-    console.log(`[refreshSubcategoryUrlSummary] Final trimmed text length: ${trimmed.length} chars`);
-    console.log(`[refreshSubcategoryUrlSummary] Final trimmed text (last 50 chars): ${trimmed.slice(-50)}`);
+    console.log(`[refreshSubcategoryUrlSummary] After initial truncation: ${trimmed.length} chars`);
     
     // Now try to improve truncation at sentence boundaries (optional optimization)
     // BUT: Only if we haven't already truncated, and ensure we still end at word boundary
