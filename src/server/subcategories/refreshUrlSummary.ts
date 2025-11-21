@@ -245,7 +245,36 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Successfully fetched URL, parsing HTML...`);
     const html = await response.text();
 
-    // Step 1: Basic HTML -> text extraction (remove scripts, styles, tags)
+    // Step 1: Extract structured metadata from RAW HTML before cleaning (date, time, venue)
+    // This ensures we capture structured data that might be in headers/navigation
+    let eventMetadata: string[] = [];
+    const rawHtmlPreview = html.slice(0, 5000); // First 5KB usually contains header/metadata
+    
+    // Extract date/time from raw HTML (before cleaning removes it)
+    // Pattern: "Nov 27, 2025 at 6:00 PM" or "Thu, Nov 27, 2025 at 6:00 PM"
+    const dateTimePattern1 = /([A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4}[^<]{0,60}at\s+\d{1,2}:?\d{0,2}\s*(?:AM|PM|am|pm)[^<]{0,40})/i;
+    const dateTimeMatch1 = rawHtmlPreview.match(dateTimePattern1);
+    if (dateTimeMatch1 && dateTimeMatch1[1]) {
+      const dateTime = dateTimeMatch1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (dateTime.length > 10 && dateTime.length < 200) {
+        console.log(`[refreshSubcategoryUrlSummary] Found date/time in raw HTML: ${dateTime}`);
+        eventMetadata.push(`Date/Time: ${dateTime}`);
+      }
+    }
+    
+    // Extract venue from raw HTML
+    // Pattern: "152 Ponsonby Road" or similar
+    const venuePattern1 = /(\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\s+(?:Road|Street|Avenue|Lane|Drive|Place|Way|Boulevard|Court|Terrace|Crescent)[^<]{0,50})/i;
+    const venueMatch1 = rawHtmlPreview.match(venuePattern1);
+    if (venueMatch1 && venueMatch1[1]) {
+      const venue = venueMatch1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
+        console.log(`[refreshSubcategoryUrlSummary] Found venue in raw HTML: ${venue}`);
+        eventMetadata.push(`Venue: ${venue}`);
+      }
+    }
+
+    // Step 2: Basic HTML -> text extraction (remove scripts, styles, tags)
     const rawText = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -257,15 +286,15 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, cleaning...`);
     console.log(`[refreshSubcategoryUrlSummary] First 500 chars of raw text: ${rawText.slice(0, 500)}`);
     
-    // Step 2: Clean the text (decode entities, remove noise, filter lines)
+    // Step 3: Clean the text (decode entities, remove noise, filter lines)
     const cleanedText = cleanExtractedText(rawText);
     console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
     console.log(`[refreshSubcategoryUrlSummary] First 800 chars of cleaned text: ${cleanedText.slice(0, 800)}`);
     
-    // Step 3: Extract structured event data from cleaned text (date, time, venue)
-    // Look for common patterns in the first 1000 characters (where event details usually appear)
-    const previewText = cleanedText.slice(0, 1000);
-    let eventMetadata: string[] = [];
+    // Step 4: Try to extract metadata from cleaned text if we didn't find it in raw HTML
+    // Only if we haven't found metadata yet from raw HTML
+    if (eventMetadata.length === 0) {
+      const previewText = cleanedText.slice(0, 1000);
     
     // Try to extract date/time - more flexible patterns
     // Pattern 1: "Nov 27 from 6pm to 9pm GMT+13" or similar
@@ -308,10 +337,14 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       if (venueMatch2 && venueMatch2[1]) {
         const venue = venueMatch2[1].trim();
         if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
+          console.log(`[refreshSubcategoryUrlSummary] Found venue in cleaned text: ${venue}`);
           eventMetadata.push(`Venue: ${venue}`);
         }
       }
     }
+    }
+    
+    console.log(`[refreshSubcategoryUrlSummary] Final metadata count: ${eventMetadata.length}`, eventMetadata);
     
     // Step 5: Build summary with metadata first, then text truncated at sentence boundary
     const sourcePrefix = `SUMMARY_SOURCE_URL: ${subcat.url}\n\n`;
@@ -329,33 +362,53 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     // ALWAYS ensure we never cut mid-word - find the last space before the limit
     let trimmed = cleanedText.slice(0, Math.max(0, availableLength)).trim();
     
-    console.log(`[refreshSubcategoryUrlSummary] Truncating text. Available length: ${availableLength}, trimmed length: ${trimmed.length}`);
+    console.log(`[refreshSubcategoryUrlSummary] Truncating text. Available length: ${availableLength}, initial trimmed length: ${trimmed.length}`);
     
-    // First, ensure we end at a word boundary (never cut mid-word)
-    if (trimmed.length >= availableLength) {
+    // CRITICAL: Always ensure we end at a word boundary (never cut mid-word)
+    // First, check if we're at or over the limit
+    if (trimmed.length > availableLength) {
+      // Find the last space before or at the limit
       const lastSpaceIndex = trimmed.lastIndexOf(' ', availableLength);
-      console.log(`[refreshSubcategoryUrlSummary] Last space before limit at index: ${lastSpaceIndex}`);
+      console.log(`[refreshSubcategoryUrlSummary] Last space before limit at index: ${lastSpaceIndex} (limit: ${availableLength})`);
       
-      if (lastSpaceIndex > 0 && lastSpaceIndex >= availableLength * 0.7) {
-        // Found a space at a reasonable position, truncate there
+      if (lastSpaceIndex > 0) {
+        // Found a space, truncate there
         trimmed = trimmed.slice(0, lastSpaceIndex).trim();
-        console.log(`[refreshSubcategoryUrlSummary] Truncated at space: ${trimmed.length} chars`);
+        console.log(`[refreshSubcategoryUrlSummary] Truncated at space index ${lastSpaceIndex}: ${trimmed.length} chars`);
       } else {
-        // No space found in good range, truncate to a safe position (90% of limit)
+        // No space found in first availableLength chars - this is unusual, fall back to 90%
         const safeLength = Math.floor(availableLength * 0.9);
         const safeSpaceIndex = trimmed.lastIndexOf(' ', safeLength);
-        console.log(`[refreshSubcategoryUrlSummary] Safe length: ${safeLength}, safe space index: ${safeSpaceIndex}`);
+        console.log(`[refreshSubcategoryUrlSummary] No space found, trying safe length: ${safeLength}, safe space index: ${safeSpaceIndex}`);
         
         if (safeSpaceIndex > 0) {
           trimmed = trimmed.slice(0, safeSpaceIndex).trim();
           console.log(`[refreshSubcategoryUrlSummary] Truncated at safe space: ${trimmed.length} chars`);
         } else {
-          // Fallback: truncate at safe length (but this should rarely happen)
-          trimmed = trimmed.slice(0, safeLength).trim();
-          console.log(`[refreshSubcategoryUrlSummary] Truncated at safe length: ${trimmed.length} chars`);
+          // Last resort: find ANY space in the text
+          const anySpaceIndex = trimmed.lastIndexOf(' ');
+          if (anySpaceIndex > 0 && anySpaceIndex >= availableLength * 0.5) {
+            trimmed = trimmed.slice(0, anySpaceIndex).trim();
+            console.log(`[refreshSubcategoryUrlSummary] Truncated at any space found: ${trimmed.length} chars`);
+          } else {
+            // This should never happen, but if it does, truncate at a safe length
+            trimmed = trimmed.slice(0, safeLength).trim();
+            console.log(`[refreshSubcategoryUrlSummary] WARNING: Forced truncation at safe length: ${trimmed.length} chars`);
+          }
+        }
+      }
+    } else if (trimmed.length === availableLength) {
+      // Exactly at the limit - check if it ends with a space, if not find the last space
+      if (!trimmed.endsWith(' ')) {
+        const lastSpaceIndex = trimmed.lastIndexOf(' ');
+        if (lastSpaceIndex > 0 && lastSpaceIndex >= availableLength * 0.9) {
+          trimmed = trimmed.slice(0, lastSpaceIndex).trim();
+          console.log(`[refreshSubcategoryUrlSummary] Text at limit but doesn't end with space, truncated at: ${trimmed.length} chars`);
         }
       }
     }
+    
+    console.log(`[refreshSubcategoryUrlSummary] Final trimmed text length: ${trimmed.length} chars`);
     
     // Now try to improve truncation at sentence boundaries (optional optimization)
     if (trimmed.length >= availableLength * 0.8) {
