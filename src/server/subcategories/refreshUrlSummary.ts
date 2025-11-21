@@ -411,6 +411,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Final trimmed text length: ${trimmed.length} chars`);
     
     // Now try to improve truncation at sentence boundaries (optional optimization)
+    // BUT: Only if we haven't already truncated, and ensure we still end at word boundary
     if (trimmed.length >= availableLength * 0.8) {
       // Look for sentence endings (period, exclamation, or question mark followed by space and capital letter)
       const sentenceEndRegex = /[.!?]\s+[A-Z]/g;
@@ -420,7 +421,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       // Reset regex lastIndex
       sentenceEndRegex.lastIndex = 0;
       
-      // Find all sentence endings
+      // Find all sentence endings BEFORE the current trimmed length
       while ((match = sentenceEndRegex.exec(trimmed)) !== null) {
         // Only consider matches that are reasonable (not too close to start, within reasonable range)
         if (match.index + match[0].length <= trimmed.length && match.index >= trimmed.length * 0.5) {
@@ -428,20 +429,38 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
         }
       }
       
-      // If we found a sentence boundary in a good position, use it
-      if (lastSentenceEnd > 0 && lastSentenceEnd >= trimmed.length * 0.6) {
+      // If we found a sentence boundary in a good position, use it (it's already at a word boundary)
+      if (lastSentenceEnd > 0 && lastSentenceEnd >= trimmed.length * 0.6 && lastSentenceEnd <= availableLength) {
         trimmed = trimmed.slice(0, lastSentenceEnd).trim();
+        console.log(`[refreshSubcategoryUrlSummary] Optimized at sentence boundary: ${trimmed.length} chars`);
       } else {
         // Try to find last punctuation mark (period, exclamation, question mark) followed by space
-        const lastPunctMatch = /[.!?]\s/.exec(trimmed.slice(Math.floor(trimmed.length * 0.7)));
+        // But ensure we don't go beyond available length
+        const searchStart = Math.floor(trimmed.length * 0.7);
+        const searchText = trimmed.slice(searchStart);
+        const lastPunctMatch = /[.!?]\s/.exec(searchText);
         if (lastPunctMatch) {
-          const punctIndex = trimmed.indexOf(lastPunctMatch[0], Math.floor(trimmed.length * 0.7));
-          if (punctIndex > 0) {
-            trimmed = trimmed.slice(0, punctIndex + 1).trim();
+          const punctIndex = searchStart + lastPunctMatch.index + 1;
+          if (punctIndex > 0 && punctIndex <= availableLength) {
+            trimmed = trimmed.slice(0, punctIndex).trim();
+            console.log(`[refreshSubcategoryUrlSummary] Optimized at punctuation: ${trimmed.length} chars`);
           }
         }
       }
     }
+    
+    // FINAL SAFETY CHECK: Ensure we never end mid-word
+    // Check the last character - if it's not whitespace or punctuation, find the last space
+    const lastChar = trimmed.slice(-1);
+    if (!/[.!?\s]/.test(lastChar)) {
+      const finalLastSpace = trimmed.lastIndexOf(' ');
+      if (finalLastSpace > 0 && finalLastSpace >= trimmed.length * 0.9) {
+        trimmed = trimmed.slice(0, finalLastSpace).trim();
+        console.log(`[refreshSubcategoryUrlSummary] Final safety check - truncated at word boundary: ${trimmed.length} chars`);
+      }
+    }
+    
+    console.log(`[refreshSubcategoryUrlSummary] Final trimmed text (last 50 chars): ${trimmed.slice(-50)}`);
     
     const finalSummary = `${sourcePrefix}${metadataSection}${trimmed}`;
 
@@ -472,4 +491,5 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     });
   }
 }
+
 
