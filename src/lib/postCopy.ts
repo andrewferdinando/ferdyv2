@@ -15,6 +15,7 @@ export type PostCopyPayload = {
     url?: string;
     description?: string;
     frequency_type?: string;
+    url_page_summary?: string | null;
     category_name?: string; // e.g. "Functions"
   };
   schedule?: { 
@@ -24,7 +25,7 @@ export type PostCopyPayload = {
     end_date?: string;
     days_until_event?: number;
   };
-  scheduledFor?: string; // UTC timestamp when the post is scheduled
+  scheduledFor?: string; // UTC timestamp when the post is scheduled (NOT used in prompts)
   tone_override?: string;
   length?: "short" | "medium" | "long";
   emoji?: "auto" | "none";
@@ -40,9 +41,10 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function stripHashtags(text: string): string {
-  // Remove any words starting with # and clean up extra spaces
+  // Remove standalone hashtag tokens (more robust pattern)
   return text
-    .replace(/(^|\s)#([^\s#]+)/g, "$1")
+    // Remove hashtags at start of line or after whitespace
+    .replace(/(^|\s)#[\p{L}\p{N}_]+/gu, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -71,12 +73,12 @@ export async function generatePostCopyFromContext(
 ): Promise<string[]> {
   const { brandId, prompt, variants = 1, max_tokens = 120, draftId } = payload;
 
-  // 1) Determine if this is an event-based post
+  // 1) Determine if this is an event-based post (date/date_range = events, daily/weekly/monthly = products/services)
   const isEvent =
     payload.subcategory?.frequency_type === "date" ||
     payload.subcategory?.frequency_type === "date_range";
 
-  // 2) Build simple event timing string (optional)
+  // 2) Build event timing ONLY from true event fields, NOT from scheduledFor
   let eventTiming: string | null = null;
   if (isEvent) {
     if (payload.schedule?.start_date && payload.schedule?.end_date) {
@@ -112,12 +114,13 @@ export async function generatePostCopyFromContext(
     brandPostInfo = null;
   }
 
-  // 4) Extract data for prompt
-  const subName = payload.subcategory?.name || "";
-  const subDesc = payload.subcategory?.description || "";
-  const subUrl = payload.subcategory?.url || "";
-  const tone = payload.tone_override || brandPostInfo?.post_tone || "friendly, clear";
-  const length = payload.length || "short";
+  // 4) Extract tone and length with brand defaults
+  const tone =
+    payload.tone_override ||
+    brandPostInfo?.post_tone ||
+    "clear, friendly and professional";
+  
+  const length = payload.length || "medium"; // "short" | "medium" | "long"
   
   // 5) Build length hint based on brand's avg_word_count
   let lengthHint = "";
@@ -128,75 +131,37 @@ export async function generatePostCopyFromContext(
     lengthHint = `${min}–${max} words (brand typical)`;
   }
   
-  // Map length to label
-  const lengthLabel = length === "short" 
-    ? "short (≈ 1–2 sentences)" 
-    : length === "medium" 
-    ? "medium (≈ 3–5 sentences)" 
-    : "long (≈ 6–8 sentences)";
+  const lengthLabel = length; // Keep as-is (short/medium/long)
 
-  // 6) Optional: Fetch subcategory-specific recent posts (same brand + same subcategory only)
-  let recentSubcategoryPosts: string[] = [];
-  if (draftId) {
-    try {
-      // First, get the subcategory_id from the draft
-      const { data: draft } = await supabaseAdmin
-        .from("drafts")
-        .select("subcategory_id")
-        .eq("id", draftId)
-        .maybeSingle();
-      
-      if (draft?.subcategory_id) {
-        // Fetch last 3 posts for same brand AND same subcategory (excluding current draft)
-        const { data: recentDrafts } = await supabaseAdmin
-          .from("drafts")
-          .select("copy")
-          .eq("brand_id", brandId)
-          .eq("subcategory_id", draft.subcategory_id)
-          .neq("id", draftId) // Exclude current draft
-          .not("copy", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(3);
+  // 6) Extract subcategory data including url_page_summary
+  const subName = payload.subcategory?.name || "";
+  const subDesc = payload.subcategory?.description || "";
+  const subUrl = payload.subcategory?.url || "";
+  const urlSummary = payload.subcategory?.url_page_summary?.trim() || "";
 
-        if (recentDrafts && recentDrafts.length > 0) {
-          recentSubcategoryPosts = recentDrafts
-            .map((d) => d.copy)
-            .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
-            .map((c) => c.trim());
-        }
-      }
-    } catch {
-      // Gracefully skip if query fails
-      recentSubcategoryPosts = [];
-    }
-  }
-
-  // 7) Build new SYSTEM message with hard no-cross-brand rule
+  // 7) Build new SYSTEM message with hard no-cross-brand rule + no scheduled date + no hashtags
   const systemMessage = `You are a professional social media copywriter.
 
-Your #1 priority — above everything else — is:
-NEVER reference, imply, or reuse ANY information, wording, features, facilities, examples, details, or patterns from ANY other brand, subcategory, or previous content.
+Your #1 priority:
+- NEVER reference, imply, or reuse ANY information, wording, features, facilities, examples, details, or patterns from ANY other brand, subcategory, or previous content.
 
 You MUST:
-- Base ALL facts ONLY on the subcategory description provided.
+- Base ALL factual content ONLY on the current subcategory description and (if provided) the extracted URL summary and event timing.
 - Use the brand's tone of voice.
 - Match roughly the brand's typical word count.
 - Be specific and concrete when details exist.
 - Be general when the description is general.
-- Produce natural, human, non-generic copy.
 
 You MUST NOT:
-- Invent facilities or capacities that were not provided.
-- Add descriptions of venues, spaces, seating, menus, locations, or anything not explicitly in the subcategory.
-- Use template phrases like "Don't miss out…" unless truly appropriate.
-- Include ANY hashtags (Ferdy handles them separately).
-- Apologise, ask for more info, or say details are missing.
-- Copy patterns or ideas from earlier posts, earlier brands, or other subcategories.
+- Invent facilities, capacities, products, offers, or benefits that are not mentioned.
+- Use the scheduled post date in the copy under any circumstances.
+- Include ANY hashtags in the output (Ferdy will add them separately).
+- Apologise, ask for more info, or say you don't have enough detail.
 
 Subcategory details are ALWAYS the highest priority source of truth.
-Brand tone affects writing style, NOT content.`;
+Brand tone affects writing style, NOT factual content.`;
 
-  // 8) Build new USER prompt
+  // 8) Build new USER prompt with subcat + URL summary + event rules
   const userPrompt = `
 ### PRIMARY TOPIC (SUBCATEGORY)
 
@@ -205,9 +170,19 @@ Description: ${subDesc || "(not provided)"}
 URL: ${subUrl || "(not provided)"}
 
 ONLY write about THIS subcategory.  
-Do NOT reference anything from any other brand or any other subcategory — EVER.
+Do NOT reference anything from any other brand or any other subcategory.
 
-### BRAND STYLE
+${
+  urlSummary
+    ? `### EXTRA CONTEXT FROM SUBCATEGORY URL
+
+This text was extracted from the page at the URL above. Use it as extra factual detail, but only if it clearly refers to this same subcategory:
+
+${urlSummary}
+
+`
+    : ""
+}### BRAND STYLE
 
 Tone of voice: ${tone}
 Target length: ${lengthLabel}${lengthHint ? `, ${lengthHint}` : ""}
@@ -216,20 +191,22 @@ Target length: ${lengthLabel}${lengthHint ? `, ${lengthHint}` : ""}
 
 ${isEvent ? "EVENT MODE" : "PRODUCT/SERVICE MODE"}
 
-- EVENT MODE:
-  - Treat this as a specific event, promotion, or time-based item.
-  - Use light, natural urgency ("coming up", "happening soon").
-  - You MAY reference the event date(s) shown below.
-  - DO NOT invent countdown numbers.
-  - DO NOT add event details not included in the subcategory description.
+- PRODUCT/SERVICE MODE (daily/weekly/monthly etc.):
+  - Focus on explaining or promoting the programme, product, service, or offer described in the subcategory.
+  - Do NOT treat the scheduled post date as important.
+  - Do NOT mention any specific dates unless they explicitly appear in the subcategory description, the extracted URL text, or the POST OBJECTIVE.
 
-- PRODUCT/SERVICE MODE:
-  - Describe ONLY the programme, product, service, or feature in the subcategory.
-  - No event-style urgency unless explicitly stated in the objective.
+- EVENT MODE (frequency_type = date/date_range):
+  - Treat this as a time-specific event, sale, or promotion.
+  - Use light, natural urgency (e.g. "coming up", "happening soon", "join us").
+  - You MAY reference the event date or date range exactly as provided in EVENT TIMING.
+  - You MUST ignore the scheduled post date; it is NOT the event date.
+  - If the context clearly sounds like a physical event (e.g. "networking event", "workshop", "live show"), describe the experience.
+  - If the context clearly sounds like a sale or promo (e.g. "sale", "discount", "% off", "special offer"), focus on the offer/promotion rather than a physical gathering.
 
-${isEvent && eventTiming ? `### EVENT TIMING\n${eventTiming}\n` : ""}${recentSubcategoryPosts.length > 0 ? `### PREVIOUS COPY FOR THIS SUBCATEGORY (DO NOT REPEAT)
+${isEvent && eventTiming ? `### EVENT TIMING
 
-${recentSubcategoryPosts.map((line) => `- "${line}"`).join("\n")}
+${eventTiming}
 
 ` : ""}### POST OBJECTIVE
 
@@ -237,17 +214,20 @@ ${payload.prompt}
 
 ### WRITING RULES
 
-- Use ONLY details present in the subcategory description.
-- NEVER reference another brand or subcategory.
-- No invented details.
+- Use ONLY details from:
+  - the subcategory description, and
+  - the extracted URL summary (if provided), and
+  - EVENT TIMING (if provided for date/date_range).
+- Never use the scheduled post date in the copy.
+- Never reference another brand or subcategory.
+- Do not invent extra facilities, capacities, or features.
+- Avoid generic filler (e.g. "Don't miss out on this exciting event") unless clearly warranted by the context.
 - No hashtags.
 - No apologies.
-- No generic filler lines.
-- Keep copy natural, human, and specific.
-- Respect brand tone and length.
+- Keep the copy natural, human, and specific.
 
-Write the final post text below.  
-Plain text only. No markdown. No explanations.
+Write the final post text only.  
+Plain text, no headings, no markdown, no explanations.
 `.trim();
 
   // 9) Log the prompt for debugging
@@ -274,7 +254,7 @@ Plain text only. No markdown. No explanations.
     .map((c) => c.message?.content?.trim() || "")
     .filter(Boolean);
 
-  // Post-process: strip any hashtags that might have slipped through (safety measure)
+  // Post-process: strip any hashtags that might have slipped through (final safety net)
   // Also normalize whitespace
   const results = rawResults
     .map((text) => {
