@@ -255,10 +255,12 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       .trim();
 
     console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, cleaning...`);
+    console.log(`[refreshSubcategoryUrlSummary] First 500 chars of raw text: ${rawText.slice(0, 500)}`);
     
     // Step 2: Clean the text (decode entities, remove noise, filter lines)
     const cleanedText = cleanExtractedText(rawText);
     console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
+    console.log(`[refreshSubcategoryUrlSummary] First 800 chars of cleaned text: ${cleanedText.slice(0, 800)}`);
     
     // Step 3: Extract structured event data from cleaned text (date, time, venue)
     // Look for common patterns in the first 1000 characters (where event details usually appear)
@@ -327,21 +329,30 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     // ALWAYS ensure we never cut mid-word - find the last space before the limit
     let trimmed = cleanedText.slice(0, Math.max(0, availableLength)).trim();
     
+    console.log(`[refreshSubcategoryUrlSummary] Truncating text. Available length: ${availableLength}, trimmed length: ${trimmed.length}`);
+    
     // First, ensure we end at a word boundary (never cut mid-word)
     if (trimmed.length >= availableLength) {
       const lastSpaceIndex = trimmed.lastIndexOf(' ', availableLength);
+      console.log(`[refreshSubcategoryUrlSummary] Last space before limit at index: ${lastSpaceIndex}`);
+      
       if (lastSpaceIndex > 0 && lastSpaceIndex >= availableLength * 0.7) {
         // Found a space at a reasonable position, truncate there
         trimmed = trimmed.slice(0, lastSpaceIndex).trim();
+        console.log(`[refreshSubcategoryUrlSummary] Truncated at space: ${trimmed.length} chars`);
       } else {
         // No space found in good range, truncate to a safe position (90% of limit)
         const safeLength = Math.floor(availableLength * 0.9);
         const safeSpaceIndex = trimmed.lastIndexOf(' ', safeLength);
+        console.log(`[refreshSubcategoryUrlSummary] Safe length: ${safeLength}, safe space index: ${safeSpaceIndex}`);
+        
         if (safeSpaceIndex > 0) {
           trimmed = trimmed.slice(0, safeSpaceIndex).trim();
+          console.log(`[refreshSubcategoryUrlSummary] Truncated at safe space: ${trimmed.length} chars`);
         } else {
-          // Fallback: truncate at safe length
+          // Fallback: truncate at safe length (but this should rarely happen)
           trimmed = trimmed.slice(0, safeLength).trim();
+          console.log(`[refreshSubcategoryUrlSummary] Truncated at safe length: ${trimmed.length} chars`);
         }
       }
     }
