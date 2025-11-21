@@ -261,25 +261,53 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
     
     // Step 3: Extract structured event data from cleaned text (date, time, venue)
-    // Look for common patterns in the first 500 characters (where event details usually appear)
-    const previewText = cleanedText.slice(0, 500);
+    // Look for common patterns in the first 1000 characters (where event details usually appear)
+    const previewText = cleanedText.slice(0, 1000);
     let eventMetadata: string[] = [];
     
-    // Try to extract date/time (patterns like "Nov 27 from 6pm to 9pm GMT+13" or "Nov 27, 2025 from 6pm to 9pm")
-    const dateTimeMatch = previewText.match(/\b([A-Z][a-z]{2,8}\s+\d{1,2}[^.!?]{0,50}(?:from|at)\s+\d{1,2}[ap]m[^.!?]{0,50}(?:to|until)\s+\d{1,2}[ap]m[^.!?]{0,50}(?:GMT)?[^.!?]{0,20}?)/i);
-    if (dateTimeMatch && dateTimeMatch[1]) {
-      const dateTime = dateTimeMatch[1].trim();
-      if (dateTime.length > 10 && dateTime.length < 150) {
+    // Try to extract date/time - more flexible patterns
+    // Pattern 1: "Nov 27 from 6pm to 9pm GMT+13" or similar
+    const dateTimePattern1 = /([A-Z][a-z]{2,9}\s+\d{1,2}[^.!?]{0,80}(?:from|at)\s+\d{1,2}[ap]m[^.!?]{0,80}(?:to|until|-)\s+\d{1,2}[ap]m[^.!?]{0,80}(?:GMT[+-]?\d+)?[^.!?]{0,20}?)/i;
+    const dateTimeMatch1 = previewText.match(dateTimePattern1);
+    if (dateTimeMatch1 && dateTimeMatch1[1]) {
+      const dateTime = dateTimeMatch1[1].trim();
+      if (dateTime.length > 10 && dateTime.length < 200) {
         eventMetadata.push(`Date/Time: ${dateTime}`);
       }
     }
     
-    // Try to extract venue (patterns like "152 Ponsonby Road")
-    const venueMatch = previewText.match(/(\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Road|Street|Avenue|Lane|Drive|Place|Way|Boulevard|Court)[^.!?]{0,30}?)/i);
-    if (venueMatch && venueMatch[1]) {
-      const venue = venueMatch[1].trim();
-      if (venue.length > 5 && venue.length < 150) {
+    // Pattern 2: Just date and time without "from/to" - "Nov 27 6pm-9pm"
+    if (eventMetadata.length === 0) {
+      const dateTimePattern2 = /([A-Z][a-z]{2,9}\s+\d{1,2}[^.!?]{0,40}\d{1,2}[ap]m[^.!?]{0,40}\d{1,2}[ap]m[^.!?]{0,20}?)/i;
+      const dateTimeMatch2 = previewText.match(dateTimePattern2);
+      if (dateTimeMatch2 && dateTimeMatch2[1]) {
+        const dateTime = dateTimeMatch2[1].trim();
+        if (dateTime.length > 8 && dateTime.length < 200) {
+          eventMetadata.push(`Date/Time: ${dateTime}`);
+        }
+      }
+    }
+    
+    // Try to extract venue - more flexible patterns
+    // Pattern 1: "152 Ponsonby Road" or similar
+    const venuePattern1 = /(\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Road|Street|Avenue|Lane|Drive|Place|Way|Boulevard|Court|Terrace|Crescent)[^.!?]{0,50}?)/i;
+    const venueMatch1 = previewText.match(venuePattern1);
+    if (venueMatch1 && venueMatch1[1]) {
+      const venue = venueMatch1[1].trim();
+      if (venue.length > 5 && venue.length < 200) {
         eventMetadata.push(`Venue: ${venue}`);
+      }
+    }
+    
+    // Pattern 2: Look for "Location:" or "Venue:" followed by address
+    if (eventMetadata.filter(m => m.startsWith('Venue:')).length === 0) {
+      const venuePattern2 = /(?:Location|Venue|Address|Where)[\s:]+([^.!?]{10,150}?)/i;
+      const venueMatch2 = previewText.match(venuePattern2);
+      if (venueMatch2 && venueMatch2[1]) {
+        const venue = venueMatch2[1].trim();
+        if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
+          eventMetadata.push(`Venue: ${venue}`);
+        }
       }
     }
     
@@ -296,31 +324,54 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     const availableLength = MAX_SUMMARY_LENGTH - prefixLength;
     
     // Truncate at sentence boundary (last complete sentence ending with . ! ?)
+    // ALWAYS ensure we never cut mid-word - find the last space before the limit
     let trimmed = cleanedText.slice(0, Math.max(0, availableLength)).trim();
     
-    // If we're close to the limit, find the last complete sentence
-    if (trimmed.length >= availableLength * 0.85) {
-      // Look for sentence endings (period, exclamation, or question mark followed by space and capital letter or end of string)
+    // First, ensure we end at a word boundary (never cut mid-word)
+    if (trimmed.length >= availableLength) {
+      const lastSpaceIndex = trimmed.lastIndexOf(' ', availableLength);
+      if (lastSpaceIndex > 0 && lastSpaceIndex >= availableLength * 0.7) {
+        // Found a space at a reasonable position, truncate there
+        trimmed = trimmed.slice(0, lastSpaceIndex).trim();
+      } else {
+        // No space found in good range, truncate to a safe position (90% of limit)
+        const safeLength = Math.floor(availableLength * 0.9);
+        const safeSpaceIndex = trimmed.lastIndexOf(' ', safeLength);
+        if (safeSpaceIndex > 0) {
+          trimmed = trimmed.slice(0, safeSpaceIndex).trim();
+        } else {
+          // Fallback: truncate at safe length
+          trimmed = trimmed.slice(0, safeLength).trim();
+        }
+      }
+    }
+    
+    // Now try to improve truncation at sentence boundaries (optional optimization)
+    if (trimmed.length >= availableLength * 0.8) {
+      // Look for sentence endings (period, exclamation, or question mark followed by space and capital letter)
       const sentenceEndRegex = /[.!?]\s+[A-Z]/g;
       let lastSentenceEnd = -1;
       let match;
       
+      // Reset regex lastIndex
+      sentenceEndRegex.lastIndex = 0;
+      
       // Find all sentence endings
       while ((match = sentenceEndRegex.exec(trimmed)) !== null) {
-        // Only consider matches before the limit
-        if (match.index + match[0].length <= availableLength) {
+        // Only consider matches that are reasonable (not too close to start, within reasonable range)
+        if (match.index + match[0].length <= trimmed.length && match.index >= trimmed.length * 0.5) {
           lastSentenceEnd = match.index + match[0].length;
         }
       }
       
-      // If we found a sentence boundary within the limit, use it
-      if (lastSentenceEnd > 0 && lastSentenceEnd >= availableLength * 0.7) {
+      // If we found a sentence boundary in a good position, use it
+      if (lastSentenceEnd > 0 && lastSentenceEnd >= trimmed.length * 0.6) {
         trimmed = trimmed.slice(0, lastSentenceEnd).trim();
       } else {
-        // No sentence boundary found in good range, find last punctuation mark
-        const lastPunct = /[.!?](?:\s|$)/.exec(trimmed.slice(Math.floor(availableLength * 0.8)));
-        if (lastPunct) {
-          const punctIndex = trimmed.indexOf(lastPunct[0], Math.floor(availableLength * 0.8));
+        // Try to find last punctuation mark (period, exclamation, question mark) followed by space
+        const lastPunctMatch = /[.!?]\s/.exec(trimmed.slice(Math.floor(trimmed.length * 0.7)));
+        if (lastPunctMatch) {
+          const punctIndex = trimmed.indexOf(lastPunctMatch[0], Math.floor(trimmed.length * 0.7));
           if (punctIndex > 0) {
             trimmed = trimmed.slice(0, punctIndex + 1).trim();
           }
