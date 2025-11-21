@@ -21,22 +21,19 @@ export async function POST(
       );
     }
 
-    // Fire-and-forget: don't await, but ensure promise stays alive
-    // Store the promise to prevent garbage collection
-    const refreshPromise = refreshSubcategoryUrlSummary(subcategoryId).catch(err => {
+    // Temporarily await the operation to debug why it's hanging
+    // TODO: Make this fire-and-forget again once we fix the hanging issue
+    try {
+      console.log('[refresh-url-summary API] Starting refresh operation...');
+      await refreshSubcategoryUrlSummary(subcategoryId);
+      console.log('[refresh-url-summary API] Refresh operation completed');
+    } catch (err) {
       console.error('[refresh-url-summary API] Error in refresh function:', err);
-      return null; // Return value to prevent unhandled rejection
-    });
-    
-    // Use waitUntil if available (Vercel/Next.js feature to keep function alive)
-    if (typeof (globalThis as any).waitUntil === 'function') {
-      (globalThis as any).waitUntil(refreshPromise);
     }
 
-    // Return success immediately (don't block client)
     return NextResponse.json({ 
       success: true,
-      message: 'URL summary refresh initiated' 
+      message: 'URL summary refresh completed' 
     });
   } catch (err) {
     console.error('[refresh-url-summary API] Unexpected error:', err);
