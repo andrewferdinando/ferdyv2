@@ -30,13 +30,21 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     }
 
     console.log(`[refreshSubcategoryUrlSummary] Querying database for subcategory ${subcategoryId}`);
+    console.log(`[refreshSubcategoryUrlSummary] Supabase client check:`, {
+      hasClient: !!supabase,
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : 'missing',
+    });
     
     // 1) Get subcategory with URL
+    let queryStartTime = Date.now();
     const { data: subcat, error } = await supabase
       .from('subcategories')
       .select('id, url')
       .eq('id', subcategoryId)
       .maybeSingle();
+    
+    const queryDuration = Date.now() - queryStartTime;
+    console.log(`[refreshSubcategoryUrlSummary] Database query completed in ${queryDuration}ms`);
 
     if (error) {
       console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', {

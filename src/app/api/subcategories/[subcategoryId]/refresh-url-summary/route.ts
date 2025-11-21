@@ -21,11 +21,17 @@ export async function POST(
       );
     }
 
-    // Fire-and-forget: don't await, but catch errors for logging
-    // Errors are logged inside refreshSubcategoryUrlSummary
-    refreshSubcategoryUrlSummary(subcategoryId).catch(err => {
+    // Fire-and-forget: don't await, but ensure promise stays alive
+    // Store the promise to prevent garbage collection
+    const refreshPromise = refreshSubcategoryUrlSummary(subcategoryId).catch(err => {
       console.error('[refresh-url-summary API] Error in refresh function:', err);
+      return null; // Return value to prevent unhandled rejection
     });
+    
+    // Use waitUntil if available (Vercel/Next.js feature to keep function alive)
+    if (typeof (globalThis as any).waitUntil === 'function') {
+      (globalThis as any).waitUntil(refreshPromise);
+    }
 
     // Return success immediately (don't block client)
     return NextResponse.json({ 
