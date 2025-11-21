@@ -254,17 +254,81 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, cleaning...`);
+    console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, found ${eventMetadata.length} metadata items, cleaning...`);
     
-    // Step 2: Clean the text (decode entities, remove noise, filter lines)
+    // Step 3: Clean the text (decode entities, remove noise, filter lines)
     const cleanedText = cleanExtractedText(rawText);
     console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
     
-    // Step 3: Prepend source URL for AI context, then truncate
+    // Step 4: Extract structured event data from cleaned text (date, time, venue)
+    // Look for common patterns in the first 500 characters (where event details usually appear)
+    const previewText = cleanedText.slice(0, 500);
+    let eventMetadata: string[] = [];
+    
+    // Try to extract date/time (patterns like "Nov 27 from 6pm to 9pm GMT+13" or "Nov 27, 2025 from 6pm to 9pm")
+    const dateTimeMatch = previewText.match(/\b([A-Z][a-z]{2,8}\s+\d{1,2}[^.!?]{0,50}(?:from|at)\s+\d{1,2}[ap]m[^.!?]{0,50}(?:to|until)\s+\d{1,2}[ap]m[^.!?]{0,50}(?:GMT)?[^.!?]{0,20}?)/i);
+    if (dateTimeMatch && dateTimeMatch[1]) {
+      const dateTime = dateTimeMatch[1].trim();
+      if (dateTime.length > 10 && dateTime.length < 150) {
+        eventMetadata.push(`Date/Time: ${dateTime}`);
+      }
+    }
+    
+    // Try to extract venue (patterns like "152 Ponsonby Road")
+    const venueMatch = previewText.match(/(\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Road|Street|Avenue|Lane|Drive|Place|Way|Boulevard|Court)[^.!?]{0,30}?)/i);
+    if (venueMatch && venueMatch[1]) {
+      const venue = venueMatch[1].trim();
+      if (venue.length > 5 && venue.length < 150) {
+        eventMetadata.push(`Venue: ${venue}`);
+      }
+    }
+    
+    // Step 5: Build summary with metadata first, then text truncated at sentence boundary
     const sourcePrefix = `SUMMARY_SOURCE_URL: ${subcat.url}\n\n`;
-    const availableLength = MAX_SUMMARY_LENGTH - sourcePrefix.length;
-    const trimmed = cleanedText.slice(0, Math.max(0, availableLength)).trim();
-    const finalSummary = `${sourcePrefix}${trimmed}`;
+    let metadataSection = '';
+    
+    if (eventMetadata.length > 0) {
+      metadataSection = `${eventMetadata.join('\n')}\n\n`;
+    }
+    
+    // Calculate available length for main text
+    const prefixLength = sourcePrefix.length + metadataSection.length;
+    const availableLength = MAX_SUMMARY_LENGTH - prefixLength;
+    
+    // Truncate at sentence boundary (last complete sentence ending with . ! ?)
+    let trimmed = cleanedText.slice(0, Math.max(0, availableLength)).trim();
+    
+    // If we're close to the limit, find the last complete sentence
+    if (trimmed.length >= availableLength * 0.85) {
+      // Look for sentence endings (period, exclamation, or question mark followed by space and capital letter or end of string)
+      const sentenceEndRegex = /[.!?]\s+[A-Z]/g;
+      let lastSentenceEnd = -1;
+      let match;
+      
+      // Find all sentence endings
+      while ((match = sentenceEndRegex.exec(trimmed)) !== null) {
+        // Only consider matches before the limit
+        if (match.index + match[0].length <= availableLength) {
+          lastSentenceEnd = match.index + match[0].length;
+        }
+      }
+      
+      // If we found a sentence boundary within the limit, use it
+      if (lastSentenceEnd > 0 && lastSentenceEnd >= availableLength * 0.7) {
+        trimmed = trimmed.slice(0, lastSentenceEnd).trim();
+      } else {
+        // No sentence boundary found in good range, find last punctuation mark
+        const lastPunct = /[.!?](?:\s|$)/.exec(trimmed.slice(Math.floor(availableLength * 0.8)));
+        if (lastPunct) {
+          const punctIndex = trimmed.indexOf(lastPunct[0], Math.floor(availableLength * 0.8));
+          if (punctIndex > 0) {
+            trimmed = trimmed.slice(0, punctIndex + 1).trim();
+          }
+        }
+      }
+    }
+    
+    const finalSummary = `${sourcePrefix}${metadataSection}${trimmed}`;
 
     console.log(`[refreshSubcategoryUrlSummary] Final summary length: ${finalSummary.length} characters, updating database...`);
 
