@@ -118,6 +118,9 @@ export async function processBatchCopyGeneration(
         max_tokens: draft.options?.max_tokens,
       };
 
+      // Log payload before calling generatePostCopyFromContext (for debugging)
+      console.log("COPY PAYLOAD:", JSON.stringify(payload, null, 2));
+
       // Generate copy (with n=1)
       const variants = await generatePostCopyFromContext(
         supabaseAdmin,

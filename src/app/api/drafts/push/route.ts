@@ -137,9 +137,11 @@ export async function POST(req: NextRequest) {
           const rule = scheduleRules?.find(r => r.subcategory_id === subcategoryId);
           const eventDate = d.scheduled_for ? new Date(d.scheduled_for).toISOString().split('T')[0] : undefined;
           
-          // Determine frequency_type: 'daily'/'weekly'/'monthly' for recurring, 'date' for single date, 'date_range' for date range
-          let frequencyType: string | undefined = undefined;
-          if (rule?.frequency) {
+          // Use subcategory.frequency_type if available, otherwise derive from rule
+          // subcategory.frequency_type is the source of truth for EVENT vs PRODUCT/SERVICE mode
+          let frequencyType: string | undefined = subcategory?.frequency_type ?? undefined;
+          if (!frequencyType && rule?.frequency) {
+            // Fallback: derive from rule frequency if subcategory doesn't have frequency_type
             if (rule.frequency === 'specific') {
               // 'specific' frequency means date-based
               // If end_date exists and is different from start_date, it's a date_range
