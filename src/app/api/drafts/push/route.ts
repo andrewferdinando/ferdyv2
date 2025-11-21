@@ -135,7 +135,6 @@ export async function POST(req: NextRequest) {
           const subcategoryId = target?.subcategory_id;
           const subcategory = subcategoryId ? subcategoriesMap.get(subcategoryId) : null;
           const rule = scheduleRules?.find(r => r.subcategory_id === subcategoryId);
-          const eventDate = d.scheduled_for ? new Date(d.scheduled_for).toISOString().split('T')[0] : undefined;
           
           // Use subcategory.frequency_type if available, otherwise derive from rule
           // subcategory.frequency_type is the source of truth for EVENT vs PRODUCT/SERVICE mode
@@ -157,6 +156,27 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          // Build schedule object based on event vs non-event
+          // For events (frequency_type = 'date' or 'date_range'): use rule.start_date/end_date as event dates
+          // For non-events (daily/weekly/monthly): no event_date in schedule
+          const isEvent = frequencyType === 'date' || frequencyType === 'date_range';
+          let schedule: { frequency: string; event_date?: string; start_date?: string; end_date?: string } = {
+            frequency: rule?.frequency ?? target?.frequency ?? "weekly",
+          };
+
+          if (isEvent && rule) {
+            // Event-based posts: use the actual event date(s) from the rule
+            if (frequencyType === 'date_range' && rule.start_date && rule.end_date) {
+              // Date range: use both start_date and end_date
+              schedule.start_date = new Date(rule.start_date).toISOString().split('T')[0];
+              schedule.end_date = new Date(rule.end_date).toISOString().split('T')[0];
+            } else if (rule.start_date) {
+              // Single date: use event_date
+              schedule.event_date = new Date(rule.start_date).toISOString().split('T')[0];
+            }
+          }
+          // For non-event posts, schedule only contains frequency (no event_date)
+
           return {
             draftId: d.id,
             subcategory: {
@@ -166,11 +186,8 @@ export async function POST(req: NextRequest) {
               frequency_type: frequencyType,
               url_page_summary: subcategory?.url_page_summary ?? null,
             },
-            schedule: {
-              frequency: rule?.frequency ?? target?.frequency ?? "weekly",
-              event_date: eventDate,
-            },
-            scheduledFor: d.scheduled_for ?? undefined,
+            schedule,
+            scheduledFor: d.scheduled_for ?? undefined, // This is when the post is scheduled, NOT the event date
             prompt: `Write copy for this post`,
             options: {
               length: "short" as const,
