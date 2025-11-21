@@ -35,16 +35,43 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : 'missing',
     });
     
-    // 1) Get subcategory with URL
+    // 1) Get subcategory with URL - with timeout
     let queryStartTime = Date.now();
-    const { data: subcat, error } = await supabase
-      .from('subcategories')
-      .select('id, url')
-      .eq('id', subcategoryId)
-      .maybeSingle();
+    let subcat: { id: string; url: string | null } | null = null;
+    let error: any = null;
     
-    const queryDuration = Date.now() - queryStartTime;
-    console.log(`[refreshSubcategoryUrlSummary] Database query completed in ${queryDuration}ms`);
+    try {
+      console.log(`[refreshSubcategoryUrlSummary] Executing Supabase query...`);
+      
+      // Create a promise that will timeout after 15 seconds
+      const queryPromise = supabase
+        .from('subcategories')
+        .select('id, url')
+        .eq('id', subcategoryId)
+        .maybeSingle();
+      
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Database query timeout after 15 seconds'));
+        }, 15000);
+      });
+      
+      const result = await Promise.race([queryPromise, timeoutPromise]);
+      subcat = result.data;
+      error = result.error;
+      
+      const queryDuration = Date.now() - queryStartTime;
+      console.log(`[refreshSubcategoryUrlSummary] Database query completed in ${queryDuration}ms`);
+    } catch (queryError: any) {
+      const queryDuration = Date.now() - queryStartTime;
+      console.error(`[refreshSubcategoryUrlSummary] Database query failed after ${queryDuration}ms:`, {
+        subcategoryId,
+        error: queryError?.message || String(queryError),
+        name: queryError?.name,
+        stack: queryError?.stack,
+      });
+      return;
+    }
 
     if (error) {
       console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', {
