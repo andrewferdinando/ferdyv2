@@ -255,7 +255,11 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     const dateTimePattern1 = /([A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4}[^<]{0,60}at\s+\d{1,2}:?\d{0,2}\s*(?:AM|PM|am|pm)[^<]{0,40})/i;
     const dateTimeMatch1 = rawHtmlPreview.match(dateTimePattern1);
     if (dateTimeMatch1 && dateTimeMatch1[1]) {
-      const dateTime = dateTimeMatch1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      let dateTime = dateTimeMatch1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      
+      // Clean up common suffixes like "| Eventbrite", "| Site Name", etc.
+      dateTime = dateTime.replace(/\s*\|\s*[^|]+$/i, '').trim();
+      
       if (dateTime.length > 10 && dateTime.length < 200) {
         console.log(`[refreshSubcategoryUrlSummary] Found date/time in raw HTML: ${dateTime}`);
         eventMetadata.push(`Date/Time: ${dateTime}`);
@@ -408,7 +412,19 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       }
     }
     
+    // FINAL SAFETY CHECK: Ensure we never end mid-word
+    // Check the last character - if it's not whitespace or punctuation, find the last space
+    const lastChar = trimmed.slice(-1);
+    if (!/[.!?\s]/.test(lastChar)) {
+      const finalLastSpace = trimmed.lastIndexOf(' ');
+      if (finalLastSpace > 0 && finalLastSpace >= trimmed.length * 0.9) {
+        trimmed = trimmed.slice(0, finalLastSpace).trim();
+        console.log(`[refreshSubcategoryUrlSummary] Final safety check - truncated at word boundary: ${trimmed.length} chars`);
+      }
+    }
+    
     console.log(`[refreshSubcategoryUrlSummary] Final trimmed text length: ${trimmed.length} chars`);
+    console.log(`[refreshSubcategoryUrlSummary] Final trimmed text (last 50 chars): ${trimmed.slice(-50)}`);
     
     // Now try to improve truncation at sentence boundaries (optional optimization)
     // BUT: Only if we haven't already truncated, and ensure we still end at word boundary
