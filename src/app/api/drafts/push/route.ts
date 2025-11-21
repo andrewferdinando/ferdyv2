@@ -96,6 +96,9 @@ export async function POST(req: NextRequest) {
       .select('id, name, url, detail, frequency_type, url_page_summary')
       .in('id', subcategoryIds);
 
+    console.log("[push] Subcategory IDs:", subcategoryIds);
+    console.log("[push] Subcategory rows:", JSON.stringify(subcategories, null, 2));
+
     const subcategoriesMap = new Map(
       (subcategories || []).map(sc => [sc.id, sc])
     );
@@ -177,15 +180,29 @@ export async function POST(req: NextRequest) {
           }
           // For non-event posts, schedule only contains frequency (no event_date)
 
+          const mappedSubcategory = {
+            name: subcategory?.name ?? "",
+            url: subcategory?.url ?? "",
+            description: subcategory?.detail ?? undefined,
+            frequency_type: frequencyType,
+            url_page_summary: subcategory?.url_page_summary ?? null,
+          };
+
+          // Log draft rule + subcategory mapping for debugging
+          console.log("[push] Draft rule + subcategory mapping:", JSON.stringify({
+            draftId: d.id,
+            ruleId: rule?.id ?? null,
+            subcategoryId: subcategoryId ?? null,
+            ruleSubcategoryId: rule?.subcategory_id ?? null,
+            subcategoryFromRule: rule ? { id: rule.subcategory_id, frequency: rule.frequency, start_date: rule.start_date, end_date: rule.end_date } : null,
+            subcategoryFromDB: subcategory ? { id: subcategory.id, name: subcategory.name, url: subcategory.url, detail: subcategory.detail, frequency_type: subcategory.frequency_type } : null,
+            subcategoryMapped: mappedSubcategory,
+            frequencyType,
+          }, null, 2));
+
           return {
             draftId: d.id,
-            subcategory: {
-              name: subcategory?.name ?? "",
-              url: subcategory?.url ?? "",
-              description: subcategory?.detail ?? undefined,
-              frequency_type: frequencyType,
-              url_page_summary: subcategory?.url_page_summary ?? null,
-            },
+            subcategory: mappedSubcategory,
             schedule,
             scheduledFor: d.scheduled_for ?? undefined, // This is when the post is scheduled, NOT the event date
             prompt: `Write copy for this post`,
