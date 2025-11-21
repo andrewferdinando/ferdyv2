@@ -89,12 +89,17 @@ export async function POST(req: NextRequest) {
       .eq('brand_id', brandId)
       .eq('is_active', true);
 
-    // Fetch subcategories for name/url/description/frequency_type/url_page_summary
+    // Fetch subcategories for name/url/description/url_page_summary
+    // Note: frequency_type is NOT in subcategories table - we derive it from rule.frequency
     const subcategoryIds = scheduleRules?.map(r => r.subcategory_id).filter(Boolean) as string[] || [];
-    const { data: subcategories } = await supabaseAdmin
+    const { data: subcategories, error: subcategoryError } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, url, detail, frequency_type, url_page_summary')
+      .select('id, name, url, detail, url_page_summary')
       .in('id', subcategoryIds);
+
+    if (subcategoryError) {
+      console.error('[push] Subcategory query error:', subcategoryError);
+    }
 
     console.log("[push] Subcategory IDs:", subcategoryIds);
     console.log("[push] Subcategory rows:", JSON.stringify(subcategories, null, 2));
@@ -183,13 +188,21 @@ export async function POST(req: NextRequest) {
           }
           // For non-event posts, schedule only contains frequency (no event_date)
 
-          const mappedSubcategory = {
-            name: subcategory?.name ?? "",
-            url: subcategory?.url ?? "",
-            description: subcategory?.detail ?? undefined,
-            frequency_type: frequencyType,
-            url_page_summary: subcategory?.url_page_summary ?? null,
-          };
+          const mappedSubcategory = subcategory
+            ? {
+                name: subcategory.name ?? '',
+                url: subcategory.url ?? '',
+                description: subcategory.detail ?? undefined,
+                frequency_type: frequencyType,
+                url_page_summary: subcategory.url_page_summary ?? null,
+              }
+            : {
+                name: '',
+                url: '',
+                description: undefined,
+                frequency_type: frequencyType,
+                url_page_summary: null,
+              };
 
           // Log draft rule + subcategory mapping for debugging
           console.log("[push] Draft rule + subcategory mapping:", JSON.stringify({
