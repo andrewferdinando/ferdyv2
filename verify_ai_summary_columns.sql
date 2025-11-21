@@ -14,3 +14,6 @@ WHERE table_schema = 'public'
 -- If the query returns no rows, the columns don't exist yet - run add_ai_summary_to_brands.sql migration
 -- If it returns 2 rows, the columns exist and the migration has been run
 
+
+
+

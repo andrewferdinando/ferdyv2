@@ -14,3 +14,5 @@ BEGIN
   RAISE NOTICE 'Detail column added to schedule_rules table!';
 END $$;
 
+
+
