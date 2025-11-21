@@ -254,13 +254,13 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, found ${eventMetadata.length} metadata items, cleaning...`);
+    console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, cleaning...`);
     
-    // Step 3: Clean the text (decode entities, remove noise, filter lines)
+    // Step 2: Clean the text (decode entities, remove noise, filter lines)
     const cleanedText = cleanExtractedText(rawText);
     console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
     
-    // Step 4: Extract structured event data from cleaned text (date, time, venue)
+    // Step 3: Extract structured event data from cleaned text (date, time, venue)
     // Look for common patterns in the first 500 characters (where event details usually appear)
     const previewText = cleanedText.slice(0, 500);
     let eventMetadata: string[] = [];
