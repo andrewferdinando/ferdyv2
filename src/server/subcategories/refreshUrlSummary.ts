@@ -15,39 +15,52 @@ import { supabaseAdmin } from '@/lib/supabase-server';
 const MAX_SUMMARY_LENGTH = 4000; // characters
 
 export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
-  console.log(`[refreshSubcategoryUrlSummary] Starting refresh for subcategory ${subcategoryId}`);
-  const supabase = supabaseAdmin;
-
-  // 1) Get subcategory with URL
-  const { data: subcat, error } = await supabase
-    .from('subcategories')
-    .select('id, url')
-    .eq('id', subcategoryId)
-    .maybeSingle();
-
-  if (error) {
-    console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', {
-      subcategoryId,
-      error: error.message,
-      code: error.code,
-      details: error.details,
-    });
-    return;
-  }
-  
-  console.log(`[refreshSubcategoryUrlSummary] Fetched subcategory:`, {
-    found: !!subcat,
-    hasUrl: !!subcat?.url,
-    url: subcat?.url || '(none)',
-  });
-  
-  if (!subcat || !subcat.url) {
-    // Nothing to do – no URL, or not found
-    console.log(`[refreshSubcategoryUrlSummary] Subcategory ${subcategoryId} has no URL, skipping`);
-    return;
-  }
-
   try {
+    console.log(`[refreshSubcategoryUrlSummary] Starting refresh for subcategory ${subcategoryId}`);
+    
+    if (!subcategoryId) {
+      console.error('[refreshSubcategoryUrlSummary] No subcategory ID provided');
+      return;
+    }
+
+    const supabase = supabaseAdmin;
+    if (!supabase) {
+      console.error('[refreshSubcategoryUrlSummary] supabaseAdmin is not initialized');
+      return;
+    }
+
+    console.log(`[refreshSubcategoryUrlSummary] Querying database for subcategory ${subcategoryId}`);
+    
+    // 1) Get subcategory with URL
+    const { data: subcat, error } = await supabase
+      .from('subcategories')
+      .select('id, url')
+      .eq('id', subcategoryId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[refreshSubcategoryUrlSummary] Error fetching subcategory:', {
+        subcategoryId,
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      return;
+    }
+    
+    console.log(`[refreshSubcategoryUrlSummary] Fetched subcategory:`, {
+      found: !!subcat,
+      hasUrl: !!subcat?.url,
+      url: subcat?.url || '(none)',
+    });
+    
+    if (!subcat || !subcat.url) {
+      // Nothing to do – no URL, or not found
+      console.log(`[refreshSubcategoryUrlSummary] Subcategory ${subcategoryId} has no URL, skipping`);
+      return;
+    }
+
     console.log(`[refreshSubcategoryUrlSummary] Fetching URL: ${subcat.url}`);
     const response = await fetch(subcat.url, {
       method: 'GET',
@@ -60,11 +73,14 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     if (!response.ok) {
       console.error('[refreshSubcategoryUrlSummary] Failed to fetch URL', {
         subcategoryId,
+        url: subcat.url,
         status: response.status,
+        statusText: response.statusText,
       });
       return;
     }
 
+    console.log(`[refreshSubcategoryUrlSummary] Successfully fetched URL, parsing HTML...`);
     const html = await response.text();
 
     // Very simple HTML -> text cleanup (no extra deps)
@@ -77,6 +93,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       .trim();
 
     const trimmed = text.slice(0, MAX_SUMMARY_LENGTH);
+    console.log(`[refreshSubcategoryUrlSummary] Parsed ${trimmed.length} characters, updating database...`);
 
     const { error: updateError } = await supabase
       .from('subcategories')
@@ -86,16 +103,20 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     if (updateError) {
       console.error('[refreshSubcategoryUrlSummary] Error updating subcategory with summary:', {
         subcategoryId,
-        error: updateError,
+        error: updateError.message,
+        code: updateError.code,
+        details: updateError.details,
+        hint: updateError.hint,
       });
       return;
     }
 
     console.log(`[refreshSubcategoryUrlSummary] Successfully updated summary for subcategory ${subcategoryId} (${trimmed.length} characters)`);
-  } catch (e) {
-    console.error('[refreshSubcategoryUrlSummary] Error fetching/parsing URL', {
+  } catch (e: any) {
+    console.error('[refreshSubcategoryUrlSummary] Unexpected error:', {
       subcategoryId,
-      error: e,
+      error: e?.message || String(e),
+      stack: e?.stack,
     });
   }
 }
