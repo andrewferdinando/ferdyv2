@@ -178,20 +178,66 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     }
 
     console.log(`[refreshSubcategoryUrlSummary] Fetching URL: ${subcat.url}`);
-    const response = await fetch(subcat.url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'FerdyBot/1.0 (+https://ferdy.io)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-    });
+    
+    let response: Response;
+    try {
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      response = await fetch(subcat.url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Referer': new URL(subcat.url).origin,
+          'DNT': '1',
+        },
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+      
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      if (fetchError.name === 'AbortError') {
+        console.error('[refreshSubcategoryUrlSummary] Fetch timeout after 30 seconds', {
+          subcategoryId,
+          url: subcat.url,
+        });
+      } else {
+        console.error('[refreshSubcategoryUrlSummary] Fetch error', {
+          subcategoryId,
+          url: subcat.url,
+          error: fetchError?.message || String(fetchError),
+          name: fetchError?.name,
+        });
+      }
+      return;
+    }
 
     if (!response.ok) {
+      // Try to read response body for more details
+      let errorBody = '';
+      try {
+        errorBody = await response.text();
+        // Limit error body length for logging
+        if (errorBody.length > 500) {
+          errorBody = errorBody.slice(0, 500) + '... (truncated)';
+        }
+      } catch {
+        // Ignore errors reading error body
+      }
+      
       console.error('[refreshSubcategoryUrlSummary] Failed to fetch URL', {
         subcategoryId,
         url: subcat.url,
         status: response.status,
         statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        errorBody: errorBody || '(could not read error body)',
       });
       return;
     }
