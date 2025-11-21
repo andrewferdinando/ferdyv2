@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
             subcategoryId: subcategoryId ?? null,
             ruleSubcategoryId: rule?.subcategory_id ?? null,
             subcategoryFromRule: rule ? { id: rule.subcategory_id, frequency: rule.frequency, start_date: rule.start_date, end_date: rule.end_date } : null,
-            subcategoryFromDB: subcategory ? { id: subcategory.id, name: subcategory.name, url: subcategory.url, detail: subcategory.detail, frequency_type: subcategory.frequency_type } : null,
+            subcategoryFromDB: subcategory ? { id: subcategory.id, name: subcategory.name, url: subcategory.url, detail: subcategory.detail } : null,
             subcategoryMapped: mappedSubcategory,
             frequencyType,
           }, null, 2));
