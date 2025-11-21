@@ -139,24 +139,27 @@ export async function POST(req: NextRequest) {
           const subcategory = subcategoryId ? subcategoriesMap.get(subcategoryId) : null;
           const rule = scheduleRules?.find(r => r.subcategory_id === subcategoryId);
           
-          // Use subcategory.frequency_type if available, otherwise derive from rule
-          // subcategory.frequency_type is the source of truth for EVENT vs PRODUCT/SERVICE mode
-          let frequencyType: string | undefined = subcategory?.frequency_type ?? undefined;
-          if (!frequencyType && rule?.frequency) {
-            // Fallback: derive from rule frequency if subcategory doesn't have frequency_type
-            if (rule.frequency === 'specific') {
-              // 'specific' frequency means date-based
-              // If end_date exists and is different from start_date, it's a date_range
-              if (rule.start_date && rule.end_date) {
-                const startDateStr = new Date(rule.start_date).toISOString().split('T')[0];
-                const endDateStr = new Date(rule.end_date).toISOString().split('T')[0];
-                frequencyType = startDateStr !== endDateStr ? 'date_range' : 'date';
-              } else {
-                frequencyType = 'date';
-              }
+          // Normalize rule.frequency into frequencyType for AI payload
+          // schedule_rules.frequency can be: "daily" | "weekly" | "monthly" | "specific"
+          // We map to: "daily" | "weekly" | "monthly" | "date" | "date_range"
+          let frequencyType: "daily" | "weekly" | "monthly" | "date" | "date_range";
+          
+          if (!rule) {
+            frequencyType = "monthly"; // Default fallback
+          } else if (rule.frequency === "specific") {
+            // "specific" frequency means date-based
+            // Check if it's a date range (start_date and end_date both set and different)
+            if (rule.start_date && rule.end_date) {
+              // Compare dates (normalize to date strings to compare just the date part)
+              const startDateStr = new Date(rule.start_date).toISOString().split('T')[0];
+              const endDateStr = new Date(rule.end_date).toISOString().split('T')[0];
+              frequencyType = startDateStr !== endDateStr ? "date_range" : "date";
             } else {
-              frequencyType = rule.frequency; // 'daily', 'weekly', or 'monthly'
+              frequencyType = "date";
             }
+          } else {
+            // daily / weekly / monthly pass through
+            frequencyType = rule.frequency as "daily" | "weekly" | "monthly";
           }
 
           // Build schedule object based on event vs non-event
