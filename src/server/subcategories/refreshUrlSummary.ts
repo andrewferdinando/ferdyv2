@@ -12,7 +12,88 @@
 
 import { supabaseAdmin } from '@/lib/supabase-server';
 
-const MAX_SUMMARY_LENGTH = 4000; // characters
+const MAX_SUMMARY_LENGTH = 900; // characters (after cleaning, before adding source URL prefix)
+
+/**
+ * Decode common HTML entities to their readable characters
+ */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#8211;/g, '–')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+/**
+ * Check if a line contains navigation/footer noise (case-insensitive)
+ */
+function isNoiseLine(line: string): boolean {
+  const noisePatterns = [
+    'skip to main content',
+    'skip to footer',
+    'home',
+    'about us',
+    'events',
+    'contact us',
+    'terms and conditions',
+    'privacy policy',
+    '© 20',
+    'join thousands of marketers',
+    'newsletter',
+  ];
+  
+  const lowerLine = line.toLowerCase().trim();
+  return noisePatterns.some(pattern => lowerLine.includes(pattern));
+}
+
+/**
+ * Clean extracted text by removing noise, decoding entities, and filtering segments
+ */
+function cleanExtractedText(text: string): string {
+  // Step 1: Decode HTML entities
+  let cleaned = decodeEntities(text);
+  
+  // Step 2: Split into logical segments (by periods, newlines, or double spaces)
+  // This allows us to filter out noise segments while preserving content
+  const segments = cleaned
+    .split(/([.!?]\s+|[\r\n]+|\s{2,})/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .filter(s => !/^[.!?]+$/.test(s)); // Remove punctuation-only segments
+  
+  // Step 3: Filter out noise segments, empty segments, and short segments
+  const filteredSegments: string[] = [];
+  let lastSegment = '';
+  
+  for (const segment of segments) {
+    const trimmed = segment.trim();
+    
+    // Skip empty segments
+    if (!trimmed) continue;
+    
+    // Skip short segments (< 4 characters)
+    if (trimmed.length < 4) continue;
+    
+    // Skip noise segments (navigation/footer) - case-insensitive check
+    if (isNoiseLine(trimmed)) continue;
+    
+    // Skip duplicate consecutive segments
+    if (trimmed === lastSegment) continue;
+    
+    filteredSegments.push(trimmed);
+    lastSegment = trimmed;
+  }
+  
+  // Step 4: Join segments back into a single string with single spaces
+  return filteredSegments.join(' ');
+}
 
 export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
   try {
@@ -118,8 +199,8 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Successfully fetched URL, parsing HTML...`);
     const html = await response.text();
 
-    // Very simple HTML -> text cleanup (no extra deps)
-    const text = html
+    // Step 1: Basic HTML -> text extraction (remove scripts, styles, tags)
+    const rawText = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<!--[\s\S]*?-->/g, '')
@@ -127,12 +208,23 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    const trimmed = text.slice(0, MAX_SUMMARY_LENGTH);
-    console.log(`[refreshSubcategoryUrlSummary] Parsed ${trimmed.length} characters, updating database...`);
+    console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, cleaning...`);
+    
+    // Step 2: Clean the text (decode entities, remove noise, filter lines)
+    const cleanedText = cleanExtractedText(rawText);
+    console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
+    
+    // Step 3: Prepend source URL for AI context, then truncate
+    const sourcePrefix = `SUMMARY_SOURCE_URL: ${subcat.url}\n\n`;
+    const availableLength = MAX_SUMMARY_LENGTH - sourcePrefix.length;
+    const trimmed = cleanedText.slice(0, Math.max(0, availableLength)).trim();
+    const finalSummary = `${sourcePrefix}${trimmed}`;
+
+    console.log(`[refreshSubcategoryUrlSummary] Final summary length: ${finalSummary.length} characters, updating database...`);
 
     const { error: updateError } = await supabase
       .from('subcategories')
-      .update({ url_page_summary: trimmed || null })
+      .update({ url_page_summary: finalSummary || null })
       .eq('id', subcategoryId);
 
     if (updateError) {
@@ -146,7 +238,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       return;
     }
 
-    console.log(`[refreshSubcategoryUrlSummary] Successfully updated summary for subcategory ${subcategoryId} (${trimmed.length} characters)`);
+    console.log(`[refreshSubcategoryUrlSummary] Successfully updated summary for subcategory ${subcategoryId} (${finalSummary.length} characters)`);
   } catch (e: any) {
     console.error('[refreshSubcategoryUrlSummary] Unexpected error:', {
       subcategoryId,
