@@ -23,6 +23,7 @@ export type DraftCopyInput = {
     url?: string;
     description?: string;
     frequency_type?: string;
+    url_page_summary?: string | null;
   };
   schedule?: {
     frequency: string;

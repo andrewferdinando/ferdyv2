@@ -132,7 +132,7 @@ serve(async (req) => {
         .select(`
           *,
           categories(name),
-          subcategories(name, detail, url, default_hashtags)
+          subcategories(name, detail, url, default_hashtags, frequency_type, url_page_summary)
         `)
         .eq('brand_id', brand_id)
         .eq('is_active', true);

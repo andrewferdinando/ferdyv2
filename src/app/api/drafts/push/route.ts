@@ -89,11 +89,11 @@ export async function POST(req: NextRequest) {
       .eq('brand_id', brandId)
       .eq('is_active', true);
 
-    // Fetch subcategories for name/url/description/frequency_type
+    // Fetch subcategories for name/url/description/frequency_type/url_page_summary
     const subcategoryIds = scheduleRules?.map(r => r.subcategory_id).filter(Boolean) as string[] || [];
     const { data: subcategories } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, url, detail, frequency_type')
+      .select('id, name, url, detail, frequency_type, url_page_summary')
       .in('id', subcategoryIds);
 
     const subcategoriesMap = new Map(
@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
               url: subcategory?.url ?? "",
               description: subcategory?.detail ?? undefined,
               frequency_type: frequencyType,
+              url_page_summary: subcategory?.url_page_summary ?? null,
             },
             schedule: {
               frequency: rule?.frequency ?? target?.frequency ?? "weekly",

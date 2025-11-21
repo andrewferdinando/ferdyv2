@@ -15,6 +15,9 @@ const generateCopySchema = z.object({
         .object({
           name: z.string().optional(),
           url: z.string().optional(),
+          description: z.string().optional(),
+          frequency_type: z.string().optional(),
+          url_page_summary: z.string().nullable().optional(),
         })
         .optional(),
       schedule: z

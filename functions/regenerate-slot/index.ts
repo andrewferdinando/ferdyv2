@@ -58,7 +58,7 @@ serve(async (req) => {
           schedule_rules(
             *,
             categories(name),
-            subcategories(name, detail, url, default_hashtags)
+            subcategories(name, detail, url, default_hashtags, frequency_type, url_page_summary)
           )
         `)
         .eq('id', post_job_id)
