@@ -148,12 +148,16 @@ export async function POST(req: NextRequest) {
       (scheduleRules ?? []).map(r => [r.id, r])
     );
 
-    const ruleByDraftId = new Map(
-      postJobs
-        .filter(job => job.schedule_rule_id)
-        .map(job => [job.draft_id, scheduleRuleById.get(job.schedule_rule_id!)])
-        .filter(([, rule]) => rule !== undefined)
-    );
+    // Build ruleByDraftId map: draft_id -> schedule_rule
+    const ruleByDraftId = new Map<string, typeof scheduleRules[0] | undefined>()
+    for (const job of postJobs) {
+      if (job.schedule_rule_id) {
+        const rule = scheduleRuleById.get(job.schedule_rule_id)
+        if (rule) {
+          ruleByDraftId.set(job.draft_id, rule)
+        }
+      }
+    }
 
     const payload = {
       brandId,
