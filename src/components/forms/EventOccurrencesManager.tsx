@@ -25,6 +25,7 @@ interface EventOccurrencesManagerProps {
   brandId: string
   subcategoryId: string | null  // null for new subcategories
   brandTimezone: string
+  subcategoryDetail?: string  // Subcategory description to default new occurrences from
   onOccurrencesChanged?: () => void
   onOccurrencesChange?: (occurrences: EventOccurrence[]) => void  // Callback to pass occurrences to parent
 }
@@ -33,6 +34,7 @@ export function EventOccurrencesManager({
   brandId,
   subcategoryId,
   brandTimezone,
+  subcategoryDetail = '',
   onOccurrencesChanged,
   onOccurrencesChange
 }: EventOccurrencesManagerProps) {
@@ -394,7 +396,11 @@ const renderChannelIcons = (channels: string[]) =>
       setTimezone(firstOccurrence.timezone)
       // Default URL from first occurrence if present, otherwise subcategory URL
       setUrl(firstOccurrence.url || subcategoryUrl || '')
+      // Don't default detail from subcategory when editing - use existing occurrence detail or empty
+      setDetail('')
     } else {
+      // For new occurrences, default detail from subcategory description
+      setDetail(subcategoryDetail || '')
       // Default URL from subcategory
       if (subcategoryUrl) {
         setUrl(subcategoryUrl)
@@ -842,25 +848,47 @@ const renderChannelIcons = (channels: string[]) =>
     }
   }
 
-  const handleArchive = async (occurrence: EventOccurrence) => {
-    if (!confirm(`Archive this occurrence? It will be hidden from the list but can be restored later.`)) return
+  const handleDeleteOccurrence = async (occurrence: EventOccurrence) => {
+    if (!confirm(`Are you sure you want to delete this event date? Any drafts already generated for this occurrence will not be automatically removed.`)) return
 
     try {
       if (subcategoryId && !occurrence.id.startsWith('draft-')) {
-        // Only update in database if it's a saved occurrence - use archived_at for soft delete
-        await supabase
+        // Delete from database
+        const { error } = await supabase
           .from('schedule_rules')
-          .update({ archived_at: new Date().toISOString() })
+          .delete()
           .eq('id', occurrence.id)
-        await fetchOccurrences()
+
+        if (error) {
+          console.error('[EventOccurrencesManager] delete error:', error)
+          throw error
+        }
+
+        // Remove from local state
+        setOccurrences(prev => prev.filter(o => o.id !== occurrence.id))
         onOccurrencesChanged?.()
+        
+        showToast({
+          type: 'success',
+          title: 'Event date deleted',
+          message: 'Event date deleted successfully'
+        })
       } else {
         // For draft occurrences, just remove from local state
         setOccurrences(prev => prev.filter(o => o.id !== occurrence.id))
+        showToast({
+          type: 'success',
+          title: 'Event date deleted',
+          message: 'Event date deleted successfully'
+        })
       }
     } catch (err) {
-      console.error('Error archiving occurrence:', err)
-      alert('Failed to archive occurrence')
+      console.error('[EventOccurrencesManager] delete error:', err)
+      showToast({
+        type: 'error',
+        title: 'Could not delete this event date',
+        message: 'Please try again.'
+      })
     }
   }
 
@@ -928,26 +956,6 @@ const renderChannelIcons = (channels: string[]) =>
             >
               Add Occurrence
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                // Default bulk form to first occurrence's values if any exist
-                if (occurrences.length > 0) {
-                  const firstOccurrence = occurrences[0]
-                  setBulkTimesOfDay([...firstOccurrence.times_of_day])
-                  setBulkChannels([...firstOccurrence.channels])
-                } else {
-                  setBulkTimesOfDay([])
-                  setBulkChannels([])
-                }
-                setBulkInput('')
-                setBulkNewTimeInput('')
-                setIsBulkModalOpen(true)
-              }}
-              className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
-            >
-              Add Multiple Dates
-            </button>
           </div>
 
           {upcomingOccurrences.length > 0 && (
@@ -986,10 +994,10 @@ const renderChannelIcons = (channels: string[]) =>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleArchive(occ)}
+                      onClick={() => handleDeleteOccurrence(occ)}
                       className="text-red-600 hover:text-red-800 text-xs"
                     >
-                      Archive
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -1163,11 +1171,11 @@ const renderChannelIcons = (channels: string[]) =>
             </div>
           </FormField>
 
-          <FormField label="Occurrence Details">
+          <FormField label="Occurrence details">
             <textarea
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
-              placeholder="Add specific details about this occurrence (capacity, features, etc.)"
+              placeholder="Starts with the main subcategory description. Edit this if you want to customise details for this specific date or promo."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
               rows={3}
             />

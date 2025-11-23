@@ -15,6 +15,229 @@ import { supabaseAdmin } from '@/lib/supabase-server';
 const MAX_SUMMARY_LENGTH = 900; // characters (after cleaning, before adding source URL prefix)
 
 /**
+ * Structured event details extracted from URL page
+ */
+export interface EventDetails {
+  venue: string | null;
+  date: string | null;
+  time: string | null;
+  price: string | null;
+  format: "physical" | "online" | "promo" | null;
+  hosts: string[] | null;
+  key_points: string[] | null;
+}
+
+/**
+ * Structured URL summary with extracted event details
+ */
+export interface StructuredUrlSummary {
+  summary: string;
+  details: EventDetails;
+}
+
+/**
+ * Extract structured event details from HTML and cleaned text
+ */
+function extractEventDetails(html: string, cleanedText: string): EventDetails {
+  const details: EventDetails = {
+    venue: null,
+    date: null,
+    time: null,
+    price: null,
+    format: null,
+    hosts: null,
+    key_points: null,
+  };
+
+  // Combine raw HTML preview and cleaned text for pattern matching
+  const rawHtmlPreview = html.slice(0, 8000);
+  const searchText = (rawHtmlPreview + '\n\n' + cleanedText.slice(0, 2000)).toLowerCase();
+
+  // 1. Extract VENUE/LOCATION
+  // Pattern 1: Address format (number + street name + road/street/etc)
+  const venuePattern1 = /(\d+\s+[a-z]+(?:\s+[a-z]+){0,3}\s+(?:road|street|avenue|lane|drive|place|way|boulevard|court|terrace|crescent|st|ave|rd|dr)[^.!?\n]{0,50})/i;
+  const venueMatch1 = searchText.match(venuePattern1);
+  if (venueMatch1 && venueMatch1[1]) {
+    const venue = venueMatch1[1].trim();
+    if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
+      details.venue = venue;
+    }
+  }
+
+  // Pattern 2: "Location:", "Venue:", "Where:" labels
+  if (!details.venue) {
+    const venuePattern2 = /(?:location|venue|address|where)[\s:]+([^.!?\n]{10,150})/i;
+    const venueMatch2 = searchText.match(venuePattern2);
+    if (venueMatch2 && venueMatch2[1]) {
+      const venue = venueMatch2[1].trim().replace(/^(is|at|:)\s*/i, '');
+      if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
+        details.venue = venue;
+      }
+    }
+  }
+
+  // Pattern 3: Eventbrite location block
+  if (!details.venue) {
+    const eventbritePattern = /<[^>]*class[^>]*location[^>]*>([^<]{10,200})/i;
+    const eventbriteMatch = rawHtmlPreview.match(eventbritePattern);
+    if (eventbriteMatch && eventbriteMatch[1]) {
+      const venue = eventbriteMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (venue.length > 5 && venue.length < 200) {
+        details.venue = venue;
+      }
+    }
+  }
+
+  // 2. Extract DATE(S)
+  // Pattern 1: "Nov 27, 2025" or "December 16, 2025" or "Jan 12–14, 2026"
+  const datePattern1 = /([a-z]{3,9}\s+\d{1,2}(?:[–-]\d{1,2})?,?\s+\d{4})/i;
+  const dateMatch1 = searchText.match(datePattern1);
+  if (dateMatch1 && dateMatch1[1]) {
+    details.date = dateMatch1[1].trim();
+  }
+
+  // Pattern 2: "Date:", "Dates:", "When:" labels
+  if (!details.date) {
+    const datePattern2 = /(?:date|dates|when)[\s:]+([a-z]{3,9}\s+\d{1,2}(?:[–-]\d{1,2})?,?\s+\d{4}[^.!?\n]{0,50})/i;
+    const dateMatch2 = searchText.match(datePattern2);
+    if (dateMatch2 && dateMatch2[1]) {
+      const date = dateMatch2[1].trim();
+      if (date.length > 8 && date.length < 100) {
+        details.date = date;
+      }
+    }
+  }
+
+  // Pattern 3: DD/MM/YYYY or MM/DD/YYYY format
+  if (!details.date) {
+    const datePattern3 = /(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/;
+    const dateMatch3 = searchText.match(datePattern3);
+    if (dateMatch3 && dateMatch3[1]) {
+      details.date = dateMatch3[1].trim();
+    }
+  }
+
+  // 3. Extract TIME(S)
+  // Pattern 1: "6:00 PM", "18:00", "6pm-9pm", "starts at 6pm", "ends at 9pm"
+  const timePattern1 = /(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM|[–-]\s*\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)?))/i;
+  const timeMatch1 = searchText.match(timePattern1);
+  if (timeMatch1 && timeMatch1[1]) {
+    details.time = timeMatch1[1].trim();
+  }
+
+  // Pattern 2: "Time:", "Starts:", "Ends:" labels
+  if (!details.time) {
+    const timePattern2 = /(?:time|starts?|ends?)[\s:]+(\d{1,2}:?\d{0,2}\s*(?:am|pm|AM|PM)[^.!?\n]{0,30})/i;
+    const timeMatch2 = searchText.match(timePattern2);
+    if (timeMatch2 && timeMatch2[1]) {
+      details.time = timeMatch2[1].trim();
+    }
+  }
+
+  // 4. Extract PRICE/TICKETS
+  // Pattern 1: "$50", "from $20", "$10-$50", "free", "Free entry"
+  const pricePattern1 = /(\$?\d+(?:\.\d{2})?(?:\s*[–-]\s*\$?\d+(?:\.\d{2})?)?|free|complimentary)/i;
+  const priceMatch1 = searchText.match(pricePattern1);
+  if (priceMatch1 && priceMatch1[1]) {
+    const priceText = priceMatch1[1].trim();
+    // Look for context around price
+    const priceContext = searchText.slice(Math.max(0, priceMatch1.index! - 30), priceMatch1.index! + priceText.length + 30);
+    if (priceContext.match(/(?:price|ticket|cost|entry|fee)/i)) {
+      details.price = priceText;
+    }
+  }
+
+  // Pattern 2: "Price:", "Tickets:", "Cost:" labels
+  if (!details.price) {
+    const pricePattern2 = /(?:price|tickets?|cost|entry|fee)[\s:]+(\$?\d+(?:\.\d{2})?(?:\s*[–-]\s*\$?\d+(?:\.\d{2})?)?|free|complimentary)[^.!?\n]{0,30}/i;
+    const priceMatch2 = searchText.match(pricePattern2);
+    if (priceMatch2 && priceMatch2[1]) {
+      details.price = priceMatch2[1].trim();
+    }
+  }
+
+  // 5. Infer FORMAT
+  // Physical event indicators
+  if (details.venue || searchText.match(/(?:in[-\s]?person|on[-\s]?site|at[-\s]?venue|physical|live[-\s]?event)/i)) {
+    details.format = 'physical';
+  }
+  // Online event indicators
+  else if (searchText.match(/(?:online|webinar|zoom|live[-\s]?stream|virtual|remote|digital)/i)) {
+    details.format = 'online';
+  }
+  // Promo/sale indicators
+  else if (searchText.match(/(?:sale|discount|%?\s*off|special\s+offer|promo|launch|early[-\s]?bird|%?\s*discount)/i)) {
+    details.format = 'promo';
+  }
+
+  // 6. Extract HOSTS/SPEAKERS/PERFORMERS
+  const hosts: string[] = [];
+  
+  // Pattern 1: "Hosted by", "Presented by", "Speaker", "DJ", "Instructor"
+  const hostPattern1 = /(?:hosted\s+by|presented\s+by|speaker|dj|instructor|performer|artist)[\s:]+([a-z][^.!?\n]{5,80})/i;
+  const hostMatches1 = searchText.matchAll(new RegExp(hostPattern1.source, 'gi'));
+  for (const match of hostMatches1) {
+    if (match[1]) {
+      const host = match[1].trim().split(/[,&]|and/)[0].trim();
+      if (host.length > 3 && host.length < 100 && !hosts.includes(host)) {
+        hosts.push(host);
+      }
+    }
+  }
+
+  if (hosts.length > 0) {
+    details.hosts = hosts.slice(0, 5); // Limit to 5 hosts
+  }
+
+  // 7. Extract KEY POINTS/AGENDA
+  const keyPoints: string[] = [];
+  
+  // Pattern 1: Bullet points (•, -, *, numbers)
+  const bulletPattern = /(?:^|\n)[\s]*[•\-\*]?\s*([a-z][^\n]{20,150})/gim;
+  const bulletMatches = cleanedText.matchAll(bulletPattern);
+  for (const match of bulletMatches) {
+    if (match[1]) {
+      const point = match[1].trim();
+      if (point.length > 15 && point.length < 200 && keyPoints.length < 5) {
+        keyPoints.push(point);
+      }
+    }
+  }
+
+  // Pattern 2: Numbered lists
+  if (keyPoints.length < 3) {
+    const numberedPattern = /(?:^|\n)[\s]*\d+[\.\)]\s*([a-z][^\n]{20,150})/gim;
+    const numberedMatches = cleanedText.matchAll(numberedPattern);
+    for (const match of numberedMatches) {
+      if (match[1]) {
+        const point = match[1].trim();
+        if (point.length > 15 && point.length < 200 && keyPoints.length < 5) {
+          keyPoints.push(point);
+        }
+      }
+    }
+  }
+
+  // Pattern 3: Look for schedule/agenda section
+  if (keyPoints.length < 3) {
+    const agendaPattern = /(?:agenda|schedule|what[^\n]{0,20}happens?|includes?|features?)[\s:]+([^\n]{50,500})/i;
+    const agendaMatch = cleanedText.match(agendaPattern);
+    if (agendaMatch && agendaMatch[1]) {
+      const agendaText = agendaMatch[1].slice(0, 500);
+      // Split into sentences/phrases
+      const phrases = agendaText.split(/[.!?]\s+|,\s+(?=[A-Z])/).filter(p => p.length > 15 && p.length < 150);
+      keyPoints.push(...phrases.slice(0, 5 - keyPoints.length));
+    }
+  }
+
+  if (keyPoints.length > 0) {
+    details.key_points = keyPoints.slice(0, 5); // Limit to 5 points
+  }
+
+  return details;
+}
+
+/**
  * Decode common HTML entities to their readable characters
  */
 function decodeEntities(text: string): string {
@@ -245,40 +468,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Successfully fetched URL, parsing HTML...`);
     const html = await response.text();
 
-    // Step 1: Extract structured metadata from RAW HTML before cleaning (date, time, venue)
-    // This ensures we capture structured data that might be in headers/navigation
-    let eventMetadata: string[] = [];
-    const rawHtmlPreview = html.slice(0, 5000); // First 5KB usually contains header/metadata
-    
-    // Extract date/time from raw HTML (before cleaning removes it)
-    // Pattern: "Nov 27, 2025 at 6:00 PM" or "Thu, Nov 27, 2025 at 6:00 PM"
-    const dateTimePattern1 = /([A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4}[^<]{0,60}at\s+\d{1,2}:?\d{0,2}\s*(?:AM|PM|am|pm)[^<]{0,40})/i;
-    const dateTimeMatch1 = rawHtmlPreview.match(dateTimePattern1);
-    if (dateTimeMatch1 && dateTimeMatch1[1]) {
-      let dateTime = dateTimeMatch1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      
-      // Clean up common suffixes like "| Eventbrite", "| Site Name", etc.
-      dateTime = dateTime.replace(/\s*\|\s*[^|]+$/i, '').trim();
-      
-      if (dateTime.length > 10 && dateTime.length < 200) {
-        console.log(`[refreshSubcategoryUrlSummary] Found date/time in raw HTML: ${dateTime}`);
-        eventMetadata.push(`Date/Time: ${dateTime}`);
-      }
-    }
-    
-    // Extract venue from raw HTML
-    // Pattern: "152 Ponsonby Road" or similar
-    const venuePattern1 = /(\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\s+(?:Road|Street|Avenue|Lane|Drive|Place|Way|Boulevard|Court|Terrace|Crescent)[^<]{0,50})/i;
-    const venueMatch1 = rawHtmlPreview.match(venuePattern1);
-    if (venueMatch1 && venueMatch1[1]) {
-      const venue = venueMatch1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
-        console.log(`[refreshSubcategoryUrlSummary] Found venue in raw HTML: ${venue}`);
-        eventMetadata.push(`Venue: ${venue}`);
-      }
-    }
-
-    // Step 2: Basic HTML -> text extraction (remove scripts, styles, tags)
+    // Step 1: Basic HTML -> text extraction (remove scripts, styles, tags)
     const rawText = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -290,77 +480,17 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     console.log(`[refreshSubcategoryUrlSummary] Extracted ${rawText.length} raw characters, cleaning...`);
     console.log(`[refreshSubcategoryUrlSummary] First 500 chars of raw text: ${rawText.slice(0, 500)}`);
     
-    // Step 3: Clean the text (decode entities, remove noise, filter lines)
+    // Step 2: Clean the text (decode entities, remove noise, filter lines)
     const cleanedText = cleanExtractedText(rawText);
     console.log(`[refreshSubcategoryUrlSummary] Cleaned to ${cleanedText.length} characters`);
     console.log(`[refreshSubcategoryUrlSummary] First 800 chars of cleaned text: ${cleanedText.slice(0, 800)}`);
     
-    // Step 4: Try to extract metadata from cleaned text if we didn't find it in raw HTML
-    // Only if we haven't found metadata yet from raw HTML
-    if (eventMetadata.length === 0) {
-      const previewText = cleanedText.slice(0, 1000);
+    // Step 3: Extract structured event details from HTML and cleaned text
+    const eventDetails = extractEventDetails(html, cleanedText);
+    console.log(`[refreshSubcategoryUrlSummary] Extracted event details:`, JSON.stringify(eventDetails, null, 2));
     
-    // Try to extract date/time - more flexible patterns
-    // Pattern 1: "Nov 27 from 6pm to 9pm GMT+13" or similar
-    const dateTimePattern1 = /([A-Z][a-z]{2,9}\s+\d{1,2}[^.!?]{0,80}(?:from|at)\s+\d{1,2}[ap]m[^.!?]{0,80}(?:to|until|-)\s+\d{1,2}[ap]m[^.!?]{0,80}(?:GMT[+-]?\d+)?[^.!?]{0,20}?)/i;
-    const dateTimeMatch1 = previewText.match(dateTimePattern1);
-    if (dateTimeMatch1 && dateTimeMatch1[1]) {
-      const dateTime = dateTimeMatch1[1].trim();
-      if (dateTime.length > 10 && dateTime.length < 200) {
-        eventMetadata.push(`Date/Time: ${dateTime}`);
-      }
-    }
-    
-    // Pattern 2: Just date and time without "from/to" - "Nov 27 6pm-9pm"
-    if (eventMetadata.length === 0) {
-      const dateTimePattern2 = /([A-Z][a-z]{2,9}\s+\d{1,2}[^.!?]{0,40}\d{1,2}[ap]m[^.!?]{0,40}\d{1,2}[ap]m[^.!?]{0,20}?)/i;
-      const dateTimeMatch2 = previewText.match(dateTimePattern2);
-      if (dateTimeMatch2 && dateTimeMatch2[1]) {
-        const dateTime = dateTimeMatch2[1].trim();
-        if (dateTime.length > 8 && dateTime.length < 200) {
-          eventMetadata.push(`Date/Time: ${dateTime}`);
-        }
-      }
-    }
-    
-    // Try to extract venue - more flexible patterns
-    // Pattern 1: "152 Ponsonby Road" or similar
-    const venuePattern1 = /(\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Road|Street|Avenue|Lane|Drive|Place|Way|Boulevard|Court|Terrace|Crescent)[^.!?]{0,50}?)/i;
-    const venueMatch1 = previewText.match(venuePattern1);
-    if (venueMatch1 && venueMatch1[1]) {
-      const venue = venueMatch1[1].trim();
-      if (venue.length > 5 && venue.length < 200) {
-        eventMetadata.push(`Venue: ${venue}`);
-      }
-    }
-    
-    // Pattern 2: Look for "Location:" or "Venue:" followed by address
-    if (eventMetadata.filter(m => m.startsWith('Venue:')).length === 0) {
-      const venuePattern2 = /(?:Location|Venue|Address|Where)[\s:]+([^.!?]{10,150}?)/i;
-      const venueMatch2 = previewText.match(venuePattern2);
-      if (venueMatch2 && venueMatch2[1]) {
-        const venue = venueMatch2[1].trim();
-        if (venue.length > 5 && venue.length < 200 && !venue.includes('http')) {
-          console.log(`[refreshSubcategoryUrlSummary] Found venue in cleaned text: ${venue}`);
-          eventMetadata.push(`Venue: ${venue}`);
-        }
-      }
-    }
-    }
-    
-    console.log(`[refreshSubcategoryUrlSummary] Final metadata count: ${eventMetadata.length}`, eventMetadata);
-    
-    // Step 5: Build summary with metadata first, then text truncated at sentence boundary
-    const sourcePrefix = `SUMMARY_SOURCE_URL: ${subcat.url}\n\n`;
-    let metadataSection = '';
-    
-    if (eventMetadata.length > 0) {
-      metadataSection = `${eventMetadata.join('\n')}\n\n`;
-    }
-    
-    // Calculate available length for main text
-    const prefixLength = sourcePrefix.length + metadataSection.length;
-    const availableLength = MAX_SUMMARY_LENGTH - prefixLength;
+    // Step 4: Build clean summary text (truncated at sentence boundary)
+    const availableLength = MAX_SUMMARY_LENGTH;
     
     // Truncate at sentence boundary (last complete sentence ending with . ! ?)
     // ALWAYS ensure we never cut mid-word - find the last space before the limit
@@ -466,13 +596,20 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
     
     console.log(`[refreshSubcategoryUrlSummary] Final trimmed text (last 50 chars): ${trimmed.slice(-50)}`);
     
-    const finalSummary = `${sourcePrefix}${metadataSection}${trimmed}`;
+    // Step 5: Build structured summary object
+    const structuredSummary: StructuredUrlSummary = {
+      summary: trimmed,
+      details: eventDetails,
+    };
 
-    console.log(`[refreshSubcategoryUrlSummary] Final summary length: ${finalSummary.length} characters, updating database...`);
+    // Step 6: Store as JSON string in database (for backward compatibility, store JSON)
+    const summaryJson = JSON.stringify(structuredSummary);
+
+    console.log(`[refreshSubcategoryUrlSummary] Structured summary JSON length: ${summaryJson.length} characters, updating database...`);
 
     const { error: updateError } = await supabase
       .from('subcategories')
-      .update({ url_page_summary: finalSummary || null })
+      .update({ url_page_summary: summaryJson })
       .eq('id', subcategoryId);
 
     if (updateError) {
@@ -486,7 +623,7 @@ export async function refreshSubcategoryUrlSummary(subcategoryId: string) {
       return;
     }
 
-    console.log(`[refreshSubcategoryUrlSummary] Successfully updated summary for subcategory ${subcategoryId} (${finalSummary.length} characters)`);
+    console.log(`[refreshSubcategoryUrlSummary] Successfully updated structured summary for subcategory ${subcategoryId} (${summaryJson.length} characters)`);
   } catch (e: any) {
     console.error('[refreshSubcategoryUrlSummary] Unexpected error:', {
       subcategoryId,

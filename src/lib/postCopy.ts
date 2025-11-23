@@ -1,6 +1,22 @@
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// Types for structured URL summary (matches refreshUrlSummary.ts)
+interface EventDetails {
+  venue: string | null;
+  date: string | null;
+  time: string | null;
+  price: string | null;
+  format: "physical" | "online" | "promo" | null;
+  hosts: string[] | null;
+  key_points: string[] | null;
+}
+
+interface StructuredUrlSummary {
+  summary: string;
+  details: EventDetails;
+}
+
 // Type helper for Supabase client - accepts any valid Supabase client type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdminClient = SupabaseClient<any, "public", any>;
@@ -15,7 +31,7 @@ export type PostCopyPayload = {
     url?: string;
     description?: string;
     frequency_type?: string;
-    url_page_summary?: string | null;
+    url_page_summary?: string | null; // Can be structured JSON or plain text (backward compatible)
     category_name?: string; // e.g. "Functions"
   };
   schedule?: { 
@@ -33,6 +49,7 @@ export type PostCopyPayload = {
   cta?: string;
   variants?: number; // 1-3
   max_tokens?: number; // default 120
+  variation_hint?: string | null; // Optional hint to guide AI toward a specific angle for this post
 };
 
 // Helper functions
@@ -137,7 +154,30 @@ export async function generatePostCopyFromContext(
   const subName = payload.subcategory?.name || "";
   const subDesc = payload.subcategory?.description || "";
   const subUrl = payload.subcategory?.url || "";
-  const urlSummary = payload.subcategory?.url_page_summary?.trim() || "";
+  
+  // Parse url_page_summary - handle both structured JSON and plain text (backward compatible)
+  let structuredSummary: StructuredUrlSummary | null = null;
+  let urlSummaryText = "";
+  let eventDetails: EventDetails | null = null;
+  
+  const urlSummaryRaw = payload.subcategory?.url_page_summary?.trim() || "";
+  if (urlSummaryRaw) {
+    try {
+      // Try to parse as JSON (new structured format)
+      const parsed = JSON.parse(urlSummaryRaw);
+      if (parsed && typeof parsed === 'object' && 'summary' in parsed && 'details' in parsed) {
+        structuredSummary = parsed as StructuredUrlSummary;
+        urlSummaryText = structuredSummary.summary || "";
+        eventDetails = structuredSummary.details || null;
+      } else {
+        // Not valid structured format, treat as plain text
+        urlSummaryText = urlSummaryRaw;
+      }
+    } catch {
+      // Not JSON, treat as plain text (backward compatibility)
+      urlSummaryText = urlSummaryRaw;
+    }
+  }
 
   // 7) Build new SYSTEM message with hard no-cross-brand rule + no scheduled date + no hashtags
   const systemMessage = `You are a professional social media copywriter.
@@ -173,14 +213,29 @@ ONLY write about THIS subcategory.
 Do NOT reference anything from any other brand or any other subcategory.
 
 ${
-  urlSummary
+  urlSummaryText || eventDetails
     ? `### EXTRA CONTEXT FROM SUBCATEGORY URL
 
 This text was extracted from the page at the URL above. Use it as extra factual detail, but only if it clearly refers to this same subcategory:
 
-${urlSummary}
-
+${urlSummaryText ? `${urlSummaryText}\n\n` : ""}${eventDetails && (
+      eventDetails.venue ||
+      eventDetails.date ||
+      eventDetails.time ||
+      eventDetails.price ||
+      eventDetails.format ||
+      (eventDetails.hosts && eventDetails.hosts.length > 0) ||
+      (eventDetails.key_points && eventDetails.key_points.length > 0)
+    )
+      ? `### URL DETAILS (if available)
+${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date ? `Date: ${eventDetails.date}\n` : ""}${eventDetails.time ? `Time: ${eventDetails.time}\n` : ""}${eventDetails.price ? `Price/Tickets: ${eventDetails.price}\n` : ""}${eventDetails.format ? `Event Format: ${eventDetails.format}\n` : ""}${eventDetails.hosts && eventDetails.hosts.length > 0
+          ? `Hosts/Speakers: ${eventDetails.hosts.join(", ")}\n`
+          : ""}${eventDetails.key_points && eventDetails.key_points.length > 0
+          ? `Key Points:\n${eventDetails.key_points.map((p: string) => `- ${p}`).join("\n")}\n`
+          : ""}
 `
+      : ""
+    }`
     : ""
 }### BRAND STYLE
 
@@ -201,9 +256,11 @@ ${isEvent ? "EVENT MODE" : "PRODUCT/SERVICE MODE"}
     - a physical in-person event (e.g. networking night, workshop, open day),
     - an online event (e.g. webinar, live stream),
     - a time-bound promo, sale, launch, or special offer.
-  - Infer which it is from the subcategory description and URL summary.
-  - If it clearly describes a physical or online event, focus on the experience, who it's for, and what will happen.
-  - If it clearly describes a sale/promo/offer (e.g. "sale", "discount", "% off", "special offer", "launch", "early-bird pricing"), focus on the offer and its value, not on people "attending" something.
+  - Infer which it is from the subcategory description, URL summary, and URL details (format, venue, etc).
+  - If venue exists or format is "physical" → mention it naturally and focus on the experience, who it's for, and what will happen.
+  - If format is "online" → use accessibility/virtual angle and mention online/virtual format naturally.
+  - If format is "promo" or price/tickets exist → shift to offer-focused language and mention pricing naturally.
+  - If time/date exists in URL details → reference it naturally in context.
   - Use light, natural urgency (e.g. "coming up", "happening soon", "last chance", "don't miss this offer") that fits the context.
   - You MAY reference the event date or date range exactly as provided in EVENT TIMING.
   - You MUST ignore the scheduled post date; it is NOT the event or promo date.
@@ -244,7 +301,13 @@ ${payload.prompt}
 - You may focus each post on different aspects (e.g., benefits, what to expect, who it's for, key features, experience, value).
 - Reword sentences and reorder ideas so each post feels fresh and unique.
 
-Write the final post text only.  
+${payload.variation_hint ? `### VARIATION FOCUS FOR THIS POST
+
+For this specific post, prioritise this angle:
+
+${payload.variation_hint}
+
+` : ''}Write the final post text only.  
 Plain text, no headings, no markdown, no explanations.
 `.trim();
 

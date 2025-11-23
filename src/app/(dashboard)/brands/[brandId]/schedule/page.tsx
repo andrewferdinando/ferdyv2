@@ -309,11 +309,15 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
     );
   }
 
-  // Sort drafts by scheduled date (most current at top), fallback to created_at if no scheduled date
+  // Sort drafts by scheduled date (earliest first), fallback to post_jobs.scheduled_at or created_at if no scheduled_for
   const sortedDrafts = [...drafts].sort((a, b) => {
-    const dateA = a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : new Date(a.created_at).getTime();
-    const dateB = b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : new Date(b.created_at).getTime();
-    return dateB - dateA; // Descending order (most recent first)
+    const dateA = a.scheduled_for 
+      ? new Date(a.scheduled_for).getTime() 
+      : (a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : new Date(a.created_at).getTime());
+    const dateB = b.scheduled_for 
+      ? new Date(b.scheduled_for).getTime() 
+      : (b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : new Date(b.created_at).getTime());
+    return dateA - dateB; // Ascending order (earliest first)
   });
 
   return (
@@ -362,11 +366,15 @@ function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: Scheduled
     );
   }
 
-  // Sort scheduled posts by scheduled date (most current at top)
+  // Sort scheduled posts by scheduled date (earliest first), already ordered by useScheduled hook but ensure consistency
   const sortedScheduled = [...scheduled].sort((a, b) => {
-    const dateA = a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : 0;
-    const dateB = b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : 0;
-    return dateB - dateA; // Descending order (most recent first)
+    const dateA = a.scheduled_for 
+      ? new Date(a.scheduled_for).getTime() 
+      : (a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : 0);
+    const dateB = b.scheduled_for 
+      ? new Date(b.scheduled_for).getTime() 
+      : (b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : 0);
+    return dateA - dateB; // Ascending order (earliest first)
   });
 
   return (
@@ -429,16 +437,15 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
     );
   }
 
-  // Sort published posts by published date (most recently published at top)
-  // Use draft.published_at as primary source, fallback to scheduled_for for legacy posts
+  // Sort published posts by scheduled date (earliest first) - chronological order by when they were scheduled
   const sortedPublished = [...published].sort((a, b) => {
-    const dateA = a.published_at 
-      ? new Date(a.published_at).getTime() 
-      : (a.scheduled_for ? new Date(a.scheduled_for).getTime() : 0);
-    const dateB = b.published_at 
-      ? new Date(b.published_at).getTime() 
-      : (b.scheduled_for ? new Date(b.scheduled_for).getTime() : 0);
-    return dateB - dateA; // Descending order (most recent first)
+    const dateA = a.scheduled_for 
+      ? new Date(a.scheduled_for).getTime() 
+      : (a.post_jobs?.scheduled_at ? new Date(a.post_jobs.scheduled_at).getTime() : (a.published_at ? new Date(a.published_at).getTime() : 0));
+    const dateB = b.scheduled_for 
+      ? new Date(b.scheduled_for).getTime() 
+      : (b.post_jobs?.scheduled_at ? new Date(b.post_jobs.scheduled_at).getTime() : (b.published_at ? new Date(b.published_at).getTime() : 0));
+    return dateA - dateB; // Ascending order (earliest first)
   });
 
   return (

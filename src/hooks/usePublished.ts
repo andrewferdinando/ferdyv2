@@ -91,7 +91,7 @@ export function usePublished(brandId: string) {
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('scheduled_for', { ascending: false, nullsFirst: false });
+        .order('scheduled_for', { ascending: true, nullsFirst: false });
 
       if (draftsError) throw draftsError;
       if (!draftsData || draftsData.length === 0) {

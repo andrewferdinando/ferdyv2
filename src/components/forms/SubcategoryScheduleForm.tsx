@@ -1120,7 +1120,10 @@ export function SubcategoryScheduleForm({
           
           {/* Card A: Subcategory */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Subcategory</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Subcategory (applies to all events in this series)</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Use this section to describe the overall programme, offer, or event series. These details apply to every event date.
+            </p>
             
             <div className="space-y-4">
               <FormField label="Name" required>
@@ -1518,21 +1521,20 @@ export function SubcategoryScheduleForm({
               )}
 
               {/* Event Occurrences Manager - Show when frequency is 'specific' */}
-              {/* When editing, this is the PRIMARY interface - all scheduling is per-occurrence */}
               {scheduleData.frequency === 'specific' && (
-                <div className={editingSubcategory ? "mt-0" : "mt-6"}>
-                  {editingSubcategory && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>Occurrence-based scheduling:</strong> For Specific frequency, all scheduling is managed per occurrence. 
-                        Use the controls below to add, edit, duplicate, or archive occurrences.
-                      </p>
-                    </div>
-                  )}
+                <div className={`bg-white border border-gray-200 rounded-lg p-6 ${editingSubcategory ? "mt-0" : "mt-6"}`}>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Event Dates & Occurrences</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Each occurrence is a specific date or date range for this subcategory (e.g. an individual event date or promo period).
+                  </p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Changes here affect only that specific date, not the whole subcategory.
+                  </p>
                   <EventOccurrencesManager
                     brandId={brandId}
                     subcategoryId={currentSubcategoryId}
                     brandTimezone={brand?.timezone || scheduleData.timezone || 'Pacific/Auckland'}
+                    subcategoryDetail={subcategoryData.detail || ''}
                     onOccurrencesChanged={() => {
                       // Refresh any parent components if needed
                       if (currentSubcategoryId) {

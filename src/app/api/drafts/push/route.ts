@@ -168,27 +168,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Variation angles for round-robin assignment
+    const VARIATION_ANGLES = [
+      "Explain what this is and who it's for.",
+      "Focus on the key benefits and outcomes.",
+      "Highlight what people can expect on the day / during the programme.",
+      "Emphasise the experience, atmosphere, and community/networking aspect.",
+      "Give a clear 'why now' or urgency angle (without being pushy).",
+    ];
+
+    // Group drafts by subcategory_id + schedule_rule_id for variation hint assignment
+    const variationIndexByGroup = new Map<string, number>();
+    const draftsWithGroupKeys = draftsNeedingCopy
+      .filter((d): d is DraftRow => d.scheduled_for !== null)
+      .map((d) => {
+        const draftTime = new Date(d.scheduled_for!).getTime();
+        const target = (targets as FrameworkTarget[] | null)?.find((t) => {
+          const targetTime = new Date(t.scheduled_at).getTime();
+          return Math.abs(targetTime - draftTime) < 5000; // 5 second tolerance
+        });
+        const subcategoryId = target?.subcategory_id;
+        const ruleFromDraft = ruleByDraftId.get(d.id);
+        const rule = ruleFromDraft ?? scheduleRules?.find(r => r.subcategory_id === subcategoryId);
+        
+        // Build group key: subcategory_id|schedule_rule_id
+        const groupKey = `${subcategoryId ?? 'no-sub'}|${rule?.id ?? 'no-rule'}`;
+        
+        return { draft: d, groupKey, rule, subcategoryId };
+      });
+
     const payload = {
       brandId,
-      drafts: draftsNeedingCopy
-        .filter((d): d is DraftRow => {
-          return d.scheduled_for !== null;
-        })
-        .map((d) => {
-          // Match draft to target via scheduled_for (same logic as client)
-          // We've already filtered out null scheduled_for above, so this is safe
-          const draftTime = new Date(d.scheduled_for!).getTime();
-          const target = (targets as FrameworkTarget[] | null)?.find((t) => {
-            const targetTime = new Date(t.scheduled_at).getTime();
-            return Math.abs(targetTime - draftTime) < 5000; // 5 second tolerance
-          });
+      drafts: draftsWithGroupKeys.map(({ draft: d, groupKey, rule, subcategoryId: subcategoryIdFromGroup }) => {
+          // Get variation hint for this draft (round-robin within group)
+          const index = variationIndexByGroup.get(groupKey) ?? 0;
+          const variation_hint = VARIATION_ANGLES[index % VARIATION_ANGLES.length];
+          // Increment for next draft in same group
+          variationIndexByGroup.set(groupKey, index + 1);
 
-          const subcategoryId = target?.subcategory_id;
-          const subcategory = subcategoryId ? subcategoriesMap.get(subcategoryId) : null;
-          
-          // Prefer the specific occurrence (schedule_rule) from post_jobs, fallback to any rule for subcategory
-          const ruleFromDraft = ruleByDraftId.get(d.id);
-          const rule = ruleFromDraft ?? scheduleRules?.find(r => r.subcategory_id === subcategoryId);
+          const subcategory = subcategoryIdFromGroup ? subcategoriesMap.get(subcategoryIdFromGroup) : null;
           
           // Normalize rule.frequency into frequencyType for AI payload
           // schedule_rules.frequency can be: "daily" | "weekly" | "monthly" | "specific"
@@ -217,6 +235,13 @@ export async function POST(req: NextRequest) {
           // For events (frequency_type = 'date' or 'date_range'): use rule.start_date/end_date as event dates
           // For non-events (daily/weekly/monthly): no event_date in schedule
           const isEvent = frequencyType === 'date' || frequencyType === 'date_range';
+          // Get target for frequency fallback
+          const draftTime = new Date(d.scheduled_for!).getTime();
+          const target = (targets as FrameworkTarget[] | null)?.find((t) => {
+            const targetTime = new Date(t.scheduled_at).getTime();
+            return Math.abs(targetTime - draftTime) < 5000; // 5 second tolerance
+          });
+
           let schedule: { frequency: string; event_date?: string; start_date?: string; end_date?: string } = {
             frequency: rule?.frequency ?? target?.frequency ?? "weekly",
           };
@@ -252,12 +277,13 @@ export async function POST(req: NextRequest) {
           console.log("[push] Draft rule + subcategory mapping:", JSON.stringify({
             draftId: d.id,
             ruleId: rule?.id ?? null,
-            subcategoryId: subcategoryId ?? null,
+            subcategoryId: subcategoryIdFromGroup ?? null,
             ruleSubcategoryId: rule?.subcategory_id ?? null,
             subcategoryFromRule: rule ? { id: rule.subcategory_id, frequency: rule.frequency, start_date: rule.start_date, end_date: rule.end_date } : null,
             subcategoryFromDB: subcategory ? { id: subcategory.id, name: subcategory.name, url: subcategory.url, detail: subcategory.detail } : null,
             subcategoryMapped: mappedSubcategory,
             frequencyType,
+            variation_hint,
           }, null, 2));
 
           // Debug log for URL mapping
@@ -275,6 +301,7 @@ export async function POST(req: NextRequest) {
             schedule,
             scheduledFor: d.scheduled_for ?? undefined, // This is when the post is scheduled, NOT the event date
             prompt: `Write copy for this post`,
+            variation_hint: variation_hint,
             options: {
               length: "short" as const,
               emoji: "none" as const,

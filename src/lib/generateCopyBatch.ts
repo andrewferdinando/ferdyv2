@@ -116,6 +116,7 @@ export async function processBatchCopyGeneration(
         cta: draft.options?.cta,
         variants: 1, // Always 1 for background jobs
         max_tokens: draft.options?.max_tokens,
+        variation_hint: (draft as any).variation_hint ?? null, // Pass through variation_hint if present
       };
 
       // Log payload before calling generatePostCopyFromContext (for debugging)

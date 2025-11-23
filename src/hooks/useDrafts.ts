@@ -129,8 +129,8 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
           query.eq('approved', false);
         }
 
-        // Order by created_at desc (matching working SQL query)
-        const { data, error } = await query.order('created_at', { ascending: false });
+        // Order by scheduled_for ascending (earliest first), nulls last
+        const { data, error } = await query.order('scheduled_for', { ascending: true, nullsFirst: false });
 
         console.log('useDrafts: Query result:', { data, error });
         console.log('useDrafts: Raw data length:', data?.length || 0);
@@ -252,7 +252,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
               refetchQuery.eq('approved', false);
             }
             
-            const { data: refreshed, error: refetchError } = await refetchQuery.order('created_at', { ascending: false });
+            const { data: refreshed, error: refetchError } = await refetchQuery.order('scheduled_for', { ascending: true, nullsFirst: false });
             
             if (refetchError) {
               console.error('useDrafts: Refetch error:', refetchError);
@@ -406,7 +406,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
           query.eq('approved', false);
         }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('scheduled_for', { ascending: true, nullsFirst: false });
 
       if (error) {
         console.error('useDrafts: Refetch error:', error);
