@@ -253,6 +253,13 @@ async function processScheduleRule(
         }
       } else {
         // Generate draft content first (we need copy and assets)
+        // Prefer occurrence URL (schedule_rule.url) over subcategory URL
+        const subcategoryData = rule.subcategories || {};
+        const url =
+          (rule.url && rule.url.trim().length > 0 ? rule.url : null) ??
+          (subcategoryData.url && subcategoryData.url.trim().length > 0 ? subcategoryData.url : null) ??
+          '';
+        
         const generatedContent = await generateCaption({
           brand: {
             name: brand.name,
@@ -263,7 +270,10 @@ async function processScheduleRule(
             hashtag_rule: rule.hashtag_rule,
             channels: rule.channels
           },
-          subcategory: rule.subcategories || {},
+          subcategory: {
+            ...subcategoryData,
+            url
+          },
           prefs: prefs || {}
         });
 

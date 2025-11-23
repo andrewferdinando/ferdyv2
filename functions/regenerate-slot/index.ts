@@ -102,17 +102,28 @@ serve(async (req) => {
       );
 
       // Generate new content
+      // Prefer occurrence URL (schedule_rule.url) over subcategory URL
+      const scheduleRule = postJob.schedule_rules;
+      const subcategoryData = scheduleRule?.subcategories || {};
+      const url =
+        (scheduleRule?.url && scheduleRule.url.trim().length > 0 ? scheduleRule.url : null) ??
+        (subcategoryData.url && subcategoryData.url.trim().length > 0 ? subcategoryData.url : null) ??
+        '';
+      
       const generatedContent = await generateCaption({
         brand: {
           name: brand.name,
           timezone: brand.timezone
         },
         rule: {
-          tone: postJob.schedule_rules?.tone,
-          hashtag_rule: postJob.schedule_rules?.hashtag_rule,
-          channels: postJob.schedule_rules?.channels
+          tone: scheduleRule?.tone,
+          hashtag_rule: scheduleRule?.hashtag_rule,
+          channels: scheduleRule?.channels
         },
-        subcategory: postJob.schedule_rules?.subcategories || {},
+        subcategory: {
+          ...subcategoryData,
+          url
+        },
         prefs: prefs || {}
       });
 

@@ -197,12 +197,20 @@ ${isEvent ? "EVENT MODE" : "PRODUCT/SERVICE MODE"}
   - Do NOT mention any specific dates unless they explicitly appear in the subcategory description, the extracted URL text, or the POST OBJECTIVE.
 
 - EVENT MODE (frequency_type = date/date_range):
-  - Treat this as a time-specific event, sale, or promotion.
-  - Use light, natural urgency (e.g. "coming up", "happening soon", "join us").
+  - Treat this as something time-specific. It might be:
+    - a physical in-person event (e.g. networking night, workshop, open day),
+    - an online event (e.g. webinar, live stream),
+    - a time-bound promo, sale, launch, or special offer.
+  - Infer which it is from the subcategory description and URL summary.
+  - If it clearly describes a physical or online event, focus on the experience, who it's for, and what will happen.
+  - If it clearly describes a sale/promo/offer (e.g. "sale", "discount", "% off", "special offer", "launch", "early-bird pricing"), focus on the offer and its value, not on people "attending" something.
+  - Use light, natural urgency (e.g. "coming up", "happening soon", "last chance", "don't miss this offer") that fits the context.
   - You MAY reference the event date or date range exactly as provided in EVENT TIMING.
-  - You MUST ignore the scheduled post date; it is NOT the event date.
-  - If the context clearly sounds like a physical event (e.g. "networking event", "workshop", "live show"), describe the experience.
-  - If the context clearly sounds like a sale or promo (e.g. "sale", "discount", "% off", "special offer"), focus on the offer/promotion rather than a physical gathering.
+  - You MUST ignore the scheduled post date; it is NOT the event or promo date.
+
+For multiple posts about the same event or promo:
+- Each post must highlight a different angle (experience, value, what to expect, who it's for, atmosphere, benefits, why attend / why buy).
+- Avoid repeating the same opening line or sentence structure.
 
 ${isEvent && eventTiming ? `### EVENT TIMING
 
@@ -222,9 +230,19 @@ ${payload.prompt}
 - Never reference another brand or subcategory.
 - Do not invent extra facilities, capacities, or features.
 - Avoid generic filler (e.g. "Don't miss out on this exciting event") unless clearly warranted by the context.
+- Use short paragraphs separated by blank lines.
+- Aim for 2–4 short paragraphs depending on post length.
+- Never produce a single large block of text.
 - No hashtags.
 - No apologies.
 - Keep the copy natural, human, and specific.
+
+### VARIATION RULES
+
+- Write each post with a different angle, structure, and opening sentence.
+- For posts from the same subcategory, avoid repeating the same phrasing.
+- You may focus each post on different aspects (e.g., benefits, what to expect, who it's for, key features, experience, value).
+- Reword sentences and reorder ideas so each post feels fresh and unique.
 
 Write the final post text only.  
 Plain text, no headings, no markdown, no explanations.

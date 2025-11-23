@@ -207,6 +207,7 @@ export function SubcategoryScheduleForm({
     times_of_day: string[]
     channels: string[]
     timezone: string
+    url?: string | null
   }>>([])
 
   // Initialize form with editing data
@@ -395,6 +396,11 @@ export function SubcategoryScheduleForm({
       newErrors.subcategoryName = 'Name is required'
     }
 
+    // Description (detail) is required for all frequency types
+    if (!subcategoryData.detail || !subcategoryData.detail.trim()) {
+      newErrors.subcategoryDetail = 'Description is required'
+    }
+
     // Validate channels - at least one channel is required
     if (!subcategoryData.channels || subcategoryData.channels.length === 0) {
       newErrors.channels = 'At least one channel is required'
@@ -458,7 +464,7 @@ export function SubcategoryScheduleForm({
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }, [subcategoryData, scheduleData])
+  }, [subcategoryData, scheduleData, editingSubcategory])
 
   // Hashtag management
   const addHashtag = () => {
@@ -561,11 +567,25 @@ export function SubcategoryScheduleForm({
         
         // Update existing subcategory
         // IMPORTANT: Only update the specified fields, preserve category_id
+        // Detail is required - validate before saving
+        if (!subcategoryData.detail || !subcategoryData.detail.trim()) {
+          setErrors({ submit: 'Description is required' })
+          setIsLoading(false)
+          return
+        }
+
+        console.info('[SubcategoryScheduleForm] Updating subcategory:', {
+          id: editingSubcategory.id,
+          name: subcategoryData.name,
+          hasDetail: !!subcategoryData.detail,
+          hasUrl: !!subcategoryData.url
+        })
+
         const { data, error } = await supabase
           .from('subcategories')
           .update({
             name: subcategoryData.name,
-            detail: subcategoryData.detail || null,
+            detail: subcategoryData.detail.trim(),
             url: subcategoryData.url || null,
             default_hashtags: normalizedHashtags,
             channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
@@ -575,8 +595,10 @@ export function SubcategoryScheduleForm({
           .select()
           .single()
 
+        console.info('[SubcategoryScheduleForm] Update response:', { data, error })
+
         if (error) {
-          console.error('Subcategory update error:', error)
+          console.error('[SubcategoryScheduleForm] Subcategory update error:', error)
           throw error
         }
         subcategoryId = data.id
@@ -645,13 +667,27 @@ export function SubcategoryScheduleForm({
         }
         
         // Create new subcategory
+        // Detail is required - validate before saving
+        if (!subcategoryData.detail || !subcategoryData.detail.trim()) {
+          setErrors({ submit: 'Description is required' })
+          setIsLoading(false)
+          return
+        }
+
+        console.info('[SubcategoryScheduleForm] Creating subcategory:', {
+          name: subcategoryData.name,
+          categoryId: finalCategoryId,
+          hasDetail: !!subcategoryData.detail,
+          hasUrl: !!subcategoryData.url
+        })
+
         const { data, error } = await supabase
           .from('subcategories')
           .insert({
             brand_id: brandId,
             category_id: finalCategoryId,
             name: subcategoryData.name,
-            detail: subcategoryData.detail || null,
+            detail: subcategoryData.detail.trim(),
             url: subcategoryData.url || null,
             default_hashtags: normalizedHashtags,
             channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
@@ -659,8 +695,10 @@ export function SubcategoryScheduleForm({
           .select()
           .single()
 
+        console.info('[SubcategoryScheduleForm] Insert response:', { data, error })
+
         if (error) {
-          console.error('Subcategory insert error:', error)
+          console.error('[SubcategoryScheduleForm] Subcategory insert error:', error)
           // Provide more helpful error message
           if (error.code === '23505') {
             throw new Error(`A subcategory with the name "${subcategoryData.name}" already exists in this category. Please delete it first or use a different name.`)
@@ -668,6 +706,7 @@ export function SubcategoryScheduleForm({
           throw error
         }
         subcategoryId = data.id
+        console.info('[SubcategoryScheduleForm] Successfully created subcategory:', subcategoryId)
         // Update currentSubcategoryId so EventOccurrencesManager can work
         setCurrentSubcategoryId(subcategoryId)
         
@@ -863,13 +902,13 @@ export function SubcategoryScheduleForm({
               // Ensure time_of_day is an array and not empty
               const timesOfDay = Array.isArray(occ.times_of_day) && occ.times_of_day.length > 0
                 ? occ.times_of_day
-                : null
+                : []
               
               // Validate required fields for specific frequency
               if (!occ.start_date) {
                 throw new Error('Start date is required for all occurrences')
               }
-              if (!timesOfDay || timesOfDay.length === 0) {
+              if (timesOfDay.length === 0) {
                 throw new Error('At least one time of day is required for all occurrences')
               }
               if (!occ.channels || occ.channels.length === 0) {
@@ -880,6 +919,9 @@ export function SubcategoryScheduleForm({
               // The constraint requires: end_date IS NOT NULL OR (days_during IS NOT NULL AND cardinality > 0)
               const endDate = occ.end_date || occ.start_date
               
+              // Ensure timezone is set
+              const finalTimezone = occ.timezone || brand?.timezone || 'Pacific/Auckland'
+              
               return {
                 brand_id: brandId,
                 subcategory_id: subcategoryId,
@@ -888,27 +930,34 @@ export function SubcategoryScheduleForm({
                 frequency: 'specific' as const,
                 start_date: occ.start_date,
                 end_date: endDate, // Must be NOT NULL for constraint - use start_date if null
-                time_of_day: timesOfDay, // Column is time_of_day (constraint may have typo)
+                time_of_day: timesOfDay, // Always an array
                 channels: occ.channels, // Must be non-empty array for specific frequency
-                timezone: occ.timezone || brand?.timezone || 'Pacific/Auckland',
+                timezone: finalTimezone,
                 is_active: true,
                 tone: null,
                 hashtag_rule: null,
                 image_tag_rule: null,
                 days_before: [], // Empty array instead of null
-                days_during: null // null is fine when end_date is set
+                days_during: null, // null is fine when end_date is set
+                detail: null, // Occurrence detail (not subcategory detail)
+                url: occ.url || null // Include occurrence URL
               }
             })
 
-            console.log('Attempting to insert occurrences:', occurrenceInserts)
+            console.info('[SubcategoryScheduleForm] Attempting to insert occurrences:', {
+              count: occurrenceInserts.length,
+              inserts: occurrenceInserts
+            })
             
             const { error: occurrencesError, data } = await supabase
               .from('schedule_rules')
               .insert(occurrenceInserts)
               .select()
 
+            console.info('[SubcategoryScheduleForm] Insert response:', { data, error: occurrencesError })
+
             if (occurrencesError) {
-              console.error('Error saving occurrences:', {
+              console.error('[SubcategoryScheduleForm] Error saving occurrences:', {
                 error: occurrencesError,
                 code: occurrencesError.code,
                 message: occurrencesError.message,
@@ -919,7 +968,7 @@ export function SubcategoryScheduleForm({
               throw new Error(`Failed to save occurrences: ${occurrencesError.message || occurrencesError.code || 'Unknown error'}`)
             }
 
-            console.log(`Successfully saved ${newOccurrences.length} occurrence(s):`, data)
+            console.info(`[SubcategoryScheduleForm] Successfully saved ${newOccurrences.length} occurrence(s):`, data)
           }
         } catch (occurrencesError) {
           console.error('Error saving occurrences:', occurrencesError)
@@ -948,6 +997,7 @@ export function SubcategoryScheduleForm({
   const isFormValid = useMemo(() => {
     // Check essential fields
     if (!subcategoryData.name.trim()) return false
+    if (!subcategoryData.detail || !subcategoryData.detail.trim()) return false
     if (!subcategoryData.channels || subcategoryData.channels.length === 0) return false
 
     // Check timeOfDay for daily, weekly, and monthly frequencies
@@ -1082,13 +1132,14 @@ export function SubcategoryScheduleForm({
                 />
               </FormField>
 
-              <FormField label="Detail">
+              <FormField label="Detail" required>
                 <textarea
                   value={subcategoryData.detail}
                   onChange={(e) => setSubcategoryData(prev => ({ ...prev, detail: e.target.value }))}
-                  placeholder="Enter details (optional)"
+                  placeholder="Enter description (required)"
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  error={errors.subcategoryDetail}
                 />
               </FormField>
 
@@ -1498,7 +1549,8 @@ export function SubcategoryScheduleForm({
                         end_date: o.end_date,
                         times_of_day: o.times_of_day,
                         channels: o.channels,
-                        timezone: o.timezone
+                        timezone: o.timezone,
+                        url: o.url || null
                       }))
                       setDraftOccurrences(allOccurrences)
                       

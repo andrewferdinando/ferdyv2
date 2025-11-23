@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     // Fetch schedule rules to get frequency and subcategory mapping
     const { data: scheduleRules } = await supabaseAdmin
       .from('schedule_rules')
-      .select('id, frequency, subcategory_id, start_date, end_date')
+      .select('id, frequency, subcategory_id, start_date, end_date, url')
       .eq('brand_id', brandId)
       .eq('is_active', true);
 
@@ -124,12 +124,42 @@ export async function POST(req: NextRequest) {
       copy: string | null;
     }
 
+    // Filter drafts that need copy generation
+    const draftsNeedingCopy = insertedDrafts.filter((d) => {
+      const copy = d.copy;
+      return (!copy || copy.trim().length === 0 || copy === 'Post copy coming soon…') && d.scheduled_for !== null;
+    });
+
+    // Load post_jobs to find the specific occurrence (schedule_rule) for each draft
+    const draftIds = draftsNeedingCopy.map(d => d.id);
+    let postJobs: Array<{ id: string; draft_id: string; schedule_rule_id: string | null }> = [];
+    
+    if (draftIds.length > 0) {
+      const { data: postJobsData } = await supabaseAdmin
+        .from('post_jobs')
+        .select('id, draft_id, schedule_rule_id')
+        .in('draft_id', draftIds);
+      
+      postJobs = postJobsData || [];
+    }
+
+    // Build lookup maps to find the specific occurrence for each draft
+    const scheduleRuleById = new Map(
+      (scheduleRules ?? []).map(r => [r.id, r])
+    );
+
+    const ruleByDraftId = new Map(
+      postJobs
+        .filter(job => job.schedule_rule_id)
+        .map(job => [job.draft_id, scheduleRuleById.get(job.schedule_rule_id!)])
+        .filter(([, rule]) => rule !== undefined)
+    );
+
     const payload = {
       brandId,
-      drafts: insertedDrafts
+      drafts: draftsNeedingCopy
         .filter((d): d is DraftRow => {
-          const copy = d.copy;
-          return (!copy || copy.trim().length === 0 || copy === 'Post copy coming soon…') && d.scheduled_for !== null;
+          return d.scheduled_for !== null;
         })
         .map((d) => {
           // Match draft to target via scheduled_for (same logic as client)
@@ -142,7 +172,10 @@ export async function POST(req: NextRequest) {
 
           const subcategoryId = target?.subcategory_id;
           const subcategory = subcategoryId ? subcategoriesMap.get(subcategoryId) : null;
-          const rule = scheduleRules?.find(r => r.subcategory_id === subcategoryId);
+          
+          // Prefer the specific occurrence (schedule_rule) from post_jobs, fallback to any rule for subcategory
+          const ruleFromDraft = ruleByDraftId.get(d.id);
+          const rule = ruleFromDraft ?? scheduleRules?.find(r => r.subcategory_id === subcategoryId);
           
           // Normalize rule.frequency into frequencyType for AI payload
           // schedule_rules.frequency can be: "daily" | "weekly" | "monthly" | "specific"
@@ -188,21 +221,19 @@ export async function POST(req: NextRequest) {
           }
           // For non-event posts, schedule only contains frequency (no event_date)
 
-          const mappedSubcategory = subcategory
-            ? {
-                name: subcategory.name ?? '',
-                url: subcategory.url ?? '',
-                description: subcategory.detail ?? undefined,
-                frequency_type: frequencyType,
-                url_page_summary: subcategory.url_page_summary ?? null,
-              }
-            : {
-                name: '',
-                url: '',
-                description: undefined,
-                frequency_type: frequencyType,
-                url_page_summary: null,
-              };
+          // Prefer occurrence URL (from schedule_rule.url), then subcategory URL
+          const url =
+            (rule?.url && rule.url.trim().length > 0 ? rule.url : null) ??
+            (subcategory?.url && subcategory.url.trim().length > 0 ? subcategory.url : null) ??
+            '';
+
+          const mappedSubcategory = {
+            name: subcategory?.name ?? '',
+            url,
+            description: subcategory?.detail ?? undefined,
+            frequency_type: frequencyType,
+            url_page_summary: subcategory?.url_page_summary ?? null,
+          };
 
           // Log draft rule + subcategory mapping for debugging
           console.log("[push] Draft rule + subcategory mapping:", JSON.stringify({
@@ -215,6 +246,15 @@ export async function POST(req: NextRequest) {
             subcategoryMapped: mappedSubcategory,
             frequencyType,
           }, null, 2));
+
+          // Debug log for URL mapping
+          console.log('[push] URL mapping', {
+            draftId: d.id,
+            scheduleRuleId: rule?.id ?? null,
+            ruleUrl: rule?.url ?? null,
+            subcategoryUrl: subcategory?.url ?? null,
+            finalUrl: url,
+          });
 
           return {
             draftId: d.id,

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase-browser'
 import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
+import { useToast } from '@/components/ui/ToastProvider'
 
 interface EventOccurrence {
   id: string
@@ -17,6 +18,7 @@ interface EventOccurrence {
   timezone: string
   is_active: boolean
   detail?: string | null  // Occurrence detail/description
+  url?: string | null  // Occurrence-specific URL
 }
 
 interface EventOccurrencesManagerProps {
@@ -34,6 +36,7 @@ export function EventOccurrencesManager({
   onOccurrencesChanged,
   onOccurrencesChange
 }: EventOccurrencesManagerProps) {
+  const { showToast } = useToast()
   const [occurrences, setOccurrences] = useState<EventOccurrence[]>([])
   const [loading, setLoading] = useState(true)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -236,7 +239,8 @@ const renderChannelIcons = (channels: string[]) =>
         channels: rule.channels || [],
         timezone: rule.timezone || brandTimezone,
         is_active: rule.is_active ?? true,
-        detail: rule.detail || null
+        detail: rule.detail || null,
+        url: rule.url || null
       }))
 
       console.log('EventOccurrencesManager: Mapped occurrences:', mapped.length)
@@ -326,6 +330,23 @@ const renderChannelIcons = (channels: string[]) =>
     setBlockedMaxDate('') // No need for max date - minDate handles it
   }
 
+  // Helper function to extract date part (YYYY-MM-DD) from a date string
+  const extractDatePart = (dateValue: string | null): string => {
+    if (!dateValue) return ''
+    const normalizeToUTC = (dateStr: string): string => {
+      if (dateStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+        return dateStr
+      }
+      return dateStr.endsWith('Z') ? dateStr : dateStr + 'Z'
+    }
+    const normalized = normalizeToUTC(dateValue)
+    const utcDate = new Date(normalized)
+    const year = utcDate.getUTCFullYear()
+    const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(utcDate.getUTCDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   // Check if a date is in a locked month
   const isDateLocked = (dateStr: string): boolean => {
     if (!dateStr) return false
@@ -334,6 +355,20 @@ const renderChannelIcons = (channels: string[]) =>
     const isLocked = lockedMonths.includes(monthStr)
     console.log('isDateLocked check:', { dateStr, year, month, monthStr, lockedMonths, isLocked })
     return isLocked
+  }
+
+  // Check if two dates are in the same month (YYYY-MM format)
+  const isSameMonth = (date1: string, date2: string): boolean => {
+    if (!date1 || !date2) return false
+    const month1 = date1.substring(0, 7) // YYYY-MM
+    const month2 = date2.substring(0, 7)
+    return month1 === month2
+  }
+
+  // Get the month string (YYYY-MM) for a date
+  const getMonthString = (dateStr: string): string => {
+    if (!dateStr) return ''
+    return dateStr.substring(0, 7) // YYYY-MM
   }
 
   const resetForm = () => {
@@ -357,10 +392,13 @@ const renderChannelIcons = (channels: string[]) =>
       setTimesOfDay([...firstOccurrence.times_of_day])
       setChannels([...firstOccurrence.channels])
       setTimezone(firstOccurrence.timezone)
-    }
-    // Default URL from subcategory
-    if (subcategoryUrl) {
-      setUrl(subcategoryUrl)
+      // Default URL from first occurrence if present, otherwise subcategory URL
+      setUrl(firstOccurrence.url || subcategoryUrl || '')
+    } else {
+      // Default URL from subcategory
+      if (subcategoryUrl) {
+        setUrl(subcategoryUrl)
+      }
     }
   }
 
@@ -432,18 +470,52 @@ const renderChannelIcons = (channels: string[]) =>
   const handleSaveSingle = async () => {
     // EventOccurrencesManager is ONLY for date/date_range occurrences
     // Locked month restrictions should only apply to recurring frequencies (daily/weekly/monthly)
-    // So we don't enforce locked month checks here
     
     if (!startDate || timesOfDay.length === 0 || channels.length === 0) {
-      alert('Please fill in all required fields')
+      showToast({
+        type: 'error',
+        title: 'Missing required fields',
+        message: 'Please fill in all required fields (date, times, and channels)'
+      })
       return
     }
 
     if (isDateRange) {
       if (!endDate || endDate < startDate) {
-        alert('End date must be after start date')
+        showToast({
+          type: 'error',
+          title: 'Invalid date range',
+          message: 'End date must be after start date'
+        })
         return
       }
+    }
+
+    // Validate date changes for existing occurrences
+    if (isEditing && isEditing.id && !isEditing.id.startsWith('draft-')) {
+      // This is an existing occurrence being edited
+      const originalStartDate = extractDatePart(isEditing.start_date)
+      const originalMonth = getMonthString(originalStartDate)
+      const newMonth = getMonthString(startDate)
+      
+      // Allow editing if:
+      // 1. New date is in the same month as original (can edit details, URL, etc. even if month is locked)
+      // 2. New date is not in a locked month (can move to unlocked months)
+      // Block only if: new date is in a different locked month
+      if (originalMonth !== newMonth) {
+        // Date is being moved to a different month
+        if (isDateLocked(startDate)) {
+          // New month is locked - block the change
+          showToast({
+            type: 'error',
+            title: 'Cannot change date',
+            message: 'This occurrence has drafts already generated for that month. You cannot move it outside this month.'
+          })
+          return
+        }
+        // New month is not locked - allow the change
+      }
+      // Same month - always allow (editing details, URL, etc. is fine)
     }
 
     try {
@@ -452,29 +524,49 @@ const renderChannelIcons = (channels: string[]) =>
       let startDateTz = ''
       let endDateTz: string | null = null
       
-      if (startDate) {
-        // Store as UTC midnight to preserve the exact date
-        // The timezone field in the rule will be used when scheduling/generating posts
-        startDateTz = `${startDate}T00:00:00Z`
+      if (!startDate) {
+        throw new Error('Start date is required')
       }
       
+      // Validate start_date is a valid date
+      const startDateObj = new Date(startDate)
+      if (isNaN(startDateObj.getTime())) {
+        throw new Error('Invalid start date')
+      }
+      
+      // Store as UTC midnight to preserve the exact date
+      // The timezone field in the rule will be used when scheduling/generating posts
+      startDateTz = `${startDate}T00:00:00Z`
+      
       if (isDateRange && endDate) {
+        // Validate end_date is a valid date
+        const endDateObj = new Date(endDate)
+        if (isNaN(endDateObj.getTime())) {
+          throw new Error('Invalid end date')
+        }
         endDateTz = `${endDate}T23:59:59Z`
       } else if (!isDateRange && startDate) {
         // For single-day events, set end_date to start_date to satisfy database constraint
         endDateTz = startDateTz
+      } else {
+        // Fallback: if no endDate provided for range, use startDate
+        endDateTz = startDateTz
       }
+      
+      // Ensure timezone is set (default to brand timezone)
+      const finalTimezone = timezone || brandTimezone || 'Pacific/Auckland'
       
       const occurrence: EventOccurrence = {
         id: isEditing?.id || `draft-${Date.now()}-${Math.random()}`,
         frequency: isDateRange ? 'date_range' : 'date',
         start_date: startDateTz,
         end_date: endDateTz,
-        times_of_day: timesOfDay,
-        channels,
-        timezone,
+        times_of_day: timesOfDay.length > 0 ? timesOfDay : [],
+        channels: channels.length > 0 ? channels : [],
+        timezone: finalTimezone,
         is_active: true,
-        detail: detail.trim() || null
+        detail: detail.trim() || null,
+        url: url.trim() || null
       }
 
       if (subcategoryId) {
@@ -482,40 +574,67 @@ const renderChannelIcons = (channels: string[]) =>
         const payload = {
           brand_id: brandId,
           subcategory_id: subcategoryId,
-          frequency: 'specific',
+          frequency: 'specific' as const,
           start_date: occurrence.start_date,
           end_date: occurrence.end_date,
-          time_of_day: occurrence.times_of_day,
-          channels: occurrence.channels,
+          time_of_day: occurrence.times_of_day.length > 0 ? occurrence.times_of_day : [],
+          channels: occurrence.channels.length > 0 ? occurrence.channels : [],
           timezone: occurrence.timezone,
           is_active: true,
           days_before: [], // Empty array for specific frequency
           days_during: null, // null is fine when end_date is set
-          detail: occurrence.detail || null
+          detail: occurrence.detail || null,
+          url: occurrence.url || null
         }
 
-        if (isEditing) {
-          const { error: updateError } = await supabase
+        console.info('[EventOccurrencesManager] Saving occurrence:', {
+          isEditing: !!isEditing,
+          occurrenceId: isEditing?.id,
+          payload
+        })
+
+        if (isEditing && isEditing.id && !isEditing.id.startsWith('draft-')) {
+          // Update existing occurrence
+          const { data, error: updateError } = await supabase
             .from('schedule_rules')
             .update(payload)
             .eq('id', isEditing.id)
+            .select()
+          
+          console.info('[EventOccurrencesManager] Update response:', { data, error: updateError })
           
           if (updateError) {
-            console.error('Error updating occurrence:', updateError)
-            throw updateError
+            console.error('[EventOccurrencesManager] Error updating occurrence:', updateError)
+            throw new Error(`Failed to update occurrence: ${updateError.message || updateError.code || 'Unknown error'}`)
           }
+          
+          console.info('[EventOccurrencesManager] Successfully updated occurrence:', data)
         } else {
-          const { error: insertError } = await supabase
+          // Insert new occurrence
+          const { data, error: insertError } = await supabase
             .from('schedule_rules')
             .insert(payload)
+            .select()
+          
+          console.info('[EventOccurrencesManager] Insert response:', { data, error: insertError })
           
           if (insertError) {
-            console.error('Error inserting occurrence:', insertError)
-            throw insertError
+            console.error('[EventOccurrencesManager] Error inserting occurrence:', insertError)
+            throw new Error(`Failed to save occurrence: ${insertError.message || insertError.code || 'Unknown error'}`)
           }
+          
+          console.info('[EventOccurrencesManager] Successfully inserted occurrence:', data)
         }
+        
+        // Refresh occurrences list
         await fetchOccurrences()
         onOccurrencesChanged?.()
+        
+        showToast({
+          type: 'success',
+          title: 'Occurrence saved',
+          message: isEditing ? 'Occurrence updated successfully' : 'Occurrence added successfully'
+        })
       } else {
         // For new subcategories, just update local state
         if (isEditing) {
@@ -523,24 +642,39 @@ const renderChannelIcons = (channels: string[]) =>
         } else {
           setOccurrences(prev => [...prev, occurrence])
         }
+        
+        console.info('[EventOccurrencesManager] Updated local state (no subcategoryId yet):', occurrence)
       }
 
       resetForm()
       setIsAddModalOpen(false)
     } catch (err) {
-      console.error('Error saving occurrence:', err)
-      alert('Failed to save occurrence')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save occurrence'
+      console.error('[EventOccurrencesManager] Error saving occurrence:', err)
+      showToast({
+        type: 'error',
+        title: 'Failed to save occurrence',
+        message: errorMessage
+      })
     }
   }
 
   const handleBulkSave = async () => {
     if (!bulkInput.trim()) {
-      alert('Please enter at least one date or date range')
+      showToast({
+        type: 'error',
+        title: 'Missing dates',
+        message: 'Please enter at least one date or date range'
+      })
       return
     }
 
     if (bulkTimesOfDay.length === 0 || bulkChannels.length === 0) {
-      alert('Please provide default times and channels for all occurrences')
+      showToast({
+        type: 'error',
+        title: 'Missing required fields',
+        message: 'Please provide default times and channels for all occurrences'
+      })
       return
     }
 
@@ -550,37 +684,63 @@ const renderChannelIcons = (channels: string[]) =>
       if (subcategoryId) {
         // Save to database if subcategoryId exists
         // Create timestamps that represent midnight in UTC to preserve the date correctly
-        const inserts = parsed.map(p => ({
-          brand_id: brandId,
-          subcategory_id: subcategoryId,
-          frequency: 'specific',
-          start_date: `${p.start}T00:00:00Z`, // Use UTC explicitly
-          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59Z` : null, // Use UTC explicitly
-          time_of_day: bulkTimesOfDay.length > 0 ? bulkTimesOfDay : null,
-          channels: bulkChannels,
-          timezone: brandTimezone,
-          is_active: true
-        }))
+        const inserts = parsed.map(p => {
+          const endDate = p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59Z` : `${p.start}T23:59:59Z`
+          return {
+            brand_id: brandId,
+            subcategory_id: subcategoryId,
+            frequency: 'specific' as const,
+            start_date: `${p.start}T00:00:00Z`, // Use UTC explicitly
+            end_date: endDate, // Always set end_date (use start_date for single dates)
+            time_of_day: bulkTimesOfDay.length > 0 ? bulkTimesOfDay : [],
+            channels: bulkChannels.length > 0 ? bulkChannels : [],
+            timezone: brandTimezone || 'Pacific/Auckland',
+            is_active: true,
+            days_before: [],
+            days_during: null,
+            detail: null,
+            url: null
+          }
+        })
 
-        await supabase
+        console.info('[EventOccurrencesManager] Bulk saving occurrences:', { count: inserts.length, inserts })
+
+        const { data, error: insertError } = await supabase
           .from('schedule_rules')
           .insert(inserts)
+          .select()
+
+        console.info('[EventOccurrencesManager] Bulk insert response:', { data, error: insertError })
+
+        if (insertError) {
+          console.error('[EventOccurrencesManager] Error bulk saving occurrences:', insertError)
+          throw new Error(`Failed to save occurrences: ${insertError.message || insertError.code || 'Unknown error'}`)
+        }
 
         await fetchOccurrences()
         onOccurrencesChanged?.()
+        
+        showToast({
+          type: 'success',
+          title: 'Occurrences added',
+          message: `Successfully added ${inserts.length} occurrence(s)`
+        })
       } else {
         // For new subcategories, just update local state
         const newOccurrences: EventOccurrence[] = parsed.map((p, idx) => ({
           id: `draft-${Date.now()}-${idx}-${Math.random()}`,
           frequency: p.frequency,
           start_date: `${p.start}T00:00:00Z`, // Use UTC explicitly
-          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59Z` : null, // Use UTC explicitly
+          end_date: p.frequency === 'date_range' && p.end ? `${p.end}T23:59:59Z` : `${p.start}T23:59:59Z`, // Use UTC explicitly
           times_of_day: bulkTimesOfDay,
           channels: bulkChannels,
           timezone: brandTimezone,
-          is_active: true
+          is_active: true,
+          detail: null,
+          url: null
         }))
         setOccurrences(prev => [...prev, ...newOccurrences])
+        console.info('[EventOccurrencesManager] Added to local state (no subcategoryId yet):', newOccurrences.length, 'occurrences')
       }
 
       setBulkInput('')
@@ -588,30 +748,17 @@ const renderChannelIcons = (channels: string[]) =>
       setBulkChannels([])
       setIsBulkModalOpen(false)
     } catch (err) {
-      console.error('Error bulk saving:', err)
-      alert(err instanceof Error ? err.message : 'Failed to bulk save occurrences')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk save occurrences'
+      console.error('[EventOccurrencesManager] Error bulk saving:', err)
+      showToast({
+        type: 'error',
+        title: 'Failed to save occurrences',
+        message: errorMessage
+      })
     }
   }
 
   const handleEdit = (occurrence: EventOccurrence) => {
-    // Normalize date strings to UTC format before parsing
-    const normalizeToUTC = (dateStr: string): string => {
-      if (dateStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
-        return dateStr
-      }
-      return dateStr.endsWith('Z') ? dateStr : dateStr + 'Z'
-    }
-
-    const extractDatePart = (dateValue: string | null): string => {
-      if (!dateValue) return ''
-      const normalized = normalizeToUTC(dateValue)
-      const utcDate = new Date(normalized)
-      const year = utcDate.getUTCFullYear()
-      const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(utcDate.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
     const startDatePart = extractDatePart(occurrence.start_date)
     const endDatePart = extractDatePart(occurrence.end_date)
 
@@ -623,14 +770,12 @@ const renderChannelIcons = (channels: string[]) =>
     setIsDateRange(occurrence.frequency === 'date_range')
     setStartDate(startDatePart)
     setEndDate(endDatePart)
-    setTimesOfDay(occurrence.times_of_day)
-    setChannels(occurrence.channels)
-    setTimezone(occurrence.timezone)
+    setTimesOfDay(occurrence.times_of_day || [])
+    setChannels(occurrence.channels || [])
+    setTimezone(occurrence.timezone || brandTimezone)
     setDetail(occurrence.detail || '')
-    // URL is not stored per occurrence, so we'll use subcategory URL
-    if (subcategoryUrl) {
-      setUrl(subcategoryUrl)
-    }
+    // Use occurrence URL if present, otherwise fall back to subcategory URL
+    setUrl(occurrence.url || subcategoryUrl || '')
     setIsAddModalOpen(true)
   }
 
@@ -639,32 +784,61 @@ const renderChannelIcons = (channels: string[]) =>
       const duplicated: EventOccurrence = {
         ...occurrence,
         id: `draft-${Date.now()}-${Math.random()}`,
-        detail: occurrence.detail || null  // Ensure detail is copied
+        detail: occurrence.detail || null,  // Ensure detail is copied
+        url: occurrence.url || null  // Ensure url is copied
       }
 
       if (subcategoryId) {
-        await supabase
+        const payload = {
+          brand_id: brandId,
+          subcategory_id: subcategoryId,
+          frequency: 'specific' as const,
+          start_date: occurrence.start_date,
+          end_date: occurrence.end_date,
+          time_of_day: occurrence.times_of_day.length > 0 ? occurrence.times_of_day : [],
+          channels: occurrence.channels.length > 0 ? occurrence.channels : [],
+          timezone: occurrence.timezone || brandTimezone || 'Pacific/Auckland',
+          is_active: true,
+          days_before: [],
+          days_during: null,
+          detail: occurrence.detail || null,
+          url: occurrence.url || null
+        }
+
+        console.info('[EventOccurrencesManager] Duplicating occurrence:', { payload })
+
+        const { data, error: insertError } = await supabase
           .from('schedule_rules')
-          .insert({
-            brand_id: brandId,
-            subcategory_id: subcategoryId,
-            frequency: 'specific',
-            start_date: occurrence.start_date,
-            end_date: occurrence.end_date,
-            time_of_day: occurrence.times_of_day,
-            channels: occurrence.channels,
-            timezone: occurrence.timezone,
-            is_active: true,
-            detail: occurrence.detail || null  // Copy detail field
-          })
+          .insert(payload)
+          .select()
+
+        console.info('[EventOccurrencesManager] Duplicate insert response:', { data, error: insertError })
+
+        if (insertError) {
+          console.error('[EventOccurrencesManager] Error duplicating occurrence:', insertError)
+          throw new Error(`Failed to duplicate occurrence: ${insertError.message || insertError.code || 'Unknown error'}`)
+        }
+
         await fetchOccurrences()
         onOccurrencesChanged?.()
+        
+        showToast({
+          type: 'success',
+          title: 'Occurrence duplicated',
+          message: 'Occurrence duplicated successfully'
+        })
       } else {
         setOccurrences(prev => [...prev, duplicated])
+        console.info('[EventOccurrencesManager] Duplicated in local state (no subcategoryId yet):', duplicated)
       }
     } catch (err) {
-      console.error('Error duplicating occurrence:', err)
-      alert('Failed to duplicate occurrence')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to duplicate occurrence'
+      console.error('[EventOccurrencesManager] Error duplicating occurrence:', err)
+      showToast({
+        type: 'error',
+        title: 'Failed to duplicate occurrence',
+        message: errorMessage
+      })
     }
   }
 
