@@ -144,12 +144,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Build lookup maps to find the specific occurrence for each draft
-    const scheduleRuleById = new Map(
+    type ScheduleRule = {
+      id: string;
+      frequency: string;
+      subcategory_id: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      url: string | null;
+    };
+
+    const scheduleRuleById = new Map<string, ScheduleRule>(
       (scheduleRules ?? []).map(r => [r.id, r])
     );
 
     // Build ruleByDraftId map: draft_id -> schedule_rule
-    const ruleByDraftId = new Map<string, typeof scheduleRules[0] | undefined>()
+    const ruleByDraftId = new Map<string, ScheduleRule>()
     for (const job of postJobs) {
       if (job.schedule_rule_id) {
         const rule = scheduleRuleById.get(job.schedule_rule_id)
