@@ -1033,10 +1033,10 @@ const renderChannelIcons = (channels: string[]) =>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleArchive(occ)}
+                        onClick={() => handleDeleteOccurrence(occ)}
                         className="text-red-600 hover:text-red-800 text-xs"
                       >
-                        Archive
+                        Delete
                       </button>
                     </div>
                   </div>
