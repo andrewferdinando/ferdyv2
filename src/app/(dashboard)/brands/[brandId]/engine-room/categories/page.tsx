@@ -878,6 +878,8 @@ export default function CategoriesPage() {
                       <tbody className="divide-y divide-gray-200">
                           {(() => {
                             const activeRules = (rules || []).filter(r => r.is_active)
+                            const subcategoriesWithRules = new Set(activeRules.map(r => r.subcategory_id))
+                            const subcategoriesWithoutRules = allSubcategories.filter(sub => !subcategoriesWithRules.has(sub.id))
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const nthMap: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' }
