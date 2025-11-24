@@ -863,7 +863,7 @@ export function SubcategoryScheduleForm({
           console.error('[SubcategoryScheduleForm] Subcategory insert error:', error)
           // Provide more helpful error message
           if (error.code === '23505') {
-            throw new Error(`A framework item with the name "${subcategoryData.name}" already exists. Please delete it first or use a different name.`)
+            throw new Error(`A category with the name "${subcategoryData.name}" already exists. Please delete it first or use a different name.`)
           }
           throw error
         }
@@ -1220,12 +1220,12 @@ export function SubcategoryScheduleForm({
   }, [subcategoryData, scheduleData, draftOccurrences, currentSubcategoryId])
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Framework Item' : 'Add Framework Item'}>
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Category' : 'Add Category'}>
       <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Framework Item Details */}
+          {/* Category Details */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Framework Item Details</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Category Details</h3>
             <p className="text-sm text-gray-600 mb-4">
               Use this section to describe the overall programme, offer, or event series. These details apply to every event date.
             </p>

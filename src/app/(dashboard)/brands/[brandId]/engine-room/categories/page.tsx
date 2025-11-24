@@ -804,7 +804,7 @@ export default function CategoriesPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Framework Items</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories</h1>
               </div>
               {isAdmin && (
                 <button
@@ -814,7 +814,7 @@ export default function CategoriesPage() {
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Framework Item
+                  Add Category
                 </button>
               )}
             </div>
@@ -1308,25 +1308,25 @@ export default function CategoriesPage() {
                                               setIsSubcategoryModalOpen(true)
                                             }}
                                             className="text-gray-400 hover:text-gray-600"
-                                            title="Edit framework item"
+                                            title="Edit category"
                                           >
                                             <EditIcon className="w-4 h-4" />
                                           </button>
                                           <button
                                             onClick={() => handleDuplicateSubcategory(sub.id, sub.name)}
                                             className="text-gray-400 hover:text-blue-600"
-                                            title="Duplicate framework item"
+                                            title="Duplicate category"
                                           >
                                             <DuplicateIcon className="w-4 h-4" />
                                           </button>
                                           <button
                                             onClick={() => {
-                                              if (confirm(`Delete framework item "${sub.name}"? This will permanently delete the item and all associated data.`)) {
+                                              if (confirm(`Delete category "${sub.name}"? This will permanently delete the category and all associated data.`)) {
                                                 handleDeleteSubcategory(sub.id, sub.name)
                                               }
                                             }}
                                             className="text-gray-400 hover:text-red-600"
-                                            title="Delete framework item"
+                                            title="Delete category"
                                           >
                                             <TrashIcon className="w-4 h-4" />
                                           </button>
@@ -1348,7 +1348,7 @@ export default function CategoriesPage() {
                   return (
                     <div className="p-6">
                       <div className="text-center py-12">
-                        <p className="text-gray-500">No framework items yet. Create one to get started.</p>
+                        <p className="text-gray-500">No categories yet. Create one to get started.</p>
                       </div>
                     </div>
                   )

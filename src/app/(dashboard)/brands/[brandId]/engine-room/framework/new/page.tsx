@@ -305,7 +305,7 @@ export default function NewFrameworkItemWizard() {
       if (!isStep1Valid) {
         showToast({
           title: 'Please select a type',
-          message: 'You must choose what kind of framework item this is.',
+          message: 'You must choose what kind of category this is.',
           type: 'error'
         })
         return null
@@ -385,9 +385,9 @@ export default function NewFrameworkItemWizard() {
       if (subcategoryError) {
         console.error('[Wizard] Subcategory insert error:', subcategoryError)
         if (subcategoryError.code === '23505') {
-          throw new Error(`A framework item with the name "${details.name}" already exists. Please use a different name.`)
+          throw new Error(`A category with the name "${details.name}" already exists. Please use a different name.`)
         }
-        throw new Error(`Failed to create framework item: ${subcategoryError.message}`)
+        throw new Error(`Failed to create category: ${subcategoryError.message}`)
       }
 
       const subcategoryId = subcategoryData.id
@@ -481,9 +481,9 @@ export default function NewFrameworkItemWizard() {
 
       return { subcategoryId }
     } catch (error) {
-      console.error('[Wizard] Error saving framework item:', error)
+      console.error('[Wizard] Error saving category:', error)
       showToast({
-        title: 'Failed to create framework item',
+        title: 'Failed to create category',
         message: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
         type: 'error'
       })
@@ -529,8 +529,8 @@ export default function NewFrameworkItemWizard() {
     // If no images selected, just redirect
     if (selectedAssetIds.length === 0) {
       showToast({
-        title: 'Framework item created',
-        message: 'You can now add dates and edit details in the Framework Items list.',
+        title: 'Category created',
+        message: 'You can now add dates and edit details in the Categories list.',
         type: 'success'
       })
       router.push(`/brands/${brandId}/engine-room/categories`)
@@ -571,7 +571,7 @@ export default function NewFrameworkItemWizard() {
 
         if (createTagError || !newTag) {
           console.error('[Wizard] Failed to create/find subcategory tag:', createTagError)
-          throw new Error('Failed to link images to framework item. Images were uploaded but not assigned.')
+          throw new Error('Failed to link images to category. Images were uploaded but not assigned.')
         }
 
         tagId = newTag.id
@@ -605,8 +605,8 @@ export default function NewFrameworkItemWizard() {
         }
 
         showToast({
-          title: 'Framework item created and images assigned',
-          message: 'You can now add dates and edit details in the Framework Items list.',
+          title: 'Category created and images assigned',
+          message: 'You can now add dates and edit details in the Categories list.',
           type: 'success'
         })
       } else {
@@ -617,7 +617,7 @@ export default function NewFrameworkItemWizard() {
     } catch (error) {
       console.error('[Wizard] Error linking images:', error)
       showToast({
-        title: 'Framework item created',
+        title: 'Category created',
         message: error instanceof Error ? `Images were uploaded but couldn't be linked: ${error.message}. You can manage images from the Content Library.` : 'Images were uploaded but couldn\'t be linked. You can manage images from the Content Library.',
         type: 'error'
       })
@@ -654,7 +654,7 @@ export default function NewFrameworkItemWizard() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">
-                  Create Framework Item
+                  Create Category
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">
                   Add a new item to your content framework
@@ -732,7 +732,7 @@ export default function NewFrameworkItemWizard() {
                       Step 1: Select Type
                     </h2>
                     <p className="text-sm text-gray-600 mb-6">
-                      Choose the type that best matches your framework item. This tells Ferdy how to structure the posts.
+                      Choose the type that best matches your category. This tells Ferdy how to structure the posts.
                     </p>
 
                     {/* Type Selection Grid */}
@@ -825,7 +825,7 @@ export default function NewFrameworkItemWizard() {
                           error={detailsErrors.name}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Give this framework item a clear name your team will recognise.
+                          Give this category a clear name your team will recognise.
                         </p>
                       </FormField>
 
@@ -991,7 +991,7 @@ export default function NewFrameworkItemWizard() {
                       {schedule.frequency === 'specific' && (
                         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                           <p className="text-sm text-gray-700">
-                            You've chosen specific dates. After saving this framework item, you'll add each event date and its URL on the Event Dates section.
+                            You've chosen specific dates. After saving this category, you'll add each event date and its URL on the Event Dates section.
                           </p>
                         </div>
                       )}
@@ -1203,7 +1203,7 @@ export default function NewFrameworkItemWizard() {
                           Upload new images
                         </h3>
                         <p className="text-sm text-gray-600 mb-4">
-                          Upload images to assign to this framework item. Images will be available in your Content Library.
+                          Upload images to assign to this category. Images will be available in your Content Library.
                         </p>
 
                         <UploadAsset
@@ -1268,7 +1268,7 @@ export default function NewFrameworkItemWizard() {
                           Choose from existing images
                         </h3>
                         <p className="text-sm text-gray-600 mb-4">
-                          Select images from your Content Library to assign to this framework item.
+                          Select images from your Content Library to assign to this category.
                         </p>
 
                         {assetsLoading ? (
