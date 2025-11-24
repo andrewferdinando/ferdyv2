@@ -299,8 +299,8 @@ interface WizardProps {
   initialData?: WizardInitialData
 }
 
-export default function NewFrameworkItemWizard(props?: WizardProps) {
-  const { mode = 'create', initialData } = props || {}
+function NewFrameworkItemWizard(props: WizardProps = {}) {
+  const { mode = 'create', initialData } = props
   const params = useParams()
   const router = useRouter()
   const brandId = params.brandId as string
@@ -2246,4 +2246,11 @@ export default function NewFrameworkItemWizard(props?: WizardProps) {
     </RequireAuth>
   )
 }
+
+// Export as default for Next.js page, and as named export for reuse
+export default function Page() {
+  return <NewFrameworkItemWizard />
+}
+
+export { NewFrameworkItemWizard, type WizardInitialData }
 
