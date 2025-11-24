@@ -1103,37 +1103,7 @@ export default function CategoriesPage() {
                                         <div className="flex space-x-2">
                                           <button
                                             onClick={() => {
-                                              setEditingSubcategory({
-                                                id: firstRule.subcategory_id,
-                                                name: subcat.subcategoryName,
-                                                detail: firstRule.subcategories?.detail,
-                                                url: firstRule.subcategories?.url,
-                                                subcategory_type: firstRule.subcategories?.subcategory_type as SubcategoryType | undefined,
-                                                settings: firstRule.subcategories?.settings || {},
-                                                hashtags: firstRule.subcategories?.default_hashtags || [],
-                                                channels: subcategoryChannels || []
-                                              })
-                                              // Set editingScheduleRule with frequency='specific' to trigger EventOccurrencesManager
-                                              // The EventOccurrencesManager will load all occurrences for this subcategory
-                                              const timesArray = firstRule.time_of_day 
-                                                ? (Array.isArray(firstRule.time_of_day) ? firstRule.time_of_day : [firstRule.time_of_day])
-                                                : []
-                                              setEditingScheduleRule({
-                                                id: firstRule.id, // Use first rule ID as placeholder
-                                                frequency: 'specific',
-                                                timeOfDay: timesArray[0] || '',
-                                                timesOfDay: timesArray,
-                                                daysOfWeek: [],
-                                                daysOfMonth: [],
-                                                channels: channels,
-                                                isDateRange: false,
-                                                startDate: '',
-                                                endDate: '',
-                                                daysBefore: firstRule.days_before || [],
-                                                daysDuring: firstRule.days_during || [],
-                                                timezone: firstRule.timezone || 'Pacific/Auckland'
-                                              })
-                                              setIsSubcategoryModalOpen(true)
+                                              router.push(`/brands/${brandId}/engine-room/categories/${firstRule.subcategory_id}/edit`)
                                             }}
                                             className="text-gray-400 hover:text-gray-600"
                                             title="Edit subcategory"
@@ -1217,41 +1187,7 @@ export default function CategoriesPage() {
                                         <div className="flex space-x-2">
                                           <button
                                             onClick={() => {
-                                              const ruleChannels = getSubcategoryChannelsForRule(rule)
-                                              setEditingSubcategory({
-                                                id: rule.subcategory_id,
-                                                name: rule.subcategories?.name || '',
-                                                detail: rule.subcategories?.detail,
-                                                url: rule.subcategories?.url,
-                                                subcategory_type: rule.subcategories?.subcategory_type as SubcategoryType | undefined,
-                                                settings: rule.subcategories?.settings || {},
-                                                hashtags: rule.subcategories?.default_hashtags || [],
-                                                channels: ruleChannels
-                                              })
-
-                                              const timesArray = Array.isArray(rule.time_of_day) ? rule.time_of_day : (rule.time_of_day ? [rule.time_of_day] : [])
-                                              const mappedRule = {
-                                                id: rule.id,
-                                                frequency: rule.frequency,
-                                                timeOfDay: timesArray[0] || '',
-                                                timesOfDay: timesArray,
-                                                daysOfWeek: (rule.days_of_week || []).map((d: number) => {
-                                                  const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
-                                                  return dayMap[d] || ''
-                                                }).filter(Boolean),
-                                                daysOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month : (rule.day_of_month ? [rule.day_of_month] : []),
-                                                nthWeek: rule.nth_week,
-                                                weekday: rule.weekday,
-                                                channels: ruleChannels,
-                                                isDateRange: !!(rule.end_date && rule.start_date && new Date(rule.end_date).toDateString() !== new Date(rule.start_date).toDateString()),
-                                                startDate: rule.start_date ? new Date(rule.start_date).toISOString().split('T')[0] : '',
-                                                endDate: rule.end_date ? new Date(rule.end_date).toISOString().split('T')[0] : '',
-                                                daysBefore: rule.days_before || [],
-                                                daysDuring: rule.days_during || [],
-                                                timezone: rule.timezone || 'Pacific/Auckland'
-                                              }
-                                              setEditingScheduleRule(mappedRule)
-                                              setIsSubcategoryModalOpen(true)
+                                              router.push(`/brands/${brandId}/engine-room/categories/${rule.subcategory_id}/edit`)
                                             }}
                                             className="text-gray-400 hover:text-gray-600"
                                           >
@@ -1294,18 +1230,7 @@ export default function CategoriesPage() {
                                         <div className="flex space-x-2">
                                           <button
                                             onClick={() => {
-                                              setEditingSubcategory({
-                                                id: sub.id,
-                                                name: sub.name,
-                                                detail: sub.detail,
-                                                url: sub.url,
-                                                subcategory_type: sub.subcategory_type as SubcategoryType | undefined,
-                                                settings: sub.settings || {},
-                                                hashtags: sub.default_hashtags || [],
-                                                channels: sub.channels || []
-                                              })
-                                              setEditingScheduleRule(null)
-                                              setIsSubcategoryModalOpen(true)
+                                              router.push(`/brands/${brandId}/engine-room/categories/${sub.id}/edit`)
                                             }}
                                             className="text-gray-400 hover:text-gray-600"
                                             title="Edit category"
