@@ -205,8 +205,13 @@ type WizardSchedule = {
 
 type EventOccurrenceInput = {
   id?: string
-  date: string // 'YYYY-MM-DD'
+  // Single date mode
+  date?: string // 'YYYY-MM-DD'
   time?: string // 'HH:mm' or ''
+  // Range mode
+  start_date?: string // 'YYYY-MM-DD'
+  end_date?: string // 'YYYY-MM-DD'
+  // Common fields
   url?: string
   notes?: string
   summary?: any // URL summary data (from refreshUrlSummary)
@@ -249,6 +254,7 @@ export default function NewFrameworkItemWizard() {
     daysOfWeek?: string
     dayOfMonth?: string
   }>({})
+  const [eventOccurrenceType, setEventOccurrenceType] = useState<'single' | 'range'>('single')
   const [eventScheduling, setEventScheduling] = useState<EventSchedulingState>({
     occurrences: [],
     daysBefore: []
@@ -258,6 +264,14 @@ export default function NewFrameworkItemWizard() {
     leadTimes?: string
   }>({})
   const [leadTimesInput, setLeadTimesInput] = useState<string>('7, 3, 1')
+  
+  // Reset occurrences when switching occurrence type
+  useEffect(() => {
+    if (subcategoryType === 'event_series') {
+      setEventScheduling(prev => ({ ...prev, occurrences: [] }))
+      setEventErrors({})
+    }
+  }, [eventOccurrenceType, subcategoryType])
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   // Initialize daysBefore from leadTimesInput when component mounts or switching to Events type
@@ -333,10 +347,19 @@ export default function NewFrameworkItemWizard() {
       if (eventScheduling.occurrences.length === 0) {
         return false
       }
-      // All occurrences must have a date and time
-      return eventScheduling.occurrences.every(
-        occ => occ.date.trim().length > 0 && occ.time && occ.time.trim().length > 0
-      )
+      
+      // Validate based on occurrence type
+      if (eventOccurrenceType === 'single') {
+        // Single mode: date + time required
+        return eventScheduling.occurrences.every(
+          occ => occ.date && occ.date.trim().length > 0 && occ.time && occ.time.trim().length > 0
+        )
+      } else {
+        // Range mode: start_date + end_date required
+        return eventScheduling.occurrences.every(
+          occ => occ.start_date && occ.start_date.trim().length > 0 && occ.end_date && occ.end_date.trim().length > 0
+        )
+      }
     }
     
     // Other types use the standard schedule validation
@@ -403,12 +426,23 @@ export default function NewFrameworkItemWizard() {
           if (eventScheduling.occurrences.length === 0) {
             newErrors.occurrences = 'Please add at least one event occurrence.'
           } else {
-            const missingDates = eventScheduling.occurrences.filter(occ => !occ.date.trim())
-            const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
-            if (missingDates.length > 0) {
-              newErrors.occurrences = 'All occurrences must have a date.'
-            } else if (missingTimes.length > 0) {
-              newErrors.occurrences = 'All occurrences must have a time.'
+            if (eventOccurrenceType === 'single') {
+              const missingDates = eventScheduling.occurrences.filter(occ => !occ.date || !occ.date.trim())
+              const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
+              if (missingDates.length > 0) {
+                newErrors.occurrences = 'All occurrences must have a date.'
+              } else if (missingTimes.length > 0) {
+                newErrors.occurrences = 'All occurrences must have a time.'
+              }
+            } else {
+              // Range mode
+              const missingStartDates = eventScheduling.occurrences.filter(occ => !occ.start_date || !occ.start_date.trim())
+              const missingEndDates = eventScheduling.occurrences.filter(occ => !occ.end_date || !occ.end_date.trim())
+              if (missingStartDates.length > 0) {
+                newErrors.occurrences = 'All occurrences must have a start date.'
+              } else if (missingEndDates.length > 0) {
+                newErrors.occurrences = 'All occurrences must have an end date.'
+              }
             }
           }
           setEventErrors(newErrors)
@@ -508,7 +542,7 @@ export default function NewFrameworkItemWizard() {
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
           days_before: eventScheduling.daysBefore.length > 0 ? eventScheduling.daysBefore : null,
-          days_during: null,
+          days_during: eventOccurrenceType === 'range' ? null : null, // Can be set in future, but null for now
           channels: details.channels.length > 0 ? details.channels : null,
           is_active: true,
           tone: null,
@@ -532,16 +566,29 @@ export default function NewFrameworkItemWizard() {
         // Create event_occurrences for each occurrence
         const occurrencesToInsert = await Promise.all(
           eventScheduling.occurrences.map(async (occurrence) => {
-            // Combine date + time into starts_at
-            // Time is required, so it should always be present (validation ensures this)
-            const dateStr = occurrence.date.trim()
-            const timeStr = occurrence.time?.trim() || '12:00' // Fallback (should not be needed due to validation)
-            // Use timezone from brand or default
-            const timezone = brand?.timezone || 'Pacific/Auckland'
-            // Create ISO string with timezone consideration
-            // Note: We'll store as UTC timestamptz, but construct from local date/time
-            const dateTimeStr = `${dateStr}T${timeStr}:00`
-            const startsAt = new Date(dateTimeStr).toISOString()
+            let startsAt: string
+            let endAt: string | null = null
+            
+            if (eventOccurrenceType === 'single') {
+              // Single mode: date + time into starts_at, end_at = null
+              const dateStr = occurrence.date!.trim()
+              const timeStr = occurrence.time!.trim() // Required, validated
+              const dateTimeStr = `${dateStr}T${timeStr}:00`
+              startsAt = new Date(dateTimeStr).toISOString()
+              // end_at remains null for single dates
+            } else {
+              // Range mode: start_date at 00:00, end_date at 23:59
+              const startDateStr = occurrence.start_date!.trim()
+              const endDateStr = occurrence.end_date!.trim()
+              
+              // Start at 00:00 local time
+              const startDateTimeStr = `${startDateStr}T00:00:00`
+              startsAt = new Date(startDateTimeStr).toISOString()
+              
+              // End at 23:59:59 local time
+              const endDateTimeStr = `${endDateStr}T23:59:59`
+              endAt = new Date(endDateTimeStr).toISOString()
+            }
 
             // Determine URL: use occurrence URL if provided, else fallback to category URL
             const finalUrl = occurrence.url?.trim() || details.url.trim() || null
@@ -567,6 +614,7 @@ export default function NewFrameworkItemWizard() {
             return {
               subcategory_id: subcategoryId,
               starts_at: startsAt,
+              end_at: endAt,
               url: finalUrl,
               notes: occurrence.notes?.trim() || null,
               summary: summary ? JSON.stringify(summary) : null
@@ -990,6 +1038,74 @@ export default function NewFrameworkItemWizard() {
                     )}
 
                     <div className="space-y-6">
+                      {/* Occurrence Type Selector (Events only) */}
+                      {subcategoryType === 'event_series' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                            How should occurrences be structured?
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setEventOccurrenceType('single')}
+                              className={`
+                                relative p-4 rounded-lg border-2 text-left transition-all
+                                ${
+                                  eventOccurrenceType === 'single'
+                                    ? 'border-[#6366F1] bg-white shadow-sm'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                }
+                              `}
+                            >
+                              {eventOccurrenceType === 'single' && (
+                                <div className="absolute top-3 right-3">
+                                  <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
+                                    <CheckIcon className="w-3 h-3 text-white" />
+                                  </div>
+                                </div>
+                              )}
+                              <div className="pr-8">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                                  Single dates
+                                </h4>
+                                <p className="text-xs text-gray-600">
+                                  One specific day + time per occurrence
+                                </p>
+                              </div>
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setEventOccurrenceType('range')}
+                              className={`
+                                relative p-4 rounded-lg border-2 text-left transition-all
+                                ${
+                                  eventOccurrenceType === 'range'
+                                    ? 'border-[#6366F1] bg-white shadow-sm'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                }
+                              `}
+                            >
+                              {eventOccurrenceType === 'range' && (
+                                <div className="absolute top-3 right-3">
+                                  <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
+                                    <CheckIcon className="w-3 h-3 text-white" />
+                                  </div>
+                                </div>
+                              )}
+                              <div className="pr-8">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                                  Date ranges
+                                </h4>
+                                <p className="text-xs text-gray-600">
+                                  Multi-day period (start + end date)
+                                </p>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Name */}
                       <FormField label="Name" required>
                         <Input
@@ -1108,9 +1224,16 @@ export default function NewFrameworkItemWizard() {
                                 {(() => {
                                   const now = new Date()
                                   const upcomingCount = eventScheduling.occurrences.filter(occ => {
-                                    if (!occ.date.trim()) return false
-                                    const occDate = new Date(occ.date + (occ.time ? `T${occ.time}` : 'T12:00'))
-                                    return occDate >= now
+                                    if (eventOccurrenceType === 'single') {
+                                      if (!occ.date || !occ.date.trim()) return false
+                                      const occDate = new Date(occ.date + (occ.time ? `T${occ.time}` : 'T12:00'))
+                                      return occDate >= now
+                                    } else {
+                                      // Range mode: check if end_date is in the future
+                                      if (!occ.end_date || !occ.end_date.trim()) return false
+                                      const endDate = new Date(occ.end_date + 'T23:59:59')
+                                      return endDate >= now
+                                    }
                                   }).length
                                   return upcomingCount > 0 ? ` (${upcomingCount} upcoming)` : ''
                                 })()}
@@ -1119,12 +1242,19 @@ export default function NewFrameworkItemWizard() {
                             <button
                               type="button"
                               onClick={() => {
-                                const newOccurrence: EventOccurrenceInput = {
-                                  date: '',
-                                  time: '',
-                                  url: '',
-                                  notes: ''
-                                }
+                                const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
+                                  ? {
+                                      date: '',
+                                      time: '',
+                                      url: '',
+                                      notes: ''
+                                    }
+                                  : {
+                                      start_date: '',
+                                      end_date: '',
+                                      url: '',
+                                      notes: ''
+                                    }
                                 const newIndex = eventScheduling.occurrences.length
                                 setEventScheduling(prev => ({
                                   ...prev,
@@ -1139,7 +1269,7 @@ export default function NewFrameworkItemWizard() {
                                   const cardRef = occurrenceRefs.current.get(newIndex)
                                   if (cardRef) {
                                     cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                                    // Focus the date input
+                                    // Focus the first date input
                                     const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
                                     if (dateInput) {
                                       dateInput.focus()
@@ -1191,41 +1321,79 @@ export default function NewFrameworkItemWizard() {
                                     </button>
                                   </div>
                                   
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Date - Required */}
-                                    <FormField label="Date" required>
-                                      <Input
-                                        type="date"
-                                        value={occurrence.date}
-                                        onChange={(e) => {
-                                          const updated = [...eventScheduling.occurrences]
-                                          updated[index] = { ...updated[index], date: e.target.value }
-                                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                          if (eventErrors.occurrences) {
-                                            setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                          }
-                                        }}
-                                        error={eventErrors.occurrences && !occurrence.date ? 'Date is required' : undefined}
-                                      />
-                                    </FormField>
-                                    
-                                    {/* Time - Required */}
-                                    <FormField label="Time" required>
-                                      <Input
-                                        type="time"
-                                        value={occurrence.time || ''}
-                                        onChange={(e) => {
-                                          const updated = [...eventScheduling.occurrences]
-                                          updated[index] = { ...updated[index], time: e.target.value }
-                                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                          if (eventErrors.occurrences) {
-                                            setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                          }
-                                        }}
-                                        error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
-                                      />
-                                    </FormField>
-                                  </div>
+                                  {eventOccurrenceType === 'single' ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {/* Date - Required */}
+                                      <FormField label="Date" required>
+                                        <Input
+                                          type="date"
+                                          value={occurrence.date || ''}
+                                          onChange={(e) => {
+                                            const updated = [...eventScheduling.occurrences]
+                                            updated[index] = { ...updated[index], date: e.target.value }
+                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                            if (eventErrors.occurrences) {
+                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                            }
+                                          }}
+                                          error={eventErrors.occurrences && (!occurrence.date || !occurrence.date.trim()) ? 'Date is required' : undefined}
+                                        />
+                                      </FormField>
+                                      
+                                      {/* Time - Required */}
+                                      <FormField label="Time" required>
+                                        <Input
+                                          type="time"
+                                          value={occurrence.time || ''}
+                                          onChange={(e) => {
+                                            const updated = [...eventScheduling.occurrences]
+                                            updated[index] = { ...updated[index], time: e.target.value }
+                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                            if (eventErrors.occurrences) {
+                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                            }
+                                          }}
+                                          error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
+                                        />
+                                      </FormField>
+                                    </div>
+                                  ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {/* Start Date - Required */}
+                                      <FormField label="Start Date" required>
+                                        <Input
+                                          type="date"
+                                          value={occurrence.start_date || ''}
+                                          onChange={(e) => {
+                                            const updated = [...eventScheduling.occurrences]
+                                            updated[index] = { ...updated[index], start_date: e.target.value }
+                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                            if (eventErrors.occurrences) {
+                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                            }
+                                          }}
+                                          error={eventErrors.occurrences && (!occurrence.start_date || !occurrence.start_date.trim()) ? 'Start date is required' : undefined}
+                                        />
+                                      </FormField>
+                                      
+                                      {/* End Date - Required */}
+                                      <FormField label="End Date" required>
+                                        <Input
+                                          type="date"
+                                          value={occurrence.end_date || ''}
+                                          onChange={(e) => {
+                                            const updated = [...eventScheduling.occurrences]
+                                            updated[index] = { ...updated[index], end_date: e.target.value }
+                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                            if (eventErrors.occurrences) {
+                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                            }
+                                          }}
+                                          error={eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim()) ? 'End date is required' : undefined}
+                                        />
+                                      </FormField>
+                                    </div>
+                                  )}
                                   
                                   {/* URL - Optional */}
                                   <FormField label="URL (optional)">
