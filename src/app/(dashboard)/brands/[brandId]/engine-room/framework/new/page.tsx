@@ -489,16 +489,6 @@ export default function NewFrameworkItemWizard({ mode = 'create', initialData }:
     }
     return 'upload'
   })
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(
-    mode === 'edit' && initialData?.assets ? initialData.assets : []
-  )
-  const [imageMode, setImageMode] = useState<'upload' | 'existing'>(() => {
-    // In edit mode, if we have existing assets, default to 'existing' mode
-    if (mode === 'edit' && initialData?.assets && initialData.assets.length > 0) {
-      return 'existing'
-    }
-    return 'upload'
-  })
   
   const { showToast } = useToast()
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
