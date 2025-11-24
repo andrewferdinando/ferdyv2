@@ -862,7 +862,8 @@ export default function CategoriesPage() {
                   const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
                   const subcategoriesWithoutRulesList = allSubcategories.filter(sub => !subcategoriesWithRulesSet.has(sub.id))
                   
-                  return activeRules.length > 0 || subcategoriesWithoutRulesList.length > 0 ? (
+                  if (activeRules.length > 0 || subcategoriesWithoutRulesList.length > 0) {
+                    return (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead>
@@ -1343,15 +1344,17 @@ export default function CategoriesPage() {
                         </tbody>
                       </table>
                     </div>
-                  ) : null
-                })()
-              ) : (
+                    )
+                  }
+                  
+                  return (
                     <div className="p-6">
                       <div className="text-center py-12">
                         <p className="text-gray-500">No framework items yet. Create one to get started.</p>
                       </div>
                     </div>
-                  )}
+                  )
+                })()}
                 </div>
               </div>
           </div>
