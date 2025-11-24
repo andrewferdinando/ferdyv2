@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { SubcategoryType } from "@/types/subcategories";
 
 // Types for structured URL summary (matches refreshUrlSummary.ts)
 interface EventDetails {
@@ -34,6 +35,8 @@ export type PostCopyPayload = {
     url_page_summary?: string | null; // Can be structured JSON or plain text (backward compatible)
     category_name?: string; // e.g. "Functions"
   };
+  subcategory_type?: SubcategoryType | null; // Type of subcategory (Event Series, Evergreen Programme, etc.)
+  subcategory_settings?: Record<string, any> | null; // Type-specific settings
   schedule?: { 
     frequency?: string; 
     event_date?: string; 
@@ -56,6 +59,127 @@ export type PostCopyPayload = {
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Helper to map SubcategoryType to human-readable label
+const getHumanReadableSubcategoryType = (type: SubcategoryType | null | undefined): string => {
+  if (!type) return 'Other'
+  switch (type) {
+    case 'event_series':
+      return 'Event Series'
+    case 'service_or_programme':
+      return 'Evergreen Programme'
+    case 'promo_or_offer':
+      return 'Promo / Offer'
+    case 'dynamic_schedule':
+      return 'Rotating / Schedule'
+    case 'content_series':
+      return 'Content Pillar'
+    case 'other':
+    case 'unspecified':
+    default:
+      return 'Other'
+  }
+}
+
+// Helper to format settings hints for the prompt
+const formatSettingsHints = (type: SubcategoryType | null | undefined, settings: Record<string, any> | null | undefined): string | null => {
+  if (!type || !settings || Object.keys(settings).length === 0) return null
+  
+  const hints: string[] = []
+  
+  switch (type) {
+    case 'event_series':
+      if (settings.default_lead_times && Array.isArray(settings.default_lead_times) && settings.default_lead_times.length > 0) {
+        const times = settings.default_lead_times.join(', ')
+        hints.push(`Default lead times: ${times} days before each date.`)
+      }
+      break
+      
+    case 'content_series':
+      if (settings.number_of_items != null) {
+        hints.push(`Number of items in this series: ${settings.number_of_items}.`)
+      }
+      break
+      
+    case 'dynamic_schedule':
+      if (settings.url_refresh_frequency) {
+        hints.push(`Ferdy should refresh this schedule: ${settings.url_refresh_frequency}.`)
+      }
+      break
+      
+    case 'service_or_programme':
+      if (settings.highlight_points && Array.isArray(settings.highlight_points) && settings.highlight_points.length > 0) {
+        const points = settings.highlight_points.join(', ')
+        hints.push(`Highlight points: ${points}.`)
+      }
+      break
+      
+    case 'promo_or_offer':
+      if (settings.promo_length_days != null) {
+        hints.push(`Promo length: ${settings.promo_length_days} days.`)
+      }
+      if (settings.auto_expire) {
+        hints.push(`Auto-expires after promo length.`)
+      }
+      break
+  }
+  
+  return hints.length > 0 ? hints.join(' ') : null
+}
+
+// Helper to build type-specific guidance section for the prompt
+const buildTypeSpecificGuidance = (type: SubcategoryType | null | undefined, settings: Record<string, any> | null | undefined): string | null => {
+  if (!type || (type === 'other' || type === 'unspecified')) {
+    return 'Use general best judgement based on description and URL summary.'
+  }
+
+  const guidance: string[] = []
+
+  switch (type) {
+    case 'event_series':
+      guidance.push('Focus on time-specific value, what the attendee can expect, and who this event suits.')
+      if (settings?.default_lead_times && Array.isArray(settings.default_lead_times) && settings.default_lead_times.length > 0) {
+        guidance.push('Adjust tone based on how close the post is to the event:\n- Far from event → informative\n- Mid-range → helpful context\n- Close to event → light urgency')
+      }
+      break
+
+    case 'service_or_programme':
+      guidance.push('Focus on benefits, outcomes, who this is for, and real value.')
+      if (settings?.highlight_points && Array.isArray(settings.highlight_points) && settings.highlight_points.length > 0) {
+        const pointsList = settings.highlight_points.join(', ')
+        guidance.push(`Choose ONE of these points to highlight in this post: ${pointsList}`)
+      }
+      break
+
+    case 'promo_or_offer':
+      guidance.push('Treat this as a time-bound promo. Prioritise clarity, value, and urgency.')
+      if (settings?.promo_length_days != null) {
+        guidance.push(`This promo typically lasts ${settings.promo_length_days} days.`)
+      }
+      if (settings?.auto_expire) {
+        guidance.push('If the promo is close to ending, natural urgency is appropriate.')
+      }
+      break
+
+    case 'dynamic_schedule':
+      guidance.push('This subcategory uses a rotating schedule. Keep copy clear and factual.')
+      if (settings?.url_refresh_frequency === 'weekly') {
+        guidance.push('Treat this as a weekly update.')
+      } else if (settings?.url_refresh_frequency === 'daily') {
+        guidance.push('Treat this as a daily refresh.')
+      }
+      break
+
+    case 'content_series':
+      guidance.push('This is a recurring content series. Each post should highlight ONE angle or item.')
+      if (settings?.number_of_items != null) {
+        guidance.push(`Rotate through the ${settings.number_of_items} items over time.`)
+      }
+      break
+  }
+
+  return guidance.length > 0 ? guidance.join('\n\n') : null
+}
 
 function stripHashtags(text: string): string {
   // Remove standalone hashtag tokens (more robust pattern)
@@ -212,6 +336,16 @@ URL: ${subUrl || "(not provided)"}
 ONLY write about THIS subcategory.  
 Do NOT reference anything from any other brand or any other subcategory.
 
+${payload.subcategory_type || payload.subcategory_settings
+    ? `### SERIES TYPE
+
+${payload.subcategory_type ? `This subcategory is set up as: ${getHumanReadableSubcategoryType(payload.subcategory_type)}.\n` : ""}${(() => {
+        const settingsHint = formatSettingsHints(payload.subcategory_type ?? null, payload.subcategory_settings ?? null)
+        return settingsHint ? `${settingsHint}\n` : ""
+      })()}`
+    : ""
+}
+
 ${
   urlSummaryText || eventDetails
     ? `### EXTRA CONTEXT FROM SUBCATEGORY URL
@@ -307,7 +441,14 @@ For this specific post, prioritise this angle:
 
 ${payload.variation_hint}
 
-` : ''}Write the final post text only.  
+` : ''}${(() => {
+  const typeGuidance = buildTypeSpecificGuidance(payload.subcategory_type ?? null, payload.subcategory_settings ?? null)
+  return typeGuidance ? `### TYPE-SPECIFIC GUIDANCE
+
+${typeGuidance}
+
+` : ''
+})()}Write the final post text only.  
 Plain text, no headings, no markdown, no explanations.
 `.trim();
 

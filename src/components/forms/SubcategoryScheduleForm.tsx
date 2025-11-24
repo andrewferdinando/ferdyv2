@@ -9,14 +9,46 @@ import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useBrand } from '@/hooks/useBrand'
 import { EventOccurrencesManager } from './EventOccurrencesManager'
 import { useCategories } from '@/hooks/useCategories'
+import { SubcategoryType } from '@/types/subcategories'
 
 interface SubcategoryData {
   name: string
   detail?: string
   url?: string
+  subcategory_type: SubcategoryType
   hashtags: string[]
   channels: string[]
 }
+
+// Type-specific settings interfaces
+interface EventSeriesSettings {
+  default_lead_times?: number[]
+}
+
+interface EvergreenProgrammeSettings {
+  highlight_points?: string[]
+}
+
+interface PromoOfferSettings {
+  promo_length_days?: number | null
+  auto_expire?: boolean
+}
+
+interface RotatingScheduleSettings {
+  url_refresh_frequency?: 'daily' | 'weekly'
+}
+
+interface ContentPillarSettings {
+  number_of_items?: number | null
+}
+
+type SubcategorySettings = 
+  | EventSeriesSettings 
+  | EvergreenProgrammeSettings 
+  | PromoOfferSettings 
+  | RotatingScheduleSettings 
+  | ContentPillarSettings 
+  | Record<string, never>
 
 interface ScheduleRuleData {
   frequency: 'daily' | 'weekly' | 'monthly' | 'specific'
@@ -46,6 +78,8 @@ interface SubcategoryScheduleFormProps {
     name: string
     detail?: string
     url?: string
+    subcategory_type?: SubcategoryType
+    settings?: Record<string, any>
     hashtags: string[]
     channels?: string[]
   }
@@ -99,6 +133,80 @@ const CHANNELS = [
   { value: 'linkedin', label: 'LinkedIn Profile' },
 ]
 
+const SUBCATEGORY_TYPE_OPTIONS: Array<{ value: SubcategoryType; label: string }> = [
+  { value: 'event_series', label: 'Event Series (multiple dates, ticket links, launches, webinars)' },
+  { value: 'service_or_programme', label: 'Evergreen Programme (ongoing offer, membership, recurring service)' },
+  { value: 'promo_or_offer', label: 'Promo / Offer (sales, discounts, time-bound promotions)' },
+  { value: 'dynamic_schedule', label: 'Rotating / Schedule (timetables, classes, rotating availability scraped from a URL)' },
+  { value: 'content_series', label: 'Content Pillar (weekly themes, meet-the-team, recurring content)' },
+  { value: 'other', label: 'Other' },
+]
+
+const SUBCATEGORY_TYPE_HELP_TEXT: Record<SubcategoryType, { title: string; body: string }> = {
+  event_series: {
+    title: "Event Series",
+    body: "Use this for anything with specific dates: fixtures, launches, webinars, workshops or in-person events. You'll add one or more event dates below."
+  },
+  service_or_programme: {
+    title: "Evergreen Programme",
+    body: "Use this for ongoing offers like memberships, programmes, retainers or recurring services. Ferdy will treat this as something you can talk about any time."
+  },
+  promo_or_offer: {
+    title: "Promo / Offer",
+    body: "Use this for time-bound sales, discounts, launches or special offers. You can combine this with dates if the promo has a clear start or end."
+  },
+  dynamic_schedule: {
+    title: "Rotating / Schedule",
+    body: "Use this for classes, timetables, rotating schedules or availability that lives on a URL. Ferdy can pull fresh information from that page when generating posts."
+  },
+  content_series: {
+    title: "Content Pillar",
+    body: "Use this for recurring content themes like 'Meet the team', 'Weekly tip' or 'Player spotlight'. Each post focuses on a different item in the series."
+  },
+  other: {
+    title: "Other",
+    body: "Use this if nothing else fits. Ferdy will use your description and URL to decide the best way to talk about it."
+  },
+  unspecified: {
+    title: "Other",
+    body: "Use this if nothing else fits. Ferdy will use your description and URL to decide the best way to talk about it."
+  }
+}
+
+// Define allowed schedule frequencies per subcategory type
+// This ensures each type only shows relevant scheduling options
+type ScheduleFrequency = 'daily' | 'weekly' | 'monthly' | 'specific'
+
+const ALLOWED_FREQUENCIES_BY_TYPE: Record<SubcategoryType, ScheduleFrequency[]> = {
+  event_series: ['weekly', 'monthly', 'specific'],              // Event Series: supports specific dates
+  service_or_programme: ['weekly', 'monthly'],                  // Evergreen Programme: no daily or specific
+  promo_or_offer: ['weekly', 'monthly', 'specific'],            // Promo / Offer: supports specific dates
+  dynamic_schedule: ['daily', 'weekly', 'monthly'],             // Rotating / Schedule: no specific dates
+  content_series: ['weekly', 'monthly'],                        // Content Pillar: no daily or specific
+  other: ['daily', 'weekly', 'monthly', 'specific'],           // Other: all options available
+  unspecified: ['daily', 'weekly', 'monthly', 'specific'],     // Unspecified: all options available (backward compatibility)
+}
+
+const getScheduleSectionTitle = (subcategoryType: SubcategoryType | undefined): string => {
+  const type = subcategoryType || 'other'
+  switch (type) {
+    case 'event_series':
+      return "Event dates & reminders"
+    case 'service_or_programme':
+      return "When should Ferdy talk about this?"
+    case 'promo_or_offer':
+      return "When is this promo active?"
+    case 'dynamic_schedule':
+      return "How often should Ferdy check this schedule?"
+    case 'content_series':
+      return "How often should this series run?"
+    case 'other':
+    case 'unspecified':
+    default:
+      return "Timing & schedule"
+  }
+}
+
 export function SubcategoryScheduleForm({
   isOpen,
   onClose,
@@ -137,6 +245,7 @@ export function SubcategoryScheduleForm({
     name: '',
     detail: '',
     url: '',
+    subcategory_type: 'other',
     hashtags: [],
     channels: []
   })
@@ -190,10 +299,42 @@ export function SubcategoryScheduleForm({
     }
   }, [brand?.timezone, brand?.default_post_time, editingScheduleRule, editingSubcategory])
 
+  // Auto-reset frequency when subcategory type changes (if current frequency is not allowed)
+  // Skip this for existing subcategories to preserve legacy data
+  useEffect(() => {
+    if (!editingSubcategory && subcategoryData.subcategory_type) {
+      const currentType = subcategoryData.subcategory_type || 'other'
+      const allowedFrequencies = ALLOWED_FREQUENCIES_BY_TYPE[currentType]
+      const currentFrequency = scheduleData.frequency
+      
+      // If current frequency is not allowed for this type, reset to first allowed frequency
+      if (!allowedFrequencies.includes(currentFrequency)) {
+        const newFrequency = allowedFrequencies[0] || 'weekly'
+        setScheduleData(prev => ({ ...prev, frequency: newFrequency as ScheduleFrequency }))
+      }
+    }
+  }, [subcategoryData.subcategory_type, editingSubcategory])
+
+  // Reset settings when subcategory type changes
+  // Track the previous type to detect changes
+  const [previousType, setPreviousType] = useState<SubcategoryType | undefined>(subcategoryData.subcategory_type)
+  
+  useEffect(() => {
+    const currentType = subcategoryData.subcategory_type || 'other'
+    // If type changed, reset to defaults for new type
+    if (previousType !== currentType) {
+      setSettings(getDefaultSettings(currentType))
+      setPreviousType(currentType)
+    }
+  }, [subcategoryData.subcategory_type, previousType])
+
   // Helper state for specific date inputs
   const [daysBeforeInput, setDaysBeforeInput] = useState('')
   const [daysDuringInput, setDaysDuringInput] = useState('')
   const [newTimeInput, setNewTimeInput] = useState('')
+
+  // Type-specific settings state
+  const [settings, setSettings] = useState<Record<string, any>>({})
 
   // Form state
   const [isLoading, setIsLoading] = useState(false)
@@ -209,6 +350,49 @@ export function SubcategoryScheduleForm({
     timezone: string
     url?: string | null
   }>>([])
+
+  // Helper to parse comma-separated number array
+  const parseNumberArray = (str: string): number[] => {
+    if (!str.trim()) return []
+    return str
+      .split(',')
+      .map(s => parseInt(s.trim(), 10))
+      .filter(n => !isNaN(n) && n > 0)
+  }
+
+  // Helper to parse comma-separated string array
+  const parseStringArray = (str: string): string[] => {
+    if (!str.trim()) return []
+    return str
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+  }
+
+  // Helper to update settings
+  const updateSettings = (partialSettings: Partial<Record<string, any>>) => {
+    setSettings(prev => ({ ...prev, ...partialSettings }))
+  }
+
+  // Get default settings for a type
+  const getDefaultSettings = (type: SubcategoryType): Record<string, any> => {
+    switch (type) {
+      case 'event_series':
+        return { default_lead_times: [] }
+      case 'service_or_programme':
+        return { highlight_points: [] }
+      case 'promo_or_offer':
+        return { promo_length_days: null, auto_expire: false }
+      case 'dynamic_schedule':
+        return { url_refresh_frequency: 'weekly' }
+      case 'content_series':
+        return { number_of_items: null }
+      case 'other':
+      case 'unspecified':
+      default:
+        return {}
+    }
+  }
 
   // Initialize form with editing data
   useEffect(() => {
@@ -244,13 +428,26 @@ export function SubcategoryScheduleForm({
     }
 
     if (editingSubcategory) {
+      const type = editingSubcategory.subcategory_type || 'other'
       setSubcategoryData({
         name: editingSubcategory.name,
         detail: editingSubcategory.detail || '',
         url: editingSubcategory.url || '',
+        subcategory_type: type,
         hashtags: editingSubcategory.hashtags || [],
         channels: editingSubcategory.channels || []
       })
+      // Load settings if available, otherwise use defaults for the type
+      const existingSettings = editingSubcategory.settings || {}
+      if (existingSettings && Object.keys(existingSettings).length > 0) {
+        // Merge existing settings with defaults to ensure all fields are present
+        const defaults = getDefaultSettings(type)
+        setSettings({ ...defaults, ...existingSettings })
+      } else {
+        setSettings(getDefaultSettings(type))
+      }
+      // Initialize previousType to prevent reset on first render
+      setPreviousType(type)
       // Prefill schedule rule channels from subcategory channels if schedule rule has no channels
       if (editingSubcategory.channels && editingSubcategory.channels.length > 0) {
         setScheduleData(prev => {
@@ -266,9 +463,12 @@ export function SubcategoryScheduleForm({
         name: '',
         detail: '',
         url: '',
+        subcategory_type: 'other',
         hashtags: [],
         channels: []
       })
+      setSettings({})
+      setPreviousType('other')
     }
 
     if (editingScheduleRule) {
@@ -390,6 +590,22 @@ export function SubcategoryScheduleForm({
   // Validation
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {}
+
+    // Validate subcategory type - required
+    if (!subcategoryData.subcategory_type) {
+      newErrors.subcategoryType = 'Please choose a subcategory type.'
+    }
+
+    // Validate frequency matches allowed frequencies for this type
+    const currentType = subcategoryData.subcategory_type || 'other'
+    const allowedFrequencies = ALLOWED_FREQUENCIES_BY_TYPE[currentType]
+    if (!allowedFrequencies.includes(scheduleData.frequency)) {
+      const allowedList = allowedFrequencies.map(f => {
+        if (f === 'specific') return 'Specific Date/Range'
+        return f.charAt(0).toUpperCase() + f.slice(1)
+      }).join(', ')
+      newErrors.frequency = `This schedule type isn't supported for this subcategory type. Please choose one of: ${allowedList}.`
+    }
 
     // Simplified validation - only check essential fields
     if (!subcategoryData.name.trim()) {
@@ -588,7 +804,9 @@ export function SubcategoryScheduleForm({
             detail: subcategoryData.detail.trim(),
             url: subcategoryData.url || null,
             default_hashtags: normalizedHashtags,
-            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
+            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+            subcategory_type: subcategoryData.subcategory_type || 'other',
+            settings: settings || {}
             // NOTE: category_id is NOT included in update - it must be preserved
           })
           .eq('id', editingSubcategory.id)
@@ -690,7 +908,9 @@ export function SubcategoryScheduleForm({
             detail: subcategoryData.detail.trim(),
             url: subcategoryData.url || null,
             default_hashtags: normalizedHashtags,
-            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null
+            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+            subcategory_type: subcategoryData.subcategory_type || 'other',
+            settings: settings || {}
           })
           .select()
           .single()
@@ -996,6 +1216,7 @@ export function SubcategoryScheduleForm({
 
   const isFormValid = useMemo(() => {
     // Check essential fields
+    if (!subcategoryData.subcategory_type) return false
     if (!subcategoryData.name.trim()) return false
     if (!subcategoryData.detail || !subcategoryData.detail.trim()) return false
     if (!subcategoryData.channels || subcategoryData.channels.length === 0) return false
@@ -1126,6 +1347,164 @@ export function SubcategoryScheduleForm({
             </p>
             
             <div className="space-y-4">
+              <FormField label="What kind of thing is this?" required>
+                <select
+                  value={subcategoryData.subcategory_type}
+                  onChange={(e) => setSubcategoryData(prev => ({ ...prev, subcategory_type: e.target.value as SubcategoryType }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {SUBCATEGORY_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-gray-600 mt-1">
+                  This tells Ferdy how to structure the posts. Choose the closest match.
+                </p>
+                {errors.subcategoryType && <p className="text-red-500 text-sm mt-1">{errors.subcategoryType}</p>}
+              </FormField>
+
+              {/* Type explainer panel */}
+              {subcategoryData.subcategory_type && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2 mb-4">
+                  {(() => {
+                    const helpText = SUBCATEGORY_TYPE_HELP_TEXT[subcategoryData.subcategory_type || 'other']
+                    return (
+                      <>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1">{helpText.title}</h4>
+                        <p className="text-sm text-gray-700">{helpText.body}</p>
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+
+              {/* Type-specific settings panel */}
+              {subcategoryData.subcategory_type && subcategoryData.subcategory_type !== 'other' && subcategoryData.subcategory_type !== 'unspecified' && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">Settings for this type</h3>
+                  {(() => {
+                    const type = subcategoryData.subcategory_type
+                    
+                    // Event Series
+                    if (type === 'event_series') {
+                      return (
+                        <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Default lead times (days before event):
+                          </label>
+                          <input
+                            type="text"
+                            value={settings.default_lead_times?.join(', ') || ''}
+                            onChange={(e) => updateSettings({ default_lead_times: parseNumberArray(e.target.value) })}
+                            placeholder="7, 3, 1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <p className="text-xs text-gray-600 mt-1">Example: 7, 3, 1</p>
+                        </div>
+                      )
+                    }
+                    
+                    // Evergreen Programme
+                    if (type === 'service_or_programme') {
+                      return (
+                        <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Highlight points:
+                          </label>
+                          <input
+                            type="text"
+                            value={settings.highlight_points?.join(', ') || ''}
+                            onChange={(e) => updateSettings({ highlight_points: parseStringArray(e.target.value) })}
+                            placeholder="Benefits, Who it's for"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <p className="text-xs text-gray-600 mt-1">Example: Benefits, Who it's for</p>
+                        </div>
+                      )
+                    }
+                    
+                    // Promo / Offer
+                    if (type === 'promo_or_offer') {
+                      return (
+                        <div className="rounded-md border border-gray-200 p-3 bg-gray-50 space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Promo length (days):
+                            </label>
+                            <input
+                              type="number"
+                              value={settings.promo_length_days || ''}
+                              onChange={(e) => updateSettings({ 
+                                promo_length_days: e.target.value ? parseInt(e.target.value, 10) : null 
+                              })}
+                              placeholder="e.g., 7"
+                              min="1"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={settings.auto_expire || false}
+                              onChange={(e) => updateSettings({ auto_expire: e.target.checked })}
+                              className="mr-2"
+                            />
+                            <label className="text-sm text-gray-700">Auto-expire after promo length</label>
+                          </div>
+                        </div>
+                      )
+                    }
+                    
+                    // Rotating / Schedule
+                    if (type === 'dynamic_schedule') {
+                      return (
+                        <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            URL refresh frequency:
+                          </label>
+                          <select
+                            value={settings.url_refresh_frequency || 'weekly'}
+                            onChange={(e) => updateSettings({ url_refresh_frequency: e.target.value as 'daily' | 'weekly' })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                          </select>
+                        </div>
+                      )
+                    }
+                    
+                    // Content Pillar
+                    if (type === 'content_series') {
+                      return (
+                        <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Number of items:
+                          </label>
+                          <input
+                            type="number"
+                            value={settings.number_of_items || ''}
+                            onChange={(e) => updateSettings({ 
+                              number_of_items: e.target.value ? parseInt(e.target.value, 10) : null 
+                            })}
+                            placeholder="e.g., 10"
+                            min="1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <p className="text-xs text-gray-600 mt-1">Example: 10 episodes, 35 players</p>
+                        </div>
+                      )
+                    }
+                    
+                    return null
+                  })()}
+                </div>
+              )}
+
+              <div className="mb-2"></div>
+
               <FormField label="Name" required>
                 <Input
                   value={subcategoryData.name}
@@ -1222,24 +1601,49 @@ export function SubcategoryScheduleForm({
 
           {/* Card B: Schedule Rule */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Schedule Rule</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{getScheduleSectionTitle(subcategoryData.subcategory_type)}</h3>
             
             <div className="space-y-4">
               {/* Frequency */}
               <FormField label="Frequency" required>
                 <div className="flex gap-2 flex-wrap">
-                  {(['daily', 'weekly', 'monthly', 'specific'] as const).map((freq) => (
-                    <label key={freq} className="flex items-center">
-                      <input
-                        type="radio"
-                        value={freq}
-                        checked={scheduleData.frequency === freq}
-                        onChange={(e) => setScheduleData(prev => ({ ...prev, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' | 'specific' }))}
-                        className="mr-2"
-                      />
-                      {freq === 'specific' ? 'Specific Date/Range' : freq.charAt(0).toUpperCase() + freq.slice(1)}
-                    </label>
-                  ))}
+                  {(() => {
+                    // Get allowed frequencies for the current subcategory type
+                    const currentType = subcategoryData.subcategory_type || 'other'
+                    const allowedFrequencies = ALLOWED_FREQUENCIES_BY_TYPE[currentType]
+                    const currentFrequency = scheduleData.frequency
+                    // Include current frequency even if not allowed (for legacy data)
+                    const frequenciesToShow = Array.from(new Set([...allowedFrequencies, currentFrequency]))
+                    
+                    return (['daily', 'weekly', 'monthly', 'specific'] as const).map((freq) => {
+                      const isAllowed = allowedFrequencies.includes(freq)
+                      const isCurrent = currentFrequency === freq
+                      // Show if allowed, or if it's the current (legacy) frequency
+                      if (!frequenciesToShow.includes(freq)) return null
+                      
+                      return (
+                        <label key={freq} className={`flex items-center ${!isAllowed ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                          <input
+                            type="radio"
+                            value={freq}
+                            checked={isCurrent}
+                            onChange={(e) => {
+                              // Only allow changing to allowed frequencies
+                              if (allowedFrequencies.includes(e.target.value as ScheduleFrequency)) {
+                                setScheduleData(prev => ({ ...prev, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' | 'specific' }))
+                              }
+                            }}
+                            disabled={!isAllowed && !isCurrent}
+                            className="mr-2"
+                          />
+                          <span className={!isAllowed && !isCurrent ? 'text-gray-500' : ''}>
+                            {freq === 'specific' ? 'Specific Date/Range' : freq.charAt(0).toUpperCase() + freq.slice(1)}
+                            {!isAllowed && isCurrent && ' (legacy)'}
+                          </span>
+                        </label>
+                      )
+                    })
+                  })()}
                 </div>
                 {errors.frequency && <p className="text-red-500 text-sm mt-1">{errors.frequency}</p>}
               </FormField>
@@ -1520,10 +1924,18 @@ export function SubcategoryScheduleForm({
                 </div>
               )}
 
-              {/* Event Occurrences Manager - Show when frequency is 'specific' */}
-              {scheduleData.frequency === 'specific' && (
-                <div className={`bg-white border border-gray-200 rounded-lg p-6 ${editingSubcategory ? "mt-0" : "mt-6"}`}>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Event Dates & Occurrences</h3>
+              {/* Event Occurrences Manager - Show only for event_series with specific frequency */}
+              {(() => {
+                const currentType = subcategoryData.subcategory_type || 'other'
+                const allowedFrequencies = ALLOWED_FREQUENCIES_BY_TYPE[currentType]
+                const shouldShowOccurrences = 
+                  scheduleData.frequency === 'specific' && 
+                  currentType === 'event_series' &&
+                  allowedFrequencies.includes('specific')
+                
+                return shouldShowOccurrences && (
+                  <div className={`bg-white border border-gray-200 rounded-lg p-6 ${editingSubcategory ? "mt-0" : "mt-6"}`}>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Event Dates & Occurrences</h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Each occurrence is a specific date or date range for this subcategory (e.g. an individual event date or promo period).
                   </p>
@@ -1560,8 +1972,9 @@ export function SubcategoryScheduleForm({
                       // (This handles the case where occurrences are added but subcategory hasn't been saved yet)
                     }}
                   />
-                </div>
-              )}
+                  </div>
+                )
+              })()}
 
             </div>
           </div>

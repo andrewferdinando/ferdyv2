@@ -25,6 +25,8 @@ export type DraftCopyInput = {
     frequency_type?: string;
     url_page_summary?: string | null;
   };
+  subcategory_type?: string | null;
+  subcategory_settings?: Record<string, any> | null;
   schedule?: {
     frequency: string;
     event_date?: string;
@@ -107,6 +109,8 @@ export async function processBatchCopyGeneration(
         prompt: draft.prompt,
         platform: "instagram", // Default, can be inferred from draft.channel if available
         subcategory: draft.subcategory,
+        subcategory_type: draft.subcategory_type as any ?? null,
+        subcategory_settings: draft.subcategory_settings ?? null,
         schedule: draft.schedule,
         scheduledFor: draft.scheduledFor,
         tone_override: draft.options?.tone_override,

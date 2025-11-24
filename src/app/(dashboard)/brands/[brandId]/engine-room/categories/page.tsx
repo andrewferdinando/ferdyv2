@@ -11,6 +11,17 @@ import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleF
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
 import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressModal'
+import { SubcategoryType } from '@/types/subcategories'
+
+const SUBCATEGORY_TYPE_LABELS: Record<SubcategoryType, string> = {
+  event_series: 'Event Series',
+  service_or_programme: 'Evergreen Programme',
+  promo_or_offer: 'Promo / Offer',
+  dynamic_schedule: 'Rotating / Schedule',
+  content_series: 'Content Pillar',
+  other: 'Other',
+  unspecified: 'Other',
+}
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -55,7 +66,7 @@ export default function CategoriesPage() {
   const brandId = params.brandId as string
   const { showToast } = useToast()
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
-  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, hashtags: string[], channels?: string[]} | null>(null)
+  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, subcategory_type?: string, settings?: any, hashtags: string[], channels?: string[]} | null>(null)
   const [editingScheduleRule, setEditingScheduleRule] = useState<{
     id: string
     frequency: string
@@ -780,8 +791,9 @@ export default function CategoriesPage() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead>
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategory</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1010,6 +1022,7 @@ export default function CategoriesPage() {
                                   rows.push(
                                     <tr key={`event-group-${subcat.subcategoryId}`}>
                                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">{subcat.subcategoryName}</td>
+                                      <td className="px-6 py-4 text-sm text-gray-900">{SUBCATEGORY_TYPE_LABELS[(firstRule.subcategories?.subcategory_type as SubcategoryType) || 'other']}</td>
                                       <td className="px-6 py-4 text-sm text-gray-900">Specific Date/Range</td>
                                       <td className="px-6 py-4 text-sm">
                                         <div className="flex flex-wrap gap-2 items-center">
@@ -1057,6 +1070,8 @@ export default function CategoriesPage() {
                                                 name: subcat.subcategoryName,
                                                 detail: firstRule.subcategories?.detail,
                                                 url: firstRule.subcategories?.url,
+                                                subcategory_type: firstRule.subcategories?.subcategory_type,
+                                                settings: firstRule.subcategories?.settings || {},
                                                 hashtags: firstRule.subcategories?.default_hashtags || [],
                                                 channels: subcategoryChannels || []
                                               })
@@ -1150,6 +1165,7 @@ export default function CategoriesPage() {
                                   rows.push(
                                     <tr key={rule.id}>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{subcat.subcategoryName}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{SUBCATEGORY_TYPE_LABELS[(rule.subcategories?.subcategory_type as SubcategoryType) || 'other']}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{freqLabel}</td>
                                       <td className="px-6 py-4 text-sm">
                                         <div className="flex flex-wrap gap-2">
@@ -1169,6 +1185,8 @@ export default function CategoriesPage() {
                                                 name: rule.subcategories?.name || '',
                                                 detail: rule.subcategories?.detail,
                                                 url: rule.subcategories?.url,
+                                                subcategory_type: rule.subcategories?.subcategory_type,
+                                                settings: rule.subcategories?.settings || {},
                                                 hashtags: rule.subcategories?.default_hashtags || [],
                                                 channels: ruleChannels
                                               })

@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     const subcategoryIds = scheduleRules?.map(r => r.subcategory_id).filter(Boolean) as string[] || [];
     const { data: subcategories, error: subcategoryError } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, url, detail, url_page_summary')
+      .select('id, name, url, detail, url_page_summary, subcategory_type, settings')
       .in('id', subcategoryIds);
 
     if (subcategoryError) {
@@ -103,6 +103,17 @@ export async function POST(req: NextRequest) {
 
     console.log("[push] Subcategory IDs:", subcategoryIds);
     console.log("[push] Subcategory rows:", JSON.stringify(subcategories, null, 2));
+    
+    // Log one sample subcategory to verify new fields are present
+    if (subcategories && subcategories.length > 0) {
+      const sampleSubcategory = subcategories[0];
+      console.log("[push] Sample subcategory with new fields:", {
+        id: sampleSubcategory.id,
+        name: sampleSubcategory.name,
+        subcategory_type: sampleSubcategory.subcategory_type || 'unspecified',
+        settings: sampleSubcategory.settings || {}
+      });
+    }
 
     const subcategoriesMap = new Map(
       (subcategories || []).map(sc => [sc.id, sc])
@@ -298,6 +309,8 @@ export async function POST(req: NextRequest) {
           return {
             draftId: d.id,
             subcategory: mappedSubcategory,
+            subcategory_type: subcategory?.subcategory_type ?? null,
+            subcategory_settings: subcategory?.settings ?? null,
             schedule,
             scheduledFor: d.scheduled_for ?? undefined, // This is when the post is scheduled, NOT the event date
             prompt: `Write copy for this post`,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-browser'
+import { SubcategoryType } from '@/types/subcategories'
 
 export interface Subcategory {
   id: string
@@ -10,6 +11,8 @@ export interface Subcategory {
   name: string
   detail?: string
   url?: string
+  subcategory_type: SubcategoryType
+  settings: Record<string, any>
   hashtags: string[] // Maps to default_hashtags in database
   channels?: string[] // Social media channels
   created_at: string
@@ -45,7 +48,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         return
       }
 
-      // Map default_hashtags to hashtags and include channels
+      // Map default_hashtags to hashtags and include channels, subcategory_type, settings
       const mappedData = (data || []).map((item: {
         id: string;
         brand_id: string;
@@ -53,12 +56,16 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         name: string;
         detail?: string;
         url?: string;
+        subcategory_type?: string;
+        settings?: any;
         default_hashtags?: string[];
         channels?: string[];
         created_at: string;
         updated_at: string;
       }) => ({
         ...item,
+        subcategory_type: (item.subcategory_type as SubcategoryType) ?? 'unspecified',
+        settings: item.settings ?? {},
         hashtags: item.default_hashtags || [],
         channels: item.channels || []
       }))
@@ -80,7 +87,10 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
     setRefreshTrigger(prev => prev + 1)
   }
 
-  const createSubcategory = async (subcategoryData: Omit<Subcategory, 'id' | 'brand_id' | 'category_id' | 'created_at' | 'updated_at'>) => {
+  const createSubcategory = async (subcategoryData: Omit<Subcategory, 'id' | 'brand_id' | 'category_id' | 'created_at' | 'updated_at' | 'subcategory_type' | 'settings'> & {
+    subcategory_type?: SubcategoryType;
+    settings?: Record<string, any>;
+  }) => {
     try {
       const { data, error } = await supabase
         .from('subcategories')
@@ -88,6 +98,8 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
           ...subcategoryData,
           brand_id: brandId,
           category_id: categoryId!,
+          subcategory_type: subcategoryData.subcategory_type ?? 'unspecified',
+          settings: subcategoryData.settings ?? {},
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -226,12 +238,16 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
             name: string;
             detail?: string;
             url?: string;
+            subcategory_type?: string;
+            settings?: any;
             default_hashtags?: string[];
             channels?: string[];
             created_at: string;
             updated_at: string;
           }) => ({
             ...item,
+            subcategory_type: (item.subcategory_type as SubcategoryType) ?? 'unspecified',
+            settings: item.settings ?? {},
             hashtags: item.default_hashtags || [],
             channels: item.channels || []
           }))
