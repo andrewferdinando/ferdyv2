@@ -222,42 +222,6 @@ type EventSchedulingState = {
   daysBefore: number[] // e.g. [7, 3, 1]
 }
 
-interface WizardInitialData {
-  subcategory?: {
-    id: string
-    name: string
-    detail: string
-    url: string
-    default_hashtags: string[]
-    channels: string[]
-    subcategory_type: SubcategoryType
-    settings?: any
-  }
-  scheduleRule?: {
-    frequency: ScheduleFrequency
-    time_of_day: string | string[] | null
-    days_of_week: number[] | null
-    day_of_month: number | number[] | null
-    nth_week?: number | null
-    weekday?: number | null
-    timezone: string
-    days_before: number[] | null
-    days_during: number[] | null
-    start_date?: string | null
-    end_date?: string | null
-  }
-  eventOccurrences?: Array<{
-    id: string
-    starts_at: string
-    end_at?: string | null
-    url?: string | null
-    notes?: string | null
-    summary?: any
-  }>
-  assets?: string[] // Asset IDs
-  eventOccurrenceType?: 'single' | 'range'
-}
-
 export interface WizardInitialData {
   subcategory?: {
     id: string
@@ -2247,10 +2211,8 @@ function NewFrameworkItemWizard(props: WizardProps = {}) {
   )
 }
 
-// Export as default for Next.js page, and as named export for reuse
-export default function Page() {
-  return <NewFrameworkItemWizard />
+// Default export for Next.js page - accepts props to support reuse
+export default function Page(props: WizardProps = {}) {
+  return <NewFrameworkItemWizard {...props} />
 }
-
-export { NewFrameworkItemWizard, type WizardInitialData }
 

@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
-import { NewFrameworkItemWizard, WizardInitialData } from '../../../framework/new/page'
+import NewFrameworkItemWizard from '../../../framework/new/page'
+import type { WizardInitialData } from '../../../framework/new/page'
 import { SubcategoryType } from '@/types/subcategories'
 
 export default function EditCategoryPage() {
