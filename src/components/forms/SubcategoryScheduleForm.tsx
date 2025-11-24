@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/Input'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useBrand } from '@/hooks/useBrand'
 import { EventOccurrencesManager } from './EventOccurrencesManager'
-import { useCategories } from '@/hooks/useCategories'
 import { SubcategoryType } from '@/types/subcategories'
 
 interface SubcategoryData {
@@ -72,7 +71,6 @@ interface SubcategoryScheduleFormProps {
   isOpen: boolean
   onClose: () => void
   brandId: string
-  categoryId?: string
   editingSubcategory?: {
     id: string
     name: string
@@ -94,8 +92,6 @@ interface SubcategoryScheduleFormProps {
     channels: string[]
   }
   onSuccess: () => void
-  categories?: Array<{ id: string; name: string }>  // For category selection
-  onCreateCategory?: (name: string) => Promise<{ id: string; name: string }>  // For creating new category
 }
 
 const DAYS_OF_WEEK = [
@@ -134,34 +130,33 @@ const CHANNELS = [
 ]
 
 const SUBCATEGORY_TYPE_OPTIONS: Array<{ value: SubcategoryType; label: string }> = [
-  { value: 'event_series', label: 'Event Series (multiple dates, ticket links, launches, webinars)' },
-  { value: 'service_or_programme', label: 'Evergreen Programme (ongoing offer, membership, recurring service)' },
-  { value: 'promo_or_offer', label: 'Promo / Offer (sales, discounts, time-bound promotions)' },
-  { value: 'dynamic_schedule', label: 'Rotating / Schedule (timetables, classes, rotating availability scraped from a URL)' },
-  { value: 'content_series', label: 'Content Pillar (weekly themes, meet-the-team, recurring content)' },
+  { value: 'event_series', label: 'Events (fixtures, launches, webinars)' },
+  { value: 'service_or_programme', label: 'Products / Services (memberships, programmes, services)' },
+  { value: 'promo_or_offer', label: 'Promos (sales, discounts, special offers)' },
+  { value: 'dynamic_schedule', label: 'Schedules (class timetables, rotating lineups)' },
   { value: 'other', label: 'Other' },
 ]
 
 const SUBCATEGORY_TYPE_HELP_TEXT: Record<SubcategoryType, { title: string; body: string }> = {
   event_series: {
-    title: "Event Series",
-    body: "Use this for anything with specific dates: fixtures, launches, webinars, workshops or in-person events. You'll add one or more event dates below."
+    title: "Events",
+    body: "Use this for anything with specific dates: fixtures, launches, webinars, workshops or in-person events. You'll add one or more event dates or a recurring pattern below."
   },
   service_or_programme: {
-    title: "Evergreen Programme",
-    body: "Use this for ongoing offers like memberships, programmes, retainers or recurring services. Ferdy will treat this as something you can talk about any time."
+    title: "Products / Services",
+    body: "Use this for ongoing offers like memberships, programmes, retainers or recurring services. Ferdy will treat this as something you can talk about at any time."
   },
   promo_or_offer: {
-    title: "Promo / Offer",
+    title: "Promos",
     body: "Use this for time-bound sales, discounts, launches or special offers. You can combine this with dates if the promo has a clear start or end."
   },
   dynamic_schedule: {
-    title: "Rotating / Schedule",
+    title: "Schedules",
     body: "Use this for classes, timetables, rotating schedules or availability that lives on a URL. Ferdy can pull fresh information from that page when generating posts."
   },
   content_series: {
-    title: "Content Pillar",
-    body: "Use this for recurring content themes like 'Meet the team', 'Weekly tip' or 'Player spotlight'. Each post focuses on a different item in the series."
+    title: "Content Pillar (legacy)",
+    body: "This was used for recurring content themes like 'Meet the team' or 'Player spotlight'. It's still supported for older setups but not used for new ones."
   },
   other: {
     title: "Other",
@@ -178,11 +173,11 @@ const SUBCATEGORY_TYPE_HELP_TEXT: Record<SubcategoryType, { title: string; body:
 type ScheduleFrequency = 'daily' | 'weekly' | 'monthly' | 'specific'
 
 const ALLOWED_FREQUENCIES_BY_TYPE: Record<SubcategoryType, ScheduleFrequency[]> = {
-  event_series: ['weekly', 'monthly', 'specific'],              // Event Series: supports specific dates
-  service_or_programme: ['weekly', 'monthly'],                  // Evergreen Programme: no daily or specific
-  promo_or_offer: ['weekly', 'monthly', 'specific'],            // Promo / Offer: supports specific dates
-  dynamic_schedule: ['daily', 'weekly', 'monthly'],             // Rotating / Schedule: no specific dates
-  content_series: ['weekly', 'monthly'],                        // Content Pillar: no daily or specific
+  event_series: ['weekly', 'monthly', 'specific'],              // Events: supports specific dates
+  service_or_programme: ['weekly', 'monthly'],                  // Products / Services: no daily or specific
+  promo_or_offer: ['weekly', 'monthly', 'specific'],            // Promos: supports specific dates
+  dynamic_schedule: ['daily', 'weekly', 'monthly'],             // Schedules: no specific dates
+  content_series: ['weekly', 'monthly'],                        // Content Pillar (legacy): no daily or specific
   other: ['daily', 'weekly', 'monthly', 'specific'],           // Other: all options available
   unspecified: ['daily', 'weekly', 'monthly', 'specific'],     // Unspecified: all options available (backward compatibility)
 }
@@ -211,29 +206,12 @@ export function SubcategoryScheduleForm({
   isOpen,
   onClose,
   brandId,
-  categoryId: initialCategoryId,
   editingSubcategory,
   editingScheduleRule,
-  onSuccess,
-  categories: externalCategories,
-  onCreateCategory: externalCreateCategory
+  onSuccess
 }: SubcategoryScheduleFormProps) {
   // Fetch brand for timezone
   const { brand } = useBrand(brandId)
-  
-  // Fetch categories if not provided
-  const { categories: hookCategories, createCategory: hookCreateCategory } = useCategories(brandId)
-  const categories = externalCategories || hookCategories || []
-  const createCategory = externalCreateCategory || (async (name: string) => {
-    const result = await hookCreateCategory(name, brandId)
-    return { id: result.id, name: result.name }
-  })
-  
-  // Category selection state
-  const [categoryMode, setCategoryMode] = useState<'existing' | 'new'>('existing')
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(initialCategoryId)
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
 
   // Track the current subcategory ID (for EventOccurrencesManager)
   const [currentSubcategoryId, setCurrentSubcategoryId] = useState<string | null>(
@@ -740,40 +718,6 @@ export function SubcategoryScheduleForm({
     setErrors({}) // Clear any previous errors
 
     try {
-      // Handle category creation/selection first (only for new subcategories)
-      let finalCategoryId = initialCategoryId
-      
-      if (!editingSubcategory) {
-        if (categoryMode === 'new') {
-          if (!newCategoryName.trim()) {
-            setErrors({ submit: 'Category name is required' })
-            setIsLoading(false)
-            return
-          }
-          setIsCreatingCategory(true)
-          try {
-            const newCategory = await createCategory(newCategoryName.trim())
-            finalCategoryId = newCategory.id
-            setSelectedCategoryId(newCategory.id)
-          } catch (err) {
-            console.error('Failed to create category:', err)
-            setErrors({ submit: 'Failed to create category. Please try again.' })
-            setIsLoading(false)
-            setIsCreatingCategory(false)
-            return
-          } finally {
-            setIsCreatingCategory(false)
-          }
-        } else {
-          if (!selectedCategoryId) {
-            setErrors({ submit: 'Please select a category' })
-            setIsLoading(false)
-            return
-          }
-          finalCategoryId = selectedCategoryId
-        }
-      }
-
       // Save subcategory
       let subcategoryId: string
 
@@ -848,13 +792,12 @@ export function SubcategoryScheduleForm({
         // Normalize hashtags before saving
         const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
         
-        // Check if a subcategory with this name already exists in this category
+        // Check if a subcategory with this name already exists for this brand
         // (might be from a failed deletion or timing issue)
         const { data: existingSubcat, error: checkError } = await supabase
           .from('subcategories')
           .select('id')
           .eq('brand_id', brandId)
-          .eq('category_id', finalCategoryId)
           .ilike('name', subcategoryData.name)
           .maybeSingle()
 
@@ -894,7 +837,6 @@ export function SubcategoryScheduleForm({
 
         console.info('[SubcategoryScheduleForm] Creating subcategory:', {
           name: subcategoryData.name,
-          categoryId: finalCategoryId,
           hasDetail: !!subcategoryData.detail,
           hasUrl: !!subcategoryData.url
         })
@@ -903,7 +845,7 @@ export function SubcategoryScheduleForm({
           .from('subcategories')
           .insert({
             brand_id: brandId,
-            category_id: finalCategoryId,
+            category_id: null, // No longer using categories
             name: subcategoryData.name,
             detail: subcategoryData.detail.trim(),
             url: subcategoryData.url || null,
@@ -921,7 +863,7 @@ export function SubcategoryScheduleForm({
           console.error('[SubcategoryScheduleForm] Subcategory insert error:', error)
           // Provide more helpful error message
           if (error.code === '23505') {
-            throw new Error(`A subcategory with the name "${subcategoryData.name}" already exists in this category. Please delete it first or use a different name.`)
+            throw new Error(`A framework item with the name "${subcategoryData.name}" already exists. Please delete it first or use a different name.`)
           }
           throw error
         }
@@ -960,7 +902,7 @@ export function SubcategoryScheduleForm({
       const baseRuleData = {
         brand_id: brandId,
         subcategory_id: subcategoryId,
-        category_id: finalCategoryId || null,
+        category_id: null, // No longer using categories
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
         frequency: scheduleData.frequency,
         channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
@@ -1145,7 +1087,7 @@ export function SubcategoryScheduleForm({
               return {
                 brand_id: brandId,
                 subcategory_id: subcategoryId,
-                category_id: finalCategoryId || null,
+                category_id: null, // No longer using categories
                 name: `${subcategoryData.name} – Specific`,
                 frequency: 'specific' as const,
                 start_date: occ.start_date,
@@ -1281,67 +1223,9 @@ export function SubcategoryScheduleForm({
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl" title={editingSubcategory ? 'Edit Framework Item' : 'Add Framework Item'}>
       <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Card: Category */}
-          {!editingSubcategory && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Category</h3>
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      checked={categoryMode === 'existing'}
-                      onChange={() => {
-                        setCategoryMode('existing')
-                        setNewCategoryName('')
-                      }}
-                      className="mr-2"
-                    />
-                    <span>Use existing</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      checked={categoryMode === 'new'}
-                      onChange={() => {
-                        setCategoryMode('new')
-                        setSelectedCategoryId(undefined)
-                      }}
-                      className="mr-2"
-                    />
-                    <span>Create new</span>
-                  </label>
-                </div>
-                
-                {categoryMode === 'existing' ? (
-                  <FormField label="Category" required>
-                    <select
-                      value={selectedCategoryId || ''}
-                      onChange={(e) => setSelectedCategoryId(e.target.value || undefined)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                  </FormField>
-                ) : (
-                  <FormField label="Category Name" required>
-                    <Input
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="Enter category name"
-                    />
-                  </FormField>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Card A: Subcategory */}
+          {/* Framework Item Details */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Subcategory (applies to all events in this series)</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Framework Item Details</h3>
             <p className="text-sm text-gray-600 mb-4">
               Use this section to describe the overall programme, offer, or event series. These details apply to every event date.
             </p>
@@ -1358,6 +1242,12 @@ export function SubcategoryScheduleForm({
                       {option.label}
                     </option>
                   ))}
+                  {/* Show content_series as disabled option only when editing an existing item with that type */}
+                  {editingSubcategory?.subcategory_type === 'content_series' && (
+                    <option value="content_series" disabled>
+                      Content Pillar (legacy – no longer used for new setups)
+                    </option>
+                  )}
                 </select>
                 <p className="text-sm text-gray-600 mt-1">
                   This tells Ferdy how to structure the posts. Choose the closest match.
@@ -1387,7 +1277,7 @@ export function SubcategoryScheduleForm({
                   {(() => {
                     const type = subcategoryData.subcategory_type
                     
-                    // Event Series
+                    // Events
                     if (type === 'event_series') {
                       return (
                         <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
@@ -1406,7 +1296,7 @@ export function SubcategoryScheduleForm({
                       )
                     }
                     
-                    // Evergreen Programme
+                    // Products / Services
                     if (type === 'service_or_programme') {
                       return (
                         <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
@@ -1425,7 +1315,7 @@ export function SubcategoryScheduleForm({
                       )
                     }
                     
-                    // Promo / Offer
+                    // Promos
                     if (type === 'promo_or_offer') {
                       return (
                         <div className="rounded-md border border-gray-200 p-3 bg-gray-50 space-y-3">
@@ -1457,7 +1347,7 @@ export function SubcategoryScheduleForm({
                       )
                     }
                     
-                    // Rotating / Schedule
+                    // Schedules
                     if (type === 'dynamic_schedule') {
                       return (
                         <div className="rounded-md border border-gray-200 p-3 bg-gray-50">

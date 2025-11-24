@@ -35,7 +35,7 @@ export type PostCopyPayload = {
     url_page_summary?: string | null; // Can be structured JSON or plain text (backward compatible)
     category_name?: string; // e.g. "Functions"
   };
-  subcategory_type?: SubcategoryType | null; // Type of subcategory (Event Series, Evergreen Programme, etc.)
+  subcategory_type?: SubcategoryType | null; // Type of subcategory (Events, Products / Services, Promos, etc.)
   subcategory_settings?: Record<string, any> | null; // Type-specific settings
   schedule?: { 
     frequency?: string; 
@@ -65,15 +65,15 @@ const getHumanReadableSubcategoryType = (type: SubcategoryType | null | undefine
   if (!type) return 'Other'
   switch (type) {
     case 'event_series':
-      return 'Event Series'
+      return 'Events'
     case 'service_or_programme':
-      return 'Evergreen Programme'
+      return 'Products / Services'
     case 'promo_or_offer':
-      return 'Promo / Offer'
+      return 'Promos'
     case 'dynamic_schedule':
-      return 'Rotating / Schedule'
+      return 'Schedules'
     case 'content_series':
-      return 'Content Pillar'
+      return 'Content Pillar (legacy)'
     case 'other':
     case 'unspecified':
     default:
@@ -171,7 +171,7 @@ const buildTypeSpecificGuidance = (type: SubcategoryType | null | undefined, set
       break
 
     case 'content_series':
-      guidance.push('This is a recurring content series. Each post should highlight ONE angle or item.')
+      guidance.push('This is a recurring content series (legacy). Each post should highlight ONE angle or item.')
       if (settings?.number_of_items != null) {
         guidance.push(`Rotate through the ${settings.number_of_items} items over time.`)
       }

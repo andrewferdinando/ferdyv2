@@ -4,7 +4,6 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
-import { useCategories } from '@/hooks/useCategories'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useScheduleRules } from '@/hooks/useScheduleRules'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
@@ -14,11 +13,11 @@ import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressMod
 import { SubcategoryType } from '@/types/subcategories'
 
 const SUBCATEGORY_TYPE_LABELS: Record<SubcategoryType, string> = {
-  event_series: 'Event Series',
-  service_or_programme: 'Evergreen Programme',
-  promo_or_offer: 'Promo / Offer',
-  dynamic_schedule: 'Rotating / Schedule',
-  content_series: 'Content Pillar',
+  event_series: 'Events',
+  service_or_programme: 'Products / Services',
+  promo_or_offer: 'Promos',
+  dynamic_schedule: 'Schedules',
+  content_series: 'Content Pillar (legacy)',
   other: 'Other',
   unspecified: 'Other',
 }
@@ -85,14 +84,83 @@ export default function CategoriesPage() {
     timezone?: string
   } | null>(null)
   
-  const { categories, loading, createCategory } = useCategories(brandId)
+  // Categories no longer used - removed
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
   const { rules, loading: rulesLoading, deleteRule, refetch: refetchRules } = useScheduleRules(brandId)
+  const [allSubcategories, setAllSubcategories] = useState<Array<{
+    id: string
+    name: string
+    subcategory_type?: string
+    detail?: string
+    url?: string
+    channels?: string[] | null
+    default_hashtags?: string[]
+    settings?: any
+  }>>([])
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(true)
 
   const [pushing, setPushing] = useState(false)
   const [showProgressModal, setShowProgressModal] = useState(false)
   const [draftsAlreadyExist, setDraftsAlreadyExist] = useState<boolean | null>(null)
   const [frameworkWindow, setFrameworkWindow] = useState<{ start_date: string; end_date: string } | null>(null)
+
+  // Fetch all subcategories to include those without schedule rules
+  useEffect(() => {
+    const fetchAllSubcategories = async () => {
+      if (!brandId) return
+      
+      try {
+        setSubcategoriesLoading(true)
+        const { data, error } = await supabase
+          .from('subcategories')
+          .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings')
+          .eq('brand_id', brandId)
+          .order('name', { ascending: true })
+
+        if (error) {
+          console.error('Error fetching subcategories:', error)
+          return
+        }
+
+        setAllSubcategories(data || [])
+      } catch (err) {
+        console.error('Error fetching subcategories:', err)
+      } finally {
+        setSubcategoriesLoading(false)
+      }
+    }
+
+    fetchAllSubcategories()
+  }, [brandId])
+
+  // Refetch subcategories when rules are refetched (after wizard creates new item)
+  useEffect(() => {
+    if (!rulesLoading) {
+      // Re-fetch subcategories after rules load to ensure we have the latest
+      const fetchAllSubcategories = async () => {
+        if (!brandId) return
+        
+        try {
+          const { data, error } = await supabase
+            .from('subcategories')
+            .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings')
+            .eq('brand_id', brandId)
+            .order('name', { ascending: true })
+
+          if (error) {
+            console.error('Error fetching subcategories:', error)
+            return
+          }
+
+          setAllSubcategories(data || [])
+        } catch (err) {
+          console.error('Error fetching subcategories:', err)
+        }
+      }
+
+      fetchAllSubcategories()
+    }
+  }, [brandId, rulesLoading])
 
   // Check if drafts already exist for the current framework month
   const checkExistingDrafts = useCallback(async () => {
@@ -579,7 +647,7 @@ export default function CategoriesPage() {
       let newName = `${subcategory.name} (Copy)`
       let copyNumber = 1
       
-      // Check if a subcategory with this name already exists in the same category
+      // Check if a framework item with this name already exists for this brand
       // If so, increment until we find a unique name
       while (true) {
         const testName = copyNumber === 1 
@@ -590,7 +658,6 @@ export default function CategoriesPage() {
           .from('subcategories')
           .select('id')
           .eq('brand_id', subcategory.brand_id)
-          .eq('category_id', subcategory.category_id)
           .ilike('name', testName)
           .limit(1)
         
@@ -601,24 +668,28 @@ export default function CategoriesPage() {
         copyNumber++
       }
 
-      // Create a new subcategory with a unique name
+      // Create a new framework item with a unique name
       // Don't set created_at or updated_at - let the database handle defaults
       const insertData: {
         brand_id: string
-        category_id: string
+        category_id: string | null
         name: string
         detail?: string | null
         url?: string | null
         default_hashtags?: string[] | null
         channels?: string[] | null
+        subcategory_type?: string
+        settings?: any
       } = {
         brand_id: subcategory.brand_id,
-        category_id: subcategory.category_id,
+        category_id: null, // No longer using categories
         name: newName,
         detail: subcategory.detail || null,
         url: subcategory.url || null,
         default_hashtags: subcategory.default_hashtags || null,
-        channels: subcategory.channels || null
+        channels: subcategory.channels || null,
+        subcategory_type: (subcategory as any).subcategory_type || 'other',
+        settings: (subcategory as any).settings || {}
       }
 
       const { data: newSubcategory, error: createError } = await supabase
@@ -733,7 +804,7 @@ export default function CategoriesPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Post Categories</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Framework Items</h1>
               </div>
               {isAdmin && (
                 <button
@@ -745,7 +816,7 @@ export default function CategoriesPage() {
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
                   <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Category
+                  Add Framework Item
                 </button>
               )}
             </div>
@@ -780,13 +851,18 @@ export default function CategoriesPage() {
               )}
 
               <div className="bg-white rounded-lg border border-gray-200">
-                {rulesLoading ? (
+                {(rulesLoading || subcategoriesLoading) ? (
                   <div className="p-6">
                     <div className="flex items-center justify-center py-12">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
                     </div>
                   </div>
-                ) : (rules || []).filter(r => r.is_active).length > 0 ? (
+                ) : (() => {
+                  const activeRules = (rules || []).filter(r => r.is_active)
+                  const subcategoriesWithRules = new Set(activeRules.map(r => r.subcategory_id))
+                  const subcategoriesWithoutRules = allSubcategories.filter(sub => !subcategoriesWithRules.has(sub.id))
+                  
+                  return activeRules.length > 0 || subcategoriesWithoutRules.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead>
@@ -897,43 +973,21 @@ export default function CategoriesPage() {
                               return num + (suffix[(v - 20) % 10] || suffix[v] || suffix[0])
                             }
 
-                            // Group all rules by category
-                            interface CategoryGroup {
-                              categoryId: string
-                              categoryName: string
-                              subcategories: Array<{
-                                subcategoryId: string
-                                subcategoryName: string
-                                isEvent: boolean
-                                eventRules?: typeof eventRules
-                                regularRule?: typeof otherRules[0]
-                              }>
+                            // Create flat list of subcategories (no category grouping)
+                            interface SubcategoryItem {
+                              subcategoryId: string
+                              subcategoryName: string
+                              isEvent: boolean
+                              eventRules?: typeof eventRules
+                              regularRule?: typeof otherRules[0]
                             }
 
-                            const categoryMap = new Map<string, CategoryGroup>()
+                            const subcategoryItems: SubcategoryItem[] = []
 
                             // Add event groups
                             eventGroups.forEach((groupRules, subcategoryId) => {
                               const firstRule = groupRules[0]
-                              // Get category_id from subcategory relationship (more reliable than schedule_rule.category_id)
-                              // Subcategories always have a category_id, so this ensures correct categorization
-                              const subcategory = firstRule.subcategories
-                              const categoryId = subcategory?.category_id || firstRule.category_id || 'uncategorized'
-                              // Get category name from subcategory's category relationship, or from direct categories join
-                              const categoryName = subcategory?.categories?.name 
-                                || firstRule.categories?.name 
-                                || 'Uncategorized'
-                              
-                              if (!categoryMap.has(categoryId)) {
-                                categoryMap.set(categoryId, {
-                                  categoryId,
-                                  categoryName,
-                                  subcategories: []
-                                })
-                              }
-                              
-                              const group = categoryMap.get(categoryId)!
-                              group.subcategories.push({
+                              subcategoryItems.push({
                                 subcategoryId,
                                 subcategoryName: firstRule.subcategories?.name || '',
                                 isEvent: true,
@@ -941,59 +995,29 @@ export default function CategoriesPage() {
                               })
                             })
 
-                            // Add regular rules
+                            // Add regular rules (one per subcategory)
                             otherRules.forEach((rule) => {
-                              // Get category_id from subcategory relationship (more reliable than schedule_rule.category_id)
-                              // Subcategories always have a category_id, so this ensures correct categorization
-                              const subcategory = rule.subcategories
-                              const categoryId = subcategory?.category_id || rule.category_id || 'uncategorized'
-                              // Get category name from subcategory's category relationship, or from direct categories join
-                              const categoryName = subcategory?.categories?.name 
-                                || rule.categories?.name 
-                                || 'Uncategorized'
-                              
-                              if (!categoryMap.has(categoryId)) {
-                                categoryMap.set(categoryId, {
-                                  categoryId,
-                                  categoryName,
-                                  subcategories: []
+                              // Check if we already have this subcategory (from event rules)
+                              const existing = subcategoryItems.find(item => item.subcategoryId === rule.subcategory_id)
+                              if (!existing) {
+                                subcategoryItems.push({
+                                  subcategoryId: rule.subcategory_id,
+                                  subcategoryName: rule.subcategories?.name || '',
+                                  isEvent: false,
+                                  regularRule: rule
                                 })
                               }
-                              
-                              const group = categoryMap.get(categoryId)!
-                              group.subcategories.push({
-                                subcategoryId: rule.subcategory_id,
-                                subcategoryName: rule.subcategories?.name || '',
-                                isEvent: false,
-                                regularRule: rule
-                              })
                             })
 
-                            // Sort categories A-Z
-                            const sortedCategories = Array.from(categoryMap.values()).sort((a, b) => 
-                              a.categoryName.localeCompare(b.categoryName)
+                            // Sort subcategories A-Z
+                            subcategoryItems.sort((a, b) => 
+                              a.subcategoryName.localeCompare(b.subcategoryName)
                             )
 
                             const rows: React.ReactElement[] = []
 
-                            // Render each category with section header
-                            sortedCategories.forEach((categoryGroup) => {
-                              // Sort subcategories A-Z within category
-                              categoryGroup.subcategories.sort((a, b) => 
-                                a.subcategoryName.localeCompare(b.subcategoryName)
-                              )
-
-                              // Category section header
-                              rows.push(
-                                <tr key={`category-header-${categoryGroup.categoryId}`} className="bg-gray-50">
-                                  <td colSpan={5} className="px-6 py-3">
-                                    <h3 className="text-sm font-semibold text-gray-900">{categoryGroup.categoryName}</h3>
-                                  </td>
-                                </tr>
-                              )
-
-                              // Render subcategories
-                              categoryGroup.subcategories.forEach((subcat) => {
+                            // Render each subcategory (flat list, no category headers)
+                            subcategoryItems.forEach((subcat) => {
                                 if (subcat.isEvent && subcat.eventRules) {
                                   const groupRules = subcat.eventRules
                                   const firstRule = groupRules[0]
@@ -1245,15 +1269,74 @@ export default function CategoriesPage() {
                               })
                             })
 
+                            // Add subcategories without rules
+                            subcategoriesWithoutRules.forEach(sub => {
+                              rows.push(
+                                <tr key={`subcategory-no-rules-${sub.id}`}>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{sub.name}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{SUBCATEGORY_TYPE_LABELS[(sub.subcategory_type as SubcategoryType) || 'other']}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">No schedule yet</td>
+                                  <td className="px-6 py-4 text-sm text-gray-400">-</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div className="flex space-x-2">
+                                      <button
+                                        onClick={() => {
+                                          setEditingSubcategory({
+                                            id: sub.id,
+                                            name: sub.name,
+                                            detail: sub.detail,
+                                            url: sub.url,
+                                            subcategory_type: sub.subcategory_type as SubcategoryType | undefined,
+                                            settings: sub.settings || {},
+                                            hashtags: sub.default_hashtags || [],
+                                            channels: sub.channels || []
+                                          })
+                                          setEditingScheduleRule(null)
+                                          setIsSubcategoryModalOpen(true)
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600"
+                                        title="Edit framework item"
+                                      >
+                                        <EditIcon className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDuplicateSubcategory(sub.id, sub.name)}
+                                        className="text-gray-400 hover:text-blue-600"
+                                        title="Duplicate framework item"
+                                      >
+                                        <DuplicateIcon className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Delete framework item "${sub.name}"? This will permanently delete the item and all associated data.`)) {
+                                            handleDeleteSubcategory(sub.id, sub.name)
+                                          }
+                                        }}
+                                        className="text-gray-400 hover:text-red-600"
+                                        title="Delete framework item"
+                                      >
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })
+
                             return rows
                           })()}
                         </tbody>
                       </table>
                     </div>
-                  ) : (
+                  ) : null
+                })()
+              ) : (
                     <div className="p-6">
                       <div className="text-center py-12">
-                        <p className="text-gray-500">No active schedule rules yet. Create one to get started.</p>
+                        <p className="text-gray-500">No framework items yet. Create one to get started.</p>
                       </div>
                     </div>
                   )}
@@ -1273,17 +1356,12 @@ export default function CategoriesPage() {
           brandId={brandId}
           editingSubcategory={editingSubcategory || undefined}
           editingScheduleRule={editingScheduleRule || undefined}
-          categories={categories}
-          onCreateCategory={async (name: string) => {
-            const result = await createCategory(name, brandId)
-            return { id: result.id, name: result.name }
-          }}
           onSuccess={() => {
             // Close modal and refresh
             setIsSubcategoryModalOpen(false)
             setEditingSubcategory(null)
             setEditingScheduleRule(null)
-            // Refresh schedule rules so the Post Categories view updates immediately
+            // Refresh schedule rules so the Framework Items view updates immediately
             refetchRules()
           }}
         />

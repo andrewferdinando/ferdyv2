@@ -7,7 +7,7 @@ interface ScheduleRule {
   id: string;
   brand_id: string;
   name: string;
-  category_id: string;
+  category_id: string | null;
   subcategory_id: string;
   tone: string;
   hashtag_rule: Record<string, unknown>;
@@ -33,9 +33,6 @@ interface ScheduleRule {
   days_during?: number[] | null;
   created_at: string;
   updated_at: string;
-  categories: {
-    name: string;
-  };
   subcategories: {
     name: string;
     detail: string;
@@ -44,11 +41,7 @@ interface ScheduleRule {
     default_hashtags: string[];
     subcategory_type?: string;
     settings?: any;
-    category_id?: string;
-    categories?: {
-      name: string;
-    };
-  };
+  } | null;
 }
 
 export function useScheduleRules(brandId: string) {
@@ -73,8 +66,7 @@ export function useScheduleRules(brandId: string) {
         .from('schedule_rules')
         .select(`
           *,
-          categories(name),
-          subcategories(name, detail, url, channels, default_hashtags, category_id, subcategory_type, settings, categories(name))
+          subcategories(name, detail, url, channels, default_hashtags, subcategory_type, settings)
         `)
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false });
@@ -103,7 +95,7 @@ export function useScheduleRules(brandId: string) {
         p_id: ruleData.id || null,
         p_brand_id: brandId,
         p_name: ruleData.name,
-        p_category_id: ruleData.category_id,
+        p_category_id: ruleData.category_id || null,
         p_subcategory_id: ruleData.subcategory_id,
         p_tone: ruleData.tone,
         p_hashtag_rule: ruleData.hashtag_rule,
