@@ -305,8 +305,8 @@ export default function NewFrameworkItemWizard() {
       if (!isStep1Valid) {
         showToast({
           title: 'Please select a type',
-          description: 'You must choose what kind of framework item this is.',
-          variant: 'error'
+          message: 'You must choose what kind of framework item this is.',
+          type: 'error'
         })
         return null
       }
@@ -484,8 +484,8 @@ export default function NewFrameworkItemWizard() {
       console.error('[Wizard] Error saving framework item:', error)
       showToast({
         title: 'Failed to create framework item',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
-        variant: 'error'
+        message: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
+        type: 'error'
       })
       return null
     } finally {
@@ -530,8 +530,8 @@ export default function NewFrameworkItemWizard() {
     if (selectedAssetIds.length === 0) {
       showToast({
         title: 'Framework item created',
-        description: 'You can now add dates and edit details in the Framework Items list.',
-        variant: 'success'
+        message: 'You can now add dates and edit details in the Framework Items list.',
+        type: 'success'
       })
       router.push(`/brands/${brandId}/engine-room/categories`)
       return
@@ -606,8 +606,8 @@ export default function NewFrameworkItemWizard() {
 
         showToast({
           title: 'Framework item created and images assigned',
-          description: 'You can now add dates and edit details in the Framework Items list.',
-          variant: 'success'
+          message: 'You can now add dates and edit details in the Framework Items list.',
+          type: 'success'
         })
       } else {
         throw new Error('Failed to find or create subcategory tag')
@@ -618,8 +618,8 @@ export default function NewFrameworkItemWizard() {
       console.error('[Wizard] Error linking images:', error)
       showToast({
         title: 'Framework item created',
-        description: error instanceof Error ? `Images were uploaded but couldn't be linked: ${error.message}. You can manage images from the Content Library.` : 'Images were uploaded but couldn\'t be linked. You can manage images from the Content Library.',
-        variant: 'warning'
+        message: error instanceof Error ? `Images were uploaded but couldn't be linked: ${error.message}. You can manage images from the Content Library.` : 'Images were uploaded but couldn\'t be linked. You can manage images from the Content Library.',
+        type: 'error'
       })
       router.push(`/brands/${brandId}/engine-room/categories`)
     } finally {
@@ -1215,8 +1215,8 @@ export default function NewFrameworkItemWizard() {
                           onUploadError={(error) => {
                             showToast({
                               title: 'Upload failed',
-                              description: error,
-                              variant: 'error'
+                              message: error,
+                              type: 'error'
                             })
                           }}
                         />
