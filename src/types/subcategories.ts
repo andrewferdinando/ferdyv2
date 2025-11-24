@@ -34,3 +34,4 @@ export interface BaseSubcategory {
   updated_at: string;
 }
 
+
