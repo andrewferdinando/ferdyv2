@@ -980,6 +980,7 @@ export default function CategoriesPage() {
                               isEvent: boolean
                               eventRules?: typeof eventRules
                               regularRule?: typeof otherRules[0]
+                              subcategoryWithoutRule?: typeof allSubcategories[0]
                             }
 
                             const subcategoryItems: SubcategoryItem[] = []
@@ -1009,14 +1010,26 @@ export default function CategoriesPage() {
                               }
                             })
 
+                            // Add subcategories without rules to the items array
+                            const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
+                            allSubcategories.forEach((sub) => {
+                              if (!subcategoriesWithRulesSet.has(sub.id)) {
+                                subcategoryItems.push({
+                                  subcategoryId: sub.id,
+                                  subcategoryName: sub.name,
+                                  isEvent: false,
+                                  regularRule: undefined,
+                                  subcategoryWithoutRule: sub
+                                })
+                              }
+                            })
+
                             // Sort subcategories A-Z
                             subcategoryItems.sort((a, b) => 
                               a.subcategoryName.localeCompare(b.subcategoryName)
                             )
 
                             const rows: React.ReactElement[] = []
-                            const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
-                            const subcategoriesWithoutRulesList = allSubcategories.filter(sub => !subcategoriesWithRulesSet.has(sub.id))
 
                             // Render each subcategory (flat list, no category headers)
                             subcategoryItems.forEach((subcat) => {
@@ -1267,65 +1280,63 @@ export default function CategoriesPage() {
                                       </td>
                                     </tr>
                                   )
+                                } else if (subcat.subcategoryWithoutRule) {
+                                  const sub = subcat.subcategoryWithoutRule
+                                  rows.push(
+                                    <tr key={`subcategory-no-rules-${sub.id}`}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{sub.name}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{SUBCATEGORY_TYPE_LABELS[(sub.subcategory_type as SubcategoryType) || 'other']}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">No schedule yet</td>
+                                      <td className="px-6 py-4 text-sm text-gray-400">-</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <div className="flex space-x-2">
+                                          <button
+                                            onClick={() => {
+                                              setEditingSubcategory({
+                                                id: sub.id,
+                                                name: sub.name,
+                                                detail: sub.detail,
+                                                url: sub.url,
+                                                subcategory_type: sub.subcategory_type as SubcategoryType | undefined,
+                                                settings: sub.settings || {},
+                                                hashtags: sub.default_hashtags || [],
+                                                channels: sub.channels || []
+                                              })
+                                              setEditingScheduleRule(null)
+                                              setIsSubcategoryModalOpen(true)
+                                            }}
+                                            className="text-gray-400 hover:text-gray-600"
+                                            title="Edit framework item"
+                                          >
+                                            <EditIcon className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDuplicateSubcategory(sub.id, sub.name)}
+                                            className="text-gray-400 hover:text-blue-600"
+                                            title="Duplicate framework item"
+                                          >
+                                            <DuplicateIcon className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              if (confirm(`Delete framework item "${sub.name}"? This will permanently delete the item and all associated data.`)) {
+                                                handleDeleteSubcategory(sub.id, sub.name)
+                                              }
+                                            }}
+                                            className="text-gray-400 hover:text-red-600"
+                                            title="Delete framework item"
+                                          >
+                                            <TrashIcon className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
                                 }
                               })
-                            })
-
-                            // Add subcategories without rules
-                            subcategoriesWithoutRulesList.forEach((sub) => {
-                              rows.push(
-                                <tr key={`subcategory-no-rules-${sub.id}`}>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{sub.name}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{SUBCATEGORY_TYPE_LABELS[(sub.subcategory_type as SubcategoryType) || 'other']}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">No schedule yet</td>
-                                  <td className="px-6 py-4 text-sm text-gray-400">-</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Pending</span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <div className="flex space-x-2">
-                                      <button
-                                        onClick={() => {
-                                          setEditingSubcategory({
-                                            id: sub.id,
-                                            name: sub.name,
-                                            detail: sub.detail,
-                                            url: sub.url,
-                                            subcategory_type: sub.subcategory_type as SubcategoryType | undefined,
-                                            settings: sub.settings || {},
-                                            hashtags: sub.default_hashtags || [],
-                                            channels: sub.channels || []
-                                          })
-                                          setEditingScheduleRule(null)
-                                          setIsSubcategoryModalOpen(true)
-                                        }}
-                                        className="text-gray-400 hover:text-gray-600"
-                                        title="Edit framework item"
-                                      >
-                                        <EditIcon className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDuplicateSubcategory(sub.id, sub.name)}
-                                        className="text-gray-400 hover:text-blue-600"
-                                        title="Duplicate framework item"
-                                      >
-                                        <DuplicateIcon className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          if (confirm(`Delete framework item "${sub.name}"? This will permanently delete the item and all associated data.`)) {
-                                            handleDeleteSubcategory(sub.id, sub.name)
-                                          }
-                                        }}
-                                        className="text-gray-400 hover:text-red-600"
-                                        title="Delete framework item"
-                                      >
-                                        <TrashIcon className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
                             })
 
                             return rows
