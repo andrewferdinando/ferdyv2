@@ -859,10 +859,10 @@ export default function CategoriesPage() {
                   </div>
                 ) : (() => {
                   const activeRules = (rules || []).filter(r => r.is_active)
-                  const subcategoriesWithRules = new Set(activeRules.map(r => r.subcategory_id))
-                  const subcategoriesWithoutRules = allSubcategories.filter(sub => !subcategoriesWithRules.has(sub.id))
+                  const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
+                  const subcategoriesWithoutRulesList = allSubcategories.filter(sub => !subcategoriesWithRulesSet.has(sub.id))
                   
-                  return activeRules.length > 0 || subcategoriesWithoutRules.length > 0 ? (
+                  return activeRules.length > 0 || subcategoriesWithoutRulesList.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead>
@@ -878,8 +878,6 @@ export default function CategoriesPage() {
                       <tbody className="divide-y divide-gray-200">
                           {(() => {
                             const activeRules = (rules || []).filter(r => r.is_active)
-                            const subcategoriesWithRules = new Set(activeRules.map(r => r.subcategory_id))
-                            const subcategoriesWithoutRules = allSubcategories.filter(sub => !subcategoriesWithRules.has(sub.id))
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const nthMap: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' }
@@ -1017,6 +1015,8 @@ export default function CategoriesPage() {
                             )
 
                             const rows: React.ReactElement[] = []
+                            const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
+                            const subcategoriesWithoutRulesList = allSubcategories.filter(sub => !subcategoriesWithRulesSet.has(sub.id))
 
                             // Render each subcategory (flat list, no category headers)
                             subcategoryItems.forEach((subcat) => {
@@ -1272,7 +1272,7 @@ export default function CategoriesPage() {
                             })
 
                             // Add subcategories without rules
-                            subcategoriesWithoutRules.forEach(sub => {
+                            subcategoriesWithoutRulesList.forEach((sub) => {
                               rows.push(
                                 <tr key={`subcategory-no-rules-${sub.id}`}>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{sub.name}</td>
