@@ -66,7 +66,7 @@ export default function CategoriesPage() {
   const brandId = params.brandId as string
   const { showToast } = useToast()
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
-  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, subcategory_type?: string, settings?: any, hashtags: string[], channels?: string[]} | null>(null)
+  const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, subcategory_type?: SubcategoryType, settings?: Record<string, any>, hashtags: string[], channels?: string[]} | null>(null)
   const [editingScheduleRule, setEditingScheduleRule] = useState<{
     id: string
     frequency: string
