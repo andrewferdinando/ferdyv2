@@ -1070,7 +1070,7 @@ export default function CategoriesPage() {
                                                 name: subcat.subcategoryName,
                                                 detail: firstRule.subcategories?.detail,
                                                 url: firstRule.subcategories?.url,
-                                                subcategory_type: firstRule.subcategories?.subcategory_type,
+                                                subcategory_type: firstRule.subcategories?.subcategory_type as SubcategoryType | undefined,
                                                 settings: firstRule.subcategories?.settings || {},
                                                 hashtags: firstRule.subcategories?.default_hashtags || [],
                                                 channels: subcategoryChannels || []
@@ -1185,7 +1185,7 @@ export default function CategoriesPage() {
                                                 name: rule.subcategories?.name || '',
                                                 detail: rule.subcategories?.detail,
                                                 url: rule.subcategories?.url,
-                                                subcategory_type: rule.subcategories?.subcategory_type,
+                                                subcategory_type: rule.subcategories?.subcategory_type as SubcategoryType | undefined,
                                                 settings: rule.subcategories?.settings || {},
                                                 hashtags: rule.subcategories?.default_hashtags || [],
                                                 channels: ruleChannels
