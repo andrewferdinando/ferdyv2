@@ -784,7 +784,7 @@ export default function CategoriesPage() {
     }
   }
 
-  if (loading || roleLoading) {
+  if (rulesLoading || subcategoriesLoading || roleLoading) {
     return (
       <RequireAuth>
         <AppLayout>
