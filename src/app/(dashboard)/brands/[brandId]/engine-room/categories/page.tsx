@@ -1337,7 +1337,6 @@ export default function CategoriesPage() {
                                   )
                                 }
                               })
-                            })
 
                             return rows
                           })()}
