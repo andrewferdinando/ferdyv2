@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -255,7 +255,23 @@ export default function NewFrameworkItemWizard() {
   })
   const [eventErrors, setEventErrors] = useState<{
     occurrences?: string
+    leadTimes?: string
   }>({})
+  const [leadTimesInput, setLeadTimesInput] = useState<string>('7, 3, 1')
+  const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+
+  // Initialize daysBefore from leadTimesInput when component mounts or switching to Events type
+  useEffect(() => {
+    if (subcategoryType === 'event_series' && eventScheduling.daysBefore.length === 0) {
+      const parsed = parseLeadTimes(leadTimesInput)
+      if (parsed.length > 0) {
+        setEventScheduling(prev => ({
+          ...prev,
+          daysBefore: parsed
+        }))
+      }
+    }
+  }, [subcategoryType, leadTimesInput])
   const [isSaving, setIsSaving] = useState(false)
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(null)
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
@@ -282,6 +298,34 @@ export default function NewFrameworkItemWizard() {
     details.name.trim().length > 0 &&
     details.detail.trim().length > 0
 
+  // Helper to parse lead times from input string
+  const parseLeadTimes = (input: string): number[] => {
+    if (!input.trim()) return []
+    return input
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(s => parseInt(s, 10))
+      .filter(n => !isNaN(n) && n > 0)
+  }
+
+  // Update daysBefore when leadTimesInput changes (only for Events)
+  useEffect(() => {
+    if (subcategoryType === 'event_series') {
+      const parsed = parseLeadTimes(leadTimesInput)
+      setEventScheduling(prev => {
+        // Only update if different to avoid unnecessary re-renders
+        if (JSON.stringify(prev.daysBefore.sort()) !== JSON.stringify(parsed.sort())) {
+          return {
+            ...prev,
+            daysBefore: parsed
+          }
+        }
+        return prev
+      })
+    }
+  }, [leadTimesInput, subcategoryType])
+
   const isStep3Valid = (): boolean => {
     // Events use a different validation flow
     if (subcategoryType === 'event_series') {
@@ -289,8 +333,10 @@ export default function NewFrameworkItemWizard() {
       if (eventScheduling.occurrences.length === 0) {
         return false
       }
-      // All occurrences must have a date
-      return eventScheduling.occurrences.every(occ => occ.date.trim().length > 0)
+      // All occurrences must have a date and time
+      return eventScheduling.occurrences.every(
+        occ => occ.date.trim().length > 0 && occ.time && occ.time.trim().length > 0
+      )
     }
     
     // Other types use the standard schedule validation
@@ -358,8 +404,11 @@ export default function NewFrameworkItemWizard() {
             newErrors.occurrences = 'Please add at least one event occurrence.'
           } else {
             const missingDates = eventScheduling.occurrences.filter(occ => !occ.date.trim())
+            const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
             if (missingDates.length > 0) {
               newErrors.occurrences = 'All occurrences must have a date.'
+            } else if (missingTimes.length > 0) {
+              newErrors.occurrences = 'All occurrences must have a time.'
             }
           }
           setEventErrors(newErrors)
@@ -484,8 +533,9 @@ export default function NewFrameworkItemWizard() {
         const occurrencesToInsert = await Promise.all(
           eventScheduling.occurrences.map(async (occurrence) => {
             // Combine date + time into starts_at
+            // Time is required, so it should always be present (validation ensures this)
             const dateStr = occurrence.date.trim()
-            const timeStr = occurrence.time?.trim() || '12:00' // Default to noon if no time
+            const timeStr = occurrence.time?.trim() || '12:00' // Fallback (should not be needed due to validation)
             // Use timezone from brand or default
             const timezone = brand?.timezone || 'Pacific/Auckland'
             // Create ISO string with timezone consideration
@@ -1052,9 +1102,20 @@ export default function NewFrameworkItemWizard() {
                         {/* Occurrences List */}
                         <div>
                           <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold text-gray-900">
-                              Event Occurrences
-                            </h3>
+                            <div>
+                              <h3 className="text-base font-semibold text-gray-900">
+                                Event Dates
+                                {(() => {
+                                  const now = new Date()
+                                  const upcomingCount = eventScheduling.occurrences.filter(occ => {
+                                    if (!occ.date.trim()) return false
+                                    const occDate = new Date(occ.date + (occ.time ? `T${occ.time}` : 'T12:00'))
+                                    return occDate >= now
+                                  }).length
+                                  return upcomingCount > 0 ? ` (${upcomingCount} upcoming)` : ''
+                                })()}
+                              </h3>
+                            </div>
                             <button
                               type="button"
                               onClick={() => {
@@ -1064,6 +1125,7 @@ export default function NewFrameworkItemWizard() {
                                   url: '',
                                   notes: ''
                                 }
+                                const newIndex = eventScheduling.occurrences.length
                                 setEventScheduling(prev => ({
                                   ...prev,
                                   occurrences: [...prev.occurrences, newOccurrence]
@@ -1072,6 +1134,18 @@ export default function NewFrameworkItemWizard() {
                                 if (eventErrors.occurrences) {
                                   setEventErrors(prev => ({ ...prev, occurrences: undefined }))
                                 }
+                                // Scroll into view and focus after state update
+                                setTimeout(() => {
+                                  const cardRef = occurrenceRefs.current.get(newIndex)
+                                  if (cardRef) {
+                                    cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                                    // Focus the date input
+                                    const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
+                                    if (dateInput) {
+                                      dateInput.focus()
+                                    }
+                                  }
+                                }, 100)
                               }}
                               className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
                             >
@@ -1090,10 +1164,17 @@ export default function NewFrameworkItemWizard() {
                               {eventScheduling.occurrences.map((occurrence, index) => (
                                 <div
                                   key={occurrence.id || index}
-                                  className="bg-white border border-gray-200 rounded-lg p-4 space-y-4"
+                                  ref={(el) => {
+                                    if (el) {
+                                      occurrenceRefs.current.set(index, el)
+                                    } else {
+                                      occurrenceRefs.current.delete(index)
+                                    }
+                                  }}
+                                  className="bg-white border-2 border-gray-200 rounded-lg p-4 space-y-4"
                                 >
                                   <div className="flex items-start justify-between">
-                                    <h4 className="text-sm font-medium text-gray-900">
+                                    <h4 className="text-sm font-semibold text-gray-900">
                                       Occurrence {index + 1}
                                     </h4>
                                     <button
@@ -1128,8 +1209,8 @@ export default function NewFrameworkItemWizard() {
                                       />
                                     </FormField>
                                     
-                                    {/* Time - Optional */}
-                                    <FormField label="Time (optional)">
+                                    {/* Time - Required */}
+                                    <FormField label="Time" required>
                                       <Input
                                         type="time"
                                         value={occurrence.time || ''}
@@ -1137,7 +1218,11 @@ export default function NewFrameworkItemWizard() {
                                           const updated = [...eventScheduling.occurrences]
                                           updated[index] = { ...updated[index], time: e.target.value }
                                           setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                          if (eventErrors.occurrences) {
+                                            setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                          }
                                         }}
+                                        error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
                                       />
                                     </FormField>
                                   </div>
@@ -1208,43 +1293,45 @@ export default function NewFrameworkItemWizard() {
                           )}
                         </div>
                         
-                        {/* Lead-time Selector */}
+                        {/* Lead-time Input */}
                         <div>
                           <h3 className="text-base font-semibold text-gray-900 mb-3">
                             Lead-time Reminders
                           </h3>
                           <p className="text-sm text-gray-600 mb-4">
-                            Select how many days before each event Ferdy should post reminders.
+                            Specify how many days before each event Ferdy should post reminders.
                           </p>
-                          <div className="flex flex-wrap gap-3">
-                            {[7, 3, 1].map((days) => {
-                              const isSelected = eventScheduling.daysBefore.includes(days)
-                              return (
-                                <button
-                                  key={days}
-                                  type="button"
-                                  onClick={() => {
-                                    setEventScheduling(prev => ({
-                                      ...prev,
-                                      daysBefore: isSelected
-                                        ? prev.daysBefore.filter(d => d !== days)
-                                        : [...prev.daysBefore, days].sort((a, b) => b - a)
-                                    }))
-                                  }}
-                                  className={`
-                                    px-4 py-2 rounded-lg text-sm font-medium transition-colors
-                                    ${
-                                      isSelected
-                                        ? 'bg-[#6366F1] text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }
-                                  `}
-                                >
-                                  {days} {days === 1 ? 'day' : 'days'} before
-                                </button>
-                              )
-                            })}
-                          </div>
+                          <FormField label="Default lead times (days before event)">
+                            <Input
+                              type="text"
+                              value={leadTimesInput}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setLeadTimesInput(value)
+                                // Validate inline
+                                const parsed = parseLeadTimes(value)
+                                const hasInvalidChars = value.split(',').some(s => {
+                                  const trimmed = s.trim()
+                                  return trimmed.length > 0 && isNaN(parseInt(trimmed, 10))
+                                })
+                                if (hasInvalidChars && value.trim() !== '') {
+                                  setEventErrors(prev => ({ ...prev, leadTimes: 'Please enter only positive numbers separated by commas' }))
+                                } else {
+                                  setEventErrors(prev => ({ ...prev, leadTimes: undefined }))
+                                }
+                              }}
+                              placeholder="14, 7, 3, 1"
+                              error={eventErrors.leadTimes}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Enter a comma-separated list, e.g. 14, 7, 3, 1. Leave empty for no automatic reminders.
+                            </p>
+                            {eventScheduling.daysBefore.length > 0 && (
+                              <p className="text-xs text-gray-600 mt-2">
+                                Parsed as: {eventScheduling.daysBefore.sort((a, b) => b - a).join(', ')} days before
+                              </p>
+                            )}
+                          </FormField>
                         </div>
                       </div>
                     ) : (
