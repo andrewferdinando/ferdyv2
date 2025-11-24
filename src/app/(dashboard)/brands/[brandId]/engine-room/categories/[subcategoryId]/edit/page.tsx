@@ -5,8 +5,7 @@ import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
-import FrameworkItemWizardPage from '../../../framework/new/page'
-import type { WizardInitialData } from '../../../framework/new/page'
+import FrameworkItemWizard, { type WizardInitialData } from '@/components/wizards/FrameworkItemWizard'
 import { SubcategoryType } from '@/types/subcategories'
 
 export default function EditCategoryPage() {
@@ -192,7 +191,7 @@ export default function EditCategoryPage() {
 
   return (
     <RequireAuth>
-      <NewFrameworkItemWizard mode="edit" initialData={initialData} />
+      <FrameworkItemWizard mode="edit" initialData={initialData} />
     </RequireAuth>
   )
 }
