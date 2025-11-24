@@ -299,7 +299,8 @@ interface WizardProps {
   initialData?: WizardInitialData
 }
 
-export default function NewFrameworkItemWizard({ mode = 'create', initialData }: WizardProps = {}) {
+export default function NewFrameworkItemWizard(props?: WizardProps) {
+  const { mode = 'create', initialData } = props || {}
   const params = useParams()
   const router = useRouter()
   const brandId = params.brandId as string
