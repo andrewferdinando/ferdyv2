@@ -222,56 +222,244 @@ type EventSchedulingState = {
   daysBefore: number[] // e.g. [7, 3, 1]
 }
 
-export default function NewFrameworkItemWizard() {
+interface WizardInitialData {
+  subcategory?: {
+    id: string
+    name: string
+    detail: string
+    url: string
+    default_hashtags: string[]
+    channels: string[]
+    subcategory_type: SubcategoryType
+    settings?: any
+  }
+  scheduleRule?: {
+    frequency: ScheduleFrequency
+    time_of_day: string | string[] | null
+    days_of_week: number[] | null
+    day_of_month: number | number[] | null
+    nth_week?: number | null
+    weekday?: number | null
+    timezone: string
+    days_before: number[] | null
+    days_during: number[] | null
+    start_date?: string | null
+    end_date?: string | null
+  }
+  eventOccurrences?: Array<{
+    id: string
+    starts_at: string
+    end_at?: string | null
+    url?: string | null
+    notes?: string | null
+    summary?: any
+  }>
+  assets?: string[] // Asset IDs
+  eventOccurrenceType?: 'single' | 'range'
+}
+
+export interface WizardInitialData {
+  subcategory?: {
+    id: string
+    name: string
+    detail: string
+    url: string
+    default_hashtags: string[]
+    channels: string[]
+    subcategory_type: SubcategoryType
+    settings?: any
+  }
+  scheduleRule?: {
+    frequency: ScheduleFrequency
+    time_of_day: string | string[] | null
+    days_of_week: number[] | null
+    day_of_month: number | number[] | null
+    nth_week?: number | null
+    weekday?: number | null
+    timezone: string
+    days_before: number[] | null
+    days_during: number[] | null
+    start_date?: string | null
+    end_date?: string | null
+  }
+  eventOccurrences?: Array<{
+    id: string
+    starts_at: string
+    end_at?: string | null
+    url?: string | null
+    notes?: string | null
+    summary?: any
+  }>
+  assets?: string[] // Asset IDs
+  eventOccurrenceType?: 'single' | 'range'
+}
+
+interface WizardProps {
+  mode?: 'create' | 'edit'
+  initialData?: WizardInitialData
+}
+
+export default function NewFrameworkItemWizard({ mode = 'create', initialData }: WizardProps = {}) {
   const params = useParams()
   const router = useRouter()
   const brandId = params.brandId as string
   const { brand } = useBrand(brandId)
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
-  const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(null)
-  const [details, setDetails] = useState<WizardDetails>({
-    name: '',
-    detail: '',
-    url: '',
-    defaultHashtags: '',
-    channels: [],
+  
+  // Initialize subcategory type from initialData in edit mode
+  const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(
+    mode === 'edit' && initialData?.subcategory?.subcategory_type ? initialData.subcategory.subcategory_type : null
+  )
+  
+  // Initialize details from initialData in edit mode
+  const [details, setDetails] = useState<WizardDetails>(() => {
+    if (mode === 'edit' && initialData?.subcategory) {
+      return {
+        name: initialData.subcategory.name || '',
+        detail: initialData.subcategory.detail || '',
+        url: initialData.subcategory.url || '',
+        defaultHashtags: (initialData.subcategory.default_hashtags || []).join(', '),
+        channels: initialData.subcategory.channels || [],
+      }
+    }
+    return {
+      name: '',
+      detail: '',
+      url: '',
+      defaultHashtags: '',
+      channels: [],
+    }
   })
+  
   const [detailsErrors, setDetailsErrors] = useState<{
     name?: string
     detail?: string
   }>({})
-  const [schedule, setSchedule] = useState<WizardSchedule>({
-    frequency: null,
-    timeOfDay: '',
-    timezone: brand?.timezone || 'Pacific/Auckland',
-    daysOfWeek: [],
-    dayOfMonth: null,
+  
+  // Initialize schedule from initialData in edit mode
+  const [schedule, setSchedule] = useState<WizardSchedule>(() => {
+    if (mode === 'edit' && initialData?.scheduleRule) {
+      const rule = initialData.scheduleRule
+      const timesArray = rule.time_of_day 
+        ? (Array.isArray(rule.time_of_day) ? rule.time_of_day : [rule.time_of_day])
+        : []
+      const daysOfWeek = (rule.days_of_week || []).map(d => {
+        const dayMap: Record<number, string> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' }
+        return dayMap[d] || ''
+      }).filter(Boolean)
+      
+      return {
+        frequency: rule.frequency || null,
+        timeOfDay: timesArray[0] || '',
+        timezone: rule.timezone || brand?.timezone || 'Pacific/Auckland',
+        daysOfWeek: daysOfWeek,
+        dayOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month[0] : (rule.day_of_month || null),
+      }
+    }
+    return {
+      frequency: null,
+      timeOfDay: '',
+      timezone: brand?.timezone || 'Pacific/Auckland',
+      daysOfWeek: [],
+      dayOfMonth: null,
+    }
   })
+  
   const [scheduleErrors, setScheduleErrors] = useState<{
     frequency?: string
     timeOfDay?: string
     daysOfWeek?: string
     dayOfMonth?: string
   }>({})
-  const [eventOccurrenceType, setEventOccurrenceType] = useState<'single' | 'range'>('single')
-  const [eventScheduling, setEventScheduling] = useState<EventSchedulingState>({
-    occurrences: [],
-    daysBefore: []
+  
+  // Initialize event occurrence type from initialData in edit mode
+  const [eventOccurrenceType, setEventOccurrenceType] = useState<'single' | 'range'>(
+    mode === 'edit' && initialData?.eventOccurrenceType ? initialData.eventOccurrenceType : 'single'
+  )
+  
+  // Initialize event scheduling from initialData in edit mode
+  const [eventScheduling, setEventScheduling] = useState<EventSchedulingState>(() => {
+    if (mode === 'edit' && initialData) {
+      const occurrences: EventOccurrenceInput[] = []
+      let daysBefore: number[] = []
+      
+      // Extract daysBefore from scheduleRule
+      if (initialData.scheduleRule?.days_before) {
+        daysBefore = initialData.scheduleRule.days_before
+      }
+      
+      // Convert event_occurrences to EventOccurrenceInput format
+      if (initialData.eventOccurrences && initialData.eventOccurrences.length > 0) {
+        const occurrenceType = initialData.eventOccurrenceType || 'single'
+        
+        initialData.eventOccurrences.forEach(occ => {
+          if (occurrenceType === 'single') {
+            // Single mode: extract date and time from starts_at
+            const startsAtDate = new Date(occ.starts_at)
+            const dateStr = startsAtDate.toISOString().split('T')[0] // YYYY-MM-DD
+            const timeStr = startsAtDate.toTimeString().split(' ')[0].slice(0, 5) // HH:mm
+            
+            occurrences.push({
+              id: occ.id,
+              date: dateStr,
+              time: timeStr,
+              url: occ.url || undefined,
+              notes: occ.notes || undefined,
+              summary: occ.summary || undefined
+            })
+          } else {
+            // Range mode: extract start_date and end_date
+            const startsAtDate = new Date(occ.starts_at)
+            const startDateStr = startsAtDate.toISOString().split('T')[0] // YYYY-MM-DD
+            
+            let endDateStr: string | undefined
+            if (occ.end_at) {
+              const endAtDate = new Date(occ.end_at)
+              endDateStr = endAtDate.toISOString().split('T')[0] // YYYY-MM-DD
+            }
+            
+            occurrences.push({
+              id: occ.id,
+              start_date: startDateStr,
+              end_date: endDateStr,
+              url: occ.url || undefined,
+              notes: occ.notes || undefined,
+              summary: occ.summary || undefined
+            })
+          }
+        })
+      }
+      
+      return {
+        occurrences,
+        daysBefore
+      }
+    }
+    return {
+      occurrences: [],
+      daysBefore: []
+    }
   })
   const [eventErrors, setEventErrors] = useState<{
     occurrences?: string
     leadTimes?: string
   }>({})
-  const [leadTimesInput, setLeadTimesInput] = useState<string>('7, 3, 1')
+  // Initialize leadTimesInput from initialData in edit mode
+  const [leadTimesInput, setLeadTimesInput] = useState<string>(() => {
+    if (mode === 'edit' && initialData?.scheduleRule?.days_before && initialData.scheduleRule.days_before.length > 0) {
+      return initialData.scheduleRule.days_before.join(', ')
+    }
+    return '7, 3, 1'
+  })
   
-  // Reset occurrences when switching occurrence type
+  // Reset occurrences when switching occurrence type (but not in edit mode on mount)
   useEffect(() => {
-    if (subcategoryType === 'event_series') {
+    if (subcategoryType === 'event_series' && mode === 'create') {
       setEventScheduling(prev => ({ ...prev, occurrences: [] }))
       setEventErrors({})
     }
-  }, [eventOccurrenceType, subcategoryType])
+  }, [eventOccurrenceType, subcategoryType, mode])
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   // Initialize daysBefore from leadTimesInput when component mounts or switching to Events type
@@ -287,9 +475,30 @@ export default function NewFrameworkItemWizard() {
     }
   }, [subcategoryType, leadTimesInput])
   const [isSaving, setIsSaving] = useState(false)
-  const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(null)
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
-  const [imageMode, setImageMode] = useState<'upload' | 'existing'>('upload')
+  const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
+    mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
+  )
+  // Initialize selectedAssetIds from initialData in edit mode
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(
+    mode === 'edit' && initialData?.assets ? initialData.assets : []
+  )
+  const [imageMode, setImageMode] = useState<'upload' | 'existing'>(() => {
+    // In edit mode, if we have existing assets, default to 'existing' mode
+    if (mode === 'edit' && initialData?.assets && initialData.assets.length > 0) {
+      return 'existing'
+    }
+    return 'upload'
+  })
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(
+    mode === 'edit' && initialData?.assets ? initialData.assets : []
+  )
+  const [imageMode, setImageMode] = useState<'upload' | 'existing'>(() => {
+    // In edit mode, if we have existing assets, default to 'existing' mode
+    if (mode === 'edit' && initialData?.assets && initialData.assets.length > 0) {
+      return 'existing'
+    }
+    return 'upload'
+  })
   
   const { showToast } = useToast()
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
@@ -393,6 +602,11 @@ export default function NewFrameworkItemWizard() {
 
   // Helper function to ensure subcategory is saved (used before Step 4)
   const ensureSubcategorySaved = async (): Promise<{ subcategoryId: string } | null> => {
+    // In edit mode, just return the existing ID (no saving needed for now)
+    if (mode === 'edit' && savedSubcategoryId) {
+      return { subcategoryId: savedSubcategoryId }
+    }
+    
     // If already saved, return the ID
     if (savedSubcategoryId) {
       return { subcategoryId: savedSubcategoryId }
@@ -746,6 +960,12 @@ export default function NewFrameworkItemWizard() {
 
   // Handle Step 4 finish - link images to subcategory
   const handleFinish = async () => {
+    // In edit mode, save logic is not wired yet
+    if (mode === 'edit') {
+      console.log('Edit submit not wired yet')
+      return
+    }
+
     // Ensure subcategory is saved (defensive check)
     const saveResult = await ensureSubcategorySaved()
     if (!saveResult) {
@@ -882,10 +1102,10 @@ export default function NewFrameworkItemWizard() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">
-                  Create Category
+                  {mode === 'edit' ? 'Edit Category' : 'Create Category'}
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">
-                  Add a new item to your content framework
+                  {mode === 'edit' ? 'Update your category details' : 'Add a new item to your content framework'}
                 </p>
               </div>
             </div>
@@ -1997,17 +2217,23 @@ export default function NewFrameworkItemWizard() {
                   ) : (
                     <button
                       onClick={handleFinish}
-                      disabled={isSaving}
+                      disabled={isSaving || mode === 'edit'}
                       className={`
                         inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
                         ${
-                          !isSaving
+                          mode === 'edit'
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : !isSaving
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }
                       `}
                     >
-                      {isSaving ? (
+                      {mode === 'edit' ? (
+                        <>
+                          Save (Not wired yet)
+                        </>
+                      ) : isSaving ? (
                         <>
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent mr-2" />
                           Saving...
