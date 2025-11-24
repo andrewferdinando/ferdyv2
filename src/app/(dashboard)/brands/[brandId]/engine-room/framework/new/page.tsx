@@ -203,6 +203,20 @@ type WizardSchedule = {
   dayOfMonth: number | null
 }
 
+type EventOccurrenceInput = {
+  id?: string
+  date: string // 'YYYY-MM-DD'
+  time?: string // 'HH:mm' or ''
+  url?: string
+  notes?: string
+  summary?: any // URL summary data (from refreshUrlSummary)
+}
+
+type EventSchedulingState = {
+  occurrences: EventOccurrenceInput[]
+  daysBefore: number[] // e.g. [7, 3, 1]
+}
+
 export default function NewFrameworkItemWizard() {
   const params = useParams()
   const router = useRouter()
@@ -235,6 +249,13 @@ export default function NewFrameworkItemWizard() {
     daysOfWeek?: string
     dayOfMonth?: string
   }>({})
+  const [eventScheduling, setEventScheduling] = useState<EventSchedulingState>({
+    occurrences: [],
+    daysBefore: []
+  })
+  const [eventErrors, setEventErrors] = useState<{
+    occurrences?: string
+  }>({})
   const [isSaving, setIsSaving] = useState(false)
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(null)
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
@@ -262,6 +283,17 @@ export default function NewFrameworkItemWizard() {
     details.detail.trim().length > 0
 
   const isStep3Valid = (): boolean => {
+    // Events use a different validation flow
+    if (subcategoryType === 'event_series') {
+      // Must have at least one occurrence
+      if (eventScheduling.occurrences.length === 0) {
+        return false
+      }
+      // All occurrences must have a date
+      return eventScheduling.occurrences.every(occ => occ.date.trim().length > 0)
+    }
+    
+    // Other types use the standard schedule validation
     if (!schedule.frequency) return false
     
     if (schedule.frequency === 'specific') {
@@ -319,6 +351,22 @@ export default function NewFrameworkItemWizard() {
       }
       
       if (!isStep3Valid()) {
+        // Events validation
+        if (subcategoryType === 'event_series') {
+          const newErrors: typeof eventErrors = {}
+          if (eventScheduling.occurrences.length === 0) {
+            newErrors.occurrences = 'Please add at least one event occurrence.'
+          } else {
+            const missingDates = eventScheduling.occurrences.filter(occ => !occ.date.trim())
+            if (missingDates.length > 0) {
+              newErrors.occurrences = 'All occurrences must have a date.'
+            }
+          }
+          setEventErrors(newErrors)
+          return null
+        }
+        
+        // Other types validation
         const newErrors: typeof scheduleErrors = {}
         if (!schedule.frequency) {
           newErrors.frequency = 'Please select a frequency.'
@@ -401,14 +449,98 @@ export default function NewFrameworkItemWizard() {
         })
       }
 
-      // Create schedule rule if needed (based on type + frequency rules)
+      // Handle Events: Create schedule rule with frequency='specific' and days_before
+      if (subcategoryType === 'event_series') {
+        // Create schedule rule for Events
+        const eventRuleData: Record<string, unknown> = {
+          brand_id: brandId,
+          subcategory_id: subcategoryId,
+          category_id: null,
+          name: `${details.name.trim()} – Specific Events`,
+          frequency: 'specific',
+          days_before: eventScheduling.daysBefore.length > 0 ? eventScheduling.daysBefore : null,
+          days_during: null,
+          channels: details.channels.length > 0 ? details.channels : null,
+          is_active: true,
+          tone: null,
+          hashtag_rule: null,
+          image_tag_rule: null
+        }
+
+        console.info('[Wizard] Creating schedule rule for Events:', eventRuleData)
+
+        const { error: eventRuleError } = await supabase
+          .from('schedule_rules')
+          .insert(eventRuleData)
+
+        if (eventRuleError) {
+          console.error('[Wizard] Schedule rule insert error for Events:', eventRuleError)
+          throw new Error(`Failed to create schedule rule: ${eventRuleError.message}`)
+        }
+
+        console.info('[Wizard] Successfully created schedule rule for Events')
+
+        // Create event_occurrences for each occurrence
+        const occurrencesToInsert = await Promise.all(
+          eventScheduling.occurrences.map(async (occurrence) => {
+            // Combine date + time into starts_at
+            const dateStr = occurrence.date.trim()
+            const timeStr = occurrence.time?.trim() || '12:00' // Default to noon if no time
+            // Use timezone from brand or default
+            const timezone = brand?.timezone || 'Pacific/Auckland'
+            // Create ISO string with timezone consideration
+            // Note: We'll store as UTC timestamptz, but construct from local date/time
+            const dateTimeStr = `${dateStr}T${timeStr}:00`
+            const startsAt = new Date(dateTimeStr).toISOString()
+
+            // Determine URL: use occurrence URL if provided, else fallback to category URL
+            const finalUrl = occurrence.url?.trim() || details.url.trim() || null
+
+            // Extract URL summary if URL exists
+            // We'll fetch summaries in parallel but don't block on failures
+            let summary: any = null
+            if (finalUrl) {
+              try {
+                const summaryResponse = await fetch(`/api/extract-url-summary?url=${encodeURIComponent(finalUrl)}`)
+                if (summaryResponse.ok) {
+                  const summaryData = await summaryResponse.json()
+                  summary = summaryData
+                } else {
+                  console.warn('[Wizard] URL summary extraction returned non-OK status:', summaryResponse.status)
+                }
+              } catch (err) {
+                console.error('[Wizard] Error extracting URL summary for occurrence:', err)
+                // Continue without summary if extraction fails
+              }
+            }
+
+            return {
+              subcategory_id: subcategoryId,
+              starts_at: startsAt,
+              url: finalUrl,
+              notes: occurrence.notes?.trim() || null,
+              summary: summary ? JSON.stringify(summary) : null
+            }
+          })
+        )
+
+        console.info('[Wizard] Creating event_occurrences:', occurrencesToInsert.length)
+
+        const { error: occurrencesError } = await supabase
+          .from('event_occurrences')
+          .insert(occurrencesToInsert)
+
+        if (occurrencesError) {
+          console.error('[Wizard] Event occurrences insert error:', occurrencesError)
+          throw new Error(`Failed to create event occurrences: ${occurrencesError.message}`)
+        }
+
+        console.info('[Wizard] Successfully created event_occurrences')
+      }
+
+      // Create schedule rule if needed (based on type + frequency rules) - for non-Events
       const shouldCreateRule = (() => {
         if (!schedule.frequency) return false
-        
-        // Event Series: only create rule if NOT specific
-        if (subcategoryType === 'event_series') {
-          return schedule.frequency !== 'specific'
-        }
         
         // Promos: only create rule if NOT specific
         if (subcategoryType === 'promo_or_offer') {
@@ -903,7 +1035,7 @@ export default function NewFrameworkItemWizard() {
                 {currentStep === 3 && (
                   <div>
                     <h2 className="text-lg font-medium text-gray-900 mb-4">
-                      Step 3: Timing & Schedule
+                      Step 3: {subcategoryType === 'event_series' ? 'Event Occurrences' : 'Timing & Schedule'}
                     </h2>
 
                     {/* Context: Show selected type */}
@@ -914,11 +1046,214 @@ export default function NewFrameworkItemWizard() {
                       </p>
                     )}
 
-                    <div className="space-y-6">
-                      {/* Schedule Section Title */}
-                      <h3 className="text-base font-semibold text-gray-900 mb-4">
-                        {getScheduleSectionTitle(subcategoryType)}
-                      </h3>
+                    {/* Events: Show occurrences manager */}
+                    {subcategoryType === 'event_series' ? (
+                      <div className="space-y-6">
+                        {/* Occurrences List */}
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-semibold text-gray-900">
+                              Event Occurrences
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newOccurrence: EventOccurrenceInput = {
+                                  date: '',
+                                  time: '',
+                                  url: '',
+                                  notes: ''
+                                }
+                                setEventScheduling(prev => ({
+                                  ...prev,
+                                  occurrences: [...prev.occurrences, newOccurrence]
+                                }))
+                                // Clear errors when adding
+                                if (eventErrors.occurrences) {
+                                  setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                }
+                              }}
+                              className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
+                            >
+                              + Add occurrence
+                            </button>
+                          </div>
+                          
+                          {eventScheduling.occurrences.length === 0 ? (
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                              <p className="text-sm text-gray-600 mb-2">
+                                No occurrences added yet. Click "Add occurrence" to get started.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {eventScheduling.occurrences.map((occurrence, index) => (
+                                <div
+                                  key={occurrence.id || index}
+                                  className="bg-white border border-gray-200 rounded-lg p-4 space-y-4"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <h4 className="text-sm font-medium text-gray-900">
+                                      Occurrence {index + 1}
+                                    </h4>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEventScheduling(prev => ({
+                                          ...prev,
+                                          occurrences: prev.occurrences.filter((_, i) => i !== index)
+                                        }))
+                                      }}
+                                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Date - Required */}
+                                    <FormField label="Date" required>
+                                      <Input
+                                        type="date"
+                                        value={occurrence.date}
+                                        onChange={(e) => {
+                                          const updated = [...eventScheduling.occurrences]
+                                          updated[index] = { ...updated[index], date: e.target.value }
+                                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                          if (eventErrors.occurrences) {
+                                            setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                          }
+                                        }}
+                                        error={eventErrors.occurrences && !occurrence.date ? 'Date is required' : undefined}
+                                      />
+                                    </FormField>
+                                    
+                                    {/* Time - Optional */}
+                                    <FormField label="Time (optional)">
+                                      <Input
+                                        type="time"
+                                        value={occurrence.time || ''}
+                                        onChange={(e) => {
+                                          const updated = [...eventScheduling.occurrences]
+                                          updated[index] = { ...updated[index], time: e.target.value }
+                                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                        }}
+                                      />
+                                    </FormField>
+                                  </div>
+                                  
+                                  {/* URL - Optional */}
+                                  <FormField label="URL (optional)">
+                                    <Input
+                                      type="url"
+                                      value={occurrence.url || ''}
+                                      onChange={(e) => {
+                                        const updated = [...eventScheduling.occurrences]
+                                        updated[index] = { ...updated[index], url: e.target.value }
+                                        setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                      }}
+                                      placeholder="https://example.com/event"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Event-specific URL. If empty, will use the category URL.
+                                    </p>
+                                  </FormField>
+                                  
+                                  {/* Notes - Optional */}
+                                  <FormField label="Notes (optional)">
+                                    <Textarea
+                                      value={occurrence.notes || ''}
+                                      onChange={(e) => {
+                                        const updated = [...eventScheduling.occurrences]
+                                        updated[index] = { ...updated[index], notes: e.target.value }
+                                        setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                      }}
+                                      placeholder="Additional notes about this occurrence..."
+                                      rows={2}
+                                    />
+                                  </FormField>
+                                  
+                                  {/* URL Summary Preview */}
+                                  {occurrence.summary && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
+                                      <p className="font-medium text-gray-900 mb-2">URL Summary:</p>
+                                      {occurrence.summary.details && (
+                                        <div className="space-y-1 text-gray-700">
+                                          {occurrence.summary.details.venue && (
+                                            <p><strong>Venue:</strong> {occurrence.summary.details.venue}</p>
+                                          )}
+                                          {occurrence.summary.details.date && (
+                                            <p><strong>Date:</strong> {occurrence.summary.details.date}</p>
+                                          )}
+                                          {occurrence.summary.details.time && (
+                                            <p><strong>Time:</strong> {occurrence.summary.details.time}</p>
+                                          )}
+                                          {occurrence.summary.details.price && (
+                                            <p><strong>Price:</strong> {occurrence.summary.details.price}</p>
+                                          )}
+                                          {occurrence.summary.details.format && (
+                                            <p><strong>Format:</strong> {occurrence.summary.details.format}</p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {eventErrors.occurrences && (
+                            <p className="text-red-500 text-sm mt-2">{eventErrors.occurrences}</p>
+                          )}
+                        </div>
+                        
+                        {/* Lead-time Selector */}
+                        <div>
+                          <h3 className="text-base font-semibold text-gray-900 mb-3">
+                            Lead-time Reminders
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Select how many days before each event Ferdy should post reminders.
+                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            {[7, 3, 1].map((days) => {
+                              const isSelected = eventScheduling.daysBefore.includes(days)
+                              return (
+                                <button
+                                  key={days}
+                                  type="button"
+                                  onClick={() => {
+                                    setEventScheduling(prev => ({
+                                      ...prev,
+                                      daysBefore: isSelected
+                                        ? prev.daysBefore.filter(d => d !== days)
+                                        : [...prev.daysBefore, days].sort((a, b) => b - a)
+                                    }))
+                                  }}
+                                  className={`
+                                    px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                                    ${
+                                      isSelected
+                                        ? 'bg-[#6366F1] text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }
+                                  `}
+                                >
+                                  {days} {days === 1 ? 'day' : 'days'} before
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Non-Events: Show standard schedule UI */
+                      <div className="space-y-6">
+                        {/* Schedule Section Title */}
+                        <h3 className="text-base font-semibold text-gray-900 mb-4">
+                          {getScheduleSectionTitle(subcategoryType)}
+                        </h3>
 
                       {/* Frequency Selector */}
                       <FormField label="Frequency" required>
@@ -1143,7 +1478,8 @@ export default function NewFrameworkItemWizard() {
                           </FormField>
                         </div>
                       )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
