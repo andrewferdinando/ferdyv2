@@ -18,6 +18,7 @@ const MAX_SUMMARY_LENGTH = 900; // characters (after cleaning, before adding sou
  * Structured event details extracted from URL page
  */
 export interface EventDetails {
+  // Legacy fields (maintained for backward compatibility)
   venue: string | null;
   date: string | null;
   time: string | null;
@@ -25,6 +26,18 @@ export interface EventDetails {
   format: "physical" | "online" | "promo" | null;
   hosts: string[] | null;
   key_points: string[] | null;
+  
+  // Enhanced event fields
+  title?: string | null;
+  subtitle?: string | null;
+  dateText?: string | null; // Human-readable full date or date range
+  startTime?: string | null; // KO/start time in local format like '7:30 pm'
+  venueName?: string | null; // Stadium/venue/location name
+  locationText?: string | null; // City/region/country text
+  priceFrom?: number | null; // Lowest ticket price as a number
+  priceText?: string | null; // Raw price text: 'From $29', 'Adult $25, Child $10', etc.
+  competitionOrSeries?: string | null; // e.g. 'Super Rugby', 'Summer Concert Series'
+  rawSnippet?: string | null; // Short snippet/paragraph describing the event
 }
 
 /**
