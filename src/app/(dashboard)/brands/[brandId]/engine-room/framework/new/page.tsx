@@ -251,12 +251,10 @@ export default function NewFrameworkItemWizard() {
     }
   }, [brand?.timezone])
 
-  // Refetch assets when entering Step 4
-  useEffect(() => {
-    if (currentStep === 4) {
-      refetchAssets()
-    }
-  }, [currentStep, refetchAssets])
+  // Note: Assets are automatically loaded by useAssets hook when brandId is available.
+  // We intentionally reuse the same hook and pattern as Content Library to keep
+  // behavior consistent and avoid duplication. Assets will load once on mount
+  // and refetch automatically when brandId changes - no need to refetch on step changes.
 
   const isStep1Valid = !!subcategoryType
   const isStep2Valid =
@@ -1262,6 +1260,10 @@ export default function NewFrameworkItemWizard() {
                     )}
 
                     {/* Existing Images Mode */}
+                    {/* We intentionally reuse the same useAssets hook and pattern as Content Library
+                        to keep behavior consistent and avoid duplication. Assets load once on mount
+                        and persist across mode switches. No refetch needed - selection changes don't
+                        trigger reloads, only uploads trigger refetches when complete. */}
                     {imageMode === 'existing' && (
                       <div className="space-y-4">
                         <h3 className="text-base font-semibold text-gray-900 mb-2">
