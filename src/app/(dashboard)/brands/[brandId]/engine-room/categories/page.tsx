@@ -809,9 +809,7 @@ export default function CategoriesPage() {
               {isAdmin && (
                 <button
                   onClick={() => {
-                    setEditingSubcategory(null)
-                    setEditingScheduleRule(null)
-                    setIsSubcategoryModalOpen(true)
+                    router.push(`/brands/${brandId}/engine-room/framework/new`)
                   }}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
