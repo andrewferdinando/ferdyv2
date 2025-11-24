@@ -192,7 +192,7 @@ export default function EditCategoryPage() {
 
   return (
     <RequireAuth>
-      <FrameworkItemWizardPage mode="edit" initialData={initialData} />
+      <NewFrameworkItemWizard mode="edit" initialData={initialData} />
     </RequireAuth>
   )
 }

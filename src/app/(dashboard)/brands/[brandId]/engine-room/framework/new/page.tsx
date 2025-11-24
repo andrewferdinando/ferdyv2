@@ -2211,8 +2211,8 @@ function NewFrameworkItemWizard(props: WizardProps = {}) {
   )
 }
 
-// Default export for Next.js page - accepts props to support reuse
-export default function Page(props: WizardProps = {}) {
-  return <NewFrameworkItemWizard {...props} />
+// Default export for Next.js page - no custom props allowed
+export default function Page() {
+  return <NewFrameworkItemWizard mode="create" />
 }
 
