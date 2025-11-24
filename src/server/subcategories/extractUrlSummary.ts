@@ -43,7 +43,7 @@ function isEventPage($: cheerio.CheerioAPI): boolean {
 /**
  * Find the main content region of the page, avoiding nav/footer
  */
-function findMainContent($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.AnyNode> {
+function findMainContent($: cheerio.CheerioAPI) {
   // Priority order: main, article, content sections
   const selectors = [
     'main',
@@ -78,7 +78,7 @@ function findMainContent($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.AnyNode
 /**
  * Extract title from page (prefer OG tags, then H1, then title tag)
  */
-function extractTitle($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): string | null {
+function extractTitle($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): string | null {
   // Try OG title first
   const ogTitle = $('meta[property="og:title"]').attr('content') || 
                   $('meta[name="twitter:title"]').attr('content');
@@ -98,7 +98,7 @@ function extractTitle($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheeri
 /**
  * Extract subtitle (H2 or short P near main heading)
  */
-function extractSubtitle($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): string | null {
+function extractSubtitle($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): string | null {
   // Look for H2 after H1
   const h2 = mainContent.find('h1').first().nextAll('h2').first().text().trim();
   if (h2 && h2.length > 5 && h2.length < 150) return h2;
@@ -117,7 +117,7 @@ function extractSubtitle($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<che
 /**
  * Extract date and time using <time> tags and common patterns
  */
-function extractDateAndTime($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): { dateText: string | null; startTime: string | null } {
+function extractDateAndTime($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): { dateText: string | null; startTime: string | null } {
   let dateText: string | null = null;
   let startTime: string | null = null;
   
@@ -231,7 +231,7 @@ function extractDateAndTime($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<
 /**
  * Extract venue name and location
  */
-function extractVenueAndLocation($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): { venueName: string | null; locationText: string | null } {
+function extractVenueAndLocation($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): { venueName: string | null; locationText: string | null } {
   let venueName: string | null = null;
   let locationText: string | null = null;
   
@@ -297,7 +297,7 @@ function extractVenueAndLocation($: cheerio.CheerioAPI, mainContent: cheerio.Che
 /**
  * Extract price information
  */
-function extractPrice($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): { priceFrom: number | null; priceText: string | null } {
+function extractPrice($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): { priceFrom: number | null; priceText: string | null } {
   let priceFrom: number | null = null;
   let priceText: string | null = null;
   
@@ -358,7 +358,7 @@ function extractPrice($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheeri
 /**
  * Extract competition or series name
  */
-function extractCompetitionOrSeries($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): string | null {
+function extractCompetitionOrSeries($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): string | null {
   // Look for competition/series in specific elements first
   const competitionSelectors = [
     '[class*="competition"]',
@@ -401,7 +401,7 @@ function extractCompetitionOrSeries($: cheerio.CheerioAPI, mainContent: cheerio.
 /**
  * Extract a short descriptive snippet from main content
  */
-function extractRawSnippet($: cheerio.CheerioAPI, mainContent: cheerio.Cheerio<cheerio.AnyNode>): string | null {
+function extractRawSnippet($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): string | null {
   // Try to find first meaningful paragraph (excluding intro/lead which might be used as subtitle)
   const paragraphs = mainContent.find('p');
   
