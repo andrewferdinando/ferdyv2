@@ -859,6 +859,132 @@ function isNoiseLine(line: string): boolean {
   return noisePatterns.some(pattern => lowerLine.includes(pattern));
 }
 
+/**
+ * Fallback extraction for JS-heavy pages (like Ticketmaster) where main extraction fails
+ * Only fills in missing fields, doesn't overwrite existing good data
+ */
+function applyFallbackExtraction(
+  $: cheerio.CheerioAPI,
+  html: string,
+  currentSummary: string,
+  currentDetails: EventDetails
+): { summary: string; details: EventDetails } {
+  const result = {
+    summary: currentSummary,
+    details: { ...currentDetails },
+  };
+  
+  // Only run fallback if summary is empty/short AND most details are missing
+  const isSummaryEmpty = !currentSummary || currentSummary.trim().length < 50;
+  const isMostlyEmpty = !currentDetails.date && 
+                       !currentDetails.dateText &&
+                       !currentDetails.venue && 
+                       !currentDetails.venueName &&
+                       !currentDetails.time &&
+                       !currentDetails.startTime;
+  
+  if (!isSummaryEmpty || !isMostlyEmpty) {
+    return result; // Don't run fallback if we already have good data
+  }
+  
+  // 1. Fallback title/summary from meta tags
+  if (isSummaryEmpty) {
+    const ogTitle = $('meta[property="og:title"]').attr('content')?.trim() ||
+                   $('meta[name="twitter:title"]').attr('content')?.trim() ||
+                   $('title').text().trim() ||
+                   null;
+    
+    const ogDescription = $('meta[property="og:description"]').attr('content')?.trim() ||
+                         $('meta[name="description"]').attr('content')?.trim() ||
+                         null;
+    
+    if (ogTitle) {
+      if (ogDescription) {
+        result.summary = `${ogTitle} — ${ogDescription}`;
+      } else {
+        result.summary = ogTitle;
+      }
+      
+      // Truncate if too long
+      if (result.summary.length > MAX_SUMMARY_LENGTH) {
+        result.summary = result.summary.slice(0, MAX_SUMMARY_LENGTH).trim();
+        const lastSpace = result.summary.lastIndexOf(' ');
+        if (lastSpace > MAX_SUMMARY_LENGTH * 0.8) {
+          result.summary = result.summary.slice(0, lastSpace).trim();
+        }
+      }
+    }
+  }
+  
+  // 2. Simple date/time detection from raw HTML (only if missing)
+  if (!currentDetails.date && !currentDetails.dateText && !currentDetails.time && !currentDetails.startTime) {
+    const htmlText = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                         .replace(/<[^>]+>/g, ' ')
+                         .replace(/\s+/g, ' ');
+    
+    // Date patterns - lenient matching (prioritize full dates with year)
+    const datePatterns = [
+      // Full dates with year (preferred): "12 July 2025", "July 12, 2025", "12/07/2025"
+      /\b([a-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[a-z]{3,9}\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b/i,
+      // Partial dates (less preferred): "12 July", "July 12"
+      /\b([a-z]{3,9}\s+\d{1,2}|\d{1,2}\s+[a-z]{3,9})\b/i,
+    ];
+    
+    for (const pattern of datePatterns) {
+      const matches = [...htmlText.matchAll(pattern)];
+      for (const match of matches) {
+        if (match[1]) {
+          const dateStr = match[1].trim();
+          // Basic validation: 
+          // - Doesn't look like a time
+          // - Has reasonable length
+          // - Doesn't look like a random number sequence
+          if (dateStr.length >= 6 && 
+              dateStr.length <= 30 && 
+              !/^\d{1,2}:\d{2}/.test(dateStr) &&
+              !/^\d+$/.test(dateStr.replace(/[\/\-\s,]/g, ''))) {
+            result.details.date = dateStr;
+            result.details.dateText = dateStr;
+            break; // Take first reasonable match
+          }
+        }
+      }
+      // If we found a good date, stop looking
+      if (result.details.date) break;
+    }
+    
+    // Time patterns - lenient matching
+    const timePatterns = [
+      // 12-hour with am/pm (preferred): "7:35 pm", "7:35pm", "7.35pm"
+      /\b(\d{1,2}[\.:]?\d{0,2}\s*(am|pm|AM|PM))\b/i,
+      // 24-hour format: "19:35", "19.35"
+      /\b([01]?\d|2[0-3])[\.:]?([0-5]\d)\b(?![\.:]?\d)/,
+    ];
+    
+    for (const pattern of timePatterns) {
+      const matches = [...htmlText.matchAll(pattern)];
+      for (const match of matches) {
+        const timeStr = match[0].trim();
+        // Basic validation: 
+        // - Reasonable length
+        // - Looks like a valid time (not part of a date or other number)
+        if (timeStr.length >= 3 && 
+            timeStr.length <= 10 &&
+            !/^\d{4,}$/.test(timeStr.replace(/[\.:]/g, ''))) {
+          result.details.time = timeStr;
+          result.details.startTime = timeStr;
+          break; // Take first reasonable match
+        }
+      }
+      // If we found a good time, stop looking
+      if (result.details.time) break;
+    }
+  }
+  
+  return result;
+}
+
 function cleanExtractedText(text: string): string {
   let cleaned = decodeEntities(text);
   
@@ -964,9 +1090,16 @@ export async function extractUrlSummary(url: string): Promise<StructuredUrlSumma
     }
     
     // Build structured summary
-    const structuredSummary: StructuredUrlSummary = {
+    let structuredSummary: StructuredUrlSummary = {
       summary: trimmed,
       details: eventDetails,
+    };
+    
+    // Apply fallback extraction for JS-heavy pages (only fills missing fields)
+    const fallbackResult = applyFallbackExtraction($, html, trimmed, eventDetails);
+    structuredSummary = {
+      summary: fallbackResult.summary || trimmed, // Use fallback if it's better
+      details: fallbackResult.details,
     };
 
     return structuredSummary;
