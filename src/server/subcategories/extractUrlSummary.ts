@@ -295,18 +295,36 @@ function extractVenueAndLocation($: cheerio.CheerioAPI, mainContent: ReturnType<
 }
 
 /**
- * Extract price information
+ * Extract price information - conservative approach
+ * Only sets prices when reasonably confident to avoid wrong values
  */
 function extractPrice($: cheerio.CheerioAPI, mainContent: ReturnType<typeof findMainContent>): { priceFrom: number | null; priceText: string | null } {
-  let priceFrom: number | null = null;
-  let priceText: string | null = null;
+  // Currency symbols and codes pattern
+  const currencyPattern = /(?:^|\s)([$£€]|NZD|AUD|USD|GBP|EUR)\s*/i;
   
-  // Look for price/ticket elements
+  // Price number pattern: matches $29, $29.00, NZD 29, $29 - $49, etc.
+  const priceNumberPattern = /(?:[$£€]|NZD|AUD|USD|GBP|EUR)\s*(\d+(?:\.\d{2})?)(?:\s*[–-]\s*(?:[$£€]|NZD|AUD|USD|GBP|EUR)?\s*(\d+(?:\.\d{2})?))?/gi;
+  
+  // Ticket-related keywords for context
+  const ticketKeywords = /\b(ticket|tickets|admission|entry|from|price|prices|cost|fee|adult|child|concession|senior|student)\b/i;
+  
+  interface PriceCandidate {
+    value: number;
+    text: string;
+    context: string;
+    confidence: number; // Higher = more confident
+  }
+  
+  const candidates: PriceCandidate[] = [];
+  
+  // 1. Prioritize elements with price/ticket-related classes
   const priceSelectors = [
     '[class*="price"]',
     '[class*="ticket"]',
     '[class*="cost"]',
     '[class*="fee"]',
+    '[class*="admission"]',
+    '[class*="entry"]',
   ];
   
   for (const selector of priceSelectors) {
@@ -314,21 +332,43 @@ function extractPrice($: cheerio.CheerioAPI, mainContent: ReturnType<typeof find
     if (elements.length > 0) {
       elements.each((_, el) => {
         const text = $(el).text().trim();
-        if (text.length > 0 && text.length < 100) {
-          // Extract price patterns
-          const pricePattern = /(?:from|from\s+\$?|from\s+\£?)?\s*\$?(\d+(?:\.\d{2})?)|£?(\d+(?:\.\d{2})?)|(free|complimentary)/i;
-          const match = text.match(pricePattern);
+        const elementHtml = $(el).html() || '';
+        
+        // Skip if too long (likely not a price element)
+        if (text.length > 200) return;
+        
+        // Check if element or nearby context contains ticket keywords
+        const hasTicketContext = ticketKeywords.test(text) || 
+          ticketKeywords.test($(el).prev().text()) ||
+          ticketKeywords.test($(el).parent().text());
+        
+        if (!hasTicketContext) return;
+        
+        // Extract all price numbers from this element
+        const matches = [...text.matchAll(priceNumberPattern)];
+        for (const match of matches) {
+          const firstNum = parseFloat(match[1]);
+          const secondNum = match[2] ? parseFloat(match[2]) : null;
           
-          if (match) {
-            if (!priceText) priceText = text;
+          if (!isNaN(firstNum) && firstNum > 0) {
+            // Clean up the price text (remove extra whitespace, normalize)
+            const priceText = match[0].trim();
             
-            // Extract numeric value
-            const numStr = match[1] || match[2];
-            if (numStr) {
-              const num = parseFloat(numStr);
-              if (!isNaN(num) && (!priceFrom || num < priceFrom)) {
-                priceFrom = num;
-              }
+            candidates.push({
+              value: firstNum,
+              text: priceText,
+              context: text.slice(0, 150), // Keep some context
+              confidence: hasTicketContext ? 8 : 5, // Higher confidence with ticket context
+            });
+            
+            // If there's a range, also consider the second number
+            if (secondNum && !isNaN(secondNum) && secondNum > firstNum) {
+              candidates.push({
+                value: firstNum, // Use the lower value from range
+                text: match[0].trim(),
+                context: text.slice(0, 150),
+                confidence: hasTicketContext ? 8 : 5,
+              });
             }
           }
         }
@@ -336,23 +376,118 @@ function extractPrice($: cheerio.CheerioAPI, mainContent: ReturnType<typeof find
     }
   }
   
-  // Fallback: pattern matching in text
-  if (!priceText) {
-    const mainText = mainContent.text();
-    const pricePattern = /(?:tickets?|price|from|cost|entry)[\s:]+(\$?\d+(?:\.\d{2})?(?:\s*[–-]\s*\$?\d+(?:\.\d{2})?)?|free|complimentary)/i;
-    const match = mainText.match(pricePattern);
-    if (match && match[1]) {
-      priceText = match[1].trim();
-      
-      // Extract numeric value
-      const numMatch = priceText.match(/(\d+(?:\.\d{2})?)/);
-      if (numMatch && numMatch[1]) {
-        priceFrom = parseFloat(numMatch[1]);
+  // 2. Search in main content text near ticket keywords (less confident)
+  // Only do this if we haven't found good candidates yet
+  const mainText = mainContent.text();
+  
+  // 2a. Check for "free" or "complimentary" events first (before numeric prices)
+  const freePattern = /\b(free|complimentary|no charge|no admission|gratis)\b/i;
+  if (freePattern.test(mainText)) {
+    // Check if "free" appears near ticket/event keywords
+    const freeMatches = [...mainText.matchAll(freePattern)];
+    for (const match of freeMatches) {
+      const context = mainText.slice(Math.max(0, match.index! - 50), match.index! + match[0].length + 50);
+      if (ticketKeywords.test(context)) {
+        candidates.push({
+          value: 0,
+          text: 'Free',
+          context: context,
+          confidence: 7, // High confidence for explicit "free" near ticket keywords
+        });
+        break; // Only add one free entry
       }
     }
   }
   
-  return { priceFrom, priceText };
+  // 2b. Search for numeric prices in text (only if no high-confidence candidates yet)
+  if (candidates.filter(c => c.confidence >= 7).length === 0) {
+    // Look for patterns like "From $29", "Tickets: $29", "Price: $29 - $49"
+    const priceWithContextPattern = /(?:tickets?:?|price:?|from|cost:?|entry:?|admission:?)\s*[:\-–]?\s*([$£€]|NZD|AUD|USD|GBP|EUR)\s*(\d+(?:\.\d{2})?)(?:\s*[–-]\s*(?:[$£€]|NZD|AUD|USD|GBP|EUR)?\s*(\d+(?:\.\d{2})?))?/gi;
+    
+    const contextMatches = [...mainText.matchAll(priceWithContextPattern)];
+    for (const match of contextMatches) {
+      const num = parseFloat(match[2]);
+      const secondNum = match[3] ? parseFloat(match[3]) : null;
+      
+      if (!isNaN(num) && num > 0) {
+        // Get surrounding context
+        const matchIndex = match.index || 0;
+        const context = mainText.slice(Math.max(0, matchIndex - 50), matchIndex + match[0].length + 50);
+        
+        candidates.push({
+          value: num,
+          text: match[0].trim(),
+          context: context,
+          confidence: 6, // Medium confidence
+        });
+        
+        if (secondNum && !isNaN(secondNum) && secondNum > num) {
+          candidates.push({
+            value: num, // Use lower value from range
+            text: match[0].trim(),
+            context: context,
+            confidence: 6,
+          });
+        }
+      }
+    }
+  }
+  
+  // 3. Filter out low-confidence or suspicious candidates
+  const validCandidates = candidates.filter(c => {
+    // Reject very low prices that aren't near ticket keywords (could be page numbers, etc.)
+    if (c.value > 0 && c.value < 1 && !ticketKeywords.test(c.context)) {
+      return false;
+    }
+    
+    // Reject prices that look like dates or times
+    if (c.value > 0 && c.value < 32 && /\b(day|days|hour|hours|minute|minutes|week|weeks|month|months)\b/i.test(c.context)) {
+      return false;
+    }
+    
+    // Reject isolated "$0" unless explicitly "free"
+    if (c.value === 0 && !/\b(free|complimentary|no charge|no admission|gratis)\b/i.test(c.context)) {
+      return false;
+    }
+    
+    // Reject prices that are clearly not ticket prices (like phone numbers, addresses)
+    if (c.value > 100000 || (c.value > 1000 && /\b(phone|tel|address|zip|postal|code)\b/i.test(c.context))) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // 4. If no valid candidates, return null (conservative approach)
+  if (validCandidates.length === 0) {
+    return { priceFrom: null, priceText: null };
+  }
+  
+  // 5. Choose the best candidate: lowest price value, highest confidence
+  validCandidates.sort((a, b) => {
+    // First sort by confidence (descending)
+    if (b.confidence !== a.confidence) {
+      return b.confidence - a.confidence;
+    }
+    // Then by value (ascending - prefer lower prices)
+    return a.value - b.value;
+  });
+  
+  const bestCandidate = validCandidates[0];
+  
+  // 6. Final confidence check: require at least medium confidence
+  if (bestCandidate.confidence < 5) {
+    return { priceFrom: null, priceText: null };
+  }
+  
+  // 7. Find the absolute lowest price from all valid candidates (might be different from best text)
+  const lowestPrice = Math.min(...validCandidates.map(c => c.value));
+  
+  // 8. Use the best candidate's text (which has good context) but lowest price value
+  return {
+    priceFrom: lowestPrice,
+    priceText: bestCandidate.text.length <= 100 ? bestCandidate.text : bestCandidate.text.slice(0, 100),
+  };
 }
 
 /**
