@@ -890,6 +890,514 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   }
 
+  // Helper function to update subcategory in edit mode
+  const ensureSubcategoryUpdated = async (): Promise<boolean> => {
+    if (!savedSubcategoryId) {
+      showToast({
+        title: 'Error',
+        message: 'No category ID found. Please refresh the page and try again.',
+        type: 'error'
+      })
+      return false
+    }
+
+    // Validate all steps 1-3 (same validation as create)
+    if (!isStep1Valid || !isStep2Valid || !isStep3Valid()) {
+      // Set errors for invalid steps
+      if (!isStep1Valid) {
+        showToast({
+          title: 'Please select a type',
+          message: 'You must choose what kind of category this is.',
+          type: 'error'
+        })
+        return false
+      }
+      
+      if (!isStep2Valid) {
+        const newErrors: typeof detailsErrors = {}
+        if (!details.name.trim()) newErrors.name = 'Please give this a name.'
+        if (!details.detail.trim()) newErrors.detail = 'Please describe this item.'
+        setDetailsErrors(newErrors)
+        setCurrentStep(2)
+        return false
+      }
+      
+      if (!isStep3Valid()) {
+        // Events validation
+        if (subcategoryType === 'event_series') {
+          const newErrors: typeof eventErrors = {}
+          if (eventScheduling.occurrences.length === 0) {
+            newErrors.occurrences = 'Please add at least one event occurrence.'
+          } else {
+            if (eventOccurrenceType === 'single') {
+              const missingDates = eventScheduling.occurrences.filter(occ => !occ.date || !occ.date.trim())
+              const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
+              if (missingDates.length > 0) {
+                newErrors.occurrences = 'All occurrences must have a date.'
+              } else if (missingTimes.length > 0) {
+                newErrors.occurrences = 'All occurrences must have a time.'
+              }
+            } else {
+              const missingStartDates = eventScheduling.occurrences.filter(occ => !occ.start_date || !occ.start_date.trim())
+              const missingEndDates = eventScheduling.occurrences.filter(occ => !occ.end_date || !occ.end_date.trim())
+              if (missingStartDates.length > 0) {
+                newErrors.occurrences = 'All occurrences must have a start date.'
+              } else if (missingEndDates.length > 0) {
+                newErrors.occurrences = 'All occurrences must have an end date.'
+              }
+            }
+          }
+          setEventErrors(newErrors)
+          return false
+        }
+        
+        // Other types validation
+        const newErrors: typeof scheduleErrors = {}
+        if (!schedule.frequency) {
+          newErrors.frequency = 'Please select a frequency.'
+        } else if (schedule.frequency === 'daily') {
+          if (!schedule.timeOfDay.trim()) {
+            newErrors.timeOfDay = 'Please select a time of day.'
+          }
+        } else if (schedule.frequency === 'weekly') {
+          if (!schedule.timeOfDay.trim()) {
+            newErrors.timeOfDay = 'Please select a time of day.'
+          }
+          if (schedule.daysOfWeek.length === 0) {
+            newErrors.daysOfWeek = 'Please select at least one day of the week.'
+          }
+        } else if (schedule.frequency === 'monthly') {
+          if (!schedule.timeOfDay.trim()) {
+            newErrors.timeOfDay = 'Please select a time of day.'
+          }
+          if (schedule.dayOfMonth === null || schedule.dayOfMonth < 1 || schedule.dayOfMonth > 31) {
+            newErrors.dayOfMonth = 'Please select a day of the month (1-31).'
+          }
+        }
+        setScheduleErrors(newErrors)
+        return false
+      }
+      return false
+    }
+
+    setIsSaving(true)
+
+    try {
+      const subcategoryId = savedSubcategoryId
+
+      // 1. Update subcategory
+      const parsedHashtags = parseHashtags(details.defaultHashtags)
+      const normalizedHashtags = normalizeHashtags(parsedHashtags)
+
+      console.info('[Wizard] Updating subcategory:', subcategoryId)
+
+      const { error: subcategoryError } = await supabase
+        .from('subcategories')
+        .update({
+          name: details.name.trim(),
+          detail: details.detail.trim(),
+          url: details.url.trim() || null,
+          default_hashtags: normalizedHashtags,
+          channels: details.channels.length > 0 ? details.channels : null,
+          subcategory_type: subcategoryType || 'other',
+          settings: {}
+        })
+        .eq('id', subcategoryId)
+
+      if (subcategoryError) {
+        console.error('[Wizard] Subcategory update error:', subcategoryError)
+        throw new Error(`Failed to update category: ${subcategoryError.message}`)
+      }
+
+      console.info('[Wizard] Successfully updated subcategory')
+
+      // Refresh URL summary if URL changed (fire-and-forget)
+      if (details.url && details.url.trim()) {
+        fetch(`/api/subcategories/${subcategoryId}/refresh-url-summary`, {
+          method: 'POST',
+        }).catch(err => {
+          console.error('Error initiating URL summary refresh:', err)
+        })
+      }
+
+      // 2. Upsert schedule_rules
+      if (subcategoryType === 'event_series') {
+        // Events: upsert schedule rule with frequency='specific' and days_before
+        const eventRuleData: Record<string, unknown> = {
+          brand_id: brandId,
+          subcategory_id: subcategoryId,
+          category_id: null,
+          name: `${details.name.trim()} – Specific Events`,
+          frequency: 'specific',
+          days_before: eventScheduling.daysBefore.length > 0 ? eventScheduling.daysBefore : null,
+          days_during: null,
+          channels: details.channels.length > 0 ? details.channels : null,
+          is_active: true,
+          tone: null,
+          hashtag_rule: null,
+          image_tag_rule: null
+        }
+
+        // Check if schedule rule exists
+        const { data: existingRule } = await supabase
+          .from('schedule_rules')
+          .select('id')
+          .eq('subcategory_id', subcategoryId)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        if (existingRule) {
+          // Update existing rule
+          const { error: updateError } = await supabase
+            .from('schedule_rules')
+            .update(eventRuleData)
+            .eq('id', existingRule.id)
+
+          if (updateError) {
+            console.error('[Wizard] Schedule rule update error for Events:', updateError)
+            throw new Error(`Failed to update schedule rule: ${updateError.message}`)
+          }
+          console.info('[Wizard] Successfully updated schedule rule for Events')
+        } else {
+          // Insert new rule
+          const { error: insertError } = await supabase
+            .from('schedule_rules')
+            .insert(eventRuleData)
+
+          if (insertError) {
+            console.error('[Wizard] Schedule rule insert error for Events:', insertError)
+            throw new Error(`Failed to create schedule rule: ${insertError.message}`)
+          }
+          console.info('[Wizard] Successfully created schedule rule for Events')
+        }
+
+        // 3. Upsert event_occurrences
+        // Load existing occurrences to compare
+        const { data: existingOccurrences } = await supabase
+          .from('event_occurrences')
+          .select('id')
+          .eq('subcategory_id', subcategoryId)
+
+        const existingOccurrenceIds = new Set(existingOccurrences?.map(occ => occ.id) || [])
+
+        // Build desired occurrences from wizard state
+        const occurrencesToUpsert = await Promise.all(
+          eventScheduling.occurrences.map(async (occurrence) => {
+            let startsAt: string
+            let endAt: string | null = null
+            
+            if (eventOccurrenceType === 'single') {
+              const dateStr = occurrence.date!.trim()
+              const timeStr = occurrence.time!.trim()
+              const dateTimeStr = `${dateStr}T${timeStr}:00`
+              startsAt = new Date(dateTimeStr).toISOString()
+            } else {
+              const startDateStr = occurrence.start_date!.trim()
+              const endDateStr = occurrence.end_date!.trim()
+              const startDateTimeStr = `${startDateStr}T00:00:00`
+              startsAt = new Date(startDateTimeStr).toISOString()
+              const endDateTimeStr = `${endDateStr}T23:59:59`
+              endAt = new Date(endDateTimeStr).toISOString()
+            }
+
+            const finalUrl = occurrence.url?.trim() || details.url.trim() || null
+
+            // Handle summary: keep existing if available, otherwise extract for new occurrences
+            let summary: any = null
+            if (occurrence.summary) {
+              // Keep existing summary if available (already parsed in edit mode initialization)
+              summary = occurrence.summary
+            } else if (finalUrl && !occurrence.id) {
+              // Extract summary only for new occurrences (not updating existing ones)
+              try {
+                const summaryResponse = await fetch(`/api/extract-url-summary?url=${encodeURIComponent(finalUrl)}`)
+                if (summaryResponse.ok) {
+                  const summaryData = await summaryResponse.json()
+                  summary = summaryData
+                }
+              } catch (err) {
+                console.error('[Wizard] Error extracting URL summary for occurrence:', err)
+                // Continue without summary if extraction fails
+              }
+            }
+
+            return {
+              id: occurrence.id, // May be undefined for new occurrences
+              subcategory_id: subcategoryId,
+              starts_at: startsAt,
+              end_at: endAt,
+              url: finalUrl,
+              notes: occurrence.notes?.trim() || null,
+              summary: summary ? JSON.stringify(summary) : null
+            }
+          })
+        )
+
+        // Process each occurrence
+        for (const occurrence of occurrencesToUpsert) {
+          if (occurrence.id && existingOccurrenceIds.has(occurrence.id)) {
+            // Update existing occurrence
+            const { id, ...updateData } = occurrence
+            const { error: updateError } = await supabase
+              .from('event_occurrences')
+              .update(updateData)
+              .eq('id', id)
+
+            if (updateError) {
+              console.error('[Wizard] Error updating event occurrence:', updateError)
+              throw new Error(`Failed to update event occurrence: ${updateError.message}`)
+            }
+          } else {
+            // Insert new occurrence
+            const { id, ...insertData } = occurrence
+            const { error: insertError } = await supabase
+              .from('event_occurrences')
+              .insert(insertData)
+
+            if (insertError) {
+              console.error('[Wizard] Error inserting event occurrence:', insertError)
+              throw new Error(`Failed to create event occurrence: ${insertError.message}`)
+            }
+          }
+        }
+
+        // Delete occurrences that are no longer in the wizard state
+        const desiredOccurrenceIds = new Set(
+          occurrencesToUpsert
+            .map(occ => occ.id)
+            .filter((id): id is string => !!id)
+        )
+
+        const idsToDelete = Array.from(existingOccurrenceIds).filter(
+          id => !desiredOccurrenceIds.has(id)
+        )
+
+        if (idsToDelete.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('event_occurrences')
+            .delete()
+            .in('id', idsToDelete)
+
+          if (deleteError) {
+            console.error('[Wizard] Error deleting event occurrences:', deleteError)
+            throw new Error(`Failed to delete event occurrences: ${deleteError.message}`)
+          }
+          console.info('[Wizard] Deleted', idsToDelete.length, 'removed event occurrences')
+        }
+
+        console.info('[Wizard] Successfully upserted event_occurrences')
+      } else {
+        // Non-Events: upsert schedule rule
+        const shouldHaveRule = (() => {
+          if (!schedule.frequency) return false
+          if (subcategoryType === 'promo_or_offer') {
+            return schedule.frequency !== 'specific'
+          }
+          return true
+        })()
+
+        if (shouldHaveRule && schedule.frequency) {
+          const baseRuleData: Record<string, unknown> = {
+            brand_id: brandId,
+            subcategory_id: subcategoryId,
+            category_id: null,
+            name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
+            frequency: schedule.frequency,
+            channels: details.channels.length > 0 ? details.channels : null,
+            is_active: true,
+            tone: null,
+            hashtag_rule: null,
+            image_tag_rule: null
+          }
+
+          if (schedule.frequency === 'daily') {
+            baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+            baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+          } else if (schedule.frequency === 'weekly') {
+            const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
+            const mappedDays = schedule.daysOfWeek
+              .map(d => dayMap[d] || 0)
+              .filter(d => d > 0 && d <= 7)
+            baseRuleData.days_of_week = mappedDays.length > 0 ? Array.from(new Set(mappedDays)).sort((a, b) => a - b) : null
+            baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+            baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+          } else if (schedule.frequency === 'monthly') {
+            if (schedule.dayOfMonth !== null && schedule.dayOfMonth >= 1 && schedule.dayOfMonth <= 31) {
+              baseRuleData.day_of_month = [schedule.dayOfMonth]
+            }
+            baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+            baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+          }
+
+          const cleanRuleData: Record<string, unknown> = {}
+          for (const [key, value] of Object.entries(baseRuleData)) {
+            if (value !== undefined) {
+              cleanRuleData[key] = value
+            }
+          }
+
+          // Check if schedule rule exists
+          const { data: existingRule } = await supabase
+            .from('schedule_rules')
+            .select('id')
+            .eq('subcategory_id', subcategoryId)
+            .eq('is_active', true)
+            .maybeSingle()
+
+          if (existingRule) {
+            // Update existing rule
+            const { error: updateError } = await supabase
+              .from('schedule_rules')
+              .update(cleanRuleData)
+              .eq('id', existingRule.id)
+
+            if (updateError) {
+              console.error('[Wizard] Schedule rule update error:', updateError)
+              throw new Error(`Failed to update schedule rule: ${updateError.message}`)
+            }
+            console.info('[Wizard] Successfully updated schedule rule')
+          } else {
+            // Insert new rule
+            const { error: insertError } = await supabase
+              .from('schedule_rules')
+              .insert(cleanRuleData)
+
+            if (insertError) {
+              console.error('[Wizard] Schedule rule insert error:', insertError)
+              throw new Error(`Failed to create schedule rule: ${insertError.message}`)
+            }
+            console.info('[Wizard] Successfully created schedule rule')
+          }
+        } else {
+          // If we shouldn't have a rule but one exists, delete it
+          const { data: existingRule } = await supabase
+            .from('schedule_rules')
+            .select('id')
+            .eq('subcategory_id', subcategoryId)
+            .eq('is_active', true)
+            .maybeSingle()
+
+          if (existingRule) {
+            const { error: deleteError } = await supabase
+              .from('schedule_rules')
+              .delete()
+              .eq('id', existingRule.id)
+
+            if (deleteError) {
+              console.warn('[Wizard] Failed to delete obsolete schedule rule:', deleteError)
+              // Don't throw - this is not critical
+            }
+          }
+        }
+      }
+
+      // 4. Update asset associations
+      // Find the subcategory's tag
+      const { data: subcategoryTag } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('brand_id', brandId)
+        .eq('name', details.name.trim())
+        .eq('kind', 'subcategory')
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (subcategoryTag) {
+        const tagId = subcategoryTag.id
+
+        // Get currently linked assets
+        const { data: existingLinks } = await supabase
+          .from('asset_tags')
+          .select('asset_id')
+          .eq('tag_id', tagId)
+
+        const existingAssetIds = new Set(existingLinks?.map(link => link.asset_id) || [])
+        const desiredAssetIds = new Set(selectedAssetIds)
+
+        // Find assets to add
+        const assetsToAdd = selectedAssetIds.filter(id => !existingAssetIds.has(id))
+        // Find assets to remove
+        const assetsToRemove = Array.from(existingAssetIds).filter(id => !desiredAssetIds.has(id))
+
+        // Add new associations
+        if (assetsToAdd.length > 0) {
+          const assetTagInserts = assetsToAdd.map(assetId => ({
+            asset_id: assetId,
+            tag_id: tagId
+          }))
+
+          const { error: insertError } = await supabase
+            .from('asset_tags')
+            .insert(assetTagInserts)
+
+          if (insertError) {
+            console.error('[Wizard] Error adding asset associations:', insertError)
+            throw new Error(`Failed to update image associations: ${insertError.message}`)
+          }
+        }
+
+        // Remove old associations
+        if (assetsToRemove.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('asset_tags')
+            .delete()
+            .eq('tag_id', tagId)
+            .in('asset_id', assetsToRemove)
+
+          if (deleteError) {
+            console.error('[Wizard] Error removing asset associations:', deleteError)
+            throw new Error(`Failed to update image associations: ${deleteError.message}`)
+          }
+        }
+
+        console.info('[Wizard] Successfully updated asset associations')
+      } else {
+        // Tag doesn't exist - create it and link assets
+        const { data: newTag, error: createTagError } = await supabase
+          .from('tags')
+          .insert({
+            brand_id: brandId,
+            name: details.name.trim(),
+            kind: 'subcategory',
+            is_active: true
+          })
+          .select()
+          .single()
+
+        if (createTagError || !newTag) {
+          console.warn('[Wizard] Failed to create subcategory tag:', createTagError)
+          // Don't throw - asset associations are optional
+        } else if (selectedAssetIds.length > 0) {
+          const assetTagInserts = selectedAssetIds.map(assetId => ({
+            asset_id: assetId,
+            tag_id: newTag.id
+          }))
+
+          const { error: linkError } = await supabase
+            .from('asset_tags')
+            .insert(assetTagInserts)
+
+          if (linkError) {
+            console.warn('[Wizard] Failed to link assets to new tag:', linkError)
+            // Don't throw - asset associations are optional
+          }
+        }
+      }
+
+      return true
+    } catch (error) {
+      console.error('[Wizard] Error updating category:', error)
+      showToast({
+        title: 'Failed to update category',
+        message: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
+        type: 'error'
+      })
+      return false
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleNext = async () => {
     // Validate Step 2 before advancing
     if (currentStep === 2) {
@@ -915,9 +1423,30 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Handle Step 4 finish - link images to subcategory
   const handleFinish = async () => {
-    // In edit mode, save logic is not wired yet
+    // In edit mode, update existing records
     if (mode === 'edit') {
-      console.log('Edit submit not wired yet')
+      setIsSaving(true)
+      try {
+        const success = await ensureSubcategoryUpdated()
+        if (success) {
+          showToast({
+            title: 'Category updated',
+            message: 'Your changes have been saved successfully.',
+            type: 'success'
+          })
+          router.push(`/brands/${brandId}/engine-room/categories`)
+        }
+        // If update failed, error toast already shown by ensureSubcategoryUpdated
+      } catch (error) {
+        console.error('[Wizard] Unexpected error in edit mode:', error)
+        showToast({
+          title: 'Failed to update category',
+          message: 'An unexpected error occurred. Please try again.',
+          type: 'error'
+        })
+      } finally {
+        setIsSaving(false)
+      }
       return
     }
 
@@ -2172,30 +2701,24 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   ) : (
                     <button
                       onClick={handleFinish}
-                      disabled={isSaving || mode === 'edit'}
+                      disabled={isSaving}
                       className={`
                         inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
                         ${
-                          mode === 'edit'
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : !isSaving
+                          !isSaving
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }
                       `}
                     >
-                      {mode === 'edit' ? (
-                        <>
-                          Save (Not wired yet)
-                        </>
-                      ) : isSaving ? (
+                      {isSaving ? (
                         <>
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent mr-2" />
-                          Saving...
+                          {mode === 'edit' ? 'Saving...' : 'Saving...'}
                         </>
                       ) : (
                         <>
-                          Finish
+                          {mode === 'edit' ? 'Save' : 'Finish'}
                           <ChevronRightIcon className="w-4 h-4 ml-2" />
                         </>
                       )}
