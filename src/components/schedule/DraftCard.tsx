@@ -333,14 +333,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   // Build jobs from props - post_jobs is the source of truth
   // Fallback to draft.channel only if no post_jobs exist (legacy drafts)
   const normalizedJobs = useMemo(() => {
-    // Debug: Check what we're receiving
-    console.log(`🔍 DraftCard [${draft.id}] normalizedJobs useMemo - jobs prop:`, {
-      jobs,
-      jobsLength: jobs?.length,
-      jobsIsArray: Array.isArray(jobs),
-      draftChannel: draft.channel,
-    });
-
     // Always prefer jobs from post_jobs (source of truth)
     if (jobs && Array.isArray(jobs) && jobs.length > 0) {
       const normalized = jobs
@@ -357,12 +349,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           }
           return aIndex - bIndex;
         });
-      
-      // Debug: Log clearly what channels we're rendering
-      console.log(`🎯 DraftCard [${draft.id}] RENDERING ${normalized.length} CHANNELS:`, normalized.map(j => j.channel).join(', '));
-      if (normalized.length > 1) {
-        console.log(`✅ DraftCard [${draft.id}] HAS MULTIPLE CHANNELS - should show all!`, normalized.map(j => ({ channel: j.channel, status: j.status })));
-      }
       
       return normalized;
     }
@@ -404,34 +390,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
 
     return [] as PostJobSummary[];
   }, [jobs, draft.channel, draft.post_job_id, draft.id]);
-
-  // Debug: Log when normalizedJobs changes and verify DOM after render
-  useEffect(() => {
-    console.log(`🔍 DraftCard [${draft.id}] normalizedJobs changed:`, {
-      count: normalizedJobs.length,
-      channels: normalizedJobs.map(j => j.channel),
-      jobsPropLength: jobs?.length || 0,
-      hasJobsProp: Boolean(jobs && jobs.length > 0),
-    });
-
-    // Verify DOM after render - check if pills are actually in the DOM
-    if (normalizedJobs.length > 1) {
-      setTimeout(() => {
-        const container = document.querySelector(`[data-draft-id="${draft.id}"][data-channel-container]`);
-        if (container) {
-          const pills = container.querySelectorAll('[data-channel-pill]');
-          console.log(`🔍 DraftCard [${draft.id}] DOM verification:`, {
-            containerFound: !!container,
-            expectedPills: normalizedJobs.length,
-            actualPillsInDOM: pills.length,
-            pillChannels: Array.from(pills).map(p => p.getAttribute('data-channel-pill')),
-          });
-        } else {
-          console.warn(`⚠️ DraftCard [${draft.id}] Container not found in DOM!`);
-        }
-      }, 100);
-    }
-  }, [normalizedJobs, draft.id, jobs]);
 
   // Fetch schedule rule data for frequency (category/subcategory comes from view)
   useEffect(() => {
@@ -683,20 +641,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const channelStatusStrip =
     normalizedJobs.length > 0 ? (
       <div 
-        className="mb-4 flex flex-wrap items-center gap-3 w-full" 
+        className="mb-4 flex flex-wrap items-center gap-3 w-full overflow-visible" 
         onClick={(e) => e.stopPropagation()}
-        data-channel-container={true}
-        data-total-channels={normalizedJobs.length}
-        data-draft-id={draft.id}
-        style={{ minWidth: 0 }}
+        style={{ minWidth: 0, overflow: 'visible' }}
       >
         {normalizedJobs.map((job, index) => {
-          // Debug: Log each channel pill being rendered with its unique key
-          if (normalizedJobs.length > 1) {
-            const uniqueKey = job.id || `${draft.id}-${job.channel}-${job.status}-${index}`;
-            console.log(`🎨 DraftCard [${draft.id}] Rendering pill ${index + 1}/${normalizedJobs.length}: ${job.channel} (key: ${uniqueKey})`);
-          }
-          
           const { indicatorClass, label, icon, textClass, pillBgClass } = getChannelStatusVisual(job.status);
           const tooltip =
             job.status.toLowerCase() === 'failed' && job.error
@@ -706,12 +655,15 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           return (
             <div
               key={job.id || `${draft.id}-${job.channel}-${job.status}-${index}`}
-              data-channel-pill={job.channel}
-              data-pill-index={index}
-              data-total-pills={normalizedJobs.length}
               className="flex items-center space-x-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm flex-shrink-0"
               title={tooltip}
-              style={{ position: 'relative', zIndex: 1 }}
+              style={{ 
+                position: 'relative', 
+                zIndex: 1,
+                minWidth: 'max-content',
+                visibility: 'visible',
+                opacity: 1
+              }}
             >
               <div className="relative">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-50">

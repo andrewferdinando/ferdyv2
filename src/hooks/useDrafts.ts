@@ -100,13 +100,11 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
 
   useEffect(() => {
     if (!brandId) {
-      console.log('useDrafts: No brandId provided');
       return;
     }
 
     const fetchDrafts = async () => {
       if (!supabase) {
-        console.log('useDrafts: Supabase client not available');
         setLoading(false);
         return;
       }
@@ -131,9 +129,6 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
 
         // Order by scheduled_for ascending (earliest first), nulls last
         const { data, error } = await query.order('scheduled_for', { ascending: true, nullsFirst: false });
-
-        console.log('useDrafts: Query result:', { data, error });
-        console.log('useDrafts: Raw data length:', data?.length || 0);
         
         if (error) {
           console.error('useDrafts: Query error:', error);
@@ -146,11 +141,6 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
           setError(error.message || 'Failed to fetch drafts');
           setDrafts([]); // Set empty array on error to prevent UI issues
           return; // Exit early on error to prevent further processing
-        }
-
-        if (data && data.length > 0) {
-          console.log('useDrafts: First draft:', data[0]);
-          console.log('useDrafts: First draft approved field:', data[0].approved);
         }
 
         // Now fetch assets for each draft that has asset_ids, and normalize hashtags
@@ -169,7 +159,6 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         }));
 
         setDrafts(draftsWithAssets);
-        console.log('useDrafts: Set drafts:', draftsWithAssets?.length || 0, 'items');
 
         // Fetch post_jobs for all drafts and group by draft_id
         const draftIds = (data || []).map((draft) => draft.id).filter((id): id is string => Boolean(id));
@@ -385,7 +374,6 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
 
   const refetch = async () => {
     if (!supabase) {
-      console.log('useDrafts: Supabase client not available for refetch');
       return;
     }
 

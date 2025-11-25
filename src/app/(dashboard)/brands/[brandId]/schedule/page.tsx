@@ -287,10 +287,6 @@ interface DraftsTabProps {
 }
 
 function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps) {
-  // Debug: Log jobsByDraftId to see what we have
-  console.log('DraftsTab jobsByDraftId:', jobsByDraftId);
-  console.log('DraftsTab drafts count:', drafts.length);
-  
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -328,12 +324,6 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
     <div className="space-y-4">
       {sortedDrafts.map((draft) => {
         const draftJobs = jobsByDraftId[draft.id] || [];
-        const jobChannels = draftJobs.map(j => j.channel);
-        
-        // Debug: Log clearly what we're passing to DraftCard
-        if (draftJobs.length > 1) {
-          console.log(`🔍 DraftsTab [${draft.id}] PASSING ${draftJobs.length} JOBS TO DraftCard:`, jobChannels.join(', '));
-        }
         
         return (
           <DraftCard 
