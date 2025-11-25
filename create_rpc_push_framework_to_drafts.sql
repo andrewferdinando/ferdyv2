@@ -50,6 +50,9 @@ BEGIN
         + interval '2 months'
     ) AT TIME ZONE v_brand_timezone;
 
+    -- Debug logging: print period window
+    RAISE NOTICE '[rpc_push_framework_to_drafts] Period window: start=%, end=%', v_period_start, v_period_end;
+
     -- Loop through framework targets from rpc_framework_targets function
     -- Filter by time window: from today (00:00 brand timezone) to end of next month
     -- Explicitly select columns to avoid ambiguity with frequency column
@@ -61,7 +64,13 @@ BEGIN
         FROM rpc_framework_targets(p_brand_id) AS t
         WHERE t.scheduled_at >= v_period_start
           AND t.scheduled_at < v_period_end
+        ORDER BY t.scheduled_at
     LOOP
+        -- Debug logging: print first few targets
+        IF v_count < 3 THEN
+            RAISE NOTICE '[rpc_push_framework_to_drafts] Processing target %: scheduled_at=%, subcategory_id=%', 
+                v_count + 1, v_target.scheduled_at, v_target.subcategory_id;
+        END IF;
         v_scheduled_at := v_target.scheduled_at;
         v_subcategory_id := v_target.subcategory_id;  -- Get subcategory_id from rpc_framework_targets result
         
@@ -191,6 +200,9 @@ BEGIN
             v_count := v_count + 1;
         END IF;
     END LOOP;
+
+    -- Debug logging: print final count
+    RAISE NOTICE '[rpc_push_framework_to_drafts] Completed: created % drafts', v_count;
 
     RETURN v_count;
 END;

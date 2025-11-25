@@ -33,8 +33,9 @@ DECLARE
     v_end_date timestamptz;
     v_time_array time[];
     v_current_time timestamptz := now();
-    -- Generate targets for next 1 month only
-    v_months_to_generate int := 1;
+    -- Generate targets from current month through next month (2 months total)
+    -- This ensures we include dates from today through end of next month
+    v_months_to_generate int := 2;
     v_month_offset int;
     v_day_of_month int;  -- For handling day_of_month (could be int or int[])
     v_day_array int[];  -- For handling day_of_month array
@@ -63,8 +64,9 @@ BEGIN
         v_rule_frequency := v_rule.frequency;  -- Store frequency to avoid ambiguity
         -- Determine effective timezone: use rule's timezone if set, otherwise brand's timezone
         v_effective_timezone := COALESCE(v_rule.timezone, v_brand_timezone);
-        -- Generate targets for the next month only (start from offset 1, not 0)
-        FOR v_month_offset IN 1..v_months_to_generate LOOP
+        -- Generate targets from current month (offset 0) through next month (offset 1)
+        -- This ensures we include dates from today through end of next month
+        FOR v_month_offset IN 0..(v_months_to_generate - 1) LOOP
             v_current_date := date_trunc('month', CURRENT_DATE) + (v_month_offset || ' months')::interval;
             v_month_start := v_current_date;
             v_month_end := (v_month_start + INTERVAL '1 month - 1 day')::date;
@@ -388,5 +390,5 @@ GRANT EXECUTE ON FUNCTION rpc_framework_targets(uuid) TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION rpc_framework_targets(uuid) IS 
-    'Generates framework targets for all schedule rules (daily, weekly, monthly, and specific date/range). Returns scheduled_at, subcategory_id, and frequency for each target. Only returns future targets.';
+    'Generates framework targets for all schedule rules (daily, weekly, monthly, and specific date/range) from current month through next month. Returns scheduled_at, subcategory_id, and frequency for each target. Only returns future targets (scheduled_at > now()).';
 

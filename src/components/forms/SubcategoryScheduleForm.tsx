@@ -1144,7 +1144,9 @@ export function SubcategoryScheduleForm({
       // Auto-push drafts for NEW subcategories (not edits)
       // This generates drafts from today through end of next month
       const isNewSubcategory = !editingSubcategory
+      console.log('[auto-push] Checking if auto-push needed:', { isNewSubcategory, editingSubcategory: editingSubcategory?.id, brandId })
       if (isNewSubcategory) {
+        console.log('[auto-push] Triggering auto-push for brandId:', brandId)
         // Fire-and-forget: trigger auto-push but don't block the wizard flow
         fetch('/api/drafts/push', {
           method: 'POST',
@@ -1152,8 +1154,10 @@ export function SubcategoryScheduleForm({
           body: JSON.stringify({ brandId }),
         })
           .then(async (response) => {
+            console.log('[auto-push] Response status:', response.status, response.statusText)
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({}))
+              console.error('[auto-push] Error response:', errorData)
               throw new Error(errorData.error || 'Failed to create drafts')
             }
             const result = await response.json()
@@ -1173,6 +1177,8 @@ export function SubcategoryScheduleForm({
               type: 'error',
             })
           })
+      } else {
+        console.log('[auto-push] Skipping auto-push - editing existing subcategory')
       }
 
       onSuccess()
