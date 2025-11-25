@@ -59,7 +59,7 @@ export default function TimezoneSelect({
             </option>
           ))}
         </select>
-        <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+        <ChevronDownIcon className="absolute right-3 top-3 w-4 h-4 text-gray-500 pointer-events-none" />
       </div>
       {error && (
         <p className="text-red-500 text-sm mt-1">{error}</p>
