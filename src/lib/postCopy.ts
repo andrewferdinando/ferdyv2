@@ -285,7 +285,8 @@ function stripHashtags(text: string): string {
   return text
     // Remove hashtags at start of line or after whitespace
     .replace(/(^|\s)#[\p{L}\p{N}_]+/gu, "$1")
-    .replace(/\s{2,}/g, " ")
+    // Collapse multiple spaces/tabs, but DO NOT touch newlines
+    .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
 
@@ -585,13 +586,18 @@ Plain text, no headings, no markdown, no explanations.
     .filter(Boolean);
 
   // Post-process: strip any hashtags that might have slipped through (final safety net)
-  // Also normalize whitespace
+  // Preserve newlines/paragraphs while normalizing whitespace
   const results = rawResults
     .map((text) => {
-      // Remove hashtags as a safety measure
       let cleaned = stripHashtags(text);
-      // Normalize whitespace
-      cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+
+      cleaned = cleaned
+        // collapse multiple spaces/tabs, but DO NOT touch newlines
+        .replace(/[ \t]{2,}/g, " ")
+        // normalise excessive blank lines (3+ becomes 2)
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
       return cleaned;
     })
     .filter(Boolean);

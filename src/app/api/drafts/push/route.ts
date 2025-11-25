@@ -138,12 +138,12 @@ export async function POST(req: NextRequest) {
       .eq('brand_id', brandId)
       .eq('is_active', true);
 
-    // Fetch subcategories for name/url/description/url_page_summary
+    // Fetch subcategories for name/url/description/url_page_summary/default_copy_length
     // Note: frequency_type is NOT in subcategories table - we derive it from rule.frequency
     const subcategoryIds = scheduleRules?.map(r => r.subcategory_id).filter(Boolean) as string[] || [];
     const { data: subcategories, error: subcategoryError } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, url, detail, url_page_summary, subcategory_type, settings')
+      .select('id, name, url, detail, url_page_summary, subcategory_type, settings, default_copy_length')
       .in('id', subcategoryIds);
 
     if (subcategoryError) {
@@ -331,6 +331,7 @@ export async function POST(req: NextRequest) {
             description: subcategory?.detail ?? undefined,
             frequency_type: frequencyType,
             url_page_summary: subcategory?.url_page_summary ?? null,
+            default_copy_length: subcategory?.default_copy_length ?? "medium",
           };
 
           // Log draft rule + subcategory mapping for debugging
@@ -365,7 +366,8 @@ export async function POST(req: NextRequest) {
             prompt: `Write copy for this post`,
             variation_hint: variation_hint,
             options: {
-              length: "short" as const,
+              // length is intentionally omitted - will use default_copy_length from subcategory via precedence:
+              // payload.length (explicit override) > subcategory.default_copy_length > "medium"
               emoji: "none" as const,
               hashtags: { mode: "auto" as const },
             },

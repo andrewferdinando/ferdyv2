@@ -41,6 +41,7 @@ const postCopySchema = z.object({
       description: z.string().optional(),
       frequency_type: z.string().optional(),
       url_page_summary: z.string().nullable().optional(),
+      default_copy_length: z.enum(["short", "medium", "long"]).optional(),
     }).optional(),
     schedule: z.object({
       frequency: z.string(),

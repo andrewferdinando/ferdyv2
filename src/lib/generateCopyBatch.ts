@@ -24,6 +24,7 @@ export type DraftCopyInput = {
     description?: string;
     frequency_type?: string;
     url_page_summary?: string | null;
+    default_copy_length?: "short" | "medium" | "long";
   };
   subcategory_type?: string | null;
   subcategory_settings?: Record<string, any> | null;
@@ -103,18 +104,22 @@ export async function processBatchCopyGeneration(
       }
 
       // Build PostCopyPayload
+      // Note: length precedence is: payload.length (explicit) > subcategory.default_copy_length > "medium"
       const payload: PostCopyPayload = {
         brandId,
         draftId: draft.draftId,
         prompt: draft.prompt,
         platform: "instagram", // Default, can be inferred from draft.channel if available
-        subcategory: draft.subcategory,
+        subcategory: draft.subcategory ? {
+          ...draft.subcategory,
+          default_copy_length: draft.subcategory.default_copy_length ?? "medium",
+        } : undefined,
         subcategory_type: draft.subcategory_type as any ?? null,
         subcategory_settings: draft.subcategory_settings ?? null,
         schedule: draft.schedule,
         scheduledFor: draft.scheduledFor,
         tone_override: draft.options?.tone_override,
-        length: draft.options?.length,
+        length: draft.options?.length, // Explicit override takes precedence over subcategory.default_copy_length
         emoji: draft.options?.emoji,
         hashtags: draft.options?.hashtags,
         cta: draft.options?.cta,
