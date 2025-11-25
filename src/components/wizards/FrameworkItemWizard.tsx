@@ -512,7 +512,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     return 'upload'
   })
   
-  const { showToast } = useToast()
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
   const { uploadAsset, uploading: isUploading } = useUploadAsset()
 
