@@ -70,10 +70,19 @@ export async function fetchJobsByDraftId(
     map[job.draft_id].push(entry);
   });
 
-  // Debug: Log final map
+  // Debug: Log final map - show ALL drafts, including those with only 1 job
   Object.entries(map).forEach(([draftId, jobs]) => {
     if (jobs.length > 1) {
-      console.log(`fetchJobsByDraftId: Draft ${draftId} has ${jobs.length} jobs:`, jobs.map(j => j.channel));
+      console.log(`fetchJobsByDraftId: ✅ Draft ${draftId.slice(0, 8)}... has ${jobs.length} jobs:`, jobs.map(j => j.channel).join(', '));
+    } else {
+      console.log(`fetchJobsByDraftId: ⚠️ Draft ${draftId.slice(0, 8)}... has ONLY ${jobs.length} job:`, jobs.map(j => j.channel).join(', '));
+    }
+  });
+  
+  // Also log drafts that have NO jobs at all
+  draftIds.forEach(draftId => {
+    if (!map[draftId] || map[draftId].length === 0) {
+      console.log(`fetchJobsByDraftId: ❌ Draft ${draftId.slice(0, 8)}... has NO jobs in database!`);
     }
   });
 
