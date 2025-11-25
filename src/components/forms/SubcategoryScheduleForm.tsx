@@ -1048,7 +1048,26 @@ export function SubcategoryScheduleForm({
         throw scheduleError  // Re-throw to trigger form error handling
       }
 
-      console.log('Successfully saved subcategory and schedule rule')
+      console.log('[SubcategoryScheduleForm] Successfully saved subcategory and schedule rule')
+      console.log('[SubcategoryScheduleForm] Subcategory ID:', subcategoryId, 'Brand ID:', brandId)
+      
+      // Verify schedule rule was created by querying it
+      if (!isEditingSpecificFrequency) {
+        const { data: verifyRule, error: verifyError } = await supabase
+          .from('schedule_rules')
+          .select('id, subcategory_id, frequency, is_active')
+          .eq('brand_id', brandId)
+          .eq('subcategory_id', subcategoryId)
+          .eq('is_active', true)
+          .limit(1)
+          .single()
+        
+        if (verifyError) {
+          console.warn('[SubcategoryScheduleForm] Could not verify schedule rule:', verifyError)
+        } else {
+          console.log('[SubcategoryScheduleForm] Verified schedule rule exists:', verifyRule)
+        }
+      }
       } else {
         // When editing specific frequency, skip schedule rule update
         // All scheduling is managed per-occurrence via EventOccurrencesManager
@@ -1144,9 +1163,21 @@ export function SubcategoryScheduleForm({
       // Auto-push drafts for NEW subcategories (not edits)
       // This generates drafts from today through end of next month
       const isNewSubcategory = !editingSubcategory
-      console.log('[auto-push] Checking if auto-push needed:', { isNewSubcategory, editingSubcategory: editingSubcategory?.id, brandId })
+      console.log('[auto-push] Checking if auto-push needed:', { 
+        isNewSubcategory, 
+        editingSubcategory: editingSubcategory?.id, 
+        brandId,
+        subcategoryId 
+      })
+      
       if (isNewSubcategory) {
-        console.log('[auto-push] Triggering auto-push for brandId:', brandId)
+        console.log('[auto-push] Starting auto-push for brandId:', brandId, 'subcategoryId:', subcategoryId)
+        console.log('[auto-push] All schedule_rules and occurrences saved, triggering push now')
+        
+        // Small delay to ensure database transaction is fully committed
+        // This ensures rpc_framework_targets can see the newly created schedule_rules
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
         // Fire-and-forget: trigger auto-push but don't block the wizard flow
         fetch('/api/drafts/push', {
           method: 'POST',
@@ -1155,6 +1186,8 @@ export function SubcategoryScheduleForm({
         })
           .then(async (response) => {
             console.log('[auto-push] Response status:', response.status, response.statusText)
+            console.log('[auto-push] Response headers:', Object.fromEntries(response.headers.entries()))
+            
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({}))
               console.error('[auto-push] Error response:', errorData)
@@ -1162,6 +1195,7 @@ export function SubcategoryScheduleForm({
             }
             const result = await response.json()
             console.log('[auto-push] Drafts created successfully:', result)
+            console.log('[auto-push] Draft count:', result.draftCount)
             showToast({
               title: 'Drafts created',
               message: 'Drafts have been generated from today through the end of next month.',
@@ -1170,6 +1204,11 @@ export function SubcategoryScheduleForm({
           })
           .catch((err) => {
             console.error('[auto-push] Failed to auto-push drafts:', err)
+            console.error('[auto-push] Error details:', {
+              message: err.message,
+              stack: err.stack,
+              name: err.name
+            })
             // Show error toast but don't block the wizard flow
             showToast({
               title: 'Drafts could not be created automatically',
@@ -1178,7 +1217,7 @@ export function SubcategoryScheduleForm({
             })
           })
       } else {
-        console.log('[auto-push] Skipping auto-push - editing existing subcategory')
+        console.log('[auto-push] Skipping auto-push - editing existing subcategory:', editingSubcategory?.id)
       }
 
       onSuccess()

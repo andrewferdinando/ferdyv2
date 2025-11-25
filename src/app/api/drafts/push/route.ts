@@ -13,11 +13,13 @@ const pushDraftsSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[api/drafts/push] Received request');
     const body = await req.json().catch(() => ({}));
 
     // Validate input
     const validationResult = pushDraftsSchema.safeParse(body);
     if (!validationResult.success) {
+      console.error('[api/drafts/push] Invalid payload:', validationResult.error.issues);
       return NextResponse.json(
         { error: "Invalid payload", details: validationResult.error.issues },
         { status: 400 }
@@ -25,9 +27,56 @@ export async function POST(req: NextRequest) {
     }
 
     const { brandId } = validationResult.data;
+    console.log('[api/drafts/push] Called for brandId:', brandId);
+
+    // Debug: Check active schedule_rules before calling RPC
+    const { data: activeRules, error: rulesError } = await supabaseAdmin
+      .from('schedule_rules')
+      .select('id, subcategory_id, frequency, is_active, brand_id')
+      .eq('brand_id', brandId)
+      .eq('is_active', true);
+    
+    if (rulesError) {
+      console.error('[api/drafts/push] Error fetching schedule_rules:', rulesError);
+    } else {
+      console.log('[api/drafts/push] Found', activeRules?.length || 0, 'active schedule_rules for brand:', brandId);
+      if (activeRules && activeRules.length > 0) {
+        console.log('[api/drafts/push] First 3 schedule_rules:', activeRules.slice(0, 3).map(r => ({
+          id: r.id,
+          subcategory_id: r.subcategory_id,
+          frequency: r.frequency
+        })));
+      }
+    }
+
+    // Debug: Check framework targets before calling RPC
+    const { data: targetsBefore, error: targetsBeforeError } = await supabaseAdmin.rpc(
+      'rpc_framework_targets',
+      { p_brand_id: brandId }
+    );
+    
+    if (targetsBeforeError) {
+      console.error('[api/drafts/push] Error fetching framework targets:', targetsBeforeError);
+    } else {
+      console.log('[api/drafts/push] Framework targets returned:', targetsBefore?.length || 0, 'targets');
+      if (targetsBefore && targetsBefore.length > 0) {
+        // Group by subcategory_id to see which subcategories have targets
+        const targetsBySubcategory = (targetsBefore as any[]).reduce((acc, t) => {
+          const subId = t.subcategory_id || 'no-subcategory';
+          acc[subId] = (acc[subId] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log('[api/drafts/push] Targets by subcategory:', targetsBySubcategory);
+        console.log('[api/drafts/push] First 3 targets:', (targetsBefore as any[]).slice(0, 3).map(t => ({
+          scheduled_at: t.scheduled_at,
+          subcategory_id: t.subcategory_id,
+          frequency: t.frequency
+        })));
+      }
+    }
 
     // Call the RPC function to create drafts
-    console.log(`Calling rpc_push_framework_to_drafts for brand ${brandId}`);
+    console.log(`[api/drafts/push] Calling rpc_push_framework_to_drafts for brand ${brandId}`);
     const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
       'rpc_push_framework_to_drafts',
       { p_brand_id: brandId }
