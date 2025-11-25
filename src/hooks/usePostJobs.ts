@@ -29,6 +29,25 @@ export async function fetchJobsByDraftId(
     return {};
   }
 
+  // Debug: Log what we fetched
+  console.log(`fetchJobsByDraftId: Fetched ${jobsData?.length || 0} total jobs for ${draftIds.length} draft IDs`);
+  if (jobsData && jobsData.length > 0) {
+    // Group by draft_id to see distribution
+    const byDraftId: Record<string, number> = {};
+    jobsData.forEach(job => {
+      if (job.draft_id) {
+        byDraftId[job.draft_id] = (byDraftId[job.draft_id] || 0) + 1;
+      }
+    });
+    console.log('fetchJobsByDraftId: Jobs per draft:', byDraftId);
+    // Log first few jobs for debugging
+    console.log('fetchJobsByDraftId: First 5 jobs:', jobsData.slice(0, 5).map(j => ({ 
+      id: j.id, 
+      draft_id: j.draft_id, 
+      channel: j.channel 
+    })));
+  }
+
   const map: Record<string, PostJobSummary[]> = {};
   (jobsData ?? []).forEach((job) => {
     if (!job.draft_id) return;
@@ -49,6 +68,13 @@ export async function fetchJobsByDraftId(
     }
 
     map[job.draft_id].push(entry);
+  });
+
+  // Debug: Log final map
+  Object.entries(map).forEach(([draftId, jobs]) => {
+    if (jobs.length > 1) {
+      console.log(`fetchJobsByDraftId: Draft ${draftId} has ${jobs.length} jobs:`, jobs.map(j => j.channel));
+    }
   });
 
   // Sort jobs by channel order

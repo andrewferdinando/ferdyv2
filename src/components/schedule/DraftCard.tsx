@@ -639,7 +639,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   };
 
   // Debug: Temporary visible indicator
-  const debugInfo = `Jobs: ${jobs?.length || 0}, Normalized: ${normalizedJobs.length}, Draft Channel: ${draft.channel || 'none'}`;
+  const debugInfo = `[${draft.id.slice(0, 8)}] Jobs: ${jobs?.length || 0}, Normalized: ${normalizedJobs.length}, Draft Channel: ${draft.channel || 'none'}${jobs && jobs.length > 0 ? `, Channels: ${jobs.map(j => j.channel).join(', ')}` : ''}`;
 
   const channelStatusStrip =
     normalizedJobs.length > 0 ? (
