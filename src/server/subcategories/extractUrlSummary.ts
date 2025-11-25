@@ -5,6 +5,7 @@
  * Used for event occurrences where we need to extract summaries from occurrence-specific URLs.
  * 
  * Enhanced for EVENT-type URLs with better targeting of main content and structured extraction.
+ * Now includes JSON-LD Event schema.org parsing for better accuracy on event/ticketing sites.
  */
 
 import * as cheerio from 'cheerio';
@@ -12,6 +13,272 @@ import { EventDetails, StructuredUrlSummary } from './refreshUrlSummary';
 
 const MAX_SUMMARY_LENGTH = 900; // characters (after cleaning, before adding source URL prefix)
 const MAX_SNIPPET_LENGTH = 250; // characters for rawSnippet
+
+/**
+ * Extract JSON-LD Event objects from HTML
+ * Returns an array of Event objects found in schema.org JSON-LD format
+ */
+function extractJsonLdEvents(html: string): any[] {
+  const events: any[] = [];
+  
+  try {
+    // Find all <script type="application/ld+json"> tags
+    const jsonLdPattern = /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    const matches = [...html.matchAll(jsonLdPattern)];
+    
+    for (const match of matches) {
+      const jsonText = match[1].trim();
+      if (!jsonText) continue;
+      
+      try {
+        // Parse JSON (might be a single object, array, or wrapper)
+        const parsed = JSON.parse(jsonText);
+        
+        // Handle different JSON-LD structures
+        let objects: any[] = [];
+        
+        if (Array.isArray(parsed)) {
+          objects = parsed;
+        } else if (parsed['@graph'] && Array.isArray(parsed['@graph'])) {
+          objects = parsed['@graph'];
+        } else if (parsed['@type']) {
+          objects = [parsed];
+        }
+        
+        // Find Event objects
+        for (const obj of objects) {
+          if (!obj || typeof obj !== 'object') continue;
+          
+          // Check if this is an Event
+          const type = obj['@type'];
+          const isEvent = 
+            type === 'Event' ||
+            (Array.isArray(type) && type.includes('Event')) ||
+            (typeof type === 'string' && type.includes('Event'));
+          
+          if (isEvent) {
+            events.push(obj);
+          }
+        }
+      } catch (parseError) {
+        // Skip malformed JSON-LD silently
+        console.debug('[extractJsonLdEvents] Failed to parse JSON-LD:', parseError);
+        continue;
+      }
+    }
+  } catch (error) {
+    // If extraction fails completely, return empty array (graceful fallback)
+    console.debug('[extractJsonLdEvents] Error extracting JSON-LD:', error);
+  }
+  
+  return events;
+}
+
+/**
+ * Map JSON-LD Event object to our EventDetails structure
+ */
+function mapJsonLdEventToDetails(event: any): Partial<EventDetails> {
+  const details: Partial<EventDetails> = {};
+  
+  try {
+    // Title
+    if (event.name) {
+      details.title = typeof event.name === 'string' ? event.name.trim() : null;
+    }
+    
+    // Description / Summary
+    if (event.description) {
+      const desc = typeof event.description === 'string' 
+        ? event.description.trim() 
+        : null;
+      if (desc && desc.length > 0) {
+        details.rawSnippet = desc.slice(0, MAX_SNIPPET_LENGTH);
+      }
+    }
+    
+    // Date and Time from startDate
+    if (event.startDate) {
+      try {
+        const startDate = new Date(event.startDate);
+        if (!isNaN(startDate.getTime())) {
+          // Format date as human-readable
+          details.dateText = startDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+          
+          // Format time as human-readable
+          const hours = startDate.getHours();
+          const minutes = startDate.getMinutes();
+          const ampm = hours >= 12 ? 'pm' : 'am';
+          const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+          const displayMinutes = minutes.toString().padStart(2, '0');
+          details.startTime = `${displayHours}:${displayMinutes} ${ampm}`;
+          
+          // Also populate legacy fields
+          details.date = details.dateText;
+          details.time = details.startTime;
+        }
+      } catch (dateError) {
+        console.debug('[mapJsonLdEventToDetails] Failed to parse startDate:', dateError);
+      }
+    }
+    
+    // Venue / Location
+    if (event.location) {
+      try {
+        if (typeof event.location === 'string') {
+          details.venueName = event.location.trim();
+          details.venue = event.location.trim();
+        } else if (typeof event.location === 'object') {
+          // Handle Place object (check for @type === "Place" or just has name/address)
+          const locationObj = event.location;
+          
+          // Extract venue name
+          if (locationObj.name) {
+            details.venueName = typeof locationObj.name === 'string' 
+              ? locationObj.name.trim() 
+              : null;
+            if (details.venueName) {
+              details.venue = details.venueName;
+            }
+          }
+          
+          // Build location text from address if available
+          if (locationObj.address) {
+            const addr = locationObj.address;
+            const addressParts: string[] = [];
+            
+            if (typeof addr === 'string') {
+              addressParts.push(addr.trim());
+            } else if (typeof addr === 'object') {
+              // Structured PostalAddress
+              if (addr.streetAddress) addressParts.push(addr.streetAddress);
+              if (addr.addressLocality) addressParts.push(addr.addressLocality);
+              if (addr.addressRegion) addressParts.push(addr.addressRegion);
+              if (addr.postalCode) addressParts.push(addr.postalCode);
+              if (addr.addressCountry) {
+                // Handle country as string or object with name
+                const country = typeof addr.addressCountry === 'string' 
+                  ? addr.addressCountry 
+                  : (addr.addressCountry?.name || '');
+                if (country) addressParts.push(country);
+              }
+            }
+            
+            if (addressParts.length > 0) {
+              details.locationText = addressParts.join(', ');
+            }
+          }
+        }
+      } catch (locationError) {
+        console.debug('[mapJsonLdEventToDetails] Failed to parse location:', locationError);
+      }
+    }
+    
+    // Price from offers
+    if (event.offers) {
+      try {
+        let offers = Array.isArray(event.offers) ? event.offers : [event.offers];
+        
+        // Filter valid offers and extract prices
+        const validOffers = offers
+          .filter((offer: any) => offer && (offer.price !== undefined || offer.priceCurrency))
+          .map((offer: any) => {
+            const price = typeof offer.price === 'string' 
+              ? parseFloat(offer.price) 
+              : (typeof offer.price === 'number' ? offer.price : null);
+            const currency = offer.priceCurrency || offer.currency || '$';
+            return { price, currency };
+          })
+          .filter((o: any) => o.price !== null && !isNaN(o.price) && o.price >= 0);
+        
+        if (validOffers.length > 0) {
+          // Find lowest price
+          const lowestOffer = validOffers.reduce((min: any, curr: any) => 
+            curr.price < min.price ? curr : min
+          );
+          
+          details.priceFrom = lowestOffer.price;
+          
+          // Build price text
+          if (lowestOffer.price === 0) {
+            details.priceText = 'Free';
+          } else {
+            const currencySymbol = lowestOffer.currency === 'NZD' ? 'NZ$' :
+                                 lowestOffer.currency === 'AUD' ? 'A$' :
+                                 lowestOffer.currency === 'USD' ? '$' :
+                                 lowestOffer.currency === 'GBP' ? '£' :
+                                 lowestOffer.currency === 'EUR' ? '€' :
+                                 lowestOffer.currency || '$';
+            
+            // If there's a price range, show "From $X"
+            if (validOffers.length > 1) {
+              details.priceText = `From ${currencySymbol}${lowestOffer.price.toFixed(2)}`;
+            } else {
+              details.priceText = `${currencySymbol}${lowestOffer.price.toFixed(2)}`;
+            }
+          }
+          
+          // Also populate legacy field
+          details.price = details.priceText;
+        }
+      } catch (priceError) {
+        console.debug('[mapJsonLdEventToDetails] Failed to parse offers:', priceError);
+      }
+    }
+    
+    // Hosts / Organizers / Performers
+    const hosts: string[] = [];
+    
+    // Organizer
+    if (event.organizer) {
+      try {
+        if (typeof event.organizer === 'string') {
+          hosts.push(event.organizer.trim());
+        } else if (typeof event.organizer === 'object' && event.organizer.name) {
+          const name = typeof event.organizer.name === 'string' 
+            ? event.organizer.name.trim() 
+            : null;
+          if (name) hosts.push(name);
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
+    // Performers (can be array)
+    if (event.performer) {
+      try {
+        const performers = Array.isArray(event.performer) ? event.performer : [event.performer];
+        for (const performer of performers) {
+          if (typeof performer === 'string') {
+            hosts.push(performer.trim());
+          } else if (typeof performer === 'object' && performer.name) {
+            const name = typeof performer.name === 'string' 
+              ? performer.name.trim() 
+              : null;
+            if (name) hosts.push(name);
+          }
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
+    if (hosts.length > 0) {
+      details.hosts = hosts.slice(0, 5); // Limit to 5
+    }
+    
+  } catch (error) {
+    // If mapping fails, return partial details (don't throw)
+    console.debug('[mapJsonLdEventToDetails] Error mapping event:', error);
+  }
+  
+  return details;
+}
 
 /**
  * Detect if a page looks like an event page based on content indicators
@@ -1049,7 +1316,57 @@ export async function extractUrlSummary(url: string): Promise<StructuredUrlSumma
     const html = await response.text();
     const $ = cheerio.load(html);
     
-    // Remove non-content elements before extracting
+    // Try JSON-LD Event extraction first (primary source for event/ticketing sites)
+    let eventDetails: EventDetails = {
+      venue: null,
+      date: null,
+      time: null,
+      price: null,
+      format: null,
+      hosts: null,
+      key_points: null,
+      title: null,
+      subtitle: null,
+      dateText: null,
+      startTime: null,
+      venueName: null,
+      locationText: null,
+      priceFrom: null,
+      priceText: null,
+      competitionOrSeries: null,
+      rawSnippet: null,
+    };
+    
+    let summaryFromJsonLd = '';
+    const jsonLdEvents = extractJsonLdEvents(html);
+    
+    if (jsonLdEvents.length > 0) {
+      // Use the first Event object (for now - can be refined later)
+      const event = jsonLdEvents[0];
+      const jsonLdDetails = mapJsonLdEventToDetails(event);
+      
+      // Merge JSON-LD data into eventDetails (only set fields that are present)
+      if (jsonLdDetails.title) eventDetails.title = jsonLdDetails.title;
+      if (jsonLdDetails.rawSnippet) {
+        eventDetails.rawSnippet = jsonLdDetails.rawSnippet;
+        summaryFromJsonLd = jsonLdDetails.rawSnippet;
+      }
+      if (jsonLdDetails.dateText) eventDetails.dateText = jsonLdDetails.dateText;
+      if (jsonLdDetails.date) eventDetails.date = jsonLdDetails.date;
+      if (jsonLdDetails.startTime) eventDetails.startTime = jsonLdDetails.startTime;
+      if (jsonLdDetails.time) eventDetails.time = jsonLdDetails.time;
+      if (jsonLdDetails.venueName) eventDetails.venueName = jsonLdDetails.venueName;
+      if (jsonLdDetails.venue) eventDetails.venue = jsonLdDetails.venue;
+      if (jsonLdDetails.locationText) eventDetails.locationText = jsonLdDetails.locationText;
+      if (jsonLdDetails.priceFrom !== null && jsonLdDetails.priceFrom !== undefined) {
+        eventDetails.priceFrom = jsonLdDetails.priceFrom;
+      }
+      if (jsonLdDetails.priceText) eventDetails.priceText = jsonLdDetails.priceText;
+      if (jsonLdDetails.price) eventDetails.price = jsonLdDetails.price;
+      if (jsonLdDetails.hosts) eventDetails.hosts = jsonLdDetails.hosts;
+    }
+    
+    // Remove non-content elements before extracting (but keep script tags for JSON-LD - already extracted)
     $('script, style, nav, footer, header, aside, .nav, .footer, .header, .sidebar, [class*="nav"], [class*="footer"], [class*="cookie"], [class*="newsletter"]').remove();
     
     // Find main content for better text extraction
@@ -1062,13 +1379,48 @@ export async function extractUrlSummary(url: string): Promise<StructuredUrlSumma
     // Clean the text
     const cleanedText = cleanExtractedText(rawText);
     
-    // Extract structured event details (uses Cheerio internally for enhanced extraction)
-    const eventDetails = extractEventDetails(html, cleanedText);
+    // If we didn't get good data from JSON-LD, or need to fill missing fields, run HTML extraction
+    // Only fill in fields that are still null/empty
+    const htmlExtractedDetails = extractEventDetails(html, cleanedText);
     
-    // Build clean summary text from main content (truncated at word boundary)
-    // Prefer rawSnippet if available, otherwise use cleaned text from main content
+    // Merge HTML-extracted data only where JSON-LD didn't provide values
+    if (!eventDetails.title && htmlExtractedDetails.title) eventDetails.title = htmlExtractedDetails.title;
+    if (!eventDetails.subtitle && htmlExtractedDetails.subtitle) eventDetails.subtitle = htmlExtractedDetails.subtitle;
+    if (!eventDetails.dateText && htmlExtractedDetails.dateText) eventDetails.dateText = htmlExtractedDetails.dateText;
+    if (!eventDetails.date && htmlExtractedDetails.date) eventDetails.date = htmlExtractedDetails.date;
+    if (!eventDetails.startTime && htmlExtractedDetails.startTime) eventDetails.startTime = htmlExtractedDetails.startTime;
+    if (!eventDetails.time && htmlExtractedDetails.time) eventDetails.time = htmlExtractedDetails.time;
+    if (!eventDetails.venueName && htmlExtractedDetails.venueName) eventDetails.venueName = htmlExtractedDetails.venueName;
+    if (!eventDetails.venue && htmlExtractedDetails.venue) eventDetails.venue = htmlExtractedDetails.venue;
+    if (!eventDetails.locationText && htmlExtractedDetails.locationText) eventDetails.locationText = htmlExtractedDetails.locationText;
+    if (eventDetails.priceFrom === null && htmlExtractedDetails.priceFrom !== null) {
+      eventDetails.priceFrom = htmlExtractedDetails.priceFrom;
+    }
+    if (!eventDetails.priceText && htmlExtractedDetails.priceText) eventDetails.priceText = htmlExtractedDetails.priceText;
+    if (!eventDetails.price && htmlExtractedDetails.price) eventDetails.price = htmlExtractedDetails.price;
+    if (!eventDetails.competitionOrSeries && htmlExtractedDetails.competitionOrSeries) {
+      eventDetails.competitionOrSeries = htmlExtractedDetails.competitionOrSeries;
+    }
+    if (!eventDetails.rawSnippet && htmlExtractedDetails.rawSnippet) {
+      eventDetails.rawSnippet = htmlExtractedDetails.rawSnippet;
+    }
+    if (!eventDetails.hosts && htmlExtractedDetails.hosts) eventDetails.hosts = htmlExtractedDetails.hosts;
+    if (!eventDetails.key_points && htmlExtractedDetails.key_points) eventDetails.key_points = htmlExtractedDetails.key_points;
+    if (!eventDetails.format && htmlExtractedDetails.format) eventDetails.format = htmlExtractedDetails.format;
+    
+    // Build clean summary text
+    // Prefer JSON-LD description, then rawSnippet, then cleaned text from main content
     let trimmed: string;
-    if (eventDetails.rawSnippet) {
+    if (summaryFromJsonLd) {
+      // Use JSON-LD description, truncate if needed
+      trimmed = summaryFromJsonLd.slice(0, MAX_SUMMARY_LENGTH).trim();
+      if (trimmed.length > MAX_SUMMARY_LENGTH) {
+        const lastSpaceIndex = trimmed.lastIndexOf(' ', MAX_SUMMARY_LENGTH);
+        if (lastSpaceIndex > 0) {
+          trimmed = trimmed.slice(0, lastSpaceIndex).trim();
+        }
+      }
+    } else if (eventDetails.rawSnippet) {
       trimmed = eventDetails.rawSnippet;
     } else {
       trimmed = cleanedText.slice(0, Math.max(0, MAX_SUMMARY_LENGTH)).trim();
