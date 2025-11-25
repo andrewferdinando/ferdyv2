@@ -1038,6 +1038,58 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.info('[Wizard] Successfully created schedule rule')
       }
 
+      // Auto-push drafts for NEW subcategories (not edits)
+      // This generates drafts from today through end of next month
+      if (mode === 'create') {
+        console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
+        console.log('[Wizard] Auto-push: All schedule_rules saved, triggering push now')
+        
+        // Small delay to ensure database transaction is fully committed
+        // This ensures rpc_framework_targets can see the newly created schedule_rules
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Fire-and-forget: trigger auto-push but don't block the wizard flow
+        fetch('/api/drafts/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brandId }),
+        })
+          .then(async (response) => {
+            console.log('[Wizard] Auto-push: Response status:', response.status, response.statusText)
+            console.log('[Wizard] Auto-push: Response headers:', Object.fromEntries(response.headers.entries()))
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              console.error('[Wizard] Auto-push: Error response:', errorData)
+              throw new Error(errorData.error || 'Failed to create drafts')
+            }
+            const result = await response.json()
+            console.log('[Wizard] Auto-push: Drafts created successfully:', result)
+            console.log('[Wizard] Auto-push: Draft count:', result.draftCount)
+            showToast({
+              title: 'Drafts created',
+              message: 'Drafts have been generated from today through the end of next month.',
+              type: 'success',
+            })
+          })
+          .catch((err) => {
+            console.error('[Wizard] Auto-push: Failed to auto-push drafts:', err)
+            console.error('[Wizard] Auto-push: Error details:', {
+              message: err.message,
+              stack: err.stack,
+              name: err.name
+            })
+            // Show error toast but don't block the wizard flow
+            showToast({
+              title: 'Drafts could not be created automatically',
+              message: 'You can use "Push to Drafts" manually from the Categories page.',
+              type: 'error',
+            })
+          })
+      } else {
+        console.log('[Wizard] Auto-push: Skipping - editing existing subcategory (mode:', mode, ')')
+      }
+
       return { subcategoryId }
     } catch (error) {
       console.error('[Wizard] Error saving category:', error)
