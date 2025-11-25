@@ -333,9 +333,18 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   // Build jobs from props - post_jobs is the source of truth
   // Fallback to draft.channel only if no post_jobs exist (legacy drafts)
   const normalizedJobs = useMemo(() => {
+    // Debug: Log the jobs prop to see what we're receiving
+    console.log('DraftCard channels', {
+      draftId: draft.id,
+      jobsProp: jobs,
+      jobsLength: jobs?.length,
+      draftChannel: draft.channel,
+      effectiveStatus,
+    });
+
     // Always prefer jobs from post_jobs (source of truth)
     if (jobs && jobs.length > 0) {
-      return jobs
+      const normalized = jobs
         .map((job) => ({
           ...job,
           channel: canonicalizeChannel(job.channel) ?? job.channel,
@@ -349,6 +358,14 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           }
           return aIndex - bIndex;
         });
+      
+      console.log('DraftCard normalizedJobs from jobs prop:', {
+        draftId: draft.id,
+        normalized,
+        count: normalized.length,
+      });
+      
+      return normalized;
     }
 
     // Fallback: parse draft.channel (may be comma-separated) into multiple jobs

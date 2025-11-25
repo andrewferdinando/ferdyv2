@@ -287,6 +287,10 @@ interface DraftsTabProps {
 }
 
 function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps) {
+  // Debug: Log jobsByDraftId to see what we have
+  console.log('DraftsTab jobsByDraftId:', jobsByDraftId);
+  console.log('DraftsTab drafts count:', drafts.length);
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -322,15 +326,25 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
 
   return (
     <div className="space-y-4">
-      {sortedDrafts.map((draft) => (
-        <DraftCard 
-          key={draft.id} 
-          draft={draft} 
-          onUpdate={onUpdate} 
-          status={draft.status}
-          jobs={jobsByDraftId[draft.id] || []}
-        />
-      ))}
+      {sortedDrafts.map((draft) => {
+        const draftJobs = jobsByDraftId[draft.id] || [];
+        console.log(`DraftsTab rendering draft ${draft.id}:`, {
+          draftId: draft.id,
+          jobsCount: draftJobs.length,
+          jobs: draftJobs,
+          draftChannel: draft.channel,
+        });
+        
+        return (
+          <DraftCard 
+            key={draft.id} 
+            draft={draft} 
+            onUpdate={onUpdate} 
+            status={draft.status}
+            jobs={draftJobs}
+          />
+        );
+      })}
     </div>
   );
 }

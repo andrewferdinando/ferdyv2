@@ -19,6 +19,8 @@ export async function fetchJobsByDraftId(
     return {};
   }
 
+  console.log('fetchJobsByDraftId: Fetching jobs for draftIds:', draftIds);
+
   const { data: jobsData, error: jobsError } = await supabase
     .from('post_jobs')
     .select('id, draft_id, channel, status, error, external_post_id, external_url, last_attempt_at')
@@ -28,6 +30,9 @@ export async function fetchJobsByDraftId(
     console.error('fetchJobsByDraftId: Failed to load post_jobs', jobsError);
     return {};
   }
+
+  console.log('fetchJobsByDraftId: Raw jobsData:', jobsData);
+  console.log('fetchJobsByDraftId: jobsData count:', jobsData?.length || 0);
 
   const map: Record<string, PostJobSummary[]> = {};
   (jobsData ?? []).forEach((job) => {
@@ -62,6 +67,12 @@ export async function fetchJobsByDraftId(
       return aIndex - bIndex;
     });
   }
+
+  console.log('fetchJobsByDraftId: Final map:', map);
+  console.log('fetchJobsByDraftId: Map keys (draftIds):', Object.keys(map));
+  Object.entries(map).forEach(([draftId, jobs]) => {
+    console.log(`fetchJobsByDraftId: Draft ${draftId} has ${jobs.length} jobs:`, jobs.map(j => j.channel));
+  });
 
   return map;
 }
