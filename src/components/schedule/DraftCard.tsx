@@ -361,21 +361,21 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
         .filter((c) => c);
       
       return channels
-        .map((channelStr) => {
+        .map((channelStr): PostJobSummary | null => {
           const canonicalChannel = canonicalizeChannel(channelStr);
           if (!canonicalChannel) return null;
           return {
             id: draft.post_job_id || draft.id,
-            draft_id: draft.id,
+            draft_id: draft.id || null,
             channel: canonicalChannel,
-            status: 'pending' as const,
+            status: 'pending',
             error: null,
             external_post_id: null,
             external_url: null,
             last_attempt_at: null,
-          };
+          } satisfies PostJobSummary;
         })
-        .filter((job): job is PostJobSummary => Boolean(job))
+        .filter((job): job is PostJobSummary => job !== null)
         .sort((a, b) => {
           const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
           const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
