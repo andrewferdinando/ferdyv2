@@ -10,6 +10,7 @@ import { useBrand } from '@/hooks/useBrand'
 import { EventOccurrencesManager } from './EventOccurrencesManager'
 import { SubcategoryType } from '@/types/subcategories'
 import TimezoneSelect from './TimezoneSelect'
+import { useToast } from '@/components/ui/ToastProvider'
 
 interface SubcategoryData {
   name: string
@@ -213,6 +214,7 @@ export function SubcategoryScheduleForm({
 }: SubcategoryScheduleFormProps) {
   // Fetch brand for timezone
   const { brand } = useBrand(brandId)
+  const { showToast } = useToast()
 
   // Track the current subcategory ID (for EventOccurrencesManager)
   const [currentSubcategoryId, setCurrentSubcategoryId] = useState<string | null>(
@@ -1137,6 +1139,40 @@ export function SubcategoryScheduleForm({
           console.error('Error saving occurrences:', occurrencesError)
           // Don't throw - subcategory is already saved, just log the error
         }
+      }
+
+      // Auto-push drafts for NEW subcategories (not edits)
+      // This generates drafts from today through end of next month
+      const isNewSubcategory = !editingSubcategory
+      if (isNewSubcategory) {
+        // Fire-and-forget: trigger auto-push but don't block the wizard flow
+        fetch('/api/drafts/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brandId }),
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              throw new Error(errorData.error || 'Failed to create drafts')
+            }
+            const result = await response.json()
+            console.log('[auto-push] Drafts created successfully:', result)
+            showToast({
+              title: 'Drafts created',
+              message: 'Drafts have been generated from today through the end of next month.',
+              type: 'success',
+            })
+          })
+          .catch((err) => {
+            console.error('[auto-push] Failed to auto-push drafts:', err)
+            // Show error toast but don't block the wizard flow
+            showToast({
+              title: 'Drafts could not be created automatically',
+              message: 'You can use "Push to Drafts" manually from the Categories page.',
+              type: 'error',
+            })
+          })
       }
 
       onSuccess()
