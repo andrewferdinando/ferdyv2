@@ -638,6 +638,9 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     };
   };
 
+  // Debug: Temporary visible indicator
+  const debugInfo = `Jobs: ${jobs?.length || 0}, Normalized: ${normalizedJobs.length}, Draft Channel: ${draft.channel || 'none'}`;
+
   const channelStatusStrip =
     normalizedJobs.length > 0 ? (
       <div 
@@ -801,6 +804,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                 ))}
               </div>
             )}
+
+            {/* Debug info - remove after fix */}
+            <div className="mb-2 p-2 bg-yellow-100 text-xs text-yellow-800 rounded border border-yellow-300">
+              {debugInfo}
+            </div>
 
             {channelStatusStrip}
 
