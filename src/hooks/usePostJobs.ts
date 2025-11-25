@@ -71,7 +71,11 @@ export async function fetchJobsByDraftId(
   console.log('fetchJobsByDraftId: Final map:', map);
   console.log('fetchJobsByDraftId: Map keys (draftIds):', Object.keys(map));
   Object.entries(map).forEach(([draftId, jobs]) => {
-    console.log(`fetchJobsByDraftId: Draft ${draftId} has ${jobs.length} jobs:`, jobs.map(j => j.channel));
+    const channels = jobs.map(j => j.channel);
+    console.log(`fetchJobsByDraftId: Draft ${draftId} has ${jobs.length} jobs with channels:`, channels);
+    if (jobs.length > 1) {
+      console.log(`fetchJobsByDraftId: ⚠️ Draft ${draftId} HAS MULTIPLE JOBS - channels:`, channels);
+    }
   });
 
   return map;

@@ -333,15 +333,6 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   // Build jobs from props - post_jobs is the source of truth
   // Fallback to draft.channel only if no post_jobs exist (legacy drafts)
   const normalizedJobs = useMemo(() => {
-    // Debug: Log the jobs prop to see what we're receiving
-    console.log('DraftCard channels', {
-      draftId: draft.id,
-      jobsProp: jobs,
-      jobsLength: jobs?.length,
-      draftChannel: draft.channel,
-      effectiveStatus,
-    });
-
     // Always prefer jobs from post_jobs (source of truth)
     if (jobs && jobs.length > 0) {
       const normalized = jobs
@@ -359,11 +350,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           return aIndex - bIndex;
         });
       
-      console.log('DraftCard normalizedJobs from jobs prop:', {
-        draftId: draft.id,
-        normalized,
-        count: normalized.length,
-      });
+      // Debug: Log clearly what channels we're rendering
+      console.log(`🎯 DraftCard [${draft.id}] RENDERING ${normalized.length} CHANNELS:`, normalized.map(j => j.channel).join(', '));
+      if (normalized.length > 1) {
+        console.log(`✅ DraftCard [${draft.id}] HAS MULTIPLE CHANNELS - should show all!`, normalized.map(j => ({ channel: j.channel, status: j.status })));
+      }
       
       return normalized;
     }
@@ -656,7 +647,12 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const channelStatusStrip =
     normalizedJobs.length > 0 ? (
       <div className="mb-4 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
-        {normalizedJobs.map((job) => {
+        {normalizedJobs.map((job, index) => {
+          // Debug: Log each channel pill being rendered
+          if (normalizedJobs.length > 1 && index === 0) {
+            console.log(`🎨 DraftCard [${draft.id}] RENDERING ${normalizedJobs.length} CHANNEL PILLS`);
+          }
+          
           const { indicatorClass, label, icon, textClass, pillBgClass } = getChannelStatusVisual(job.status);
           const tooltip =
             job.status.toLowerCase() === 'failed' && job.error

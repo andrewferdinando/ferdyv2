@@ -328,12 +328,12 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
     <div className="space-y-4">
       {sortedDrafts.map((draft) => {
         const draftJobs = jobsByDraftId[draft.id] || [];
-        console.log(`DraftsTab rendering draft ${draft.id}:`, {
-          draftId: draft.id,
-          jobsCount: draftJobs.length,
-          jobs: draftJobs,
-          draftChannel: draft.channel,
-        });
+        const jobChannels = draftJobs.map(j => j.channel);
+        
+        // Debug: Log clearly what we're passing to DraftCard
+        if (draftJobs.length > 1) {
+          console.log(`🔍 DraftsTab [${draft.id}] PASSING ${draftJobs.length} JOBS TO DraftCard:`, jobChannels.join(', '));
+        }
         
         return (
           <DraftCard 
