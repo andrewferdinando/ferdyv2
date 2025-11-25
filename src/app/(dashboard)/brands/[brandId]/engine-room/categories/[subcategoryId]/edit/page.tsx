@@ -113,6 +113,7 @@ export default function EditCategoryPage() {
             default_hashtags: subcategory.default_hashtags || [],
             channels: subcategory.channels || [],
             subcategory_type: (subcategory.subcategory_type as SubcategoryType) || 'other',
+            default_copy_length: (subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
             settings: subcategory.settings || {}
           },
           assets: assetIds,

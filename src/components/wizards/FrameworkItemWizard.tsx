@@ -54,7 +54,7 @@ const STEPS: StepInfo[] = [
   { number: 4, name: 'Images' },
 ]
 
-// Type options for Step 1 (only the 4 main types, excluding 'other' and 'content_series')
+// Type options for Step 1 (Schedules temporarily removed from v1)
 const TYPE_OPTIONS: Array<{ value: SubcategoryType; label: string; subtitle: string; examples: string }> = [
   {
     value: 'event_series',
@@ -73,12 +73,6 @@ const TYPE_OPTIONS: Array<{ value: SubcategoryType; label: string; subtitle: str
     label: 'Promos',
     subtitle: 'Short-term offers',
     examples: 'Sales, discounts, limited-time deals'
-  },
-  {
-    value: 'dynamic_schedule',
-    label: 'Schedules',
-    subtitle: 'Repeating items',
-    examples: 'Timetables, rotating lineups'
   },
 ]
 
@@ -199,6 +193,7 @@ type WizardDetails = {
   url: string
   defaultHashtags: string
   channels: string[]
+  default_copy_length: 'short' | 'medium' | 'long'
 }
 
 type WizardSchedule = {
@@ -240,6 +235,7 @@ export interface WizardInitialData {
     default_hashtags: string[]
     channels: string[]
     subcategory_type: SubcategoryType
+    default_copy_length?: 'short' | 'medium' | 'long'
     settings?: any
   }
   scheduleRule?: {
@@ -278,13 +274,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const router = useRouter()
   const brandId = params.brandId as string
   const { brand } = useBrand(brandId)
+  const { showToast } = useToast()
+  
+  // Check if trying to edit a Schedules category (temporarily disabled)
+  React.useEffect(() => {
+    if (mode === 'edit' && initialData?.subcategory?.subcategory_type === 'dynamic_schedule') {
+      showToast({
+        title: 'Editing temporarily disabled',
+        message: 'Editing Schedules categories is temporarily disabled.',
+        type: 'error'
+      })
+      router.push(`/brands/${brandId}/engine-room/categories`)
+    }
+  }, [mode, initialData, brandId, router, showToast])
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
   
-  // Initialize subcategory type from initialData in edit mode
-  const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(
-    mode === 'edit' && initialData?.subcategory?.subcategory_type ? initialData.subcategory.subcategory_type : null
-  )
+  // Initialize subcategory type from initialData in edit mode (but not for Schedules)
+  const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
+    if (mode === 'edit' && initialData?.subcategory?.subcategory_type) {
+      // Don't allow Schedules type in edit mode
+      if (initialData.subcategory.subcategory_type === 'dynamic_schedule') {
+        return null
+      }
+      return initialData.subcategory.subcategory_type
+    }
+    return null
+  })
   
   // Initialize details from initialData in edit mode
   const [details, setDetails] = useState<WizardDetails>(() => {
@@ -295,6 +311,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         url: initialData.subcategory.url || '',
         defaultHashtags: (initialData.subcategory.default_hashtags || []).join(', '),
         channels: initialData.subcategory.channels || [],
+        default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
       }
     }
     return {
@@ -303,6 +320,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       url: '',
       defaultHashtags: '',
       channels: [],
+      default_copy_length: 'medium',
     }
   })
   
@@ -519,6 +537,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       url: '',
       defaultHashtags: '',
       channels: [],
+      default_copy_length: 'medium',
     })
     setDetailsErrors({})
     
@@ -571,7 +590,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     prevSubcategoryTypeRef.current = subcategoryType
   }, [subcategoryType, mode, resetWizardState])
 
-  const isStep1Valid = !!subcategoryType
+  // Validate Step 1: must have a valid type and it cannot be Schedules
+  const isStep1Valid = !!subcategoryType && subcategoryType !== 'dynamic_schedule'
   const isStep2Valid =
     details.name.trim().length > 0 &&
     details.detail.trim().length > 0 &&
@@ -662,6 +682,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Helper function to ensure subcategory is saved (used before Step 4)
   const ensureSubcategorySaved = async (): Promise<{ subcategoryId: string } | null> => {
+    // Prevent creating Schedules type (temporarily disabled)
+    if (subcategoryType === 'dynamic_schedule') {
+      showToast({
+        title: 'Invalid category type',
+        message: 'Schedules categories cannot be created at this time.',
+        type: 'error'
+      })
+      setCurrentStep(1)
+      return null
+    }
+    
     // In edit mode, just return the existing ID (no saving needed for now)
     if (mode === 'edit' && savedSubcategoryId) {
       return { subcategoryId: savedSubcategoryId }
@@ -782,6 +813,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           default_hashtags: normalizedHashtags,
           channels: details.channels.length > 0 ? details.channels : null,
           subcategory_type: subcategoryType || 'other',
+          default_copy_length: details.default_copy_length || 'medium',
           settings: {}
         })
         .select()
@@ -1019,6 +1051,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return false
     }
 
+    // Prevent updating to Schedules type or editing existing Schedules (temporarily disabled)
+    if (subcategoryType === 'dynamic_schedule') {
+      showToast({
+        title: 'Invalid category type',
+        message: 'Schedules categories cannot be edited or updated at this time.',
+        type: 'error'
+      })
+      setCurrentStep(1)
+      return false
+    }
+
     // Validate all steps 1-3 (same validation as create)
     if (!isStep1Valid || !isStep2Valid || !isStep3Valid()) {
       // Set errors for invalid steps
@@ -1122,6 +1165,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           default_hashtags: normalizedHashtags,
           channels: details.channels.length > 0 ? details.channels : null,
           subcategory_type: subcategoryType || 'other',
+          default_copy_length: details.default_copy_length || 'medium',
           settings: {}
         })
         .eq('id', subcategoryId)
@@ -1860,6 +1904,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             onClick={() => {
                               // In edit mode, prevent type change
                               if (mode === 'edit') return
+                              // Prevent selecting Schedules type (temporarily disabled)
+                              if (option.value === 'dynamic_schedule') return
                               setSubcategoryType(option.value)
                             }}
                             disabled={mode === 'edit'}
@@ -2051,6 +2097,40 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         {detailsErrors.channels && (
                           <p className="text-red-500 text-sm mt-1">{detailsErrors.channels}</p>
                         )}
+                      </FormField>
+
+                      {/* Post Length */}
+                      <FormField label="Post length (default for this category)" required>
+                        <div className="flex flex-col gap-3">
+                          {[
+                            { value: 'short', label: 'Short', description: '1–2 sentences' },
+                            { value: 'medium', label: 'Medium', description: '3–5 sentences (default)' },
+                            { value: 'long', label: 'Long', description: '6–8 sentences' },
+                          ].map((option) => (
+                            <label
+                              key={option.value}
+                              className="flex items-start cursor-pointer"
+                            >
+                              <input
+                                type="radio"
+                                name="default_copy_length"
+                                value={option.value}
+                                checked={details.default_copy_length === option.value}
+                                onChange={(e) => {
+                                  setDetails(prev => ({ 
+                                    ...prev, 
+                                    default_copy_length: e.target.value as 'short' | 'medium' | 'long'
+                                  }))
+                                }}
+                                className="mt-1 mr-3 w-4 h-4 text-[#6366F1] border-gray-300 focus:ring-[#6366F1]"
+                              />
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">{option.label}</span>
+                                <span className="text-sm text-gray-600 ml-2">— {option.description}</span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
                       </FormField>
                     </div>
                   </div>
