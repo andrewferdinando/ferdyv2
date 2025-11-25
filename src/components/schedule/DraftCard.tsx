@@ -333,8 +333,16 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   // Build jobs from props - post_jobs is the source of truth
   // Fallback to draft.channel only if no post_jobs exist (legacy drafts)
   const normalizedJobs = useMemo(() => {
+    // Debug: Check what we're receiving
+    console.log(`🔍 DraftCard [${draft.id}] normalizedJobs useMemo - jobs prop:`, {
+      jobs,
+      jobsLength: jobs?.length,
+      jobsIsArray: Array.isArray(jobs),
+      draftChannel: draft.channel,
+    });
+
     // Always prefer jobs from post_jobs (source of truth)
-    if (jobs && jobs.length > 0) {
+    if (jobs && Array.isArray(jobs) && jobs.length > 0) {
       const normalized = jobs
         .map((job) => ({
           ...job,
@@ -397,7 +405,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     return [] as PostJobSummary[];
   }, [jobs, draft.channel, draft.post_job_id, draft.id]);
 
-  // Debug: Log when normalizedJobs changes
+  // Debug: Log when normalizedJobs changes and verify DOM after render
   useEffect(() => {
     console.log(`🔍 DraftCard [${draft.id}] normalizedJobs changed:`, {
       count: normalizedJobs.length,
@@ -405,6 +413,24 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
       jobsPropLength: jobs?.length || 0,
       hasJobsProp: Boolean(jobs && jobs.length > 0),
     });
+
+    // Verify DOM after render - check if pills are actually in the DOM
+    if (normalizedJobs.length > 1) {
+      setTimeout(() => {
+        const container = document.querySelector(`[data-draft-id="${draft.id}"][data-channel-container]`);
+        if (container) {
+          const pills = container.querySelectorAll('[data-channel-pill]');
+          console.log(`🔍 DraftCard [${draft.id}] DOM verification:`, {
+            containerFound: !!container,
+            expectedPills: normalizedJobs.length,
+            actualPillsInDOM: pills.length,
+            pillChannels: Array.from(pills).map(p => p.getAttribute('data-channel-pill')),
+          });
+        } else {
+          console.warn(`⚠️ DraftCard [${draft.id}] Container not found in DOM!`);
+        }
+      }, 100);
+    }
   }, [normalizedJobs, draft.id, jobs]);
 
   // Fetch schedule rule data for frequency (category/subcategory comes from view)
