@@ -397,6 +397,16 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     return [] as PostJobSummary[];
   }, [jobs, draft.channel, draft.post_job_id, draft.id]);
 
+  // Debug: Log when normalizedJobs changes
+  useEffect(() => {
+    console.log(`🔍 DraftCard [${draft.id}] normalizedJobs changed:`, {
+      count: normalizedJobs.length,
+      channels: normalizedJobs.map(j => j.channel),
+      jobsPropLength: jobs?.length || 0,
+      hasJobsProp: Boolean(jobs && jobs.length > 0),
+    });
+  }, [normalizedJobs, draft.id, jobs]);
+
   // Fetch schedule rule data for frequency (category/subcategory comes from view)
   useEffect(() => {
     const fetchContextData = async () => {
@@ -646,7 +656,14 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
 
   const channelStatusStrip =
     normalizedJobs.length > 0 ? (
-      <div className="mb-4 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="mb-4 flex flex-wrap items-center gap-3 w-full" 
+        onClick={(e) => e.stopPropagation()}
+        data-channel-container={true}
+        data-total-channels={normalizedJobs.length}
+        data-draft-id={draft.id}
+        style={{ minWidth: 0 }}
+      >
         {normalizedJobs.map((job, index) => {
           // Debug: Log each channel pill being rendered with its unique key
           if (normalizedJobs.length > 1) {
@@ -663,8 +680,12 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           return (
             <div
               key={job.id || `${draft.id}-${job.channel}-${job.status}-${index}`}
-              className="flex items-center space-x-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm"
+              data-channel-pill={job.channel}
+              data-pill-index={index}
+              data-total-pills={normalizedJobs.length}
+              className="flex items-center space-x-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm flex-shrink-0"
               title={tooltip}
+              style={{ position: 'relative', zIndex: 1 }}
             >
               <div className="relative">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-50">
