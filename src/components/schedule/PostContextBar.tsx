@@ -19,7 +19,7 @@ export type FrequencyInput =
   | { kind: "oneOff"; date: string };
 
 export interface PostContextBarProps {
-  categoryName: string;
+  categoryName?: string; // Optional - no longer displayed, kept for backward compatibility
   subcategoryName?: string;
   frequency?: FrequencyInput;
   brandTimezone: string;
@@ -262,14 +262,6 @@ export default function PostContextBar({
       className={`pt-4 border-t border-gray-200 bg-gray-50/50 ${className}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        {/* Category Pill */}
-        <span
-          className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full truncate max-w-[200px]"
-          title={categoryName}
-        >
-          {categoryName || "Uncategorized"}
-        </span>
-
         {/* Subcategory Pill */}
         {subcategoryName && (
           <span
