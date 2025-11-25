@@ -330,15 +330,17 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
-  // Build jobs from props, or fallback to draft.channel if no jobs exist
+  // Build jobs from props - post_jobs is the source of truth
+  // Fallback to draft.channel only if no post_jobs exist (legacy drafts)
   const normalizedJobs = useMemo(() => {
-    // If jobs are provided, use them
+    // Always prefer jobs from post_jobs (source of truth)
     if (jobs && jobs.length > 0) {
       return jobs
         .map((job) => ({
           ...job,
           channel: canonicalizeChannel(job.channel) ?? job.channel,
         }))
+        .filter((job) => Boolean(job.channel)) // Filter out invalid channels
         .sort((a, b) => {
           const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
           const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
@@ -349,19 +351,39 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
         });
     }
 
-    // Fallback: create a single job from draft.channel (legacy behavior)
+    // Fallback: parse draft.channel (may be comma-separated) into multiple jobs
+    // This only happens for legacy drafts without post_jobs
     if (draft.channel) {
-      const canonicalChannel = canonicalizeChannel(draft.channel) ?? draft.channel;
-      return [{
-        id: draft.post_job_id || draft.id,
-        draft_id: draft.id,
-        channel: canonicalChannel,
-        status: 'pending', // Default status for legacy drafts
-        error: null,
-        external_post_id: null,
-        external_url: null,
-        last_attempt_at: null,
-      }];
+      // Handle both comma-separated (from Edit Post) and single channel (legacy)
+      const channels = draft.channel
+        .split(',')
+        .map((c) => c.trim())
+        .filter((c) => c);
+      
+      return channels
+        .map((channelStr) => {
+          const canonicalChannel = canonicalizeChannel(channelStr);
+          if (!canonicalChannel) return null;
+          return {
+            id: draft.post_job_id || draft.id,
+            draft_id: draft.id,
+            channel: canonicalChannel,
+            status: 'pending' as const,
+            error: null,
+            external_post_id: null,
+            external_url: null,
+            last_attempt_at: null,
+          };
+        })
+        .filter((job): job is PostJobSummary => Boolean(job))
+        .sort((a, b) => {
+          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+          if (aIndex === bIndex) {
+            return a.channel.localeCompare(b.channel);
+          }
+          return aIndex - bIndex;
+        });
     }
 
     return [] as PostJobSummary[];
