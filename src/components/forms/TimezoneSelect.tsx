@@ -1,7 +1,13 @@
 'use client'
 
 import { getAllTimezones } from '@/lib/utils/timezone'
-import { ChevronDown } from 'lucide-react'
+
+// ChevronDown icon component (inline SVG matching project pattern)
+const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
 
 interface TimezoneSelectProps {
   value: string
@@ -53,7 +59,7 @@ export default function TimezoneSelect({
             </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+        <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
       </div>
       {error && (
         <p className="text-red-500 text-sm mt-1">{error}</p>
