@@ -15,6 +15,8 @@ DECLARE
     v_scheduled_at timestamptz;
     v_scheduled_local timestamptz;
     v_brand_timezone text;
+    v_period_start timestamptz;
+    v_period_end timestamptz;
     v_rule_id uuid;
     v_category_id uuid;
     v_subcategory_id uuid;
@@ -33,8 +35,23 @@ BEGIN
         RAISE EXCEPTION 'Brand not found or timezone not set.';
     END IF;
 
+    -- Compute the start of "today" in brand timezone, as timestamptz
+    -- This gives us today at 00:00 in the brand's timezone
+    v_period_start := (
+        date_trunc('day', now() AT TIME ZONE v_brand_timezone)
+    ) AT TIME ZONE v_brand_timezone;
+
+    -- Compute the first day of the month after next in brand timezone, as timestamptz.
+    -- We'll use this as an exclusive upper bound, so the window is:
+    -- [today at 00:00 brand tz, first day of month after next at 00:00 brand tz)
+    -- Example: If today is Nov 12, this gives us Jan 1, so we cover Nov 12 → Dec 31 inclusive
+    v_period_end := (
+        date_trunc('month', now() AT TIME ZONE v_brand_timezone) 
+        + interval '2 months'
+    ) AT TIME ZONE v_brand_timezone;
+
     -- Loop through framework targets from rpc_framework_targets function
-    -- Only consider future targets to avoid creating duplicates
+    -- Filter by time window: from today (00:00 brand timezone) to end of next month
     -- Explicitly select columns to avoid ambiguity with frequency column
     FOR v_target IN
         SELECT 
@@ -42,7 +59,8 @@ BEGIN
             t.subcategory_id,
             t.frequency
         FROM rpc_framework_targets(p_brand_id) AS t
-        WHERE t.scheduled_at > now()  -- Only future targets (no past or recent past)
+        WHERE t.scheduled_at >= v_period_start
+          AND t.scheduled_at < v_period_end
     LOOP
         v_scheduled_at := v_target.scheduled_at;
         v_subcategory_id := v_target.subcategory_id;  -- Get subcategory_id from rpc_framework_targets result
@@ -183,4 +201,4 @@ GRANT EXECUTE ON FUNCTION rpc_push_framework_to_drafts(uuid) TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION rpc_push_framework_to_drafts(uuid) IS 
-    'Creates ONE draft per scheduled time with all channels stored as comma-separated string. Includes subcategory_id from the framework targets. Returns the count of drafts created.';
+    'Creates drafts from framework targets within a time window: from today (00:00 brand timezone) to end of next month. Includes subcategory_id from the framework targets and creates one post_job per channel. Returns the count of drafts created. Duplicate protection ensures existing drafts are not recreated.';
