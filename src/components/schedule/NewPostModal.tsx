@@ -10,6 +10,7 @@ import { useAssets, Asset } from '@/hooks/assets/useAssets';
 import { channelSupportsMedia, describeChannelSupport } from '@/lib/channelSupport';
 import { usePublishNow } from '@/hooks/usePublishNow';
 import PublishProgressModal from '@/components/schedule/PublishProgressModal';
+import ChannelSelector from '@/components/forms/ChannelSelector';
 
 const CROP_RATIOS: Record<string, number> = {
   '1:1': 1,
@@ -297,36 +298,6 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
     });
   };
 
-  const toggleChannel = (channel: string) => {
-    setFormData((prev) => {
-      const alreadySelected = prev.channels.includes(channel);
-
-      if (alreadySelected) {
-        return {
-          ...prev,
-          channels: prev.channels.filter((c) => c !== channel),
-        };
-      }
-
-      const incompatibleType = Array.from(selectedMediaTypes).find(
-        (type) => !channelSupportsMedia(channel, type),
-      );
-
-      if (incompatibleType) {
-        alert(
-          `The ${channel} channel does not support ${
-            incompatibleType === 'video' ? 'video' : 'image'
-          } posts. Remove incompatible media or choose a different channel.`,
-        );
-        return prev;
-      }
-
-      return {
-        ...prev,
-        channels: [...prev.channels, channel],
-      };
-    });
-  };
 
   return (
     <Modal
@@ -506,40 +477,12 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
         </FormField>
 
         <FormField label="Channels" required>
-          <div className="space-y-2">
-            {[
-              { id: 'instagram', label: 'Instagram Feed' },
-              { id: 'instagram_story', label: 'Instagram Story' },
-              { id: 'facebook', label: 'Facebook' },
-              { id: 'linkedin', label: 'LinkedIn Profile' },
-            ].map((channel) => {
-              const isSelected = formData.channels.includes(channel.id);
-              return (
-                <label
-                  key={channel.id}
-                  className={`flex items-center justify-between rounded-lg border px-3 py-2 transition-colors ${
-                    isSelected ? 'border-[#6366F1] bg-[#EEF2FF]' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleChannel(channel.id)}
-                      className="rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
-                    />
-                    <span className="text-sm font-medium text-gray-700">{channel.label}</span>
-                  </div>
-                  <span className="text-xs text-gray-500">{describeChannelSupport(channel.id)}</span>
-                </label>
-              );
-            })}
-            {!channelsSupportSelection && (
-              <p className="text-xs text-red-600">
-                Selected channels do not support the chosen media type. Adjust your selection before submitting.
-              </p>
-            )}
-          </div>
+          <ChannelSelector
+            selectedChannels={formData.channels}
+            onChannelsChange={(channels) => setFormData({ ...formData, channels })}
+            selectedMediaTypes={selectedMediaTypes}
+            required
+          />
         </FormField>
 
         <FormField label="Schedule Date & Time" required>

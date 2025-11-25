@@ -15,6 +15,7 @@ import { canonicalizeChannel, getChannelLabel } from '@/lib/channels';
 import { useToast } from '@/components/ui/ToastProvider';
 import PublishProgressModal from '@/components/schedule/PublishProgressModal';
 import { usePublishNow } from '@/hooks/usePublishNow';
+import ChannelSelector from '@/components/forms/ChannelSelector';
 
 console.log('Edit Post page component loaded');
 
@@ -132,6 +133,36 @@ export default function EditPostPage() {
   const channelStatusItems = useMemo(() => {
     return postJobs;
   }, [postJobs]);
+
+  // Load channels from post_jobs when they're available, fallback to draft.channel
+  useEffect(() => {
+    if (postJobs.length > 0) {
+      // Use channels from post_jobs (source of truth)
+      const channelsFromJobs = postJobs
+        .map((job) => job.channel)
+        .filter((channel): channel is string => Boolean(channel));
+      
+      // Only update if different to avoid infinite loops
+      const currentChannelsSorted = [...selectedChannels].sort().join(',');
+      const jobsChannelsSorted = [...channelsFromJobs].sort().join(',');
+      if (channelsFromJobs.length > 0 && currentChannelsSorted !== jobsChannelsSorted) {
+        setSelectedChannels(channelsFromJobs);
+      }
+    } else if (draft?.channel && selectedChannels.length === 0) {
+      // Fallback to draft.channel if no post_jobs yet (shouldn't happen in normal flow)
+      const channels = draft.channel
+        .split(',')
+        .map((c: string) => c.trim())
+        .filter((c: string) => c);
+      // Normalize channel names (e.g., 'instagram' -> 'instagram_feed')
+      const normalizedChannels = channels
+        .map((c) => canonicalizeChannel(c))
+        .filter((c): c is string => Boolean(c));
+      if (normalizedChannels.length > 0) {
+        setSelectedChannels(normalizedChannels);
+      }
+    }
+  }, [postJobs.length, draft?.channel]);
 
   const hasFailedJobs = useMemo(
     () => channelStatusItems.some((job) => job.status.toLowerCase() === 'failed'),
@@ -338,15 +369,11 @@ export default function EditPostPage() {
       setPostCopy(data.copy || '');
       setHashtags(normalizeHashtags(data.hashtags || []));
 
-      if (data.channel) {
-        const channels = data.channel
-          .split(',')
-          .map((c: string) => c.trim())
-          .filter((c: string) => c);
-        setSelectedChannels(channels);
-      }
-
+      // Load post_jobs first to get channels
       await fetchPostJobs();
+      
+      // Set channels from post_jobs if available, otherwise fall back to draft.channel
+      // This will be set in useEffect after postJobs are loaded
     } catch (err) {
       console.error('Error loading draft:', err);
       setError('Failed to load post');
@@ -1108,6 +1135,18 @@ export default function EditPostPage() {
 
                 {/* Right Section - Scheduling & Channels */}
                 <div className="space-y-6">
+                  {/* Channels */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Channels</h3>
+                    <p className="text-sm text-gray-500 mb-4">Select the social media channels where this post will be published</p>
+                    <ChannelSelector
+                      selectedChannels={selectedChannels}
+                      onChannelsChange={setSelectedChannels}
+                      selectedMediaTypes={selectedMediaTypes}
+                      required
+                    />
+                  </div>
+
                   {/* Schedule */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Schedule</h3>
