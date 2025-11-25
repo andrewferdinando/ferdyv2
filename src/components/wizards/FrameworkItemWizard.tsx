@@ -206,7 +206,10 @@ type WizardSchedule = {
   timeOfDay: string
   timezone: string
   daysOfWeek: string[]
-  dayOfMonth: number | null
+  dayOfMonth: number | null // Legacy single day
+  daysOfMonth: number[] // Multi-select days (1-28)
+  nthWeek: number | null // 1, 2, 3, 4, or 5 (last)
+  weekday: number | null // 1-7 (Monday-Sunday)
 }
 
 type EventOccurrenceInput = {
@@ -320,12 +323,38 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         return dayMap[d] || ''
       }).filter(Boolean)
       
+      // Handle monthly: check for nth_week/weekday or day_of_month
+      let daysOfMonth: number[] = []
+      let dayOfMonth: number | null = null
+      let nthWeek: number | null = null
+      let weekday: number | null = null
+      
+      if (rule.frequency === 'monthly') {
+        if (rule.nth_week && rule.weekday) {
+          // Nth weekday mode
+          nthWeek = rule.nth_week
+          weekday = rule.weekday
+        } else if (rule.day_of_month) {
+          // Day(s) of month mode
+          if (Array.isArray(rule.day_of_month)) {
+            daysOfMonth = rule.day_of_month
+            dayOfMonth = daysOfMonth[0] || null // Keep legacy single day for compatibility
+          } else {
+            dayOfMonth = rule.day_of_month
+            daysOfMonth = [rule.day_of_month]
+          }
+        }
+      }
+      
       return {
         frequency: rule.frequency || null,
         timeOfDay: timesArray[0] || '',
         timezone: rule.timezone || brand?.timezone || 'Pacific/Auckland',
         daysOfWeek: daysOfWeek,
-        dayOfMonth: Array.isArray(rule.day_of_month) ? rule.day_of_month[0] : (rule.day_of_month || null),
+        dayOfMonth: dayOfMonth,
+        daysOfMonth: daysOfMonth,
+        nthWeek: nthWeek,
+        weekday: weekday,
       }
     }
     return {
@@ -334,6 +363,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       timezone: brand?.timezone || 'Pacific/Auckland',
       daysOfWeek: [],
       dayOfMonth: null,
+      daysOfMonth: [],
+      nthWeek: null,
+      weekday: null,
     }
   })
   
@@ -477,6 +509,67 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   // behavior consistent and avoid duplication. Assets will load once on mount
   // and refetch automatically when brandId changes - no need to refetch on step changes.
 
+  // Reset wizard state when type changes (but not on initial mount or in edit mode)
+  const resetWizardState = React.useCallback(() => {
+    // Reset details
+    setDetails({
+      name: '',
+      detail: '',
+      url: '',
+      defaultHashtags: '',
+      channels: [],
+    })
+    setDetailsErrors({})
+    
+    // Reset schedule
+    setSchedule({
+      frequency: null,
+      timeOfDay: '',
+      timezone: brand?.timezone || 'Pacific/Auckland',
+      daysOfWeek: [],
+      dayOfMonth: null,
+      daysOfMonth: [],
+      nthWeek: null,
+      weekday: null,
+    })
+    setScheduleErrors({})
+    
+    // Reset event scheduling
+    setEventScheduling({
+      occurrences: [],
+      daysBefore: []
+    })
+    setEventOccurrenceType('single')
+    setEventErrors({})
+    setLeadTimesInput('7, 3, 1')
+    
+    // Reset images
+    setSelectedAssetIds([])
+    setImageMode('upload')
+    
+    // Reset to step 1
+    setCurrentStep(1)
+  }, [brand?.timezone])
+
+  // Track previous type to detect changes
+  const prevSubcategoryTypeRef = React.useRef<SubcategoryType | null>(subcategoryType)
+  
+  // Reset state when type changes (but not on initial mount)
+  useEffect(() => {
+    // Only reset if:
+    // 1. Type actually changed (not just initial mount)
+    // 2. We're not in edit mode (edit mode should keep initial data)
+    // 3. Previous type was not null (avoid resetting on first render)
+    if (
+      prevSubcategoryTypeRef.current !== null &&
+      prevSubcategoryTypeRef.current !== subcategoryType &&
+      mode === 'create'
+    ) {
+      resetWizardState()
+    }
+    prevSubcategoryTypeRef.current = subcategoryType
+  }, [subcategoryType, mode, resetWizardState])
+
   const isStep1Valid = !!subcategoryType
   const isStep2Valid =
     details.name.trim().length > 0 &&
@@ -548,7 +641,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
     
     if (schedule.frequency === 'monthly') {
-      return schedule.timeOfDay.trim().length > 0 && schedule.dayOfMonth !== null && schedule.dayOfMonth >= 1 && schedule.dayOfMonth <= 31
+      if (schedule.timeOfDay.trim().length === 0) return false
+      // Monthly requires EITHER days of month OR nth weekday
+      const hasDaysOfMonth = schedule.daysOfMonth && schedule.daysOfMonth.length > 0
+      const hasNthWeekday = schedule.nthWeek !== null && schedule.weekday !== null
+      return hasDaysOfMonth || hasNthWeekday
     }
     
     return false
@@ -643,8 +740,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (!schedule.timeOfDay.trim()) {
             newErrors.timeOfDay = 'Please select a time of day.'
           }
-          if (schedule.dayOfMonth === null || schedule.dayOfMonth < 1 || schedule.dayOfMonth > 31) {
-            newErrors.dayOfMonth = 'Please select a day of the month (1-31).'
+          // Monthly requires EITHER days of month OR nth weekday
+          const hasDaysOfMonth = schedule.daysOfMonth && schedule.daysOfMonth.length > 0
+          const hasNthWeekday = schedule.nthWeek !== null && schedule.weekday !== null
+          if (!hasDaysOfMonth && !hasNthWeekday) {
+            newErrors.dayOfMonth = 'Please select either specific days of the month or an Nth weekday.'
           }
         }
         setScheduleErrors(newErrors)
@@ -853,8 +953,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
           baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
         } else if (schedule.frequency === 'monthly') {
-          if (schedule.dayOfMonth !== null && schedule.dayOfMonth >= 1 && schedule.dayOfMonth <= 31) {
-            baseRuleData.day_of_month = [schedule.dayOfMonth]
+          // Handle monthly: either days of month OR nth weekday
+          if (schedule.daysOfMonth && schedule.daysOfMonth.length > 0) {
+            // Mode A: Specific days of the month
+            baseRuleData.day_of_month = schedule.daysOfMonth.sort((a, b) => a - b)
+            baseRuleData.nth_week = null
+            baseRuleData.weekday = null
+          } else if (schedule.nthWeek !== null && schedule.weekday !== null) {
+            // Mode B: Nth weekday
+            baseRuleData.nth_week = schedule.nthWeek
+            baseRuleData.weekday = schedule.weekday
+            baseRuleData.day_of_month = null
           }
           baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
           baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
@@ -976,8 +1085,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (!schedule.timeOfDay.trim()) {
             newErrors.timeOfDay = 'Please select a time of day.'
           }
-          if (schedule.dayOfMonth === null || schedule.dayOfMonth < 1 || schedule.dayOfMonth > 31) {
-            newErrors.dayOfMonth = 'Please select a day of the month (1-31).'
+          // Monthly requires EITHER days of month OR nth weekday
+          const hasDaysOfMonth = schedule.daysOfMonth && schedule.daysOfMonth.length > 0
+          const hasNthWeekday = schedule.nthWeek !== null && schedule.weekday !== null
+          if (!hasDaysOfMonth && !hasNthWeekday) {
+            newErrors.dayOfMonth = 'Please select either specific days of the month or an Nth weekday.'
           }
         }
         setScheduleErrors(newErrors)
@@ -1228,8 +1340,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
             baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
           } else if (schedule.frequency === 'monthly') {
-            if (schedule.dayOfMonth !== null && schedule.dayOfMonth >= 1 && schedule.dayOfMonth <= 31) {
-              baseRuleData.day_of_month = [schedule.dayOfMonth]
+            // Handle monthly: either days of month OR nth weekday
+            if (schedule.daysOfMonth && schedule.daysOfMonth.length > 0) {
+              // Mode A: Specific days of the month
+              baseRuleData.day_of_month = schedule.daysOfMonth.sort((a, b) => a - b)
+              baseRuleData.nth_week = null
+              baseRuleData.weekday = null
+            } else if (schedule.nthWeek !== null && schedule.weekday !== null) {
+              // Mode B: Nth weekday
+              baseRuleData.nth_week = schedule.nthWeek
+              baseRuleData.weekday = schedule.weekday
+              baseRuleData.day_of_month = null
             }
             baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
             baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
@@ -1583,6 +1704,54 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     return step === currentStep
   }
 
+  // Check if we can navigate to a step
+  const canNavigateToStep = (targetStep: Step): boolean => {
+    // Always allow going backwards
+    if (targetStep <= currentStep) return true
+    
+    // For forward navigation, check all previous steps are valid
+    for (let step = 1; step < targetStep; step++) {
+      if (step === 1 && !isStep1Valid) return false
+      if (step === 2 && !isStep2Valid) return false
+      if (step === 3 && !isStep3Valid()) return false
+      // Step 4 has no validation
+    }
+    return true
+  }
+
+  const handleStepClick = (targetStep: Step) => {
+    if (!canNavigateToStep(targetStep)) {
+      // Find first invalid step and show error
+      let firstInvalidStep: Step | null = null
+      for (let step = 1; step < targetStep; step++) {
+        if (step === 1 && !isStep1Valid) {
+          firstInvalidStep = 1
+          break
+        }
+        if (step === 2 && !isStep2Valid) {
+          firstInvalidStep = 2
+          break
+        }
+        if (step === 3 && !isStep3Valid()) {
+          firstInvalidStep = 3
+          break
+        }
+      }
+      
+      if (firstInvalidStep) {
+        setCurrentStep(firstInvalidStep)
+        showToast({
+          title: 'Please complete previous steps',
+          message: `Step ${firstInvalidStep} must be completed before proceeding.`,
+          type: 'error'
+        })
+      }
+      return
+    }
+    
+    setCurrentStep(targetStep)
+  }
+
   return (
     <RequireAuth>
       <AppLayout>
@@ -1604,16 +1773,23 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               {STEPS.map((step, index) => (
                 <React.Fragment key={step.number}>
                   <div className="flex items-center">
-                    <div className="flex flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleStepClick(step.number)}
+                      className="flex flex-col items-center cursor-pointer"
+                      disabled={!canNavigateToStep(step.number) && step.number > currentStep}
+                    >
                       <div
                         className={`
-                          w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm
+                          w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all
                           ${
                             isCurrentStep(step.number)
                               ? 'bg-[#6366F1] text-white'
                               : isStepComplete(step.number)
                               ? 'bg-green-500 text-white'
-                              : 'bg-gray-200 text-gray-600'
+                              : canNavigateToStep(step.number)
+                              ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
                           }
                         `}
                       >
@@ -1631,13 +1807,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               ? 'text-[#6366F1]'
                               : isStepComplete(step.number)
                               ? 'text-green-600'
-                              : 'text-gray-500'
+                              : canNavigateToStep(step.number)
+                              ? 'text-gray-500 hover:text-gray-700'
+                              : 'text-gray-400'
                           }
                         `}
                       >
                         {step.name}
                       </span>
-                    </div>
+                    </button>
                   </div>
                   {index < STEPS.length - 1 && (
                     <div
@@ -1674,7 +1852,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         return (
                           <button
                             key={option.value}
-                            onClick={() => setSubcategoryType(option.value)}
+                            onClick={() => {
+                              // In edit mode, prevent type change
+                              if (mode === 'edit') return
+                              setSubcategoryType(option.value)
+                            }}
+                            disabled={mode === 'edit'}
                             className={`
                               relative p-4 rounded-lg border-2 text-left transition-all
                               ${
@@ -1876,7 +2059,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             Event dates
                           </h3>
                           <p className="text-sm text-gray-600 mb-4">
-                            How many dates does this event have?
+                            Are these events single dates or date ranges?
                           </p>
                           
                           {eventScheduling.occurrences.length === 0 ? (
@@ -2293,32 +2476,114 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
                       {/* Monthly fields */}
                       {schedule.frequency === 'monthly' && (
-                        <div className="space-y-3">
-                          <FormField label="Day of month" required>
-                            <select
-                              value={schedule.dayOfMonth || ''}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseInt(e.target.value, 10) : null
-                                setSchedule(prev => ({ ...prev, dayOfMonth: value }))
-                                if (scheduleErrors.dayOfMonth) {
-                                  setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
-                                }
-                              }}
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all ${
-                                scheduleErrors.dayOfMonth ? 'border-red-300' : 'border-gray-300'
-                              }`}
-                            >
-                              <option value="">Select day</option>
-                              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                                <option key={day} value={day}>
-                                  {day}
-                                </option>
-                              ))}
-                            </select>
-                            {scheduleErrors.dayOfMonth && (
-                              <p className="text-red-500 text-sm mt-1">{scheduleErrors.dayOfMonth}</p>
-                            )}
-                          </FormField>
+                        <div className="space-y-4">
+                          {/* Mode A: Specific days of the month */}
+                          <div>
+                            <FormField label="Specific days of the month">
+                              <div className="flex flex-wrap gap-2">
+                                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => {
+                                  const isSelected = schedule.daysOfMonth.includes(day)
+                                  return (
+                                    <button
+                                      key={day}
+                                      type="button"
+                                      onClick={() => {
+                                        // Toggle day selection
+                                        const newDays = isSelected
+                                          ? schedule.daysOfMonth.filter(d => d !== day)
+                                          : [...schedule.daysOfMonth, day].sort((a, b) => a - b)
+                                        
+                                        setSchedule(prev => ({
+                                          ...prev,
+                                          daysOfMonth: newDays,
+                                          // Clear nth weekday when selecting days
+                                          nthWeek: null,
+                                          weekday: null,
+                                          // Keep legacy dayOfMonth for compatibility
+                                          dayOfMonth: newDays.length > 0 ? newDays[0] : null
+                                        }))
+                                        
+                                        if (scheduleErrors.dayOfMonth) {
+                                          setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
+                                        }
+                                      }}
+                                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                        isSelected
+                                          ? 'bg-[#6366F1] text-white'
+                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                      }`}
+                                    >
+                                      {day}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </FormField>
+                          </div>
+                          
+                          {/* Mode B: Nth weekday */}
+                          <div>
+                            <FormField label="Or post on">
+                              <div className="flex gap-3 items-center">
+                                <select
+                                  value={schedule.nthWeek !== null ? schedule.nthWeek : ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value ? parseInt(e.target.value, 10) : null
+                                    setSchedule(prev => ({
+                                      ...prev,
+                                      nthWeek: value,
+                                      // Clear days of month when selecting nth weekday
+                                      daysOfMonth: [],
+                                      dayOfMonth: null
+                                    }))
+                                    if (scheduleErrors.dayOfMonth) {
+                                      setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
+                                    }
+                                  }}
+                                  disabled={schedule.daysOfMonth.length > 0}
+                                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                >
+                                  <option value="">Select</option>
+                                  <option value="1">1st</option>
+                                  <option value="2">2nd</option>
+                                  <option value="3">3rd</option>
+                                  <option value="4">4th</option>
+                                  <option value="5">Last</option>
+                                </select>
+                                <select
+                                  value={schedule.weekday !== null ? schedule.weekday : ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value ? parseInt(e.target.value, 10) : null
+                                    setSchedule(prev => ({ ...prev, weekday: value }))
+                                    if (scheduleErrors.dayOfMonth) {
+                                      setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
+                                    }
+                                  }}
+                                  disabled={schedule.daysOfMonth.length > 0}
+                                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                >
+                                  <option value="">Select day</option>
+                                  {[
+                                    { value: 1, label: 'Monday' },
+                                    { value: 2, label: 'Tuesday' },
+                                    { value: 3, label: 'Wednesday' },
+                                    { value: 4, label: 'Thursday' },
+                                    { value: 5, label: 'Friday' },
+                                    { value: 6, label: 'Saturday' },
+                                    { value: 7, label: 'Sunday' },
+                                  ].map(day => (
+                                    <option key={day.value} value={day.value}>
+                                      {day.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              {scheduleErrors.dayOfMonth && (
+                                <p className="text-red-500 text-sm mt-1">{scheduleErrors.dayOfMonth}</p>
+                              )}
+                            </FormField>
+                          </div>
+                          
                           <FormField label="Time" required>
                             <Input
                               type="time"
