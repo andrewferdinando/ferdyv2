@@ -9,6 +9,7 @@ import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useBrand } from '@/hooks/useBrand'
 import { EventOccurrencesManager } from './EventOccurrencesManager'
 import { SubcategoryType } from '@/types/subcategories'
+import TimezoneSelect from './TimezoneSelect'
 
 interface SubcategoryData {
   name: string
@@ -1798,18 +1799,11 @@ export function SubcategoryScheduleForm({
 
                   {/* Timezone */}
                   <FormField label="Timezone" required>
-                    <select
+                    <TimezoneSelect
                       value={scheduleData.timezone}
-                      onChange={(e) => setScheduleData(prev => ({ ...prev, timezone: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Pacific/Auckland">Pacific/Auckland (NZ)</option>
-                      <option value="Pacific/Sydney">Pacific/Sydney (AEST)</option>
-                      <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
-                      <option value="America/New_York">America/New_York (EST)</option>
-                      <option value="Europe/London">Europe/London (GMT)</option>
-                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-                    </select>
+                      onChange={(timezone) => setScheduleData(prev => ({ ...prev, timezone }))}
+                      placeholder="Select a timezone"
+                    />
                   </FormField>
                 </div>
               )}

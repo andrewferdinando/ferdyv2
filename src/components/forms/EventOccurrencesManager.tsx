@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/ToastProvider'
+import TimezoneSelect from './TimezoneSelect'
 
 interface EventOccurrence {
   id: string
@@ -1191,18 +1192,11 @@ const renderChannelIcons = (channels: string[]) =>
           </FormField>
 
           <FormField label="Timezone">
-            <select
+            <TimezoneSelect
               value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="Pacific/Auckland">Pacific/Auckland (NZ)</option>
-              <option value="Pacific/Sydney">Pacific/Sydney (AEST)</option>
-              <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
-              <option value="America/New_York">America/New_York (EST)</option>
-              <option value="Europe/London">Europe/London (GMT)</option>
-              <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-            </select>
+              onChange={setTimezone}
+              placeholder="Select a timezone"
+            />
           </FormField>
 
           <div className="flex justify-end gap-3 pt-4 border-t">

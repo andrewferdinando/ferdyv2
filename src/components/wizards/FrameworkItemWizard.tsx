@@ -14,6 +14,19 @@ import { normalizeHashtags, parseHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
+import TimezoneSelect from '@/components/forms/TimezoneSelect'
+
+// Helper function to get default timezone (saved > brand > browser)
+function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
+  if (savedTimezone) return savedTimezone
+  if (brandTimezone) return brandTimezone
+  // Fallback to browser timezone
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+  } catch {
+    return 'Pacific/Auckland' // Ultimate fallback
+  }
+}
 
 // Icons
 const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -368,7 +381,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return {
         frequency: rule.frequency || null,
         timeOfDay: timesArray[0] || '',
-        timezone: rule.timezone || brand?.timezone || 'Pacific/Auckland',
+        timezone: getDefaultTimezone(rule.timezone, brand?.timezone),
         daysOfWeek: daysOfWeek,
         dayOfMonth: dayOfMonth,
         daysOfMonth: daysOfMonth,
@@ -379,7 +392,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     return {
       frequency: null,
       timeOfDay: '',
-      timezone: brand?.timezone || 'Pacific/Auckland',
+      timezone: getDefaultTimezone(null, brand?.timezone),
       daysOfWeek: [],
       dayOfMonth: null,
       daysOfMonth: [],
@@ -515,10 +528,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
   const { uploadAsset, uploading: isUploading } = useUploadAsset()
 
-  // Update timezone when brand loads
+  // Update timezone when brand loads (only if not already set from saved data)
   useEffect(() => {
-    if (brand?.timezone && schedule.timezone === 'Pacific/Auckland') {
-      setSchedule(prev => ({ ...prev, timezone: brand.timezone || 'Pacific/Auckland' }))
+    if (brand?.timezone && !schedule.timezone) {
+      setSchedule(prev => ({ ...prev, timezone: getDefaultTimezone(null, brand.timezone) }))
     }
   }, [brand?.timezone])
 
@@ -544,7 +557,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     setSchedule({
       frequency: null,
       timeOfDay: '',
-      timezone: brand?.timezone || 'Pacific/Auckland',
+      timezone: getDefaultTimezone(null, brand?.timezone),
       daysOfWeek: [],
       dayOfMonth: null,
       daysOfMonth: [],
@@ -976,7 +989,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         // Add fields based on frequency type
         if (schedule.frequency === 'daily') {
           baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
-          baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+          baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
         } else if (schedule.frequency === 'weekly') {
           // Map string days to integers (mon -> 1, tue -> 2, etc.)
           const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
@@ -985,7 +998,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .filter(d => d > 0 && d <= 7)
           baseRuleData.days_of_week = mappedDays.length > 0 ? Array.from(new Set(mappedDays)).sort((a, b) => a - b) : null
           baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
-          baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+          baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
         } else if (schedule.frequency === 'monthly') {
           // Handle monthly: either days of month OR nth weekday
           if (schedule.daysOfMonth && schedule.daysOfMonth.length > 0) {
@@ -1000,7 +1013,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             baseRuleData.day_of_month = null
           }
           baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
-          baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+          baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
         }
 
         // Clean up undefined fields
@@ -1377,7 +1390,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
           if (schedule.frequency === 'daily') {
             baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
-            baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+            baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
           } else if (schedule.frequency === 'weekly') {
             const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
             const mappedDays = schedule.daysOfWeek
@@ -1385,7 +1398,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .filter(d => d > 0 && d <= 7)
             baseRuleData.days_of_week = mappedDays.length > 0 ? Array.from(new Set(mappedDays)).sort((a, b) => a - b) : null
             baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
-            baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+            baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
           } else if (schedule.frequency === 'monthly') {
             // Handle monthly: either days of month OR nth weekday
             if (schedule.daysOfMonth && schedule.daysOfMonth.length > 0) {
@@ -1400,7 +1413,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               baseRuleData.day_of_month = null
             }
             baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
-            baseRuleData.timezone = schedule.timezone || brand?.timezone || 'Pacific/Auckland'
+            baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
           }
 
           const cleanRuleData: Record<string, unknown> = {}
@@ -2496,11 +2509,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             />
                           </FormField>
                           <FormField label="Timezone">
-                            <Input
-                              type="text"
+                            <TimezoneSelect
                               value={schedule.timezone}
-                              onChange={(e) => setSchedule(prev => ({ ...prev, timezone: e.target.value }))}
-                              placeholder="Pacific/Auckland"
+                              onChange={(timezone) => setSchedule(prev => ({ ...prev, timezone }))}
+                              placeholder="Select a timezone"
                             />
                           </FormField>
                         </div>
@@ -2555,11 +2567,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             />
                           </FormField>
                           <FormField label="Timezone">
-                            <Input
-                              type="text"
+                            <TimezoneSelect
                               value={schedule.timezone}
-                              onChange={(e) => setSchedule(prev => ({ ...prev, timezone: e.target.value }))}
-                              placeholder="Pacific/Auckland"
+                              onChange={(timezone) => setSchedule(prev => ({ ...prev, timezone }))}
+                              placeholder="Select a timezone"
                             />
                           </FormField>
                         </div>
@@ -2689,11 +2700,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             />
                           </FormField>
                           <FormField label="Timezone">
-                            <Input
-                              type="text"
+                            <TimezoneSelect
                               value={schedule.timezone}
-                              onChange={(e) => setSchedule(prev => ({ ...prev, timezone: e.target.value }))}
-                              placeholder="Pacific/Auckland"
+                              onChange={(timezone) => setSchedule(prev => ({ ...prev, timezone }))}
+                              placeholder="Select a timezone"
                             />
                           </FormField>
                         </div>
