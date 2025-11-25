@@ -34,6 +34,12 @@ const CheckIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
+const XMarkIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 type Step = 1 | 2 | 3 | 4
 
 interface StepInfo {
@@ -53,26 +59,26 @@ const TYPE_OPTIONS: Array<{ value: SubcategoryType; label: string; subtitle: str
   {
     value: 'event_series',
     label: 'Events',
-    subtitle: 'Specific dates and occasions',
-    examples: 'Fixtures, launches, webinars'
+    subtitle: 'Dates you want to promote',
+    examples: 'Fixtures, launches, shows'
   },
   {
     value: 'service_or_programme',
     label: 'Products / Services',
-    subtitle: 'Ongoing offers and programmes',
-    examples: 'Memberships, programmes, services'
+    subtitle: 'Ongoing things you offer',
+    examples: 'Classes, memberships, programmes'
   },
   {
     value: 'promo_or_offer',
     label: 'Promos',
-    subtitle: 'Time-bound sales and offers',
-    examples: 'Sales, discounts, special offers'
+    subtitle: 'Short-term offers',
+    examples: 'Sales, discounts, limited-time deals'
   },
   {
     value: 'dynamic_schedule',
     label: 'Schedules',
-    subtitle: 'Rotating timetables and lineups',
-    examples: 'Class timetables, rotating lineups'
+    subtitle: 'Repeating items',
+    examples: 'Timetables, rotating lineups'
   },
 ]
 
@@ -1588,9 +1594,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">
                   {mode === 'edit' ? 'Edit Category' : 'Create Category'}
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  {mode === 'edit' ? 'Update your category details' : 'Add a new item to your content framework'}
-                </p>
               </div>
             </div>
           </div>
@@ -1663,12 +1666,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
                       Step 1: Select Type
                     </h2>
-                    <p className="text-sm text-gray-600 mb-6">
-                      Choose the type that best matches your category. This tells Ferdy how to structure the posts.
-                    </p>
 
                     {/* Type Selection Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {TYPE_OPTIONS.map((option) => {
                         const isSelected = subcategoryType === option.value
                         return (
@@ -1706,47 +1706,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         )
                       })}
                     </div>
-
-                    {/* Type Explainer Panel */}
-                    {subcategoryType && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                        {(() => {
-                          const helpText = TYPE_HELP_TEXT[subcategoryType]
-                          return (
-                            <>
-                              <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                                {helpText.title}
-                              </h4>
-                              <p className="text-sm text-gray-700">
-                                {helpText.body}
-                              </p>
-                            </>
-                          )
-                        })()}
-                      </div>
-                    )}
                   </div>
                 )}
 
                 {currentStep === 2 && (
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">
-                      Step 2: Describe the Item
+                    <h2 className="text-lg font-medium text-gray-900 mb-6">
+                      Step 2: Details
                     </h2>
 
-                    {/* Context: Show selected type */}
-                    {subcategoryType && (
-                      <p className="text-sm text-gray-600 mb-6">
-                        You're setting up a <span className="font-semibold">{TYPE_LABEL_MAP[subcategoryType]}</span>.
-                      </p>
-                    )}
-
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       {/* Occurrence Type Selector (Events only) */}
                       {subcategoryType === 'event_series' && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                            How should occurrences be structured?
+                        <div className="mb-5">
+                          <h3 className="text-sm font-medium text-gray-900 mb-3">
+                            How many dates does this event have?
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <button
@@ -1821,12 +1795,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               setDetailsErrors(prev => ({ ...prev, name: undefined }))
                             }
                           }}
-                          placeholder="e.g., Weekly Networking Event"
+                          placeholder="Short, clear name"
                           error={detailsErrors.name}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Give this category a clear name your team will recognise.
-                        </p>
                       </FormField>
 
                       {/* Description */}
@@ -1840,13 +1811,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               setDetailsErrors(prev => ({ ...prev, detail: undefined }))
                             }
                           }}
-                          placeholder="Describe what this is and what should be mentioned in posts..."
+                          placeholder="What should Ferdy mention?"
                           rows={4}
                           error={detailsErrors.detail}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Describe what this is and what should be mentioned in posts.
-                        </p>
                       </FormField>
 
                       {/* URL */}
@@ -1855,11 +1823,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           type="url"
                           value={details.url}
                           onChange={(e) => setDetails(prev => ({ ...prev, url: e.target.value }))}
-                          placeholder="https://example.com/event"
+                          placeholder="Link for Ferdy to pull extra details"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          If this has a relevant page (detail, tickets, timetable, etc.), add it here so Ferdy can pull extra context.
-                        </p>
                       </FormField>
 
                       {/* Default Hashtags */}
@@ -1869,13 +1834,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           onChange={(e) => setDetails(prev => ({ ...prev, defaultHashtags: e.target.value }))}
                           placeholder="brandname, event, networking"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Separate with commas. Ferdy can use these as a base when generating posts.
-                        </p>
                       </FormField>
 
                       {/* Channels */}
-                      <FormField label="Channels (optional)">
+                      <FormField label="Channels">
                         <div className="flex flex-wrap gap-4">
                           {CHANNELS.map((channel) => (
                             <label key={channel.value} className="flex items-center">
@@ -1894,9 +1856,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             </label>
                           ))}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Select which social media channels posts from this item should be published to.
-                        </p>
                       </FormField>
                     </div>
                   </div>
@@ -1904,93 +1863,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
                 {currentStep === 3 && (
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">
-                      Step 3: {subcategoryType === 'event_series' ? 'Event Occurrences' : 'Timing & Schedule'}
+                    <h2 className="text-lg font-medium text-gray-900 mb-6">
+                      Step 3: {subcategoryType === 'event_series' ? 'Event dates' : 'Schedule'}
                     </h2>
-
-                    {/* Context: Show selected type */}
-                    {subcategoryType && (
-                      <p className="text-sm text-gray-600 mb-6">
-                        You're setting the schedule for your{' '}
-                        <span className="font-semibold">{TYPE_LABEL_MAP[subcategoryType]}</span>.
-                      </p>
-                    )}
 
                     {/* Events: Show occurrences manager */}
                     {subcategoryType === 'event_series' ? (
                       <div className="space-y-6">
                         {/* Occurrences List */}
                         <div>
-                          <div className="flex items-center justify-between mb-4">
-                            <div>
-                              <h3 className="text-base font-semibold text-gray-900">
-                                Event Dates
-                                {(() => {
-                                  const now = new Date()
-                                  const upcomingCount = eventScheduling.occurrences.filter(occ => {
-                                    if (eventOccurrenceType === 'single') {
-                                      if (!occ.date || !occ.date.trim()) return false
-                                      const occDate = new Date(occ.date + (occ.time ? `T${occ.time}` : 'T12:00'))
-                                      return occDate >= now
-                                    } else {
-                                      // Range mode: check if end_date is in the future
-                                      if (!occ.end_date || !occ.end_date.trim()) return false
-                                      const endDate = new Date(occ.end_date + 'T23:59:59')
-                                      return endDate >= now
-                                    }
-                                  }).length
-                                  return upcomingCount > 0 ? ` (${upcomingCount} upcoming)` : ''
-                                })()}
-                              </h3>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
-                                  ? {
-                                      date: '',
-                                      time: '',
-                                      url: '',
-                                      notes: ''
-                                    }
-                                  : {
-                                      start_date: '',
-                                      end_date: '',
-                                      url: '',
-                                      notes: ''
-                                    }
-                                const newIndex = eventScheduling.occurrences.length
-                                setEventScheduling(prev => ({
-                                  ...prev,
-                                  occurrences: [...prev.occurrences, newOccurrence]
-                                }))
-                                // Clear errors when adding
-                                if (eventErrors.occurrences) {
-                                  setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                }
-                                // Scroll into view and focus after state update
-                                setTimeout(() => {
-                                  const cardRef = occurrenceRefs.current.get(newIndex)
-                                  if (cardRef) {
-                                    cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                                    // Focus the first date input
-                                    const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
-                                    if (dateInput) {
-                                      dateInput.focus()
-                                    }
-                                  }
-                                }, 100)
-                              }}
-                              className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
-                            >
-                              + Add occurrence
-                            </button>
-                          </div>
+                          <h3 className="text-base font-semibold text-gray-900 mb-2">
+                            Event dates
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            How many dates does this event have?
+                          </p>
                           
                           {eventScheduling.occurrences.length === 0 ? (
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-                              <p className="text-sm text-gray-600 mb-2">
-                                No occurrences added yet. Click "Add occurrence" to get started.
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center mb-4">
+                              <p className="text-sm text-gray-600">
+                                No dates added yet.
                               </p>
                             </div>
                           ) : (
@@ -2005,11 +1897,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                       occurrenceRefs.current.delete(index)
                                     }
                                   }}
-                                  className="bg-white border-2 border-gray-200 rounded-lg p-4 space-y-4"
+                                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3"
                                 >
                                   <div className="flex items-start justify-between">
-                                    <h4 className="text-sm font-semibold text-gray-900">
-                                      Occurrence {index + 1}
+                                    <h4 className="text-sm font-medium text-gray-900">
+                                      {eventOccurrenceType === 'single' ? `Date ${index + 1}` : `Range ${index + 1}`}
                                     </h4>
                                     <button
                                       type="button"
@@ -2019,9 +1911,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                           occurrences: prev.occurrences.filter((_, i) => i !== index)
                                         }))
                                       }}
-                                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+                                      className="text-red-600 hover:text-red-700 p-1"
+                                      title="Remove"
                                     >
-                                      Remove
+                                      <XMarkIcon className="w-5 h-5" />
                                     </button>
                                   </div>
                                   
@@ -2111,9 +2004,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                       }}
                                       placeholder="https://example.com/event"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      Event-specific URL. If empty, will use the category URL.
-                                    </p>
                                   </FormField>
                                   
                                   {/* Notes - Optional */}
@@ -2125,40 +2015,78 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                         updated[index] = { ...updated[index], notes: e.target.value }
                                         setEventScheduling(prev => ({ ...prev, occurrences: updated }))
                                       }}
-                                      placeholder="Additional notes about this occurrence..."
+                                      placeholder="Additional notes..."
                                       rows={2}
                                     />
                                   </FormField>
                                   
                                   {/* URL Summary Preview */}
-                                  {occurrence.summary && (
+                                  {occurrence.summary && occurrence.summary.details && (
                                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
-                                      <p className="font-medium text-gray-900 mb-2">URL Summary:</p>
-                                      {occurrence.summary.details && (
-                                        <div className="space-y-1 text-gray-700">
-                                          {occurrence.summary.details.venue && (
-                                            <p><strong>Venue:</strong> {occurrence.summary.details.venue}</p>
-                                          )}
-                                          {occurrence.summary.details.date && (
-                                            <p><strong>Date:</strong> {occurrence.summary.details.date}</p>
-                                          )}
-                                          {occurrence.summary.details.time && (
-                                            <p><strong>Time:</strong> {occurrence.summary.details.time}</p>
-                                          )}
-                                          {occurrence.summary.details.price && (
-                                            <p><strong>Price:</strong> {occurrence.summary.details.price}</p>
-                                          )}
-                                          {occurrence.summary.details.format && (
-                                            <p><strong>Format:</strong> {occurrence.summary.details.format}</p>
-                                          )}
-                                        </div>
-                                      )}
+                                      <p className="font-medium text-gray-900 mb-2">Details found:</p>
+                                      <div className="space-y-1 text-gray-700">
+                                        {occurrence.summary.details.dateText && (
+                                          <p><strong>Date:</strong> {occurrence.summary.details.dateText}</p>
+                                        )}
+                                        {occurrence.summary.details.startTime && (
+                                          <p><strong>Time:</strong> {occurrence.summary.details.startTime}</p>
+                                        )}
+                                        {occurrence.summary.details.venueName && (
+                                          <p><strong>Venue:</strong> {occurrence.summary.details.venueName}</p>
+                                        )}
+                                        {occurrence.summary.details.priceText && (
+                                          <p><strong>Price:</strong> {occurrence.summary.details.priceText}</p>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
                               ))}
                             </div>
                           )}
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
+                                ? {
+                                    date: '',
+                                    time: '',
+                                    url: '',
+                                    notes: ''
+                                  }
+                                : {
+                                    start_date: '',
+                                    end_date: '',
+                                    url: '',
+                                    notes: ''
+                                  }
+                              const newIndex = eventScheduling.occurrences.length
+                              setEventScheduling(prev => ({
+                                ...prev,
+                                occurrences: [...prev.occurrences, newOccurrence]
+                              }))
+                              // Clear errors when adding
+                              if (eventErrors.occurrences) {
+                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                              }
+                              // Scroll into view and focus after state update
+                              setTimeout(() => {
+                                const cardRef = occurrenceRefs.current.get(newIndex)
+                                if (cardRef) {
+                                  cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                                  // Focus the first date input
+                                  const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
+                                  if (dateInput) {
+                                    dateInput.focus()
+                                  }
+                                }
+                              }, 100)
+                            }}
+                            className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
+                          >
+                            {eventOccurrenceType === 'single' ? '+ Add date' : '+ Add range'}
+                          </button>
                           
                           {eventErrors.occurrences && (
                             <p className="text-red-500 text-sm mt-2">{eventErrors.occurrences}</p>
@@ -2168,12 +2096,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         {/* Lead-time Input */}
                         <div>
                           <h3 className="text-base font-semibold text-gray-900 mb-3">
-                            Lead-time Reminders
+                            Reminder schedule
                           </h3>
                           <p className="text-sm text-gray-600 mb-4">
-                            Specify how many days before each event Ferdy should post reminders.
+                            When should Ferdy post about this event?
                           </p>
-                          <FormField label="Default lead times (days before event)">
+                          <FormField label="Days before">
                             <Input
                               type="text"
                               value={leadTimesInput}
@@ -2195,27 +2123,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               placeholder="14, 7, 3, 1"
                               error={eventErrors.leadTimes}
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Enter a comma-separated list, e.g. 14, 7, 3, 1. Leave empty for no automatic reminders.
-                            </p>
-                            {eventScheduling.daysBefore.length > 0 && (
-                              <p className="text-xs text-gray-600 mt-2">
-                                Parsed as: {eventScheduling.daysBefore.sort((a, b) => b - a).join(', ')} days before
-                              </p>
-                            )}
                           </FormField>
                         </div>
                       </div>
                     ) : (
                       /* Non-Events: Show standard schedule UI */
                       <div className="space-y-6">
-                        {/* Schedule Section Title */}
                         <h3 className="text-base font-semibold text-gray-900 mb-4">
-                          {getScheduleSectionTitle(subcategoryType)}
+                          How often should this post?
                         </h3>
 
                       {/* Frequency Selector */}
-                      <FormField label="Frequency" required>
+                      <FormField label="" required>
                         {(() => {
                           const allowedFrequencies = subcategoryType
                             ? ALLOWED_FREQUENCIES_BY_TYPE[subcategoryType]
@@ -2264,9 +2183,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                       <h4 className="text-sm font-semibold text-gray-900 mb-1">
                                         {freqInfo.label}
                                       </h4>
-                                      <p className="text-xs text-gray-600">
-                                        {freqInfo.helper}
-                                      </p>
+                                      {freq === 'weekly' && (
+                                        <p className="text-xs text-gray-600">
+                                          Pick days of the week
+                                        </p>
+                                      )}
+                                      {freq === 'monthly' && (
+                                        <p className="text-xs text-gray-600">
+                                          Pick a day of the month
+                                        </p>
+                                      )}
                                     </div>
                                   </button>
                                 )
@@ -2279,19 +2205,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         )}
                       </FormField>
 
-                      {/* Specific dates info panel */}
-                      {schedule.frequency === 'specific' && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                          <p className="text-sm text-gray-700">
-                            You've chosen specific dates. After saving this category, you'll add each event date and its URL on the Event Dates section.
-                          </p>
-                        </div>
-                      )}
-
                       {/* Daily fields */}
                       {schedule.frequency === 'daily' && (
-                        <div className="space-y-4 pl-4 border-l-2 border-gray-200">
-                          <FormField label="What time should Ferdy post?" required>
+                        <div className="space-y-3">
+                          <FormField label="Time" required>
                             <Input
                               type="time"
                               value={schedule.timeOfDay}
@@ -2311,16 +2228,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               onChange={(e) => setSchedule(prev => ({ ...prev, timezone: e.target.value }))}
                               placeholder="Pacific/Auckland"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              IANA timezone (e.g., Pacific/Auckland, America/New_York)
-                            </p>
                           </FormField>
                         </div>
                       )}
 
                       {/* Weekly fields */}
                       {schedule.frequency === 'weekly' && (
-                        <div className="space-y-4 pl-4 border-l-2 border-gray-200">
+                        <div className="space-y-3">
                           <FormField label="Days of week" required>
                             <div className="flex flex-wrap gap-2">
                               {DAYS_OF_WEEK.map((day) => (
@@ -2353,7 +2267,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               <p className="text-red-500 text-sm mt-2">{scheduleErrors.daysOfWeek}</p>
                             )}
                           </FormField>
-                          <FormField label="What time should Ferdy post?" required>
+                          <FormField label="Time" required>
                             <Input
                               type="time"
                               value={schedule.timeOfDay}
@@ -2373,16 +2287,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               onChange={(e) => setSchedule(prev => ({ ...prev, timezone: e.target.value }))}
                               placeholder="Pacific/Auckland"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              IANA timezone (e.g., Pacific/Auckland, America/New_York)
-                            </p>
                           </FormField>
                         </div>
                       )}
 
                       {/* Monthly fields */}
                       {schedule.frequency === 'monthly' && (
-                        <div className="space-y-4 pl-4 border-l-2 border-gray-200">
+                        <div className="space-y-3">
                           <FormField label="Day of month" required>
                             <select
                               value={schedule.dayOfMonth || ''}
@@ -2407,11 +2318,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             {scheduleErrors.dayOfMonth && (
                               <p className="text-red-500 text-sm mt-1">{scheduleErrors.dayOfMonth}</p>
                             )}
-                            <p className="text-xs text-gray-500 mt-1">
-                              Which day of the month should posts go out? (1-31)
-                            </p>
                           </FormField>
-                          <FormField label="What time should Ferdy post?" required>
+                          <FormField label="Time" required>
                             <Input
                               type="time"
                               value={schedule.timeOfDay}
@@ -2431,9 +2339,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               onChange={(e) => setSchedule(prev => ({ ...prev, timezone: e.target.value }))}
                               placeholder="Pacific/Auckland"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              IANA timezone (e.g., Pacific/Auckland, America/New_York)
-                            </p>
                           </FormField>
                         </div>
                       )}
@@ -2444,16 +2349,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
                 {currentStep === 4 && (
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">
+                    <h2 className="text-lg font-medium text-gray-900 mb-6">
                       Step 4: Images
                     </h2>
 
-                    {/* Context */}
-                    {subcategoryType && details.name && (
-                      <p className="text-sm text-gray-600 mb-6">
-                        You're setting up images for: <span className="font-semibold">{details.name}</span>
-                      </p>
-                    )}
+                    <h3 className="text-base font-semibold text-gray-900 mb-4">
+                      Choose images
+                    </h3>
 
                     {/* Mode Toggle */}
                     <div className="mb-6">
@@ -2470,7 +2372,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             }
                           `}
                         >
-                          Upload new images
+                          Upload new
                         </button>
                         <button
                           type="button"
@@ -2484,7 +2386,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             }
                           `}
                         >
-                          Use existing images
+                          Use existing
                         </button>
                       </div>
                     </div>
@@ -2492,12 +2394,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     {/* Upload Mode */}
                     {imageMode === 'upload' && (
                       <div className="space-y-4">
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">
-                          Upload new images
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Upload images to assign to this category. Images will be available in your Content Library.
-                        </p>
 
                         <UploadAsset
                           brandId={brandId}
@@ -2561,12 +2457,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         trigger reloads, only uploads trigger refetches when complete. */}
                     {imageMode === 'existing' && (
                       <div className="space-y-4">
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">
-                          Choose from existing images
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Select images from your Content Library to assign to this category.
-                        </p>
 
                         {assetsLoading ? (
                           <div className="flex items-center justify-center py-12">
