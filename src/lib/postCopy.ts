@@ -34,6 +34,7 @@ export type PostCopyPayload = {
     frequency_type?: string;
     url_page_summary?: string | null; // Can be structured JSON or plain text (backward compatible)
     category_name?: string; // e.g. "Functions"
+    default_copy_length?: "short" | "medium" | "long";
   };
   subcategory_type?: SubcategoryType | null; // Type of subcategory (Events, Products / Services, Promos, etc.)
   subcategory_settings?: Record<string, any> | null; // Type-specific settings
@@ -128,58 +129,156 @@ const formatSettingsHints = (type: SubcategoryType | null | undefined, settings:
 }
 
 // Helper to build type-specific guidance section for the prompt
-const buildTypeSpecificGuidance = (type: SubcategoryType | null | undefined, settings: Record<string, any> | null | undefined): string | null => {
-  if (!type || (type === 'other' || type === 'unspecified')) {
-    return 'Use general best judgement based on description and URL summary.'
+const buildTypeSpecificGuidance = (
+  type: SubcategoryType | null | undefined,
+  settings: Record<string, any> | null | undefined
+): string | null => {
+  if (!type || type === "other" || type === "unspecified") {
+    return "Use general best judgement based on the description and URL summary.";
   }
 
-  const guidance: string[] = []
+  const guidance: string[] = [];
+  const s = settings || {};
+  const daysUntil = typeof s._days_until_event === "number" ? s._days_until_event : null;
+  const frequency = s._frequency ?? null;
 
   switch (type) {
-    case 'event_series':
-      guidance.push('Focus on time-specific value, what the attendee can expect, and who this event suits.')
-      if (settings?.default_lead_times && Array.isArray(settings.default_lead_times) && settings.default_lead_times.length > 0) {
-        guidance.push('Adjust tone based on how close the post is to the event:\n- Far from event → informative\n- Mid-range → helpful context\n- Close to event → light urgency')
-      }
-      break
+    case "event_series": {
+      guidance.push(
+        "This subcategory is typically used for events or one-off dates. Focus on what the occasion is, who it suits, when and where it happens, and what the experience will feel like."
+      );
 
-    case 'service_or_programme':
-      guidance.push('Focus on benefits, outcomes, who this is for, and real value.')
-      if (settings?.highlight_points && Array.isArray(settings.highlight_points) && settings.highlight_points.length > 0) {
-        const pointsList = settings.highlight_points.join(', ')
-        guidance.push(`Choose ONE of these points to highlight in this post: ${pointsList}`)
+      if (daysUntil != null) {
+        if (daysUntil >= 14) {
+          guidance.push(
+            `Days until this event: ${daysUntil}. Treat this as an awareness/intro post and explain what the event is and why it's worth adding to the calendar.`
+          );
+        } else if (daysUntil >= 7) {
+          guidance.push(
+            `Days until this event: ${daysUntil}. People may be planning. Give clear practical details (date, time, venue) plus one or two strong reasons to attend.`
+          );
+        } else if (daysUntil >= 1) {
+          guidance.push(
+            `Days until this event: ${daysUntil}. The event is close. Make this feel like a clear reminder with natural urgency (e.g. "coming up soon", "last chance to grab tickets").`
+          );
+        } else if (daysUntil === 0) {
+          guidance.push(
+            "The event is happening today. Use \"happening today\" style language and focus on last-minute motivation and how to join."
+          );
+        }
       }
-      break
 
-    case 'promo_or_offer':
-      guidance.push('Treat this as a time-bound promo. Prioritise clarity, value, and urgency.')
-      if (settings?.promo_length_days != null) {
-        guidance.push(`This promo typically lasts ${settings.promo_length_days} days.`)
+      if (Array.isArray(s.default_lead_times) && s.default_lead_times.length > 0) {
+        const times = s.default_lead_times.join(", ");
+        guidance.push(
+          `Default lead times for this event are ${times} days before each date. Make sure the tone fits how close this post is to the event.`
+        );
       }
-      if (settings?.auto_expire) {
-        guidance.push('If the promo is close to ending, natural urgency is appropriate.')
-      }
-      break
 
-    case 'dynamic_schedule':
-      guidance.push('This subcategory uses a rotating schedule. Keep copy clear and factual.')
-      if (settings?.url_refresh_frequency === 'weekly') {
-        guidance.push('Treat this as a weekly update.')
-      } else if (settings?.url_refresh_frequency === 'daily') {
-        guidance.push('Treat this as a daily refresh.')
-      }
-      break
+      guidance.push(
+        "Across posts for this subcategory, rotate angles such as: the overall experience, one specific feature or session, who it's perfect for, and reasons to book now."
+      );
+      break;
+    }
 
-    case 'content_series':
-      guidance.push('This is a recurring content series (legacy). Each post should highlight ONE angle or item.')
-      if (settings?.number_of_items != null) {
-        guidance.push(`Rotate through the ${settings.number_of_items} items over time.`)
+    case "service_or_programme": {
+      guidance.push(
+        "This subcategory is typically used for a product, service, class or programme. Focus on outcomes and benefits, not just features."
+      );
+      guidance.push(
+        "Make it clear who this is for, what problem it helps with, and what changes once someone signs up or buys."
+      );
+
+      if (Array.isArray(s.highlight_points) && s.highlight_points.length > 0) {
+        const pointsList = s.highlight_points.join(", ");
+        guidance.push(
+          `For each post, pick ONE of these highlight points to focus on: ${pointsList}.`
+        );
       }
-      break
+
+      if (frequency === "weekly") {
+        guidance.push(
+          "If this runs weekly, you can reference the ongoing rhythm (e.g. \"every week\", \"your regular session\")."
+        );
+      } else if (frequency === "monthly") {
+        guidance.push(
+          "If this runs monthly, you can reference it as a regular monthly check-in or touchpoint."
+        );
+      }
+
+      guidance.push(
+        "Across posts, rotate angles such as: a single key benefit, a common objection and how this offering solves it, or a typical customer scenario."
+      );
+      break;
+    }
+
+    case "promo_or_offer": {
+      guidance.push(
+        "This subcategory is typically used for short-term promos or offers. Be very clear about what the offer is, who it's for, and how it works."
+      );
+
+      if (s.promo_length_days != null) {
+        guidance.push(
+          `This promo usually runs for around ${s.promo_length_days} days. Use natural urgency that fits that length (not over the top).`
+        );
+      }
+      if (s.auto_expire) {
+        guidance.push(
+          "Assume the offer ends automatically at the end of the promo period. As it gets close to the end, it's fine to mention that it's \"ending soon\"."
+        );
+      }
+
+      guidance.push(
+        "Make the value obvious (e.g. price saving, bonus, convenience) and avoid vague hype. Across posts, rotate angles like: the core saving, who gets the most value, and a simple last-chance reminder near the end."
+      );
+      break;
+    }
+
+    case "dynamic_schedule": {
+      guidance.push(
+        "This subcategory is typically used for a rotating schedule or timetable. Keep the copy clear, factual and easy to scan."
+      );
+      if (s.url_refresh_frequency === "weekly") {
+        guidance.push(
+          "Treat each post as a weekly update. Mention what's happening this week and how people can take part or check the schedule."
+        );
+      } else if (s.url_refresh_frequency === "daily") {
+        guidance.push(
+          "Treat each post as a daily update. Highlight what's happening today instead of listing everything."
+        );
+      }
+      guidance.push(
+        "Across posts, rotate between highlighting specific days, special items on the schedule, and simple reminders that the schedule changes regularly."
+      );
+      break;
+    }
+
+    case "content_series": {
+      guidance.push(
+        "This subcategory is typically used for a recurring content series. Each post should feel like one instalment in that series, not a standalone promo."
+      );
+
+      if (s.number_of_items != null) {
+        guidance.push(
+          `There are about ${s.number_of_items} items in this series. Imagine rotating through them over time so each one is featured regularly.`
+        );
+      }
+      guidance.push(
+        "Focus each post on one idea or item and make it clear why it's useful or interesting for the audience."
+      );
+      break;
+    }
+
+    default: {
+      guidance.push(
+        "Use general best judgement based on the description and URL summary."
+      );
+      break;
+    }
   }
 
-  return guidance.length > 0 ? guidance.join('\n\n') : null
-}
+  return guidance.length > 0 ? guidance.join("\n\n") : null;
+};
 
 function stripHashtags(text: string): string {
   // Remove standalone hashtag tokens (more robust pattern)
@@ -229,25 +328,21 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 3) Load post_tone, avg_word_count, avg_char_length from brand_post_information
+  // 3) Load post_tone from brand_post_information
   let brandPostInfo: { 
     post_tone: string | null;
-    avg_word_count: number | null;
-    avg_char_length: number | null;
   } | null = null;
   
   try {
     const { data: postInfo } = await supabaseAdmin
       .from("brand_post_information")
-      .select("post_tone, avg_word_count, avg_char_length")
+      .select("post_tone")
       .eq("brand_id", brandId)
       .maybeSingle();
     
     if (postInfo) {
       brandPostInfo = {
         post_tone: postInfo.post_tone,
-        avg_word_count: postInfo.avg_word_count,
-        avg_char_length: postInfo.avg_char_length,
       };
     }
   } catch {
@@ -255,24 +350,18 @@ export async function generatePostCopyFromContext(
     brandPostInfo = null;
   }
 
-  // 4) Extract tone and length with brand defaults
+  // 4) Extract tone and compute effective length from override + category default
   const tone =
     payload.tone_override ||
     brandPostInfo?.post_tone ||
     "clear, friendly and professional";
   
-  const length = payload.length || "medium"; // "short" | "medium" | "long"
+  const effectiveLength: "short" | "medium" | "long" =
+    payload.length ||
+    payload.subcategory?.default_copy_length ||
+    "medium";
   
-  // 5) Build length hint based on brand's avg_word_count
-  let lengthHint = "";
-  if (brandPostInfo?.avg_word_count != null) {
-    const w = Math.round(brandPostInfo.avg_word_count);
-    const min = Math.max(5, Math.round(w * 0.8));
-    const max = Math.round(w * 1.2);
-    lengthHint = `${min}–${max} words (brand typical)`;
-  }
-  
-  const lengthLabel = length; // Keep as-is (short/medium/long)
+  const lengthLabel = effectiveLength;
 
   // 6) Extract subcategory data including url_page_summary
   const subName = payload.subcategory?.name || "";
@@ -312,7 +401,7 @@ Your #1 priority:
 You MUST:
 - Base ALL factual content ONLY on the current subcategory description and (if provided) the extracted URL summary and event timing.
 - Use the brand's tone of voice.
-- Match roughly the brand's typical word count.
+- Follow the specified length guidelines (short/medium/long) exactly.
 - Be specific and concrete when details exist.
 - Be general when the description is general.
 
@@ -374,7 +463,11 @@ ${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date
 }### BRAND STYLE
 
 Tone of voice: ${tone}
-Target length: ${lengthLabel}${lengthHint ? `, ${lengthHint}` : ""}
+Target length: ${lengthLabel.toUpperCase()}
+
+- Short = 1–2 sentences total.
+- Medium = around 3–5 sentences.
+- Long = around 6–8 sentences.
 
 ### POST TYPE
 
@@ -421,9 +514,17 @@ ${payload.prompt}
 - Never reference another brand or subcategory.
 - Do not invent extra facilities, capacities, or features.
 - Avoid generic filler (e.g. "Don't miss out on this exciting event") unless clearly warranted by the context.
-- Use short paragraphs separated by blank lines.
-- Aim for 2–4 short paragraphs depending on post length.
-- Never produce a single large block of text.
+
+LENGTH & STRUCTURE
+
+- For SHORT length: write 1–2 sentences total. One short paragraph is enough.
+- For MEDIUM length: write around 3–5 sentences split into 2–3 short paragraphs.
+- For LONG length: write around 6–8 sentences split into 2–4 short paragraphs.
+- Paragraphs MUST be separated by a blank line.
+- Never produce one giant block of text. If there is only one paragraph (short length), it MUST be brief.
+
+OTHER RULES
+
 - No hashtags.
 - No apologies.
 - Keep the copy natural, human, and specific.
@@ -442,12 +543,19 @@ For this specific post, prioritise this angle:
 ${payload.variation_hint}
 
 ` : ''}${(() => {
-  const typeGuidance = buildTypeSpecificGuidance(payload.subcategory_type ?? null, payload.subcategory_settings ?? null)
+  const typeGuidance = buildTypeSpecificGuidance(
+    payload.subcategory_type ?? null,
+    {
+      ...(payload.subcategory_settings ?? {}),
+      _days_until_event: payload.schedule?.days_until_event ?? null,
+      _frequency: payload.schedule?.frequency ?? null,
+    }
+  );
   return typeGuidance ? `### TYPE-SPECIFIC GUIDANCE
 
 ${typeGuidance}
 
-` : ''
+` : '';
 })()}Write the final post text only.  
 Plain text, no headings, no markdown, no explanations.
 `.trim();
