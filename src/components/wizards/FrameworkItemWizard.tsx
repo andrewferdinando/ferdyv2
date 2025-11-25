@@ -309,6 +309,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [detailsErrors, setDetailsErrors] = useState<{
     name?: string
     detail?: string
+    channels?: string
   }>({})
   
   // Initialize schedule from initialData in edit mode
@@ -573,7 +574,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const isStep1Valid = !!subcategoryType
   const isStep2Valid =
     details.name.trim().length > 0 &&
-    details.detail.trim().length > 0
+    details.detail.trim().length > 0 &&
+    details.channels.length > 0
 
   // Helper to parse lead times from input string
   const parseLeadTimes = (input: string): number[] => {
@@ -686,6 +688,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         const newErrors: typeof detailsErrors = {}
         if (!details.name.trim()) newErrors.name = 'Please give this a name.'
         if (!details.detail.trim()) newErrors.detail = 'Please describe this item.'
+        if (details.channels.length === 0) newErrors.channels = 'Select at least one channel.'
         setDetailsErrors(newErrors)
         setCurrentStep(2)
         return null
@@ -1032,6 +1035,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         const newErrors: typeof detailsErrors = {}
         if (!details.name.trim()) newErrors.name = 'Please give this a name.'
         if (!details.detail.trim()) newErrors.detail = 'Please describe this item.'
+        if (details.channels.length === 0) newErrors.channels = 'Select at least one channel.'
         setDetailsErrors(newErrors)
         setCurrentStep(2)
         return false
@@ -1531,6 +1535,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       const newErrors: typeof detailsErrors = {}
       if (!details.name.trim()) newErrors.name = 'Please give this a name.'
       if (!details.detail.trim()) newErrors.detail = 'Please describe this item.'
+      if (details.channels.length === 0) newErrors.channels = 'Select at least one channel.'
       setDetailsErrors(newErrors)
       if (Object.keys(newErrors).length > 0) return // don't advance
     }
@@ -1903,7 +1908,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       {subcategoryType === 'event_series' && (
                         <div className="mb-5">
                           <h3 className="text-sm font-medium text-gray-900 mb-3">
-                            How many dates does this event have?
+                            Are these events single dates or date ranges?
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <button
@@ -2020,7 +2025,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       </FormField>
 
                       {/* Channels */}
-                      <FormField label="Channels">
+                      <FormField label="Channels" required>
                         <div className="flex flex-wrap gap-4">
                           {CHANNELS.map((channel) => (
                             <label key={channel.value} className="flex items-center">
@@ -2032,6 +2037,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                     ? [...details.channels, channel.value]
                                     : details.channels.filter(c => c !== channel.value)
                                   setDetails(prev => ({ ...prev, channels: newChannels }))
+                                  // Clear error when user selects a channel
+                                  if (detailsErrors.channels) {
+                                    setDetailsErrors(prev => ({ ...prev, channels: undefined }))
+                                  }
                                 }}
                                 className="mr-2 w-4 h-4 text-[#6366F1] border-gray-300 rounded focus:ring-[#6366F1]"
                               />
@@ -2039,6 +2048,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             </label>
                           ))}
                         </div>
+                        {detailsErrors.channels && (
+                          <p className="text-red-500 text-sm mt-1">{detailsErrors.channels}</p>
+                        )}
                       </FormField>
                     </div>
                   </div>

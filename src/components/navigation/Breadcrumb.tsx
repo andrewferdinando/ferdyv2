@@ -103,6 +103,12 @@ export default function Breadcrumb({ items, brandName, className = '' }: Breadcr
         }
       } else if (segment === 'settings') {
         label = 'Settings';
+      } else if (segment === 'framework') {
+        label = 'Categories';
+        // Link to categories list page
+        if (brandId) {
+          currentPath = `/brands/${brandId}/engine-room/categories`;
+        }
       } else if (segment === 'categories') {
         label = 'Categories';
       } else if (segment === 'integrations') {
