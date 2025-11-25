@@ -1143,6 +1143,7 @@ export default function EditPostPage() {
                       selectedChannels={selectedChannels}
                       onChannelsChange={setSelectedChannels}
                       selectedMediaTypes={selectedMediaTypes}
+                      channelStatuses={postJobs.map((job) => ({ channel: job.channel, status: job.status }))}
                       required
                     />
                   </div>
@@ -1195,71 +1196,25 @@ export default function EditPostPage() {
                     </div>
                   </div>
 
-                  {/* Channel Status */}
-                  {channelStatusItems.length > 0 && (
+                  {/* Retry failed channels button - show above Channels section if needed */}
+                  {canRetry && (
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
-                      <div className="mb-4 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900">Channel status</h3>
-                        {canRetry && (
-                          <button
-                            onClick={handleRetryFailedChannels}
-                            disabled={isRetrying}
-                            className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                              isRetrying
-                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                : 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'
-                            }`}
-                          >
-                            {isRetrying ? 'Retrying…' : 'Retry failed channels'}
-                          </button>
-                        )}
-                      </div>
-                      <div className="space-y-3">
-                        {channelStatusItems.map((job) => {
-                          const meta = getChannelStatusMeta(job.status);
-                          // Get the provider channel for describeChannelSupport (e.g., 'instagram_feed' -> 'instagram')
-                          const providerChannel = job.channel === 'instagram_feed' || job.channel === 'instagram_story' 
-                            ? 'instagram' 
-                            : job.channel === 'linkedin_profile' 
-                            ? 'linkedin' 
-                            : job.channel;
-                          return (
-                            <div
-                              key={job.id}
-                              className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2"
-                            >
-                              <div className="flex items-center space-x-3">
-                                {renderChannelIcon(job.channel)}
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">
-                                    {getChannelLabel(job.channel)}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {describeChannelSupport(providerChannel)}
-                                  </p>
-                                  {job.status.toLowerCase() === 'failed' && job.error ? (
-                                    <p className="mt-1 text-xs text-rose-600">{job.error}</p>
-                                  ) : null}
-                                  {job.status.toLowerCase() === 'success' && job.external_url ? (
-                                    <a
-                                      href={job.external_url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="mt-1 inline-flex text-xs font-medium text-[#6366F1] hover:text-[#4F46E5]"
-                                    >
-                                      View post
-                                    </a>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.textClass} ${meta.pillBgClass}`}
-                              >
-                                {meta.text}
-                              </span>
-                            </div>
-                          );
-                        })}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1">Channel status</h3>
+                          <p className="text-sm text-gray-500">Some channels failed to publish. Click to retry.</p>
+                        </div>
+                        <button
+                          onClick={handleRetryFailedChannels}
+                          disabled={isRetrying}
+                          className={`inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                            isRetrying
+                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                              : 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'
+                          }`}
+                        >
+                          {isRetrying ? 'Retrying…' : 'Retry failed channels'}
+                        </button>
                       </div>
                     </div>
                   )}
