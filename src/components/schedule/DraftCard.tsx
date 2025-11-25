@@ -648,9 +648,10 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     normalizedJobs.length > 0 ? (
       <div className="mb-4 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
         {normalizedJobs.map((job, index) => {
-          // Debug: Log each channel pill being rendered
-          if (normalizedJobs.length > 1 && index === 0) {
-            console.log(`🎨 DraftCard [${draft.id}] RENDERING ${normalizedJobs.length} CHANNEL PILLS`);
+          // Debug: Log each channel pill being rendered with its unique key
+          if (normalizedJobs.length > 1) {
+            const uniqueKey = job.id || `${draft.id}-${job.channel}-${job.status}-${index}`;
+            console.log(`🎨 DraftCard [${draft.id}] Rendering pill ${index + 1}/${normalizedJobs.length}: ${job.channel} (key: ${uniqueKey})`);
           }
           
           const { indicatorClass, label, icon, textClass, pillBgClass } = getChannelStatusVisual(job.status);
@@ -661,7 +662,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
 
           return (
             <div
-              key={job.id ?? `${job.channel}-${job.status}`}
+              key={job.id || `${draft.id}-${job.channel}-${job.status}-${index}`}
               className="flex items-center space-x-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm"
               title={tooltip}
             >
