@@ -466,7 +466,7 @@ ${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date
 Tone of voice: ${tone}
 Target length: ${lengthLabel.toUpperCase()}
 
-- Short = 1–2 sentences total.
+- Short = a single, concise sentence.
 - Medium = around 3–5 sentences.
 - Long = around 6–8 sentences.
 
@@ -518,11 +518,11 @@ ${payload.prompt}
 
 LENGTH & STRUCTURE
 
-- For SHORT length: write 1–2 sentences total. One short paragraph is enough.
+- For SHORT length: you MUST write exactly ONE sentence on a single line. Do not add any line breaks for SHORT.
 - For MEDIUM length: write around 3–5 sentences split into 2–3 short paragraphs.
 - For LONG length: write around 6–8 sentences split into 2–4 short paragraphs.
-- Paragraphs MUST be separated by a blank line.
-- Never produce one giant block of text. If there is only one paragraph (short length), it MUST be brief.
+- For MEDIUM and LONG, paragraphs MUST be separated by a blank line.
+- Never produce one giant block of text for MEDIUM or LONG.
 
 OTHER RULES
 
