@@ -329,15 +329,17 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 3) Load post_tone from brand_post_information
+  // 3) Load post_tone and example posts from brand_post_information
   let brandPostInfo: { 
     post_tone: string | null;
   } | null = null;
   
+  let brandExamples: string[] = [];
+  
   try {
     const { data: postInfo } = await supabaseAdmin
       .from("brand_post_information")
-      .select("post_tone")
+      .select("post_tone, fb_post_examples, ig_post_examples")
       .eq("brand_id", brandId)
       .maybeSingle();
     
@@ -345,10 +347,21 @@ export async function generatePostCopyFromContext(
       brandPostInfo = {
         post_tone: postInfo.post_tone,
       };
+      
+      // Combine fb_post_examples and ig_post_examples, filter out nulls/empty strings, limit to 3
+      const allExamples: string[] = [
+        ...(Array.isArray(postInfo.fb_post_examples) ? postInfo.fb_post_examples : []),
+        ...(Array.isArray(postInfo.ig_post_examples) ? postInfo.ig_post_examples : [])
+      ]
+        .filter((ex): ex is string => typeof ex === 'string' && ex.trim().length > 0)
+        .slice(0, 3);
+      
+      brandExamples = allExamples;
     }
   } catch {
     // Gracefully skip if table doesn't exist or query fails
     brandPostInfo = null;
+    brandExamples = [];
   }
 
   // 4) Extract tone and compute effective length from override + category default
@@ -436,6 +449,7 @@ You MUST NOT:
 - Use the scheduled post date in the copy under any circumstances.
 - Include ANY hashtags in the output (Ferdy will add them separately).
 - Apologise, ask for more info, or say you don't have enough detail.
+- You must NEVER copy, remix, paraphrase, or reuse any sentences or specific wording from the brand voice examples. They are style reference ONLY.
 
 Subcategory details are ALWAYS the highest priority source of truth.
 Brand tone affects writing style, NOT factual content.`;
@@ -515,7 +529,14 @@ ${effectiveLength === "short"
   ? `Target: around 3–5 sentences split into 2–3 short paragraphs.`
   : `Target: around 6–8 sentences split into 2–4 short paragraphs.`}
 
-### POST TYPE
+${brandExamples.length > 0 ? `### BRAND VOICE EXAMPLES
+
+Below are recent posts published by this brand. Use them ONLY to understand tone, rhythm, energy and style.  
+You MUST NOT copy, remix, paraphrase or reuse ANY sentences or phrases from these examples.
+
+${brandExamples.map((ex, i) => `${i + 1}) "${ex}"`).join("\n")}
+
+` : ""}### POST TYPE
 
 ${isEvent ? "EVENT MODE" : "PRODUCT/SERVICE MODE"}
 
