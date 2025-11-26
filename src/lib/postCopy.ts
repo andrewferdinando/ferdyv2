@@ -170,6 +170,8 @@ Return JSON with this shape:
   "exampleSnippets": string[]
 }
 
+Respond with a single JSON object only. No backticks, no markdown, no explanation. Just raw JSON.
+
 Posts:
 ${limited.map((p, i) => `${i + 1}) ${p}`).join("\n\n")}
 `.trim();
@@ -181,9 +183,33 @@ ${limited.map((p, i) => `${i + 1}) ${p}`).join("\n\n")}
       messages: [{ role: "user", content: prompt }],
     });
 
-    const raw = completion.choices[0]?.message?.content ?? "";
+    const raw = (completion.choices[0]?.message?.content ?? '').trim();
+    
+    // Optional: short debug log of the first part of the response
+    console.log('[postCopy][tone-debug] Raw tone response (first 200 chars):', raw.slice(0, 200));
+    
+    // Strip markdown fences
+    let cleaned = raw
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    
+    // Extract the JSON object if there is any extra text around it
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      cleaned = cleaned.slice(start, end + 1);
+    }
+    
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(cleaned);
+      
+      // Debug log after successful parsing
+      console.log('[postCopy][tone-debug] Parsed tone profile result:', {
+        toneProfile: parsed.toneProfile,
+        snippetCount: Array.isArray(parsed.exampleSnippets) ? parsed.exampleSnippets.length : 0,
+      });
+      
       const toneProfile =
         typeof parsed.toneProfile === "string" && parsed.toneProfile.trim().length > 0
           ? parsed.toneProfile.trim()
