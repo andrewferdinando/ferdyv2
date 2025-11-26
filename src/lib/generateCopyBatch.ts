@@ -62,6 +62,113 @@ function groupBy<T>(array: T[], keyFn: (item: T) => string): Record<string, T[]>
   return result;
 }
 
+/**
+ * Select assets for a draft based on subcategory_id
+ * Queries assets via asset_tags table using the subcategory's tag
+ */
+async function selectAssetsForDraft(
+  supabase: any,
+  brandId: string,
+  subcategoryId: string,
+  channel: string,
+  draftId: string
+): Promise<string[]> {
+  try {
+    // Step 1: Get subcategory name to find the tag
+    const { data: subcategory, error: subcategoryError } = await supabase
+      .from('subcategories')
+      .select('id, name')
+      .eq('id', subcategoryId)
+      .single();
+
+    if (subcategoryError || !subcategory) {
+      console.log(`[generateCopyBatch][asset-selection] Subcategory ${subcategoryId} not found for draft ${draftId}`);
+      return [];
+    }
+
+    // Step 2: Find the tag for this subcategory
+    // Tags are linked to subcategories by brand_id + name + kind='subcategory'
+    // (subcategories trigger creates tags automatically)
+    const { data: tags, error: tagsError } = await supabase
+      .from('tags')
+      .select('id')
+      .eq('brand_id', brandId)
+      .eq('name', subcategory.name)
+      .eq('kind', 'subcategory')
+      .eq('is_active', true)
+      .limit(1);
+
+    if (tagsError || !tags || tags.length === 0) {
+      console.log(`[generateCopyBatch][asset-selection] No tag found for subcategory ${subcategoryId} (${subcategory.name}) for draft ${draftId}`);
+      return [];
+    }
+
+    const tagId = tags[0].id;
+
+    // Step 3: Find assets linked to this tag via asset_tags
+    const { data: assetTags, error: assetTagsError } = await supabase
+      .from('asset_tags')
+      .select('asset_id')
+      .eq('tag_id', tagId);
+
+    if (assetTagsError || !assetTags || assetTags.length === 0) {
+      console.log(`[generateCopyBatch][asset-selection] No assets found for tag ${tagId} (subcategory ${subcategoryId}) for draft ${draftId}`);
+      return [];
+    }
+
+    const candidateAssetIds = assetTags.map((at: any) => at.asset_id);
+
+    // Step 4: Fetch the actual assets and filter by brand_id, is_active, and channel compatibility
+    const { data: assets, error: assetsError } = await supabase
+      .from('assets')
+      .select('id, asset_type')
+      .eq('brand_id', brandId)
+      .eq('is_active', true)
+      .in('id', candidateAssetIds);
+
+    if (assetsError || !assets || assets.length === 0) {
+      console.log(`[generateCopyBatch][asset-selection] No active assets found for subcategory ${subcategoryId} for draft ${draftId}`);
+      return [];
+    }
+
+    // Filter by channel compatibility (simple check - images work for all, videos may have restrictions)
+    // For now, we'll allow all images and videos. Channel-specific filtering can be added later if needed.
+    const eligibleAssets = assets.filter((asset: any) => {
+      const assetType = asset.asset_type || 'image';
+      // Instagram feed supports both images and videos
+      // Add more channel-specific logic here if needed
+      return assetType === 'image' || assetType === 'video';
+    });
+
+    if (eligibleAssets.length === 0) {
+      console.log(`[generateCopyBatch][asset-selection] No eligible assets after channel filtering for draft ${draftId}`);
+      return [];
+    }
+
+    // Step 5: Select one asset (random selection for now - can be enhanced with LRU later)
+    const selectedAsset = eligibleAssets[Math.floor(Math.random() * eligibleAssets.length)];
+    const finalAssetIds = [selectedAsset.id];
+
+    // Log asset selection details
+    console.info('[generateCopyBatch][asset-selection]', {
+      draftId,
+      brandId,
+      subcategoryId,
+      subcategoryName: subcategory.name,
+      channel,
+      candidateAssetCount: candidateAssetIds.length,
+      activeAssetCount: assets.length,
+      eligibleAssetCount: eligibleAssets.length,
+      finalAssetIds,
+    });
+
+    return finalAssetIds;
+  } catch (error) {
+    console.error(`[generateCopyBatch][asset-selection] Error selecting assets for draft ${draftId}:`, error);
+    return [];
+  }
+}
+
 // Shared batch processing function
 export async function processBatchCopyGeneration(
   brandId: string,
@@ -98,9 +205,10 @@ export async function processBatchCopyGeneration(
       
       try {
       // Check if copy_status is already "complete" - skip if so
+      // Also fetch subcategory_id and channel for asset selection
       const { data: existingDraft, error: fetchDraftError } = await supabaseAdmin
         .from("drafts")
-        .select("copy_status, copy")
+        .select("copy_status, copy, subcategory_id, channel, brand_id")
         .eq("id", draft.draftId)
         .single();
 
@@ -124,6 +232,30 @@ export async function processBatchCopyGeneration(
       }
 
       console.log(`Generating copy for draft ${draft.draftId}`);
+
+      // Select assets for this draft if subcategory_id is available
+      let assetIds: string[] = [];
+      const draftSubcategoryId = existingDraft?.subcategory_id || draft.subcategoryId;
+      const draftChannel = existingDraft?.channel || "instagram_feed"; // Default fallback
+      const draftBrandId = existingDraft?.brand_id || brandId;
+
+      if (draftSubcategoryId) {
+        try {
+          const selectedAssetIds = await selectAssetsForDraft(
+            supabaseAdmin,
+            draftBrandId,
+            draftSubcategoryId,
+            draftChannel,
+            draft.draftId
+          );
+          assetIds = selectedAssetIds;
+        } catch (assetError) {
+          console.error(`[generateCopyBatch] Error selecting assets for draft ${draft.draftId}:`, assetError);
+          // Continue without assets if selection fails
+        }
+      } else {
+        console.log(`[generateCopyBatch] No subcategory_id for draft ${draft.draftId}, skipping asset selection`);
+      }
 
       // Set copy_status to "pending"
       try {
@@ -183,7 +315,7 @@ export async function processBatchCopyGeneration(
         throw new Error("No variants generated");
       }
 
-      // Save result to drafts
+      // Save result to drafts (including asset_ids if selected)
       try {
         const { error: updateError } = await supabaseAdmin
           .from("drafts")
@@ -191,6 +323,7 @@ export async function processBatchCopyGeneration(
             copy: variants[0],
             copy_status: "complete",
             copy_model: "gpt-4o-mini",
+            ...(assetIds.length > 0 && { asset_ids: assetIds }),
             copy_meta: {
               job_run_id: jobRunId,
               platform: payload.platform,

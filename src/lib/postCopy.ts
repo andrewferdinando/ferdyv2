@@ -916,6 +916,10 @@ ${payload.prompt}
 - Never reference another brand or subcategory.
 - Do not invent extra facilities, capacities, or features.
 - Avoid generic filler (e.g. "Don't miss out on this exciting event") unless clearly warranted by the context.
+${urlSummaryText ? `
+**IMPORTANT: When url_page_summary is provided, you MUST consider both the description and the URL summary.**` : ''}
+${variationTotal > 1 && urlSummaryText ? `
+**VARIATION REQUIREMENT: Across multiple posts for the same subcategory, you SHOULD surface different specific details from the URL summary (e.g. pricing, number of games, who it's for, key features, value props), not just repeat the same line from the description. Avoid repeating the exact same phrase from the subcategory description in every variation. Each variation should pull a different detail from url_page_summary when available.**` : ''}
 
 LENGTH & STRUCTURE
 
@@ -953,12 +957,14 @@ INTERNAL VARIATION CONTEXT
 
 You are writing variation ${variationIndex + 1} of ${variationTotal} for this same subcategory.
 
-For variation 1: focus on clearly explaining what this product/service/experience is.
-For variation 2: focus on who it's for and what kind of people will enjoy or benefit from it.
-For variation 3 and above: focus on specific benefits, atmosphere, value, or a vivid moment of the experience.
+For variation 1: focus on clearly explaining what this product/service/experience is.${urlSummaryText ? ' Pull a specific detail from the URL summary if available (e.g. pricing, duration, capacity, key features).' : ''}
+For variation 2: focus on who it's for and what kind of people will enjoy or benefit from it.${urlSummaryText ? ' Reference a different detail from the URL summary (e.g. age groups, skill levels, group sizes).' : ''}
+For variation 3 and above: focus on specific benefits, atmosphere, value, or a vivid moment of the experience.${urlSummaryText ? ' Surface yet another distinct detail from the URL summary (e.g. what makes it special, included amenities, unique selling points).' : ''}
 
 CRITICAL: For posts within the same subcategory, each opening sentence must use a different structure and wording.
 Avoid re-using opening frames like "Step into...", "Dive into...", "Get ready for...", "Unleash...", etc. If an earlier variation used a high-energy verb opening, choose a different style (e.g. question, benefit-led, scene-setting) for this variation.
+${urlSummaryText ? `
+**When url_page_summary is provided, use it actively: Each variation should highlight a different specific detail from the URL summary rather than repeating the same information from the description. For example, if variation 1 mentions pricing, variation 2 might mention duration or included features, and variation 3 might mention who it's perfect for or what makes it unique.**` : ''}
 
 This is post ${variationIndex + 1} of ${variationTotal} for this same subcategory.
 

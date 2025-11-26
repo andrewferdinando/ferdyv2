@@ -103,10 +103,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Fetch the newly created drafts
+    // Fetch the newly created drafts (include subcategory_id for asset selection)
     const { data: insertedDrafts, error: fetchError } = await supabaseAdmin
       .from('drafts')
-      .select('id, brand_id, scheduled_for, schedule_source, copy')
+      .select('id, brand_id, scheduled_for, schedule_source, copy, subcategory_id, channel')
       .eq('brand_id', brandId)
       .eq('schedule_source', 'framework')
       .gte('created_at', new Date(Date.now() - 120000).toISOString()) // Last 2 minutes
