@@ -54,6 +54,8 @@ export type PostCopyPayload = {
   variants?: number; // 1-3
   max_tokens?: number; // default 120
   variation_hint?: string | null; // Optional hint to guide AI toward a specific angle for this post
+  variation_index?: number; // 0-based index for this post when multiple posts exist for same subcategory
+  variation_total?: number; // Total number of posts for this subcategory (used with variation_index)
 };
 
 // Helper functions
@@ -432,7 +434,7 @@ export async function generatePostCopyFromContext(
   client: OpenAI,
   payload: PostCopyPayload
 ): Promise<string[]> {
-  const { brandId, prompt, variants = 1, max_tokens = 120, draftId } = payload;
+  const { brandId, prompt, variants = 1, max_tokens = 120, draftId, variation_index, variation_total } = payload;
 
   // 1) Determine if this is an event-based post (date/date_range = events, daily/weekly/monthly = products/services)
   const isEvent =
@@ -676,6 +678,14 @@ ${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date
 }### BRAND STYLE
 
 Tone of voice: ${toneProfile}
+
+This tone profile has been inferred from real posts using AI.
+Always match this tone:
+- If tone is formal → keep writing formal.
+- If tone is friendly/casual → keep writing friendly/casual.
+- If tone shows high energy → allow higher energy.
+- If tone is calm and professional → stay calm and professional.
+
 Target length: ${lengthLabel.toUpperCase()}
 
 ${effectiveLength === "short" 
@@ -694,15 +704,25 @@ ${exampleSnippets
   .map((snippet, i) => `${i + 1}) ${snippet}`)
   .join("\n\n")}
 
-` : ""}### EMOJI RULES
+` : ""}### EMOJI USAGE RULES
 
-- This brand often uses emojis in their posts.
-- Look at the BRAND VOICE EXAMPLES and mirror the overall **feeling** of emoji usage (fun, energetic, family-friendly, activity-focused).
-- Use emojis in a similar way and quantity to the examples:
-  - For SHORT copy, aim for around 1–2 emojis.
-  - For MEDIUM copy, aim for around 2–4 emojis.
-  - Place emojis naturally in the sentence (e.g. near key actions, experiences, or emotions).
-- Prefer emojis that fit this brand and context (e.g. fun, games, racing, excitement, families, nights out) rather than random or generic ones.
+Use emojis ONLY if the brand's example posts typically use emojis.
+
+Follow the brand's natural style:
+- If they use **none or very few emojis** → do NOT add emojis.
+- If they use emojis sparingly → add **0–1 emojis**, matching similar types.
+- If they use emojis frequently → add **1–3 emojis**, placed naturally.
+
+Emoji types must match the example patterns:
+- If the examples use celebration / sparkles → you may use 🎉✨⭐
+- If the examples use playful icons → you may use 😄🎮🤩
+- If the examples use practical icons → you may use 📣📅📍
+- If the examples are more serious or professional → avoid playful emojis entirely.
+
+Placement rules:
+- Do NOT put emojis at the start of sentences.
+- Use them only at natural emphasis points at the end of a phrase or sentence.
+- Never disrupt clarity or professionalism.
 
 ### POST TYPE
 
@@ -776,19 +796,56 @@ OTHER RULES
 - No hashtags.
 - No apologies.
 - Keep the copy natural, human, and specific.
-- Emojis are allowed and encouraged when they match the brand examples and context. Follow the EMOJI RULES.
+- Emojis are allowed and encouraged when they match the brand examples and context. Follow the EMOJI USAGE RULES.
 
+${(variation_index !== undefined && variation_total !== undefined && variation_total > 1) ? `
+### VARIATION SLOT (OPENING SENTENCE CONTROL)
+
+This is post ${variation_index + 1} of ${variation_total} for this same subcategory.
+
+Your job is to choose a completely different opening style for each post.
+You MUST NOT reuse the same first 2–3 words across posts from the same subcategory.
+
+Follow this exact variation pattern:
+
+${variation_index === 0 ? `- If this is post 1 (variationIndex = 0):
+  Start with a **bold, benefit-led statement**.
+  Examples:
+  - "This service is designed to help..."
+  - "Experience a smarter way to..."
+  - "A simple way to get more from..."` : variation_index === 1 ? `- If this is post 2 (variationIndex = 1):
+  Start with an **audience-facing question**.
+  Examples:
+  - "Looking for a better way to…?"
+  - "Need something that helps you…?"
+  - "Want to discover how…?"` : variation_index === 2 ? `- If this is post 3 (variationIndex = 2):
+  Start with a **vivid scene or moment**.
+  Examples:
+  - "Picture a moment where..."
+  - "Imagine stepping into a place where..."
+  - "Think about the feeling of..."` : `- If this is post ${variation_index + 1} or higher:
+  Start with a **different hook style** not used previously.
+  Examples:
+  - a short punchy hook,
+  - a surprising fact,
+  - a direct instruction,
+  - a result-first statement.`}
+
+Global rules for ALL posts:
+- NEVER start two posts with the same first 2–3 words.
+- Avoid pattern-driven openings like "Get ready", "Step into", "Dive into", "Ready for", etc.
+- **Match the brand's tone profile**:
+  - If the tone is formal → openings must be formal and professional.
+  - If the tone is casual/playful → openings may be friendly, energetic, or fun.
+- Ensure the opening style is suitable for ANY industry (government, charity, hospitality, entertainment, gyms, SaaS, etc.).
+` : `
 ### VARIATION RULES
 
 - Write each post with a different angle, structure, and opening sentence.
 - For posts from the same subcategory, avoid repeating the same phrasing.
 - You may focus each post on different aspects (e.g., benefits, what to expect, who it's for, key features, experience, value).
 - Reword sentences and reorder ideas so each post feels fresh and unique.
-
-CRITICAL: Opening sentence variation
-- When multiple posts are generated for the same subcategory, you MUST vary the opening.
-- Do NOT start more than one post with the same first 2–3 words (e.g. avoid repeating patterns like "Get ready...", "Step into...", "Ready for...", "Experience...", etc. across posts).
-- Use different styles of openings: a question, a bold statement, a sensory description, a benefit-led line, or a playful hook.
+`}
 
 ${payload.variation_hint ? `### VARIATION FOCUS FOR THIS POST
 
