@@ -182,6 +182,8 @@ export async function POST(req: NextRequest) {
       scheduled_for: string | null;
       schedule_source: string | null;
       copy: string | null;
+      subcategory_id: string | null;
+      channel: string | null;
     }
 
     // Filter drafts that need copy generation
