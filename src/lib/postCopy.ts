@@ -133,14 +133,23 @@ async function buildBrandToneProfile(
   client: OpenAI,
   examples: string[]
 ): Promise<{ toneProfile: string; exampleSnippets: string[] }> {
+  const defaultToneProfile =
+    "Clear, friendly and professional, suitable for a general audience.";
+  
   // If we don't have any examples, fall back to a neutral default
   if (!examples || examples.length === 0) {
+    console.log('[postCopy][tone-debug] buildBrandToneProfile: No examples provided');
     return {
-      toneProfile:
-        "Clear, friendly and professional, suitable for a general audience.",
+      toneProfile: defaultToneProfile,
       exampleSnippets: [],
     };
   }
+
+  // Debug logging at start
+  console.log('[postCopy][tone-debug] buildBrandToneProfile input', {
+    exampleCount: examples.length,
+    sampleExamples: examples.slice(0, 2).map(ex => ex.substring(0, 100) + (ex.length > 100 ? '...' : '')),
+  });
 
   // Limit how many examples we send to the model (to keep tokens under control)
   const limited = examples
@@ -165,33 +174,49 @@ Posts:
 ${limited.map((p, i) => `${i + 1}) ${p}`).join("\n\n")}
 `.trim();
 
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.4,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "";
   try {
-    const parsed = JSON.parse(raw);
-    const toneProfile =
-      typeof parsed.toneProfile === "string" && parsed.toneProfile.trim().length > 0
-        ? parsed.toneProfile.trim()
-        : "Clear, friendly and professional, suitable for a general audience.";
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.4,
+      messages: [{ role: "user", content: prompt }],
+    });
 
-    const exampleSnippets = Array.isArray(parsed.exampleSnippets)
-      ? parsed.exampleSnippets
-          .map((s: unknown) => (typeof s === "string" ? s.trim() : ""))
-          .filter(Boolean)
-          .slice(0, 3)
-      : [];
+    const raw = completion.choices[0]?.message?.content ?? "";
+    try {
+      const parsed = JSON.parse(raw);
+      const toneProfile =
+        typeof parsed.toneProfile === "string" && parsed.toneProfile.trim().length > 0
+          ? parsed.toneProfile.trim()
+          : defaultToneProfile;
 
-    return { toneProfile, exampleSnippets };
-  } catch {
-    // Fallback if JSON parsing fails
+      const exampleSnippets = Array.isArray(parsed.exampleSnippets)
+        ? parsed.exampleSnippets
+            .map((s: unknown) => (typeof s === "string" ? s.trim() : ""))
+            .filter(Boolean)
+            .slice(0, 3)
+        : [];
+
+      // Debug logging after successful inference
+      console.log('[postCopy][tone-debug] buildBrandToneProfile result', {
+        toneProfile,
+        snippetCount: exampleSnippets.length,
+        sampleSnippets: exampleSnippets.slice(0, 2),
+      });
+
+      return { toneProfile, exampleSnippets };
+    } catch (parseError) {
+      // Fallback if JSON parsing fails
+      console.error('[postCopy][tone-debug] buildBrandToneProfile JSON parse error', parseError);
+      return {
+        toneProfile: defaultToneProfile,
+        exampleSnippets: [],
+      };
+    }
+  } catch (error) {
+    // Fallback if OpenAI call fails
+    console.error('[postCopy][tone-debug] buildBrandToneProfile error', error);
     return {
-      toneProfile:
-        "Clear, friendly and professional, suitable for a general audience.",
+      toneProfile: defaultToneProfile,
       exampleSnippets: [],
     };
   }
@@ -427,25 +452,52 @@ export async function generatePostCopyFromContext(
   // Build tone profile from examples only
   const fbExamples = brandPostInfo?.fb_post_examples ?? [];
   const igExamples = brandPostInfo?.ig_post_examples ?? [];
+  
+  // Debug logging after loading brandPostInfo
+  console.log('[postCopy][tone-debug] brandId tone examples', {
+    brandId,
+    hasBrandPostInfo: !!brandPostInfo,
+    fbCount: fbExamples.length,
+    igCount: igExamples.length,
+  });
+  
   const allExamples = [...fbExamples, ...igExamples].filter(
     (e) => typeof e === "string" && e.trim().length > 0
   );
 
   // Default tone
-  let toneProfile =
+  const defaultToneProfile =
     "Clear, friendly and professional, suitable for a general audience.";
+  let toneProfile = defaultToneProfile;
   let exampleSnippets: string[] = [];
 
-  if (allExamples.length > 0) {
+  const toneOverride = payload.tone_override?.trim() || null;
+  
+  if (toneOverride && toneOverride.length > 0) {
+    // Use explicit override, skip inference
+    toneProfile = toneOverride;
+    console.log('[postCopy][tone-debug] Using tone_override:', toneOverride);
+  } else if (allExamples.length > 0) {
+    // Infer from examples
+    console.log('[postCopy][tone-debug] Inferring tone from examples, count:', allExamples.length);
     const result = await buildBrandToneProfile(client, allExamples);
     toneProfile = result.toneProfile;
     exampleSnippets = result.exampleSnippets;
+    console.log('[postCopy][tone-debug] Tone inference complete:', {
+      toneProfile,
+      snippetCount: exampleSnippets.length,
+    });
+  } else {
+    // Falls back to defaultToneProfile
+    console.log('[postCopy][tone-debug] No examples or override, using default tone');
   }
-
-  // If payload.tone_override is provided, it should override the inferred tone
-  if (payload.tone_override && payload.tone_override.trim().length > 0) {
-    toneProfile = payload.tone_override.trim();
-  }
+  
+  // Final debug log showing what will be used in prompt
+  console.log('[postCopy][tone-debug] Final tone values for prompt:', {
+    toneProfile,
+    exampleSnippetsCount: exampleSnippets.length,
+    willShowExamples: exampleSnippets.length > 0,
+  });
   
   // Normalize copy length to lowercase to handle any case variations from DB
   const normalizeCopyLength = (value: string | undefined | null): "short" | "medium" | "long" | null => {
