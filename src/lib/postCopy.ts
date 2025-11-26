@@ -442,7 +442,25 @@ Brand tone affects writing style, NOT factual content.`;
 
   // 8) Build new USER prompt with subcat + URL summary + event rules
   const userPrompt = `
-### PRIMARY TOPIC (SUBCATEGORY)
+${effectiveLength === "short" ? `⚠️⚠️⚠️ CRITICAL INSTRUCTION - READ FIRST ⚠️⚠️⚠️
+
+YOU ARE WRITING SHORT COPY. This means you MUST write EXACTLY ONE SENTENCE ONLY.
+
+- ONE sentence total
+- On a single line (no line breaks)
+- No paragraphs
+- No multiple sentences
+- Just one complete sentence, period.
+
+DO NOT write 2 sentences.
+DO NOT write 3 sentences.
+DO NOT create paragraphs.
+DO NOT add line breaks.
+
+ONE SENTENCE ONLY. That is the ONLY requirement for SHORT copy.
+
+---
+` : ""}### PRIMARY TOPIC (SUBCATEGORY)
 
 Name: ${subName || "(not provided)"}
 Description: ${subDesc || "(not provided)"}
@@ -491,7 +509,11 @@ ${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date
 Tone of voice: ${tone}
 Target length: ${lengthLabel.toUpperCase()}
 
-${effectiveLength === "short" ? `CRITICAL: You MUST write exactly ONE sentence on a single line. No line breaks. No paragraphs. Just one sentence.` : effectiveLength === "medium" ? `Target: around 3–5 sentences split into 2–3 short paragraphs.` : `Target: around 6–8 sentences split into 2–4 short paragraphs.`}
+${effectiveLength === "short" 
+  ? `⚠️ CRITICAL REQUIREMENT: Write EXACTLY ONE SENTENCE ONLY. No line breaks. No paragraphs. Just one sentence.`
+  : effectiveLength === "medium" 
+  ? `Target: around 3–5 sentences split into 2–3 short paragraphs.`
+  : `Target: around 6–8 sentences split into 2–4 short paragraphs.`}
 
 ### POST TYPE
 
