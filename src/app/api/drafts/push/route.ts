@@ -334,6 +334,15 @@ export async function POST(req: NextRequest) {
             default_copy_length: subcategory?.default_copy_length ?? "medium",
           };
 
+          // Debug log for copy length
+          console.log('[push] Copy length mapping:', {
+            draftId: d.id,
+            subcategoryId: subcategoryIdFromGroup,
+            subcategoryName: subcategory?.name,
+            default_copy_length_from_db: subcategory?.default_copy_length,
+            mapped_default_copy_length: mappedSubcategory.default_copy_length,
+          });
+
           // Log draft rule + subcategory mapping for debugging
           console.log("[push] Draft rule + subcategory mapping:", JSON.stringify({
             draftId: d.id,

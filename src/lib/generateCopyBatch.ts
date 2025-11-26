@@ -130,6 +130,13 @@ export async function processBatchCopyGeneration(
 
       // Log payload before calling generatePostCopyFromContext (for debugging)
       console.log("COPY PAYLOAD:", JSON.stringify(payload, null, 2));
+      console.log("[generateCopyBatch] Copy length debug:", {
+        draftId: draft.draftId,
+        explicitLength: draft.options?.length,
+        subcategoryDefaultCopyLength: draft.subcategory?.default_copy_length,
+        effectiveLength: payload.length || payload.subcategory?.default_copy_length || "medium",
+        subcategoryName: draft.subcategory?.name,
+      });
 
       // Generate copy (with n=1)
       const variants = await generatePostCopyFromContext(

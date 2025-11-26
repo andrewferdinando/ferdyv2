@@ -357,12 +357,32 @@ export async function generatePostCopyFromContext(
     brandPostInfo?.post_tone ||
     "clear, friendly and professional";
   
+  // Normalize copy length to lowercase to handle any case variations from DB
+  const normalizeCopyLength = (value: string | undefined | null): "short" | "medium" | "long" | null => {
+    if (!value) return null;
+    const normalized = value.toLowerCase().trim();
+    if (normalized === "short" || normalized === "medium" || normalized === "long") {
+      return normalized as "short" | "medium" | "long";
+    }
+    return null;
+  };
+
   const effectiveLength: "short" | "medium" | "long" =
-    payload.length ||
-    payload.subcategory?.default_copy_length ||
+    normalizeCopyLength(payload.length) ||
+    normalizeCopyLength(payload.subcategory?.default_copy_length) ||
     "medium";
   
   const lengthLabel = effectiveLength;
+
+  // Debug log for copy length resolution
+  if (draftId) {
+    console.log(`[postCopy] Copy length resolution for draft ${draftId}:`, {
+      explicitLength: payload.length,
+      subcategoryDefaultCopyLength: payload.subcategory?.default_copy_length,
+      effectiveLength,
+      subcategoryName: payload.subcategory?.name,
+    });
+  }
 
   // 6) Extract subcategory data including url_page_summary
   const subName = payload.subcategory?.name || "";
