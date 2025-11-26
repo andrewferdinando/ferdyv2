@@ -134,7 +134,7 @@ const formatSettingsHints = (type: SubcategoryType | null | undefined, settings:
 async function buildBrandToneProfile(
   client: OpenAI,
   examples: string[]
-): Promise<{ toneProfile: string; exampleSnippets: string[] }> {
+): Promise<{ toneProfile: string; exampleSnippets: string[]; emojiUsageLevel: 'none' | 'low' | 'medium' | 'high' }> {
   const defaultToneProfile =
     "Clear, friendly and professional, suitable for a general audience.";
   
@@ -144,6 +144,7 @@ async function buildBrandToneProfile(
     return {
       toneProfile: defaultToneProfile,
       exampleSnippets: [],
+      emojiUsageLevel: 'none',
     };
   }
 
@@ -224,28 +225,92 @@ ${limited.map((p, i) => `${i + 1}) ${p}`).join("\n\n")}
             .slice(0, 3)
         : [];
 
+      // Detect emoji usage level from examples
+      const emojiRegex = /\p{Extended_Pictographic}/u;
+      let postsWithEmoji = 0;
+      for (const ex of examples) {
+        if (emojiRegex.test(ex)) {
+          postsWithEmoji++;
+        }
+      }
+      const ratio = examples.length > 0 ? postsWithEmoji / examples.length : 0;
+      let emojiUsageLevel: 'none' | 'low' | 'medium' | 'high';
+      if (ratio === 0) {
+        emojiUsageLevel = 'none';
+      } else if (ratio < 0.2) {
+        emojiUsageLevel = 'low';
+      } else if (ratio < 0.5) {
+        emojiUsageLevel = 'medium';
+      } else {
+        emojiUsageLevel = 'high';
+      }
+
       // Debug logging after successful inference
       console.log('[postCopy][tone-debug] buildBrandToneProfile result', {
         toneProfile,
         snippetCount: exampleSnippets.length,
         sampleSnippets: exampleSnippets.slice(0, 2),
+        emojiUsageLevel,
+        emojiRatio: ratio,
+        postsWithEmoji,
+        totalPosts: examples.length,
       });
 
-      return { toneProfile, exampleSnippets };
+      return { toneProfile, exampleSnippets, emojiUsageLevel };
     } catch (parseError) {
       // Fallback if JSON parsing fails
       console.error('[postCopy][tone-debug] buildBrandToneProfile JSON parse error', parseError);
+      // Still compute emoji usage from examples even on parse error
+      const emojiRegex = /\p{Extended_Pictographic}/u;
+      let postsWithEmoji = 0;
+      for (const ex of examples) {
+        if (emojiRegex.test(ex)) {
+          postsWithEmoji++;
+        }
+      }
+      const ratio = examples.length > 0 ? postsWithEmoji / examples.length : 0;
+      let emojiUsageLevel: 'none' | 'low' | 'medium' | 'high';
+      if (ratio === 0) {
+        emojiUsageLevel = 'none';
+      } else if (ratio < 0.2) {
+        emojiUsageLevel = 'low';
+      } else if (ratio < 0.5) {
+        emojiUsageLevel = 'medium';
+      } else {
+        emojiUsageLevel = 'high';
+      }
       return {
         toneProfile: defaultToneProfile,
         exampleSnippets: [],
+        emojiUsageLevel,
       };
     }
   } catch (error) {
     // Fallback if OpenAI call fails
     console.error('[postCopy][tone-debug] buildBrandToneProfile error', error);
+    // Still compute emoji usage from examples even on error
+    const emojiRegex = /\p{Extended_Pictographic}/u;
+    let postsWithEmoji = 0;
+    for (const ex of examples) {
+      if (emojiRegex.test(ex)) {
+        postsWithEmoji++;
+      }
+    }
+    const ratio = examples.length > 0 ? postsWithEmoji / examples.length : 0;
+    let emojiUsageLevel: 'none' | 'low' | 'medium' | 'high';
+    if (ratio === 0) {
+      emojiUsageLevel = 'none';
+    } else if (ratio < 0.2) {
+      emojiUsageLevel = 'low';
+    } else if (ratio < 0.5) {
+      emojiUsageLevel = 'medium';
+    } else {
+      emojiUsageLevel = 'high';
+    }
     return {
       toneProfile: defaultToneProfile,
       exampleSnippets: [],
+      emojiUsageLevel,
     };
   }
 }
@@ -509,6 +574,7 @@ export async function generatePostCopyFromContext(
     "Clear, friendly and professional, suitable for a general audience.";
   let toneProfile = defaultToneProfile;
   let exampleSnippets: string[] = [];
+  let emojiUsageLevel: 'none' | 'low' | 'medium' | 'high' = 'none';
 
   const toneOverride = payload.tone_override?.trim() || null;
   
@@ -516,26 +582,71 @@ export async function generatePostCopyFromContext(
     // Use explicit override, skip inference
     toneProfile = toneOverride;
     console.log('[postCopy][tone-debug] Using tone_override:', toneOverride);
+    // Still detect emoji usage even when using tone override
+    if (allExamples.length > 0) {
+      const emojiRegex = /\p{Extended_Pictographic}/u;
+      let postsWithEmoji = 0;
+      for (const ex of allExamples) {
+        if (emojiRegex.test(ex)) {
+          postsWithEmoji++;
+        }
+      }
+      const ratio = allExamples.length > 0 ? postsWithEmoji / allExamples.length : 0;
+      if (ratio === 0) {
+        emojiUsageLevel = 'none';
+      } else if (ratio < 0.2) {
+        emojiUsageLevel = 'low';
+      } else if (ratio < 0.5) {
+        emojiUsageLevel = 'medium';
+      } else {
+        emojiUsageLevel = 'high';
+      }
+    }
   } else if (allExamples.length > 0) {
     // Infer from examples
     console.log('[postCopy][tone-debug] Inferring tone from examples, count:', allExamples.length);
     const result = await buildBrandToneProfile(client, allExamples);
     toneProfile = result.toneProfile;
     exampleSnippets = result.exampleSnippets;
+    emojiUsageLevel = result.emojiUsageLevel;
     console.log('[postCopy][tone-debug] Tone inference complete:', {
       toneProfile,
       snippetCount: exampleSnippets.length,
+      emojiUsageLevel,
     });
   } else {
     // Falls back to defaultToneProfile
     console.log('[postCopy][tone-debug] No examples or override, using default tone');
   }
   
+  // Compute emoji requirement based on emojiUsageLevel and allowEmojis
+  type EmojiRequirement = 'none' | 'optional_one' | 'required_one_at_end';
+  let emojiRequirement: EmojiRequirement = 'none';
+  if (allowEmojis) {
+    if (emojiUsageLevel === 'high') {
+      emojiRequirement = 'required_one_at_end';
+    } else if (emojiUsageLevel === 'medium') {
+      emojiRequirement = 'optional_one';
+    } else {
+      emojiRequirement = 'none';
+    }
+  }
+  
+  // Debug logging for emoji frequency
+  console.info('[postCopy][emoji-frequency-debug]', {
+    brandId,
+    emojiUsageLevel,
+    emojiRequirement,
+    allowEmojis,
+  });
+  
   // Final debug log showing what will be used in prompt
   console.log('[postCopy][tone-debug] Final tone values for prompt:', {
     toneProfile,
     exampleSnippetsCount: exampleSnippets.length,
     willShowExamples: exampleSnippets.length > 0,
+    emojiUsageLevel,
+    emojiRequirement,
   });
 
   // Debug logging for variation
@@ -646,6 +757,10 @@ YOU ARE WRITING SHORT COPY. This means you MUST write EXACTLY ONE SENTENCE ONLY.
 DO NOT write 2 sentences.
 DO NOT write 3 sentences.
 DO NOT create paragraphs.
+${emojiRequirement === 'required_one_at_end' ? `
+For this brand, you MUST include exactly one emoji at the very end of the sentence.` : emojiRequirement === 'none' ? `
+For this brand, you MUST NOT include any emojis.` : emojiRequirement === 'optional_one' ? `
+You may include at most one emoji at the end of the sentence if it feels natural.` : ''}
 DO NOT add line breaks.
 
 ONE SENTENCE ONLY. That is the ONLY requirement for SHORT copy.
@@ -709,7 +824,7 @@ Always match this tone:
 Target length: ${lengthLabel.toUpperCase()}
 
 ${effectiveLength === "short" 
-  ? `⚠️ CRITICAL REQUIREMENT: Write EXACTLY ONE SENTENCE ONLY. No line breaks. No paragraphs. Just one sentence.`
+  ? `⚠️ CRITICAL REQUIREMENT: Write EXACTLY ONE SENTENCE ONLY. No line breaks. No paragraphs. Just one sentence.${emojiRequirement === 'required_one_at_end' ? ' For this brand, you MUST include exactly one emoji at the very end of the sentence.' : emojiRequirement === 'none' ? ' For this brand, you MUST NOT include any emojis.' : ''}`
   : effectiveLength === "medium" 
   ? `Target: around 3–5 sentences split into 2–3 short paragraphs.`
   : `Target: around 6–8 sentences split into 2–4 short paragraphs.`}
@@ -724,25 +839,37 @@ ${exampleSnippets
   .map((snippet, i) => `${i + 1}) ${snippet}`)
   .join("\n\n")}
 
-` : ""}### EMOJI USAGE RULES
+` : ""}${(() => {
+  let emojiRulesText: string;
+  if (!allowEmojis || emojiRequirement === 'none') {
+    emojiRulesText = `### EMOJI USAGE RULES
 
-${allowEmojis ? `Use emojis ONLY if the brand's example posts typically use emojis.
+This brand rarely uses emojis in their existing posts, so for this post you MUST NOT add any emojis.`;
+  } else if (emojiRequirement === 'optional_one') {
+    emojiRulesText = `### EMOJI USAGE RULES
 
-Follow the brand's natural style:
-- If they use **none or very few emojis** → do NOT add emojis.
-- If they use emojis sparingly → add **0–1 emojis**, matching similar types.
-- If they use emojis frequently → add **1–3 emojis**, placed naturally.
+This brand sometimes uses emojis in their posts.
 
-Emoji types must match the example patterns:
-- If the examples use celebration / sparkles → you may use 🎉✨⭐
-- If the examples use playful icons → you may use 😄🎮🤩
-- If the examples use practical icons → you may use 📣📅📍
-- If the examples are more serious or professional → avoid playful emojis entirely.
+- You may include **at most one emoji** in this post.
+- Only add an emoji if it feels natural and matches the brand's style.
+- If you use an emoji, it should appear at the **end of the sentence**.
+- Never start the sentence with an emoji.`;
+  } else if (emojiRequirement === 'required_one_at_end') {
+    emojiRulesText = `### EMOJI USAGE RULES
 
-Placement rules:
-- Do NOT put emojis at the start of sentences.
-- Use them only at natural emphasis points at the end of a phrase or sentence.
-- Never disrupt clarity or professionalism.` : `ABSOLUTE RULE: Do not use emojis in this post under any circumstances.`}
+This brand frequently uses emojis in their posts.
+
+- You MUST include **exactly one emoji** in this post.
+- The emoji MUST appear at the **very end of the sentence**.
+- Do NOT put emojis at the start or in the middle of the sentence.
+- Choose an emoji style that matches the brand's existing posts (e.g. 🎮, 🎯, ⚡, 🎉, 🎄, etc. when relevant).`;
+  } else {
+    emojiRulesText = `### EMOJI USAGE RULES
+
+This brand rarely uses emojis in their existing posts, so for this post you MUST NOT add any emojis.`;
+  }
+  return emojiRulesText;
+})()}
 
 ### POST TYPE
 
@@ -798,7 +925,8 @@ ${effectiveLength === "short"
 - The sentence must be on a single line (no line breaks).
 - Do NOT write multiple sentences.
 - Do NOT create paragraphs.
-- One sentence, period. That's it.`
+- One sentence, period. That's it.
+${emojiRequirement === 'required_one_at_end' ? '- For this brand, you MUST include exactly one emoji at the very end of the sentence.' : emojiRequirement === 'none' ? '- For this brand, you MUST NOT include any emojis.' : emojiRequirement === 'optional_one' ? '- You may include at most one emoji at the end of the sentence if it feels natural.' : ''}`
   : effectiveLength === "medium"
   ? `You are writing MEDIUM length copy:
 - Write around 3–5 sentences total.
