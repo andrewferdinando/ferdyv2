@@ -436,6 +436,17 @@ export async function generatePostCopyFromContext(
 ): Promise<string[]> {
   const { brandId, prompt, variants = 1, max_tokens = 120, draftId, variation_index, variation_total } = payload;
 
+  // Normalize emoji mode: default to "auto" if not specified
+  const emojiMode = payload.emoji ?? "auto";
+  const allowEmojis = emojiMode === "auto";
+
+  // Debug logging for emoji mode
+  console.info("[postCopy][emoji-debug]", {
+    draftId: payload.draftId,
+    emojiMode,
+    allowEmojis,
+  });
+
   // 1) Determine if this is an event-based post (date/date_range = events, daily/weekly/monthly = products/services)
   const isEvent =
     payload.subcategory?.frequency_type === "date" ||
@@ -525,6 +536,15 @@ export async function generatePostCopyFromContext(
     toneProfile,
     exampleSnippetsCount: exampleSnippets.length,
     willShowExamples: exampleSnippets.length > 0,
+  });
+
+  // Debug logging for variation
+  const variationIndex = variation_index ?? 0;
+  const variationTotal = variation_total ?? 1;
+  console.info("[postCopy][variation-debug]", {
+    draftId: payload.draftId,
+    variationIndex,
+    variationTotal,
   });
   
   // Normalize copy length to lowercase to handle any case variations from DB
@@ -706,7 +726,7 @@ ${exampleSnippets
 
 ` : ""}### EMOJI USAGE RULES
 
-Use emojis ONLY if the brand's example posts typically use emojis.
+${allowEmojis ? `Use emojis ONLY if the brand's example posts typically use emojis.
 
 Follow the brand's natural style:
 - If they use **none or very few emojis** → do NOT add emojis.
@@ -722,7 +742,7 @@ Emoji types must match the example patterns:
 Placement rules:
 - Do NOT put emojis at the start of sentences.
 - Use them only at natural emphasis points at the end of a phrase or sentence.
-- Never disrupt clarity or professionalism.
+- Never disrupt clarity or professionalism.` : `ABSOLUTE RULE: Do not use emojis in this post under any circumstances.`}
 
 ### POST TYPE
 
@@ -796,34 +816,45 @@ OTHER RULES
 - No hashtags.
 - No apologies.
 - Keep the copy natural, human, and specific.
-- Emojis are allowed and encouraged when they match the brand examples and context. Follow the EMOJI USAGE RULES.
+${allowEmojis ? "- Emojis are allowed and encouraged when they match the brand examples and context. Follow the EMOJI USAGE RULES." : "- Do not use emojis in this post."}
 
-${(variation_index !== undefined && variation_total !== undefined && variation_total > 1) ? `
+${variationTotal > 1 ? `
 ### VARIATION SLOT (OPENING SENTENCE CONTROL)
 
-This is post ${variation_index + 1} of ${variation_total} for this same subcategory.
+INTERNAL VARIATION CONTEXT
+
+You are writing variation ${variationIndex + 1} of ${variationTotal} for this same subcategory.
+
+For variation 1: focus on clearly explaining what this product/service/experience is.
+For variation 2: focus on who it's for and what kind of people will enjoy or benefit from it.
+For variation 3 and above: focus on specific benefits, atmosphere, value, or a vivid moment of the experience.
+
+CRITICAL: For posts within the same subcategory, each opening sentence must use a different structure and wording.
+Avoid re-using opening frames like "Step into...", "Dive into...", "Get ready for...", "Unleash...", etc. If an earlier variation used a high-energy verb opening, choose a different style (e.g. question, benefit-led, scene-setting) for this variation.
+
+This is post ${variationIndex + 1} of ${variationTotal} for this same subcategory.
 
 Your job is to choose a completely different opening style for each post.
 You MUST NOT reuse the same first 2–3 words across posts from the same subcategory.
 
 Follow this exact variation pattern:
 
-${variation_index === 0 ? `- If this is post 1 (variationIndex = 0):
+${variationIndex === 0 ? `- If this is post 1 (variationIndex = 0):
   Start with a **bold, benefit-led statement**.
   Examples:
   - "This service is designed to help..."
   - "Experience a smarter way to..."
-  - "A simple way to get more from..."` : variation_index === 1 ? `- If this is post 2 (variationIndex = 1):
+  - "A simple way to get more from..."` : variationIndex === 1 ? `- If this is post 2 (variationIndex = 1):
   Start with an **audience-facing question**.
   Examples:
   - "Looking for a better way to…?"
   - "Need something that helps you…?"
-  - "Want to discover how…?"` : variation_index === 2 ? `- If this is post 3 (variationIndex = 2):
+  - "Want to discover how…?"` : variationIndex === 2 ? `- If this is post 3 (variationIndex = 2):
   Start with a **vivid scene or moment**.
   Examples:
   - "Picture a moment where..."
   - "Imagine stepping into a place where..."
-  - "Think about the feeling of..."` : `- If this is post ${variation_index + 1} or higher:
+  - "Think about the feeling of..."` : `- If this is post ${variationIndex + 1} or higher:
   Start with a **different hook style** not used previously.
   Examples:
   - a short punchy hook,

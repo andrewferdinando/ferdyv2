@@ -18,6 +18,7 @@ function getClient() {
 // Type for draft input
 export type DraftCopyInput = {
   draftId: string;
+  subcategoryId?: string; // Optional subcategory ID for grouping
   subcategory?: {
     name?: string;
     url?: string;
@@ -48,6 +49,19 @@ export type DraftCopyInput = {
   };
 };
 
+// Helper to group array by key
+function groupBy<T>(array: T[], keyFn: (item: T) => string): Record<string, T[]> {
+  const result: Record<string, T[]> = {};
+  for (const item of array) {
+    const key = keyFn(item);
+    if (!result[key]) {
+      result[key] = [];
+    }
+    result[key].push(item);
+  }
+  return result;
+}
+
 // Shared batch processing function
 export async function processBatchCopyGeneration(
   brandId: string,
@@ -61,10 +75,28 @@ export async function processBatchCopyGeneration(
   let skipped = 0;
   let failed = 0;
 
-  // Process each draft
+  // Group drafts by subcategory for variation tracking
+  // Use subcategory ID if available, otherwise fall back to name
+  const draftsBySubcategory = groupBy(drafts, (draft) => {
+    // Try to get a stable key per subcategory - prefer ID, then name
+    const subcategoryId = draft.subcategoryId || draft.subcategory?.name || "unknown";
+    return subcategoryId;
+  });
+
   console.log(`Processing ${drafts.length} drafts for brand ${brandId}`);
-  for (const draft of drafts) {
-    try {
+  console.log(`[generateCopyBatch] Grouped into ${Object.keys(draftsBySubcategory).length} subcategories`);
+
+  // Process each subcategory group
+  for (const [subcategoryKey, draftsInSubcategory] of Object.entries(draftsBySubcategory)) {
+    console.log(`[generateCopyBatch] Processing ${draftsInSubcategory.length} drafts for subcategory: ${subcategoryKey}`);
+    
+    // Process each draft within this subcategory
+    for (let index = 0; index < draftsInSubcategory.length; index++) {
+      const draft = draftsInSubcategory[index];
+      const variationIndex = index; // 0-based
+      const variationTotal = draftsInSubcategory.length;
+      
+      try {
       // Check if copy_status is already "complete" - skip if so
       const { data: existingDraft, error: fetchDraftError } = await supabaseAdmin
         .from("drafts")
@@ -126,6 +158,8 @@ export async function processBatchCopyGeneration(
         variants: 1, // Always 1 for background jobs
         max_tokens: draft.options?.max_tokens,
         variation_hint: (draft as any).variation_hint ?? null, // Pass through variation_hint if present
+        variation_index: variationIndex, // 0-based index within subcategory
+        variation_total: variationTotal, // Total drafts for this subcategory
       };
 
       // Log payload before calling generatePostCopyFromContext (for debugging)
@@ -191,39 +225,43 @@ export async function processBatchCopyGeneration(
         throw new Error(`Failed to save copy: ${updateErr instanceof Error ? updateErr.message : "Unknown error"}`);
       }
 
-      processed++;
+        processed++;
 
-      // Sleep between iterations to avoid rate spikes
-      if (draft !== drafts[drafts.length - 1]) {
-        await sleep(150);
-      }
-    } catch (error) {
-      failed++;
+        // Sleep between iterations to avoid rate spikes
+        // Only sleep if not the last draft in the entire batch
+        const isLastSubcategory = subcategoryKey === Object.keys(draftsBySubcategory)[Object.keys(draftsBySubcategory).length - 1];
+        const isLastInSubcategory = index === draftsInSubcategory.length - 1;
+        if (!(isLastSubcategory && isLastInSubcategory)) {
+          await sleep(150);
+        }
+      } catch (error) {
+        failed++;
 
-      // Set copy_status to "failed" and add error to copy_meta
-      try {
-        await supabaseAdmin
-          .from("drafts")
-          .update({
-            copy_status: "failed",
-            copy_meta: {
-              job_run_id: jobRunId,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
-          })
-          .eq("id", draft.draftId);
-      } catch {
-        // Gracefully handle if copy_status/copy_meta columns don't exist
-        // Try to update with minimal error info
+        // Set copy_status to "failed" and add error to copy_meta
         try {
           await supabaseAdmin
             .from("drafts")
             .update({
-              copy: `[Error: ${error instanceof Error ? error.message : "Unknown error"}]`,
+              copy_status: "failed",
+              copy_meta: {
+                job_run_id: jobRunId,
+                error: error instanceof Error ? error.message : "Unknown error",
+              },
             })
             .eq("id", draft.draftId);
         } catch {
-          // Ignore if update fails entirely
+          // Gracefully handle if copy_status/copy_meta columns don't exist
+          // Try to update with minimal error info
+          try {
+            await supabaseAdmin
+              .from("drafts")
+              .update({
+                copy: `[Error: ${error instanceof Error ? error.message : "Unknown error"}]`,
+              })
+              .eq("id", draft.draftId);
+          } catch {
+            // Ignore if update fails entirely
+          }
         }
       }
     }

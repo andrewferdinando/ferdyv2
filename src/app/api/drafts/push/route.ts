@@ -377,7 +377,7 @@ export async function POST(req: NextRequest) {
             options: {
               // length is intentionally omitted - will use default_copy_length from subcategory via precedence:
               // payload.length (explicit override) > subcategory.default_copy_length > "medium"
-              emoji: "none" as const,
+              // emoji is intentionally omitted - defaults to "auto" which follows brand examples
               hashtags: { mode: "auto" as const },
             },
           };
@@ -391,17 +391,27 @@ export async function POST(req: NextRequest) {
         
         // Call the batch processing function directly (no HTTP fetch needed)
         // Map to DraftCopyInput format (include all new fields)
-        const draftsInput: DraftCopyInput[] = payload.drafts.map(d => ({
-          draftId: d.draftId,
-          subcategory: d.subcategory,
-          schedule: d.schedule ? {
-            frequency: d.schedule.frequency,
-            event_date: d.schedule.event_date,
-          } : undefined,
-          scheduledFor: d.scheduledFor,
-          prompt: d.prompt,
-          options: d.options,
-        }));
+        const draftsInput: DraftCopyInput[] = payload.drafts.map(d => {
+          // Find subcategoryId from the original draft mapping
+          const originalDraftMapping = draftsWithGroupKeys.find(item => item.draft.id === d.draftId);
+          const subcategoryId = originalDraftMapping?.subcategoryId ?? null;
+          
+          return {
+            draftId: d.draftId,
+            subcategoryId: subcategoryId ?? undefined,
+            subcategory: d.subcategory,
+            subcategory_type: (d as any).subcategory_type ?? null,
+            subcategory_settings: (d as any).subcategory_settings ?? null,
+            schedule: d.schedule ? {
+              frequency: d.schedule.frequency,
+              event_date: d.schedule.event_date,
+            } : undefined,
+            scheduledFor: d.scheduledFor,
+            prompt: d.prompt,
+            variation_hint: (d as any).variation_hint ?? null,
+            options: d.options,
+          };
+        });
 
         const result = await processBatchCopyGeneration(brandId, draftsInput);
         console.log("Copy generation completed:", result);
