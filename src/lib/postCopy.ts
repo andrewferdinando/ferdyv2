@@ -694,7 +694,17 @@ ${exampleSnippets
   .map((snippet, i) => `${i + 1}) ${snippet}`)
   .join("\n\n")}
 
-` : ""}### POST TYPE
+` : ""}### EMOJI RULES
+
+- This brand often uses emojis in their posts.
+- Look at the BRAND VOICE EXAMPLES and mirror the overall **feeling** of emoji usage (fun, energetic, family-friendly, activity-focused).
+- Use emojis in a similar way and quantity to the examples:
+  - For SHORT copy, aim for around 1–2 emojis.
+  - For MEDIUM copy, aim for around 2–4 emojis.
+  - Place emojis naturally in the sentence (e.g. near key actions, experiences, or emotions).
+- Prefer emojis that fit this brand and context (e.g. fun, games, racing, excitement, families, nights out) rather than random or generic ones.
+
+### POST TYPE
 
 ${isEvent ? "EVENT MODE" : "PRODUCT/SERVICE MODE"}
 
@@ -766,6 +776,7 @@ OTHER RULES
 - No hashtags.
 - No apologies.
 - Keep the copy natural, human, and specific.
+- Emojis are allowed and encouraged when they match the brand examples and context. Follow the EMOJI RULES.
 
 ### VARIATION RULES
 
@@ -773,6 +784,11 @@ OTHER RULES
 - For posts from the same subcategory, avoid repeating the same phrasing.
 - You may focus each post on different aspects (e.g., benefits, what to expect, who it's for, key features, experience, value).
 - Reword sentences and reorder ideas so each post feels fresh and unique.
+
+CRITICAL: Opening sentence variation
+- When multiple posts are generated for the same subcategory, you MUST vary the opening.
+- Do NOT start more than one post with the same first 2–3 words (e.g. avoid repeating patterns like "Get ready...", "Step into...", "Ready for...", "Experience...", etc. across posts).
+- Use different styles of openings: a question, a bold statement, a sensory description, a benefit-led line, or a playful hook.
 
 ${payload.variation_hint ? `### VARIATION FOCUS FOR THIS POST
 
