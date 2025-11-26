@@ -128,6 +128,75 @@ const formatSettingsHints = (type: SubcategoryType | null | undefined, settings:
   return hints.length > 0 ? hints.join(' ') : null
 }
 
+// Helper to build brand tone profile from example posts
+async function buildBrandToneProfile(
+  client: OpenAI,
+  examples: string[]
+): Promise<{ toneProfile: string; exampleSnippets: string[] }> {
+  // If we don't have any examples, fall back to a neutral default
+  if (!examples || examples.length === 0) {
+    return {
+      toneProfile:
+        "Clear, friendly and professional, suitable for a general audience.",
+      exampleSnippets: [],
+    };
+  }
+
+  // Limit how many examples we send to the model (to keep tokens under control)
+  const limited = examples
+    .map((e) => e?.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const prompt = `
+You are analysing social media posts for a single brand.
+
+Below are recent posts. Your job is to:
+1) Summarise the brand's tone of voice in 1–2 short sentences.
+2) Pick 2–3 short snippets (1–2 sentences each) that are representative of the tone and energy. These will be shown as examples, not reused directly.
+
+Return JSON with this shape:
+{
+  "toneProfile": string,
+  "exampleSnippets": string[]
+}
+
+Posts:
+${limited.map((p, i) => `${i + 1}) ${p}`).join("\n\n")}
+`.trim();
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.4,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  try {
+    const parsed = JSON.parse(raw);
+    const toneProfile =
+      typeof parsed.toneProfile === "string" && parsed.toneProfile.trim().length > 0
+        ? parsed.toneProfile.trim()
+        : "Clear, friendly and professional, suitable for a general audience.";
+
+    const exampleSnippets = Array.isArray(parsed.exampleSnippets)
+      ? parsed.exampleSnippets
+          .map((s: unknown) => (typeof s === "string" ? s.trim() : ""))
+          .filter(Boolean)
+          .slice(0, 3)
+      : [];
+
+    return { toneProfile, exampleSnippets };
+  } catch {
+    // Fallback if JSON parsing fails
+    return {
+      toneProfile:
+        "Clear, friendly and professional, suitable for a general audience.",
+      exampleSnippets: [],
+    };
+  }
+}
+
 // Helper to build type-specific guidance section for the prompt
 const buildTypeSpecificGuidance = (
   type: SubcategoryType | null | undefined,
@@ -329,12 +398,12 @@ export async function generatePostCopyFromContext(
     }
   }
 
-  // 3) Load post_tone and example posts from brand_post_information
+  // 3) Load examples + post_tone from brand_post_information
   let brandPostInfo: { 
     post_tone: string | null;
+    fb_post_examples: string[] | null;
+    ig_post_examples: string[] | null;
   } | null = null;
-  
-  let brandExamples: string[] = [];
   
   try {
     const { data: postInfo } = await supabaseAdmin
@@ -346,29 +415,37 @@ export async function generatePostCopyFromContext(
     if (postInfo) {
       brandPostInfo = {
         post_tone: postInfo.post_tone,
+        fb_post_examples: postInfo.fb_post_examples ?? [],
+        ig_post_examples: postInfo.ig_post_examples ?? [],
       };
-      
-      // Combine fb_post_examples and ig_post_examples, filter out nulls/empty strings, limit to 3
-      const allExamples: string[] = [
-        ...(Array.isArray(postInfo.fb_post_examples) ? postInfo.fb_post_examples : []),
-        ...(Array.isArray(postInfo.ig_post_examples) ? postInfo.ig_post_examples : [])
-      ]
-        .filter((ex): ex is string => typeof ex === 'string' && ex.trim().length > 0)
-        .slice(0, 3);
-      
-      brandExamples = allExamples;
     }
   } catch {
     // Gracefully skip if table doesn't exist or query fails
     brandPostInfo = null;
-    brandExamples = [];
   }
 
-  // 4) Extract tone and compute effective length from override + category default
-  const tone =
-    payload.tone_override ||
-    brandPostInfo?.post_tone ||
-    "clear, friendly and professional";
+  // Build tone profile from examples only
+  const fbExamples = brandPostInfo?.fb_post_examples ?? [];
+  const igExamples = brandPostInfo?.ig_post_examples ?? [];
+  const allExamples = [...fbExamples, ...igExamples].filter(
+    (e) => typeof e === "string" && e.trim().length > 0
+  );
+
+  // Default tone
+  let toneProfile =
+    "Clear, friendly and professional, suitable for a general audience.";
+  let exampleSnippets: string[] = [];
+
+  if (allExamples.length > 0) {
+    const result = await buildBrandToneProfile(client, allExamples);
+    toneProfile = result.toneProfile;
+    exampleSnippets = result.exampleSnippets;
+  }
+
+  // If payload.tone_override is provided, it should override the inferred tone
+  if (payload.tone_override && payload.tone_override.trim().length > 0) {
+    toneProfile = payload.tone_override.trim();
+  }
   
   // Normalize copy length to lowercase to handle any case variations from DB
   const normalizeCopyLength = (value: string | undefined | null): "short" | "medium" | "long" | null => {
@@ -520,7 +597,7 @@ ${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date
     : ""
 }### BRAND STYLE
 
-Tone of voice: ${tone}
+Tone of voice: ${toneProfile}
 Target length: ${lengthLabel.toUpperCase()}
 
 ${effectiveLength === "short" 
@@ -529,12 +606,15 @@ ${effectiveLength === "short"
   ? `Target: around 3–5 sentences split into 2–3 short paragraphs.`
   : `Target: around 6–8 sentences split into 2–4 short paragraphs.`}
 
-${brandExamples.length > 0 ? `### BRAND VOICE EXAMPLES
+${exampleSnippets.length > 0 ? `
+### BRAND VOICE EXAMPLES
 
-Below are recent posts published by this brand. Use them ONLY to understand tone, rhythm, energy and style.  
+Below are short snippets from recent posts for this brand. Use them ONLY to understand tone, rhythm, energy and style.
 You MUST NOT copy, remix, paraphrase or reuse ANY sentences or phrases from these examples.
 
-${brandExamples.map((ex, i) => `${i + 1}) "${ex}"`).join("\n")}
+${exampleSnippets
+  .map((snippet, i) => `${i + 1}) ${snippet}`)
+  .join("\n\n")}
 
 ` : ""}### POST TYPE
 
