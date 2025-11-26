@@ -191,11 +191,10 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                       .select('id')
                       .eq('brand_id', d.brand_id)
                       .eq('is_active', true)
-                      .in('id', assetIds)
-                      .order('random()')
-                      .limit(1);
+                      .in('id', assetIds);
                     if (match && match.length > 0) {
-                      chosenAssetId = match[0].id;
+                      // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
+                      chosenAssetId = match[Math.floor(Math.random() * match.length)].id;
                     }
                   }
                 }
@@ -206,10 +205,10 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                   .from('assets')
                   .select('id')
                   .eq('brand_id', d.brand_id)
-                  .order('random()')
-                  .limit(1);
+                  .eq('is_active', true);
                 if (fallback && fallback.length > 0) {
-                  chosenAssetId = fallback[0].id;
+                  // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
+                  chosenAssetId = fallback[Math.floor(Math.random() * fallback.length)].id;
                 }
               }
 
