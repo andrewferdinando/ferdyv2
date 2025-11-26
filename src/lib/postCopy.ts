@@ -381,7 +381,12 @@ export async function generatePostCopyFromContext(
       subcategoryDefaultCopyLength: payload.subcategory?.default_copy_length,
       effectiveLength,
       subcategoryName: payload.subcategory?.name,
+      rawPayloadSubcategory: JSON.stringify(payload.subcategory),
     });
+    
+    if (effectiveLength === "short") {
+      console.log(`[postCopy] ⚠️ SHORT COPY MODE - Model should produce exactly ONE sentence`);
+    }
   }
 
   // 6) Extract subcategory data including url_page_summary
@@ -486,9 +491,7 @@ ${eventDetails.venue ? `Venue: ${eventDetails.venue}\n` : ""}${eventDetails.date
 Tone of voice: ${tone}
 Target length: ${lengthLabel.toUpperCase()}
 
-- Short = a single, concise sentence.
-- Medium = around 3–5 sentences.
-- Long = around 6–8 sentences.
+${effectiveLength === "short" ? `CRITICAL: You MUST write exactly ONE sentence on a single line. No line breaks. No paragraphs. Just one sentence.` : effectiveLength === "medium" ? `Target: around 3–5 sentences split into 2–3 short paragraphs.` : `Target: around 6–8 sentences split into 2–4 short paragraphs.`}
 
 ### POST TYPE
 
@@ -538,11 +541,24 @@ ${payload.prompt}
 
 LENGTH & STRUCTURE
 
-- For SHORT length: you MUST write exactly ONE sentence on a single line. Do not add any line breaks for SHORT.
-- For MEDIUM length: write around 3–5 sentences split into 2–3 short paragraphs.
-- For LONG length: write around 6–8 sentences split into 2–4 short paragraphs.
-- For MEDIUM and LONG, paragraphs MUST be separated by a blank line.
-- Never produce one giant block of text for MEDIUM or LONG.
+${effectiveLength === "short" 
+  ? `YOU ARE WRITING SHORT COPY. This means:
+- You MUST write exactly ONE sentence only.
+- The sentence must be on a single line (no line breaks).
+- Do NOT write multiple sentences.
+- Do NOT create paragraphs.
+- One sentence, period. That's it.`
+  : effectiveLength === "medium"
+  ? `You are writing MEDIUM length copy:
+- Write around 3–5 sentences total.
+- Split into 2–3 short paragraphs.
+- Paragraphs MUST be separated by a blank line.
+- Never produce one giant block of text.`
+  : `You are writing LONG length copy:
+- Write around 6–8 sentences total.
+- Split into 2–4 short paragraphs.
+- Paragraphs MUST be separated by a blank line.
+- Never produce one giant block of text.`}
 
 OTHER RULES
 
