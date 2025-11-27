@@ -332,20 +332,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
       }
     }
-    // For new subcategories, use brand default or fallback to 'medium'
+    // For new subcategories, use brand default (hook ensures this is always non-null)
     return {
       name: '',
       detail: '',
       url: '',
       defaultHashtags: '',
       channels: [],
-      default_copy_length: defaultCopyLength || 'medium',
+      default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
     }
   })
   
   // Update default_copy_length when brand settings load (only for new subcategories)
+  // This handles the case where hook loads after component mounts
   useEffect(() => {
-    if (mode === 'create' && defaultCopyLength && !details.default_copy_length) {
+    if (mode === 'create' && defaultCopyLength) {
       setDetails(prev => ({ ...prev, default_copy_length: defaultCopyLength }))
     }
   }, [defaultCopyLength, mode])
@@ -402,10 +403,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         weekday: weekday,
       }
     }
-    // For new schedule rules, use brand default time or fallback to empty
+    // For new schedule rules, use brand default time (hook ensures this is always non-null with fallback)
     return {
       frequency: null,
-      timeOfDay: defaultPostTime || '', // Use brand default for new rules
+      timeOfDay: defaultPostTime, // Hook ensures this is always '10:00' or the DB value
       timezone: getDefaultTimezone(null, brand?.timezone),
       daysOfWeek: [],
       dayOfMonth: null,
@@ -415,12 +416,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   })
   
-  // Update timeOfDay when brand settings load (only for new schedule rules)
+  // Update timeOfDay when brand settings load (only for new schedule rules, and only if not already set)
   useEffect(() => {
     if (mode === 'create' && defaultPostTime && !schedule.timeOfDay) {
       setSchedule(prev => ({ ...prev, timeOfDay: defaultPostTime }))
     }
-  }, [defaultPostTime, mode])
+  }, [defaultPostTime, mode, schedule.timeOfDay])
   
   const [scheduleErrors, setScheduleErrors] = useState<{
     frequency?: string
@@ -2229,32 +2230,38 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         <div className="flex flex-col gap-3">
                           {[
                             { value: 'short', label: 'Short', description: '1–2 sentences' },
-                            { value: 'medium', label: 'Medium', description: '3–5 sentences (default)' },
+                            { value: 'medium', label: 'Medium', description: '3–5 sentences' },
                             { value: 'long', label: 'Long', description: '6–8 sentences' },
-                          ].map((option) => (
-                            <label
-                              key={option.value}
-                              className="flex items-start cursor-pointer"
-                            >
-                              <input
-                                type="radio"
-                                name="default_copy_length"
-                                value={option.value}
-                                checked={details.default_copy_length === option.value}
-                                onChange={(e) => {
-                                  setDetails(prev => ({ 
-                                    ...prev, 
-                                    default_copy_length: e.target.value as 'short' | 'medium' | 'long'
-                                  }))
-                                }}
-                                className="mt-1 mr-3 w-4 h-4 text-[#6366F1] border-gray-300 focus:ring-[#6366F1]"
-                              />
-                              <div>
-                                <span className="text-sm font-medium text-gray-900">{option.label}</span>
-                                <span className="text-sm text-gray-600 ml-2">— {option.description}</span>
-                              </div>
-                            </label>
-                          ))}
+                          ].map((option) => {
+                            const isBrandDefault = option.value === defaultCopyLength
+                            const description = isBrandDefault 
+                              ? `${option.description} (default)` 
+                              : option.description
+                            return (
+                              <label
+                                key={option.value}
+                                className="flex items-start cursor-pointer"
+                              >
+                                <input
+                                  type="radio"
+                                  name="default_copy_length"
+                                  value={option.value}
+                                  checked={details.default_copy_length === option.value}
+                                  onChange={(e) => {
+                                    setDetails(prev => ({ 
+                                      ...prev, 
+                                      default_copy_length: e.target.value as 'short' | 'medium' | 'long'
+                                    }))
+                                  }}
+                                  className="mt-1 mr-3 w-4 h-4 text-[#6366F1] border-gray-300 focus:ring-[#6366F1]"
+                                />
+                                <div>
+                                  <span className="text-sm font-medium text-gray-900">{option.label}</span>
+                                  <span className="text-sm text-gray-600 ml-2">— {description}</span>
+                                </div>
+                              </label>
+                            )
+                          })}
                         </div>
                       </FormField>
                     </div>

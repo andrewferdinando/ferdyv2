@@ -237,7 +237,7 @@ export function SubcategoryScheduleForm({
   // Default timezone to brand timezone, fallback to Pacific/Auckland
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
-    timeOfDay: '', // Will be auto-populated from brand.default_post_time if empty
+    timeOfDay: defaultPostTime, // Use brand default (hook ensures this is always non-null with fallback)
     timesOfDay: [],
     daysOfWeek: [],
     daysOfMonth: [],
@@ -265,7 +265,8 @@ export function SubcategoryScheduleForm({
         
         // Auto-populate timeOfDay from brand_post_information.default_post_time if it's empty
         // Only for new schedule rules (never override existing values when editing)
-        if (defaultPostTime && !prev.timeOfDay) {
+        // Hook ensures defaultPostTime is always non-null, so we just check if timeOfDay is empty
+        if (!prev.timeOfDay) {
           updates.timeOfDay = defaultPostTime
         }
         

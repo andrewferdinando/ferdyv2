@@ -11,20 +11,18 @@ export default function EngineRoomPostTimePage() {
   const params = useParams()
   const brandId = params.brandId as string
 
-  const { defaultPostTime: defaultPostTimeFromHook, isLoading: settingsLoading } = useBrandPostSettings(brandId)
+  const { defaultPostTime, isLoading: settingsLoading } = useBrandPostSettings(brandId)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [defaultPostTime, setDefaultPostTime] = useState('10:00') // Fallback to 10:00 AM
 
   useEffect(() => {
     if (!settingsLoading) {
-      // Use the value from hook, or fallback to 10:00 AM
-      setDefaultPostTime(defaultPostTimeFromHook || '10:00')
+      // Hook ensures defaultPostTime is always non-null with fallback
       setLoading(false)
     }
-  }, [settingsLoading, defaultPostTimeFromHook])
+  }, [settingsLoading])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()

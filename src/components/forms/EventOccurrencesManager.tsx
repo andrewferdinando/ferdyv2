@@ -402,10 +402,8 @@ const renderChannelIcons = (channels: string[]) =>
       // Don't default detail from subcategory when editing - use existing occurrence detail or empty
       setDetail('')
     } else {
-      // For new occurrences, use brand default time if available
-      if (defaultPostTime) {
-        setTimesOfDay([defaultPostTime])
-      }
+      // For new occurrences, use brand default time (hook ensures this is always non-null)
+      setTimesOfDay([defaultPostTime])
       // Default detail from subcategory description
       setDetail(subcategoryDetail || '')
       // Default URL from subcategory
@@ -757,8 +755,8 @@ const renderChannelIcons = (channels: string[]) =>
       }
 
       setBulkInput('')
-      // For new bulk occurrences, use brand default time if available
-      setBulkTimesOfDay(defaultPostTime ? [defaultPostTime] : [])
+      // For new bulk occurrences, use brand default time (hook ensures this is always non-null)
+      setBulkTimesOfDay([defaultPostTime])
       setBulkChannels([])
       setIsBulkModalOpen(false)
     } catch (err) {

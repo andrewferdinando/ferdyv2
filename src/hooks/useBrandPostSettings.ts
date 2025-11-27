@@ -4,8 +4,8 @@ import { supabase } from '@/lib/supabase-browser'
 export type CopyLength = 'short' | 'medium' | 'long'
 
 export interface BrandPostSettings {
-  defaultPostTime: string | null // Format: "HH:MM" (e.g., "10:00") or null
-  defaultCopyLength: CopyLength
+  defaultPostTime: string // Format: "HH:MM" (e.g., "10:00") - always non-null with fallback
+  defaultCopyLength: CopyLength // Always non-null with fallback
   isLoading: boolean
   error: Error | null
 }
@@ -16,8 +16,9 @@ export interface BrandPostSettings {
  * @returns BrandPostSettings with defaults applied
  */
 export function useBrandPostSettings(brandId: string): BrandPostSettings {
-  const [defaultPostTime, setDefaultPostTime] = useState<string | null>(null)
-  const [defaultCopyLength, setDefaultCopyLength] = useState<CopyLength>('medium')
+  // Initialize with fallback values so components always get non-null defaults
+  const [defaultPostTime, setDefaultPostTime] = useState<string>('10:00') // Fallback: 10:00 AM
+  const [defaultCopyLength, setDefaultCopyLength] = useState<CopyLength>('medium') // Fallback: medium
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -43,27 +44,27 @@ export function useBrandPostSettings(brandId: string): BrandPostSettings {
           throw fetchError
         }
 
-        // Parse default_post_time: if it exists, extract HH:MM format
+        // Parse default_post_time: if it exists, extract HH:MM format, otherwise use 10:00 fallback
         if (data?.default_post_time) {
           const timeStr = typeof data.default_post_time === 'string' 
             ? data.default_post_time.substring(0, 5) // Extract "HH:MM" from "HH:MM:SS"
-            : null
+            : '10:00' // Fallback
           setDefaultPostTime(timeStr)
         } else {
-          setDefaultPostTime(null) // Will use fallback "10:00" in UI
+          setDefaultPostTime('10:00') // Fallback to 10:00 AM when null/missing
         }
 
-        // Parse default_copy_length: validate it's one of the allowed values
+        // Parse default_copy_length: validate it's one of the allowed values, otherwise use 'medium'
         if (data?.default_copy_length && ['short', 'medium', 'long'].includes(data.default_copy_length)) {
           setDefaultCopyLength(data.default_copy_length as CopyLength)
         } else {
-          setDefaultCopyLength('medium') // Fallback
+          setDefaultCopyLength('medium') // Fallback to 'medium' when null/missing
         }
       } catch (err) {
         console.error('Error fetching brand post settings:', err)
         setError(err instanceof Error ? err : new Error('Failed to load settings'))
-        // Use defaults on error
-        setDefaultPostTime(null)
+        // Use defaults on error - ensure non-null values
+        setDefaultPostTime('10:00')
         setDefaultCopyLength('medium')
       } finally {
         setIsLoading(false)
@@ -74,8 +75,8 @@ export function useBrandPostSettings(brandId: string): BrandPostSettings {
   }, [brandId])
 
   return {
-    defaultPostTime,
-    defaultCopyLength,
+    defaultPostTime, // Always non-null: either from DB or '10:00' fallback
+    defaultCopyLength, // Always non-null: either from DB or 'medium' fallback
     isLoading,
     error,
   }
