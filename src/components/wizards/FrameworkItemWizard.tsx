@@ -1621,8 +1621,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
-    // Small delay to ensure asset_tags are fully committed
-    // This ensures asset-selection can find the images
+    // Delay to ensure asset_tags are fully committed and visible to queries
+    // Using 1500ms to account for database replication/transaction isolation
+    // This ensures asset-selection can find the images when it runs
     setTimeout(() => {
       fetch('/api/drafts/push', {
         method: 'POST',
@@ -1664,7 +1665,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             type: 'warning',
           })
         })
-    }, 500) // 500ms delay to ensure DB commits
+    }, 1500) // 1500ms delay to ensure DB commits are fully visible
   }
 
   // Handle Step 4 finish - link images to subcategory, then trigger auto-push
@@ -1772,15 +1773,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               throw new Error(`Failed to link images: ${linkError.message}`)
             }
             
-            console.info('[Wizard] Successfully linked', newAssetIds.length, 'assets to subcategory tag')
+            console.info('[Wizard] Successfully linked', newAssetIds.length, 'assets to subcategory tag', { tagId, assetIds: newAssetIds })
+            
+            // Verify the assets are actually linked before proceeding (defensive check)
+            if (newAssetIds.length > 0) {
+              const { data: verifyLinks, error: verifyError } = await supabase
+                .from('asset_tags')
+                .select('asset_id')
+                .eq('tag_id', tagId)
+                .in('asset_id', newAssetIds)
+              
+              if (verifyError) {
+                console.warn('[Wizard] Could not verify asset_tags:', verifyError)
+              } else {
+                console.info('[Wizard] Verified', verifyLinks?.length || 0, 'asset_tags exist for tag', tagId)
+              }
+            }
           }
         } else {
           throw new Error('Failed to find or create subcategory tag')
         }
+      } else {
+        console.info('[Wizard] No images selected, skipping asset linking')
       }
 
       // Trigger auto-push AFTER images are saved (or even if no images)
       // This ensures assets exist when asset-selection runs
+      // Use longer delay (1500ms) to ensure DB commits are fully visible
       triggerAutoPushDrafts(subcategoryId)
 
       // Redirect immediately (auto-push runs in background)

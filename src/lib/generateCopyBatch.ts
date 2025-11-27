@@ -111,23 +111,45 @@ async function selectAssetsForDraft(
       .select('asset_id')
       .eq('tag_id', tagId);
 
-    if (assetTagsError || !assetTags || assetTags.length === 0) {
-      console.log(`[generateCopyBatch][asset-selection] No assets found for tag ${tagId} (subcategory ${subcategoryId}) for draft ${draftId}`);
+    if (assetTagsError) {
+      console.error(`[generateCopyBatch][asset-selection] Error querying asset_tags for tag ${tagId}:`, assetTagsError);
+      return [];
+    }
+
+    if (!assetTags || assetTags.length === 0) {
+      console.log(`[generateCopyBatch][asset-selection] No asset_tags found for tag ${tagId} (subcategory ${subcategoryId}, name: ${subcategory.name}) for draft ${draftId}`);
       return [];
     }
 
     const candidateAssetIds = assetTags.map((at: any) => at.asset_id);
+    console.log(`[generateCopyBatch][asset-selection] Found ${candidateAssetIds.length} asset_tags for tag ${tagId}:`, candidateAssetIds.slice(0, 5));
 
     // Step 4: Fetch the actual assets and filter by brand_id, is_active, and channel compatibility
     const { data: assets, error: assetsError } = await supabase
       .from('assets')
-      .select('id, asset_type')
+      .select('id, asset_type, is_active, brand_id')
       .eq('brand_id', brandId)
       .eq('is_active', true)
       .in('id', candidateAssetIds);
 
-    if (assetsError || !assets || assets.length === 0) {
-      console.log(`[generateCopyBatch][asset-selection] No active assets found for subcategory ${subcategoryId} for draft ${draftId}`);
+    if (assetsError) {
+      console.error(`[generateCopyBatch][asset-selection] Error querying assets:`, assetsError);
+      return [];
+    }
+
+    if (!assets || assets.length === 0) {
+      // Debug: Check what assets exist (even if inactive or wrong brand)
+      const { data: allAssets } = await supabase
+        .from('assets')
+        .select('id, asset_type, is_active, brand_id')
+        .in('id', candidateAssetIds)
+        .limit(5);
+      
+      console.log(`[generateCopyBatch][asset-selection] No active assets found for subcategory ${subcategoryId} (tag ${tagId}, name: ${subcategory.name}) for draft ${draftId}`);
+      console.log(`[generateCopyBatch][asset-selection] Debug - Found ${candidateAssetIds.length} asset_ids from asset_tags, but query returned ${assets?.length || 0} active assets`);
+      if (allAssets && allAssets.length > 0) {
+        console.log(`[generateCopyBatch][asset-selection] Debug - Sample assets (may be inactive or wrong brand):`, allAssets.map((a: any) => ({ id: a.id, is_active: a.is_active, brand_id: a.brand_id })));
+      }
       return [];
     }
 
