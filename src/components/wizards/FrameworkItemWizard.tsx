@@ -16,6 +16,7 @@ import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { usePushProgress } from '@/contexts/PushProgressContext'
+import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -304,6 +305,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const { startPushProgress, completePushProgress, failPushProgress } = usePushProgress()
+  const { defaultPostTime, defaultCopyLength } = useBrandPostSettings(brandId)
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
@@ -317,9 +319,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     return null
   })
   
-  // Initialize details from initialData in edit mode
+  // Initialize details from initialData in edit mode, or use brand defaults for new subcategories
   const [details, setDetails] = useState<WizardDetails>(() => {
     if (mode === 'edit' && initialData?.subcategory) {
+      // When editing, use existing value (never override with brand default)
       return {
         name: initialData.subcategory.name || '',
         detail: initialData.subcategory.detail || '',
@@ -329,15 +332,23 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
       }
     }
+    // For new subcategories, use brand default or fallback to 'medium'
     return {
       name: '',
       detail: '',
       url: '',
       defaultHashtags: '',
       channels: [],
-      default_copy_length: 'medium',
+      default_copy_length: defaultCopyLength || 'medium',
     }
   })
+  
+  // Update default_copy_length when brand settings load (only for new subcategories)
+  useEffect(() => {
+    if (mode === 'create' && defaultCopyLength && !details.default_copy_length) {
+      setDetails(prev => ({ ...prev, default_copy_length: defaultCopyLength }))
+    }
+  }, [defaultCopyLength, mode])
   
   const [detailsErrors, setDetailsErrors] = useState<{
     name?: string
@@ -391,9 +402,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         weekday: weekday,
       }
     }
+    // For new schedule rules, use brand default time or fallback to empty
     return {
       frequency: null,
-      timeOfDay: '',
+      timeOfDay: defaultPostTime || '', // Use brand default for new rules
       timezone: getDefaultTimezone(null, brand?.timezone),
       daysOfWeek: [],
       dayOfMonth: null,
@@ -402,6 +414,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       weekday: null,
     }
   })
+  
+  // Update timeOfDay when brand settings load (only for new schedule rules)
+  useEffect(() => {
+    if (mode === 'create' && defaultPostTime && !schedule.timeOfDay) {
+      setSchedule(prev => ({ ...prev, timeOfDay: defaultPostTime }))
+    }
+  }, [defaultPostTime, mode])
   
   const [scheduleErrors, setScheduleErrors] = useState<{
     frequency?: string
@@ -551,14 +570,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       url: '',
       defaultHashtags: '',
       channels: [],
-      default_copy_length: 'medium',
+      default_copy_length: defaultCopyLength || 'medium',
     })
     setDetailsErrors({})
     
-    // Reset schedule
+    // Reset schedule - use brand default time for new rules
     setSchedule({
       frequency: null,
-      timeOfDay: '',
+      timeOfDay: defaultPostTime || '', // Use brand default
       timezone: getDefaultTimezone(null, brand?.timezone),
       daysOfWeek: [],
       dayOfMonth: null,

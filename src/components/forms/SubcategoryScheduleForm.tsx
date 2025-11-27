@@ -11,6 +11,7 @@ import { EventOccurrencesManager } from './EventOccurrencesManager'
 import { SubcategoryType } from '@/types/subcategories'
 import TimezoneSelect from './TimezoneSelect'
 import { useToast } from '@/components/ui/ToastProvider'
+import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 
 interface SubcategoryData {
   name: string
@@ -215,6 +216,7 @@ export function SubcategoryScheduleForm({
   // Fetch brand for timezone
   const { brand } = useBrand(brandId)
   const { showToast } = useToast()
+  const { defaultPostTime } = useBrandPostSettings(brandId)
 
   // Track the current subcategory ID (for EventOccurrencesManager)
   const [currentSubcategoryId, setCurrentSubcategoryId] = useState<string | null>(
@@ -261,14 +263,10 @@ export function SubcategoryScheduleForm({
           updates.timezone = brand.timezone
         }
         
-        // Auto-populate timeOfDay from default_post_time if it's empty
-        if (brand.default_post_time && !prev.timeOfDay) {
-          const defaultTime = typeof brand.default_post_time === 'string' 
-            ? brand.default_post_time.substring(0, 5) // Extract HH:MM from HH:MM:SS
-            : ''
-          if (defaultTime) {
-            updates.timeOfDay = defaultTime
-          }
+        // Auto-populate timeOfDay from brand_post_information.default_post_time if it's empty
+        // Only for new schedule rules (never override existing values when editing)
+        if (defaultPostTime && !prev.timeOfDay) {
+          updates.timeOfDay = defaultPostTime
         }
         
         // Only update if there are changes
@@ -278,7 +276,7 @@ export function SubcategoryScheduleForm({
         return prev
       })
     }
-  }, [brand?.timezone, brand?.default_post_time, editingScheduleRule, editingSubcategory])
+  }, [brand?.timezone, defaultPostTime, editingScheduleRule, editingSubcategory])
 
   // Auto-reset frequency when subcategory type changes (if current frequency is not allowed)
   // Skip this for existing subcategories to preserve legacy data

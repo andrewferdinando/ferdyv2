@@ -5,26 +5,26 @@ import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
-import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
+import { useBrandPostSettings, CopyLength } from '@/hooks/useBrandPostSettings'
 
-export default function EngineRoomPostTimePage() {
+export default function EngineRoomCopyLengthPage() {
   const params = useParams()
   const brandId = params.brandId as string
 
-  const { defaultPostTime: defaultPostTimeFromHook, isLoading: settingsLoading } = useBrandPostSettings(brandId)
+  const { defaultCopyLength: defaultCopyLengthFromHook, isLoading: settingsLoading } = useBrandPostSettings(brandId)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [defaultPostTime, setDefaultPostTime] = useState('10:00') // Fallback to 10:00 AM
+  const [defaultCopyLength, setDefaultCopyLength] = useState<CopyLength>('medium') // Fallback to medium
 
   useEffect(() => {
     if (!settingsLoading) {
-      // Use the value from hook, or fallback to 10:00 AM
-      setDefaultPostTime(defaultPostTimeFromHook || '10:00')
+      // Use the value from hook, or fallback to medium
+      setDefaultCopyLength(defaultCopyLengthFromHook)
       setLoading(false)
     }
-  }, [settingsLoading, defaultPostTimeFromHook])
+  }, [settingsLoading, defaultCopyLengthFromHook])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -33,15 +33,13 @@ export default function EngineRoomPostTimePage() {
     setSuccess('')
 
     try {
-      const timeValue = defaultPostTime && defaultPostTime !== '10:00' ? `${defaultPostTime}:00` : (defaultPostTime === '10:00' ? '10:00:00' : null)
-      
       // Upsert into brand_post_information with onConflict: 'brand_id'
       const { error: updateError } = await supabase
         .from('brand_post_information')
         .upsert(
           {
             brand_id: brandId,
-            default_post_time: timeValue,
+            default_copy_length: defaultCopyLength,
           },
           {
             onConflict: 'brand_id',
@@ -50,11 +48,11 @@ export default function EngineRoomPostTimePage() {
 
       if (updateError) throw updateError
 
-      setSuccess('Default post time updated successfully.')
+      setSuccess('Default copy length updated successfully.')
       setTimeout(() => setSuccess(''), 2500)
     } catch (submitError) {
-      console.error('EngineRoomPostTimePage: error updating default post time', submitError)
-      setError('Unable to update the default post time. Please try again.')
+      console.error('EngineRoomCopyLengthPage: error updating default copy length', submitError)
+      setError('Unable to update the default copy length. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -72,14 +70,13 @@ export default function EngineRoomPostTimePage() {
     )
   }
 
-
   return (
     <RequireAuth>
       <AppLayout>
         <div className="flex-1 overflow-auto bg-gray-50">
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold leading-[1.2] text-gray-950">
-              Default Post Time
+              Default Copy Length
             </h1>
           </div>
 
@@ -104,21 +101,32 @@ export default function EngineRoomPostTimePage() {
                 <div className="space-y-6">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">
-                      Default post time
+                      Default copy length
                     </label>
-                    <input
-                      type="time"
-                      step="60"
-                      value={defaultPostTime}
-                      onChange={(event) => setDefaultPostTime(event.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm transition focus:border-transparent focus:ring-2 focus:ring-[#6366F1]"
-                      placeholder="10:00"
-                    />
-                    {!defaultPostTimeFromHook && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Currently using default: 10:00 AM
-                      </p>
-                    )}
+                    <div className="mt-2 space-y-3">
+                      {(['short', 'medium', 'long'] as CopyLength[]).map((option) => (
+                        <label
+                          key={option}
+                          className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            defaultCopyLength === option
+                              ? 'border-[#6366F1] bg-[#EEF2FF]'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="copyLength"
+                            value={option}
+                            checked={defaultCopyLength === option}
+                            onChange={(e) => setDefaultCopyLength(e.target.value as CopyLength)}
+                            className="w-4 h-4 text-[#6366F1] focus:ring-[#6366F1] focus:ring-2"
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-900 capitalize">
+                            {option}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -136,12 +144,12 @@ export default function EngineRoomPostTimePage() {
               <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900">How It Works</h2>
                 <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                  This time auto-populates new subcategories so your automation stays consistent. You can still override the
-                  time for individual subcategories when needed.
+                  This copy length auto-populates new categories so your automation stays consistent. You can still override the
+                  copy length for individual categories when needed.
                 </p>
                 <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                  Leave the field blank to remove the default. New subcategories created afterwards will inherit whatever time
-                  you set here.
+                  Changing this default only affects new categories created after you save. Existing categories keep their current
+                  copy length settings.
                 </p>
               </div>
             </div>

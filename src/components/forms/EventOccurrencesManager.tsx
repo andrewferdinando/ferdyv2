@@ -8,6 +8,7 @@ import { FormField } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/ToastProvider'
 import TimezoneSelect from './TimezoneSelect'
+import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 
 interface EventOccurrence {
   id: string
@@ -40,6 +41,7 @@ export function EventOccurrencesManager({
   onOccurrencesChange
 }: EventOccurrencesManagerProps) {
   const { showToast } = useToast()
+  const { defaultPostTime } = useBrandPostSettings(brandId)
   const [occurrences, setOccurrences] = useState<EventOccurrence[]>([])
   const [loading, setLoading] = useState(true)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -400,7 +402,11 @@ const renderChannelIcons = (channels: string[]) =>
       // Don't default detail from subcategory when editing - use existing occurrence detail or empty
       setDetail('')
     } else {
-      // For new occurrences, default detail from subcategory description
+      // For new occurrences, use brand default time if available
+      if (defaultPostTime) {
+        setTimesOfDay([defaultPostTime])
+      }
+      // Default detail from subcategory description
       setDetail(subcategoryDetail || '')
       // Default URL from subcategory
       if (subcategoryUrl) {
@@ -751,7 +757,8 @@ const renderChannelIcons = (channels: string[]) =>
       }
 
       setBulkInput('')
-      setBulkTimesOfDay([])
+      // For new bulk occurrences, use brand default time if available
+      setBulkTimesOfDay(defaultPostTime ? [defaultPostTime] : [])
       setBulkChannels([])
       setIsBulkModalOpen(false)
     } catch (err) {

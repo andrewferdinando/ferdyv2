@@ -78,18 +78,16 @@ export function PushProgressProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <>
-      <PushProgressContext.Provider
-        value={{
-          startPushProgress,
-          completePushProgress,
-          failPushProgress,
-          state,
-        }}
-      >
-        {children}
-      </PushProgressContext.Provider>
-      {/* Render modal outside provider to ensure it's always in the tree */}
+    <PushProgressContext.Provider
+      value={{
+        startPushProgress,
+        completePushProgress,
+        failPushProgress,
+        state,
+      }}
+    >
+      {children}
+      {/* Render modal here - it will stay mounted even when children unmount */}
       {state.isVisible && (
         <DraftsPushProgressModal
           estimatedMs={60000}
@@ -105,7 +103,7 @@ export function PushProgressProvider({ children }: { children: React.ReactNode }
           }}
         />
       )}
-    </>
+    </PushProgressContext.Provider>
   )
 }
 
