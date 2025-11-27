@@ -9,7 +9,7 @@ import { useScheduleRules } from '@/hooks/useScheduleRules'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
-import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressModal'
+import { usePushProgress } from '@/contexts/PushProgressContext'
 import { SubcategoryType } from '@/types/subcategories'
 
 const SUBCATEGORY_TYPE_LABELS: Record<SubcategoryType, string> = {
@@ -100,8 +100,8 @@ export default function CategoriesPage() {
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(true)
 
   const [pushing, setPushing] = useState(false)
-  const [showProgressModal, setShowProgressModal] = useState(false)
   const [draftsAlreadyExist, setDraftsAlreadyExist] = useState<boolean | null>(null)
+  const { startPushProgress, completePushProgress, failPushProgress } = usePushProgress()
   const [frameworkWindow, setFrameworkWindow] = useState<{ start_date: string; end_date: string } | null>(null)
 
   // Fetch all subcategories to include those without schedule rules
@@ -323,31 +323,8 @@ export default function CategoriesPage() {
     if (pushing) return
     setPushing(true)
     
-    // Track when modal is shown for minimum display time
-    const modalStartTime = Date.now()
-    const MIN_MODAL_DISPLAY_MS = 5000 // Minimum 5 seconds for UX
-    
-    setShowProgressModal(true)
-    
-    // Helper function to close modal ensuring minimum display time
-    const closeModalWithMinimumTime = (onClose: () => void) => {
-      const elapsed = Date.now() - modalStartTime
-      const remaining = Math.max(0, MIN_MODAL_DISPLAY_MS - elapsed)
-      
-      console.log(`[PushToDrafts] Modal display time - elapsed: ${elapsed}ms, remaining: ${remaining}ms`)
-      
-      if (remaining > 0) {
-        setTimeout(() => {
-          setShowProgressModal(false)
-          setPushing(false)
-          onClose()
-        }, remaining)
-      } else {
-        setShowProgressModal(false)
-        setPushing(false)
-        onClose()
-      }
-    }
+    // Start the progress modal
+    startPushProgress()
     
     try {
       // Call API route that creates drafts and triggers copy generation
@@ -503,9 +480,14 @@ export default function CategoriesPage() {
       // Re-check if drafts exist to update banner and button
       await checkExistingDrafts()
       
-      // Close modal after minimum display time, then show success toast
+      // Complete the progress modal (will auto-close after minimum display time)
       const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : undefined)
-      closeModalWithMinimumTime(() => {
+      completePushProgress({
+        minVisibleMs: 1500, // 1.5 seconds minimum visibility
+      })
+      
+      // Show success toast after a brief delay to let modal close
+      setTimeout(() => {
         showToast({
           title: 'Drafts created from framework',
           message: 'Your posts have been successfully pushed to Drafts.',
@@ -514,17 +496,19 @@ export default function CategoriesPage() {
           actionLabel: 'View Drafts',
           onAction: () => router.push(`/brands/${brandId}/schedule`)
         })
-      })
+      }, 1600)
+      
+      setPushing(false)
     } catch (err) {
       console.error('Push to drafts failed', err)
-      // Close modal after minimum display time, then show error toast
-      closeModalWithMinimumTime(() => {
-        showToast({
-          title: 'Something went wrong',
-          message: "We couldn't push drafts right now. Please try again.",
-          type: 'error',
-          duration: 4000
-        })
+      failPushProgress(err instanceof Error ? err.message : 'Failed to push drafts')
+      setPushing(false)
+      
+      showToast({
+        title: 'Something went wrong',
+        message: "We couldn't push drafts right now. Please try again.",
+        type: 'error',
+        duration: 4000
       })
     }
   }
@@ -1332,13 +1316,6 @@ export default function CategoriesPage() {
           }}
         />
 
-        {/* Push to Drafts Progress Modal */}
-        {showProgressModal && (
-          <DraftsPushProgressModal 
-            estimatedMs={60000} 
-            onClose={() => setShowProgressModal(false)}
-          />
-        )}
       </AppLayout>
     </RequireAuth>
   )

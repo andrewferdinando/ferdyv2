@@ -15,7 +15,7 @@ import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
-import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressModal'
+import { usePushProgress } from '@/contexts/PushProgressContext'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -303,32 +303,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [mode, initialData, brandId, router, showToast])
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
-  const [showPushProgressModal, setShowPushProgressModal] = useState(false)
-  
-  const modalCloseScheduledRef = useRef(false) // Prevent multiple close attempts
-  const modalStartTimeRef = useRef<number | null>(null) // Track when modal was opened
-  const forceShowModalRef = useRef(false) // Force modal to show for minimum time
-  
-  // Debug: Track when modal state changes and PREVENT premature closing
-  useEffect(() => {
-    console.log(`[Wizard][ModalState] showPushProgressModal changed to: ${showPushProgressModal}`, {
-      modalStartTime: modalStartTimeRef.current,
-      closeScheduled: modalCloseScheduledRef.current,
-      forceShow: forceShowModalRef.current,
-      elapsed: modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : null,
-      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n')
-    })
-    
-    // AGGRESSIVE: If modal was closed but we're forcing it to stay open, immediately re-open it
-    if (!showPushProgressModal && forceShowModalRef.current) {
-      if (!modalCloseScheduledRef.current) {
-        console.error(`[Wizard][ModalState] ⚠️ MODAL WAS CLOSED PREMATURELY! Re-opening immediately.`)
-        // Force it back open immediately
-        setShowPushProgressModal(true)
-        return
-      }
-    }
-  }, [showPushProgressModal])
+  const { startPushProgress, completePushProgress, failPushProgress } = usePushProgress()
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
@@ -1648,69 +1623,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
-    const MIN_MODAL_DISPLAY_MS = 5000 // Minimum 5 seconds for UX
-    const DB_DELAY_MS = 1500 // Delay before fetch to ensure DB commits are visible
-    
-    // Reset flags
-    modalCloseScheduledRef.current = false
-    forceShowModalRef.current = true
-    
-    // Show progress modal immediately
-    console.log(`[Wizard][AutoPush] About to set modal to true. Current state: ${showPushProgressModal}`)
-    setShowPushProgressModal(true)
-    
-    // Record start time AFTER a brief delay to account for React rendering
-    // This ensures we measure from when the user actually sees the modal
-    setTimeout(() => {
-      modalStartTimeRef.current = Date.now()
-      console.log(`[Wizard][AutoPush] Modal rendered and visible, start time recorded at ${modalStartTimeRef.current}`)
-    }, 100) // Small delay for React to render
-    
-    // Helper function to close modal ensuring minimum display time
-    // SIMPLIFIED: Always wait at least 5 seconds after API completes, regardless of prior visible time
-    const closeModalWithMinimumTime = (onClose: () => void) => {
-      // Prevent multiple close attempts
-      if (modalCloseScheduledRef.current) {
-        console.log(`[Wizard][AutoPush] Close already scheduled, ignoring duplicate call`)
-        return
-      }
-      
-      const apiCompletedTime = Date.now()
-      const elapsedSoFar = modalStartTimeRef.current ? apiCompletedTime - modalStartTimeRef.current : 0
-      
-      console.log(`[Wizard][AutoPush] API completed. Modal has been visible for ${elapsedSoFar}ms. Will wait ${MIN_MODAL_DISPLAY_MS}ms from NOW to ensure user sees completion.`)
-      
-      modalCloseScheduledRef.current = true
-      
-      // ALWAYS wait the full minimum time from when API completes
-      // This ensures the user always sees the modal for a meaningful duration
-      console.log(`[Wizard][AutoPush] Starting ${MIN_MODAL_DISPLAY_MS}ms countdown timer...`)
-      const closeTimer = setTimeout(() => {
-        const totalDisplayTime = modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : MIN_MODAL_DISPLAY_MS
-        console.log(`[Wizard][AutoPush] Timer expired. Closing modal (total visible: ${totalDisplayTime}ms, waited ${MIN_MODAL_DISPLAY_MS}ms after API completion)`)
-        
-        // Only close if we still have permission
-        if (!modalCloseScheduledRef.current) {
-          console.warn(`[Wizard][AutoPush] Timer fired but close was not scheduled - this shouldn't happen`)
-        }
-        
-        forceShowModalRef.current = false // Allow modal to close
-        setShowPushProgressModal(false)
-        modalStartTimeRef.current = null
-        onClose()
-      }, MIN_MODAL_DISPLAY_MS)
-      
-      // Store the timer ref so we can verify it's running (debugging)
-      ;(window as any).__modalCloseTimer = closeTimer
-    }
+    // Start the progress modal
+    startPushProgress('Creating your first drafts for this category…')
     
     // Delay to ensure asset_tags are fully committed and visible to queries
     // Using 1500ms to account for database replication/transaction isolation
     // This ensures asset-selection can find the images when it runs
     setTimeout(() => {
-      const elapsedSoFar = modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : 0
-      console.log(`[Wizard][AutoPush] Starting fetch after ${DB_DELAY_MS}ms delay (modal visible for ${elapsedSoFar}ms)`)
-      
       fetch('/api/drafts/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1726,18 +1645,28 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
           const result = await response.json()
           console.log('[Wizard] Auto-push: Drafts created successfully:', result)
-          console.log('[Wizard] Auto-push: Draft count:', result.draftCount)
+          const draftCount = result.draftCount || 0
+          console.log('[Wizard] Auto-push: Draft count:', draftCount)
           
-          // Close modal after minimum display time, then show success toast
-          closeModalWithMinimumTime(() => {
+          // Complete the progress modal (will auto-close after minimum display time)
+          completePushProgress({
+            minVisibleMs: 1500, // 1.5 seconds minimum visibility
+          })
+          
+          // Show success toast after a brief delay to let modal close
+          setTimeout(() => {
+            const message = draftCount === 1 
+              ? 'Category created and 1 draft added to the Drafts tab.'
+              : `Category created and ${draftCount} drafts added to the Drafts tab.`
+            
             showToast({
               title: 'Category created',
-              message: 'Drafts have been added to your Drafts tab.',
+              message,
               type: 'success',
               actionLabel: 'View drafts',
               onAction: () => router.push(`/brands/${brandId}/schedule`)
             })
-          })
+          }, 1600)
         })
         .catch((err) => {
           console.error('[Wizard] Auto-push: Failed to auto-push drafts:', err)
@@ -1746,13 +1675,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             stack: err.stack,
             name: err.name
           })
-          // Close modal after minimum display time, then show error toast
-          closeModalWithMinimumTime(() => {
-            showToast({
-              title: 'Category created',
-              message: 'Drafts could not be created automatically. You can use "Push to Drafts" manually from the Categories page.',
-              type: 'warning',
-            })
+          
+          // Fail the progress modal
+          failPushProgress(err.message || 'Failed to create drafts')
+          
+          showToast({
+            title: 'Category created',
+            message: 'Drafts could not be created automatically. You can use "Push to Drafts" manually from the Categories page.',
+            type: 'warning',
           })
         })
     }, 1500) // 1500ms delay to ensure DB commits are fully visible
@@ -3150,34 +3080,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           </div>
         </div>
         
-        {/* Push to Drafts Progress Modal */}
-        {showPushProgressModal && (
-          <DraftsPushProgressModal 
-            estimatedMs={60000} 
-            onClose={() => {
-              // ALWAYS prevent backdrop clicks from closing - the modal should only close
-              // via our closeModalWithMinimumTime function after the API completes
-              if (modalStartTimeRef.current) {
-                const elapsed = Date.now() - modalStartTimeRef.current
-                const MIN_MODAL_DISPLAY_MS = 5000
-                if (elapsed < MIN_MODAL_DISPLAY_MS) {
-                  console.log(`[Wizard][AutoPush] Backdrop click BLOCKED - only ${elapsed}ms elapsed (need ${MIN_MODAL_DISPLAY_MS}ms minimum)`)
-                  return // Ignore the close attempt - modal must stay open
-                }
-                // Even if past minimum, prevent manual closing - let our code handle it
-                if (!modalCloseScheduledRef.current) {
-                  console.log(`[Wizard][AutoPush] Backdrop click BLOCKED - close not scheduled yet (API may still be running)`)
-                  return
-                }
-              }
-              // Only allow closing if we've explicitly scheduled it
-              console.log(`[Wizard][AutoPush] Allowing backdrop close (close was scheduled)`)
-              forceShowModalRef.current = false
-              modalStartTimeRef.current = null
-              setShowPushProgressModal(false)
-            }}
-          />
-        )}
       </AppLayout>
     </RequireAuth>
   )

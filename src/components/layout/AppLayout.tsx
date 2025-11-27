@@ -3,6 +3,7 @@
 import { createContext, useContext, useState } from 'react';
 import Sidebar from '@/components/navigation/Sidebar';
 import AppTopNav from '@/components/navigation/AppTopNav';
+import { PushProgressProvider } from '@/contexts/PushProgressContext';
 
 const AppLayoutContext = createContext(false);
 
@@ -31,31 +32,33 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   const handleCloseSidebar = () => setIsMobileMenuOpen(false);
 
   return (
-    <div className="flex min-h-dvh bg-gray-50">
-      <div
-        className={`
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0
-          fixed lg:static inset-y-0 left-0 z-50 lg:z-auto
-          transition-transform duration-300 ease-in-out
-        `}
-      >
-        <Sidebar onMobileClose={handleCloseSidebar} />
-      </div>
-
-      {isMobileMenuOpen && (
+    <PushProgressProvider>
+      <div className="flex min-h-dvh bg-gray-50">
         <div
-          className="lg:hidden fixed inset-0 bg-black/40 z-40"
-          onClick={handleCloseSidebar}
-        />
-      )}
+          className={`
+            ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+            lg:translate-x-0
+            fixed lg:static inset-y-0 left-0 z-50 lg:z-auto
+            transition-transform duration-300 ease-in-out
+          `}
+        >
+          <Sidebar onMobileClose={handleCloseSidebar} />
+        </div>
 
-      <div className="flex-1 flex flex-col min-h-dvh">
-        <AppTopNav onMenuToggle={handleToggleSidebar} />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+        {isMobileMenuOpen && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black/40 z-40"
+            onClick={handleCloseSidebar}
+          />
+        )}
+
+        <div className="flex-1 flex flex-col min-h-dvh">
+          <AppTopNav onMenuToggle={handleToggleSidebar} />
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </PushProgressProvider>
   );
 }
