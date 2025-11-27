@@ -1651,19 +1651,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
     const MIN_MODAL_DISPLAY_MS = 5000 // Minimum 5 seconds for UX
+    const DB_DELAY_MS = 1500 // Delay before fetch to ensure DB commits are visible
     
     // Reset flags
     modalCloseScheduledRef.current = false
     forceShowModalRef.current = true
     
-    // Show progress modal immediately
+    // Show progress modal immediately and record when it becomes visible
     console.log(`[Wizard][AutoPush] About to set modal to true. Current state: ${showPushProgressModal}`)
+    const modalVisibleTime = Date.now()
+    modalStartTimeRef.current = modalVisibleTime
     setShowPushProgressModal(true)
-    
-    // Record start time right after showing modal (this is when user sees it)
-    // Don't wait for delay - we want to measure from when user sees the modal
-    modalStartTimeRef.current = Date.now()
-    console.log(`[Wizard][AutoPush] Modal state set to true, start time recorded at ${modalStartTimeRef.current}`)
+    console.log(`[Wizard][AutoPush] Modal visible, start time recorded at ${modalStartTimeRef.current}`)
     
     // Helper function to close modal ensuring minimum display time
     const closeModalWithMinimumTime = (onClose: () => void) => {
@@ -1681,23 +1680,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         return
       }
       
+      // Calculate elapsed time from when modal became visible
       const elapsed = Date.now() - modalStartTimeRef.current
       const remaining = Math.max(0, MIN_MODAL_DISPLAY_MS - elapsed)
       
-      console.log(`[Wizard][AutoPush] Modal display time - elapsed: ${elapsed}ms, remaining: ${remaining}ms`)
+      console.log(`[Wizard][AutoPush] API completed. Modal visible for ${elapsed}ms, remaining: ${remaining}ms (min: ${MIN_MODAL_DISPLAY_MS}ms)`)
       
       modalCloseScheduledRef.current = true
       
       if (remaining > 0) {
+        console.log(`[Wizard][AutoPush] Will wait ${remaining}ms more to ensure minimum 5 second display time`)
         setTimeout(() => {
-          console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total: ${Date.now() - modalStartTimeRef.current!}ms)`)
+          const totalDisplayTime = Date.now() - modalStartTimeRef.current!
+          console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total visible: ${totalDisplayTime}ms)`)
           forceShowModalRef.current = false // Allow modal to close
           setShowPushProgressModal(false)
           modalStartTimeRef.current = null
           onClose()
         }, remaining)
       } else {
-        console.log(`[Wizard][AutoPush] Closing modal immediately (already past minimum time)`)
+        console.log(`[Wizard][AutoPush] Closing modal immediately (visible for ${elapsed}ms, which exceeds minimum ${MIN_MODAL_DISPLAY_MS}ms)`)
         forceShowModalRef.current = false // Allow modal to close
         setShowPushProgressModal(false)
         modalStartTimeRef.current = null
@@ -1705,15 +1707,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
     }
     
-    // IMPORTANT: We record the start time BEFORE this delay so that the 5-second minimum
-    // is measured from when the user sees the modal, not from when the API call completes.
     // Delay to ensure asset_tags are fully committed and visible to queries
     // Using 1500ms to account for database replication/transaction isolation
     // This ensures asset-selection can find the images when it runs
     setTimeout(() => {
-      const timeBeforeFetch = Date.now()
-      const elapsedSoFar = modalStartTimeRef.current ? timeBeforeFetch - modalStartTimeRef.current : 0
-      console.log(`[Wizard][AutoPush] Starting fetch after ${elapsedSoFar}ms delay`)
+      const elapsedSoFar = Date.now() - modalStartTimeRef.current!
+      console.log(`[Wizard][AutoPush] Starting fetch after ${elapsedSoFar}ms delay (modal has been visible since ${modalStartTimeRef.current})`)
       
       fetch('/api/drafts/push', {
         method: 'POST',
