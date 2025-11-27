@@ -1624,7 +1624,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
     // Show progress modal immediately
+    const modalStartTime = Date.now()
+    const MIN_MODAL_DISPLAY_MS = 5000 // Minimum 5 seconds for UX
+    
     setShowPushProgressModal(true)
+    
+    // Helper function to close modal ensuring minimum display time
+    const closeModalWithMinimumTime = (onClose: () => void) => {
+      const elapsed = Date.now() - modalStartTime
+      const remaining = Math.max(0, MIN_MODAL_DISPLAY_MS - elapsed)
+      
+      if (remaining > 0) {
+        setTimeout(() => {
+          setShowPushProgressModal(false)
+          onClose()
+        }, remaining)
+      } else {
+        setShowPushProgressModal(false)
+        onClose()
+      }
+    }
     
     // Delay to ensure asset_tags are fully committed and visible to queries
     // Using 1500ms to account for database replication/transaction isolation
@@ -1647,14 +1666,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           console.log('[Wizard] Auto-push: Drafts created successfully:', result)
           console.log('[Wizard] Auto-push: Draft count:', result.draftCount)
           
-          // Close modal first, then show success toast
-          setShowPushProgressModal(false)
-          showToast({
-            title: 'Category created',
-            message: 'Drafts have been added to your Drafts tab.',
-            type: 'success',
-            actionLabel: 'View drafts',
-            onAction: () => router.push(`/brands/${brandId}/schedule`)
+          // Close modal after minimum display time, then show success toast
+          closeModalWithMinimumTime(() => {
+            showToast({
+              title: 'Category created',
+              message: 'Drafts have been added to your Drafts tab.',
+              type: 'success',
+              actionLabel: 'View drafts',
+              onAction: () => router.push(`/brands/${brandId}/schedule`)
+            })
           })
         })
         .catch((err) => {
@@ -1664,12 +1684,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             stack: err.stack,
             name: err.name
           })
-          // Close modal first, then show error toast
-          setShowPushProgressModal(false)
-          showToast({
-            title: 'Category created',
-            message: 'Drafts could not be created automatically. You can use "Push to Drafts" manually from the Categories page.',
-            type: 'warning',
+          // Close modal after minimum display time, then show error toast
+          closeModalWithMinimumTime(() => {
+            showToast({
+              title: 'Category created',
+              message: 'Drafts could not be created automatically. You can use "Push to Drafts" manually from the Categories page.',
+              type: 'warning',
+            })
           })
         })
     }, 1500) // 1500ms delay to ensure DB commits are fully visible
