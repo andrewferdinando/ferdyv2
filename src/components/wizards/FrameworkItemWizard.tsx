@@ -304,6 +304,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [showPushProgressModal, setShowPushProgressModal] = useState(false)
+  const modalCloseScheduledRef = useRef(false) // Prevent multiple close attempts
+  const modalStartTimeRef = useRef<number | null>(null) // Track when modal was opened
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
@@ -1624,27 +1626,47 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
     // Show progress modal immediately
-    const modalStartTime = Date.now()
     const MIN_MODAL_DISPLAY_MS = 5000 // Minimum 5 seconds for UX
+    modalStartTimeRef.current = Date.now()
+    modalCloseScheduledRef.current = false
     
     setShowPushProgressModal(true)
+    console.log(`[Wizard][AutoPush] Modal opened at ${modalStartTimeRef.current}`)
     
     // Helper function to close modal ensuring minimum display time
     const closeModalWithMinimumTime = (onClose: () => void) => {
-      const elapsed = Date.now() - modalStartTime
+      // Prevent multiple close attempts
+      if (modalCloseScheduledRef.current) {
+        console.log(`[Wizard][AutoPush] Close already scheduled, ignoring duplicate call`)
+        return
+      }
+      
+      if (!modalStartTimeRef.current) {
+        console.error(`[Wizard][AutoPush] No start time recorded, closing immediately`)
+        modalCloseScheduledRef.current = true
+        setShowPushProgressModal(false)
+        onClose()
+        return
+      }
+      
+      const elapsed = Date.now() - modalStartTimeRef.current
       const remaining = Math.max(0, MIN_MODAL_DISPLAY_MS - elapsed)
       
       console.log(`[Wizard][AutoPush] Modal display time - elapsed: ${elapsed}ms, remaining: ${remaining}ms`)
       
+      modalCloseScheduledRef.current = true
+      
       if (remaining > 0) {
         setTimeout(() => {
-          console.log(`[Wizard][AutoPush] Closing modal after minimum display time`)
+          console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total: ${Date.now() - modalStartTimeRef.current!}ms)`)
           setShowPushProgressModal(false)
+          modalStartTimeRef.current = null
           onClose()
         }, remaining)
       } else {
         console.log(`[Wizard][AutoPush] Closing modal immediately (already past minimum time)`)
         setShowPushProgressModal(false)
+        modalStartTimeRef.current = null
         onClose()
       }
     }
@@ -3096,7 +3118,22 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         {showPushProgressModal && (
           <DraftsPushProgressModal 
             estimatedMs={60000} 
-            onClose={() => setShowPushProgressModal(false)}
+            onClose={() => {
+              // Prevent premature closing - only allow if minimum time has passed
+              if (modalStartTimeRef.current) {
+                const elapsed = Date.now() - modalStartTimeRef.current
+                const MIN_MODAL_DISPLAY_MS = 5000
+                if (elapsed < MIN_MODAL_DISPLAY_MS) {
+                  console.log(`[Wizard][AutoPush] Backdrop click ignored - only ${elapsed}ms elapsed (need ${MIN_MODAL_DISPLAY_MS}ms)`)
+                  return // Ignore the close attempt
+                }
+              }
+              // If minimum time has passed, allow closing
+              console.log(`[Wizard][AutoPush] Backdrop click - closing modal`)
+              modalCloseScheduledRef.current = true
+              modalStartTimeRef.current = null
+              setShowPushProgressModal(false)
+            }}
           />
         )}
       </AppLayout>
