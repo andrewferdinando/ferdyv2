@@ -1669,6 +1669,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }, 100) // Small delay for React to render
     
     // Helper function to close modal ensuring minimum display time
+    // SIMPLIFIED: Always wait at least 5 seconds after API completes, regardless of prior visible time
     const closeModalWithMinimumTime = (onClose: () => void) => {
       // Prevent multiple close attempts
       if (modalCloseScheduledRef.current) {
@@ -1676,42 +1677,23 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         return
       }
       
-      // If start time hasn't been set yet (shouldn't happen, but be defensive)
-      if (!modalStartTimeRef.current) {
-        console.warn(`[Wizard][AutoPush] No start time recorded yet, setting it now and waiting full 5 seconds`)
-        modalStartTimeRef.current = Date.now()
-        // Wait the full minimum time
-        setTimeout(() => {
-          closeModalWithMinimumTime(onClose)
-        }, MIN_MODAL_DISPLAY_MS)
-        return
-      }
+      const apiCompletedTime = Date.now()
+      const elapsedSoFar = modalStartTimeRef.current ? apiCompletedTime - modalStartTimeRef.current : 0
       
-      // Calculate elapsed time from when modal became visible
-      const elapsed = Date.now() - modalStartTimeRef.current
-      const remaining = Math.max(0, MIN_MODAL_DISPLAY_MS - elapsed)
-      
-      console.log(`[Wizard][AutoPush] API completed. Modal visible for ${elapsed}ms, remaining: ${remaining}ms (min: ${MIN_MODAL_DISPLAY_MS}ms)`)
+      console.log(`[Wizard][AutoPush] API completed. Modal has been visible for ${elapsedSoFar}ms. Will wait ${MIN_MODAL_DISPLAY_MS}ms from NOW to ensure user sees completion.`)
       
       modalCloseScheduledRef.current = true
       
-      if (remaining > 0) {
-        console.log(`[Wizard][AutoPush] Will wait ${remaining}ms more to ensure minimum 5 second display time`)
-        setTimeout(() => {
-          const totalDisplayTime = Date.now() - modalStartTimeRef.current!
-          console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total visible: ${totalDisplayTime}ms)`)
-          forceShowModalRef.current = false // Allow modal to close
-          setShowPushProgressModal(false)
-          modalStartTimeRef.current = null
-          onClose()
-        }, remaining)
-      } else {
-        console.log(`[Wizard][AutoPush] Closing modal immediately (visible for ${elapsed}ms, which exceeds minimum ${MIN_MODAL_DISPLAY_MS}ms)`)
+      // ALWAYS wait the full minimum time from when API completes
+      // This ensures the user always sees the modal for a meaningful duration
+      setTimeout(() => {
+        const totalDisplayTime = modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : MIN_MODAL_DISPLAY_MS
+        console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total visible: ${totalDisplayTime}ms, waited ${MIN_MODAL_DISPLAY_MS}ms after API completion)`)
         forceShowModalRef.current = false // Allow modal to close
         setShowPushProgressModal(false)
         modalStartTimeRef.current = null
         onClose()
-      }
+      }, MIN_MODAL_DISPLAY_MS)
     }
     
     // Delay to ensure asset_tags are fully committed and visible to queries
