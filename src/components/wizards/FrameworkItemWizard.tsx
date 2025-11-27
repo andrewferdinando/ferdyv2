@@ -304,8 +304,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [showPushProgressModal, setShowPushProgressModal] = useState(false)
+  
   const modalCloseScheduledRef = useRef(false) // Prevent multiple close attempts
   const modalStartTimeRef = useRef<number | null>(null) // Track when modal was opened
+  const forceShowModalRef = useRef(false) // Force modal to show for minimum time
+  
+  // Debug: Track when modal state changes
+  useEffect(() => {
+    console.log(`[Wizard][ModalState] showPushProgressModal changed to: ${showPushProgressModal}`, {
+      modalStartTime: modalStartTimeRef.current,
+      closeScheduled: modalCloseScheduledRef.current,
+      forceShow: forceShowModalRef.current,
+      elapsed: modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : null
+    })
+    
+    // If modal was closed but we're still in the minimum display period, force it back open
+    if (!showPushProgressModal && forceShowModalRef.current && modalStartTimeRef.current) {
+      const elapsed = Date.now() - modalStartTimeRef.current
+      const MIN_MODAL_DISPLAY_MS = 5000
+      if (elapsed < MIN_MODAL_DISPLAY_MS && !modalCloseScheduledRef.current) {
+        console.warn(`[Wizard][ModalState] Modal was closed prematurely! Re-opening. Elapsed: ${elapsed}ms`)
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => {
+          setShowPushProgressModal(true)
+        }, 0)
+      }
+    }
+  }, [showPushProgressModal])
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
@@ -1625,13 +1650,20 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
-    // Show progress modal immediately
     const MIN_MODAL_DISPLAY_MS = 5000 // Minimum 5 seconds for UX
-    modalStartTimeRef.current = Date.now()
-    modalCloseScheduledRef.current = false
     
+    // Reset flags
+    modalCloseScheduledRef.current = false
+    forceShowModalRef.current = true
+    
+    // Show progress modal immediately
+    console.log(`[Wizard][AutoPush] About to set modal to true. Current state: ${showPushProgressModal}`)
     setShowPushProgressModal(true)
-    console.log(`[Wizard][AutoPush] Modal opened at ${modalStartTimeRef.current}`)
+    
+    // Record start time right after showing modal (this is when user sees it)
+    // Don't wait for delay - we want to measure from when user sees the modal
+    modalStartTimeRef.current = Date.now()
+    console.log(`[Wizard][AutoPush] Modal state set to true, start time recorded at ${modalStartTimeRef.current}`)
     
     // Helper function to close modal ensuring minimum display time
     const closeModalWithMinimumTime = (onClose: () => void) => {
@@ -1659,22 +1691,30 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       if (remaining > 0) {
         setTimeout(() => {
           console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total: ${Date.now() - modalStartTimeRef.current!}ms)`)
+          forceShowModalRef.current = false // Allow modal to close
           setShowPushProgressModal(false)
           modalStartTimeRef.current = null
           onClose()
         }, remaining)
       } else {
         console.log(`[Wizard][AutoPush] Closing modal immediately (already past minimum time)`)
+        forceShowModalRef.current = false // Allow modal to close
         setShowPushProgressModal(false)
         modalStartTimeRef.current = null
         onClose()
       }
     }
     
+    // IMPORTANT: We record the start time BEFORE this delay so that the 5-second minimum
+    // is measured from when the user sees the modal, not from when the API call completes.
     // Delay to ensure asset_tags are fully committed and visible to queries
     // Using 1500ms to account for database replication/transaction isolation
     // This ensures asset-selection can find the images when it runs
     setTimeout(() => {
+      const timeBeforeFetch = Date.now()
+      const elapsedSoFar = modalStartTimeRef.current ? timeBeforeFetch - modalStartTimeRef.current : 0
+      console.log(`[Wizard][AutoPush] Starting fetch after ${elapsedSoFar}ms delay`)
+      
       fetch('/api/drafts/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3130,6 +3170,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               }
               // If minimum time has passed, allow closing
               console.log(`[Wizard][AutoPush] Backdrop click - closing modal`)
+              forceShowModalRef.current = false // Allow modal to close
               modalCloseScheduledRef.current = true
               modalStartTimeRef.current = null
               setShowPushProgressModal(false)
