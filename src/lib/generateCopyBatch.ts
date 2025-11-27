@@ -124,12 +124,12 @@ async function selectAssetsForDraft(
     const candidateAssetIds = assetTags.map((at: any) => at.asset_id);
     console.log(`[generateCopyBatch][asset-selection] Found ${candidateAssetIds.length} asset_tags for tag ${tagId}:`, candidateAssetIds.slice(0, 5));
 
-    // Step 4: Fetch the actual assets and filter by brand_id, is_active, and channel compatibility
+    // Step 4: Fetch the actual assets and filter by brand_id and channel compatibility
+    // Note: assets table doesn't have is_active column - all assets are considered active
     const { data: assets, error: assetsError } = await supabase
       .from('assets')
-      .select('id, asset_type, is_active, brand_id')
+      .select('id, asset_type, brand_id')
       .eq('brand_id', brandId)
-      .eq('is_active', true)
       .in('id', candidateAssetIds);
 
     if (assetsError) {
@@ -138,17 +138,17 @@ async function selectAssetsForDraft(
     }
 
     if (!assets || assets.length === 0) {
-      // Debug: Check what assets exist (even if inactive or wrong brand)
+      // Debug: Check what assets exist (even if wrong brand)
       const { data: allAssets } = await supabase
         .from('assets')
-        .select('id, asset_type, is_active, brand_id')
+        .select('id, asset_type, brand_id')
         .in('id', candidateAssetIds)
         .limit(5);
       
-      console.log(`[generateCopyBatch][asset-selection] No active assets found for subcategory ${subcategoryId} (tag ${tagId}, name: ${subcategory.name}) for draft ${draftId}`);
-      console.log(`[generateCopyBatch][asset-selection] Debug - Found ${candidateAssetIds.length} asset_ids from asset_tags, but query returned ${assets?.length || 0} active assets`);
+      console.log(`[generateCopyBatch][asset-selection] No assets found for subcategory ${subcategoryId} (tag ${tagId}, name: ${subcategory.name}) for draft ${draftId}`);
+      console.log(`[generateCopyBatch][asset-selection] Debug - Found ${candidateAssetIds.length} asset_ids from asset_tags, but query returned ${assets?.length || 0} assets for brand ${brandId}`);
       if (allAssets && allAssets.length > 0) {
-        console.log(`[generateCopyBatch][asset-selection] Debug - Sample assets (may be inactive or wrong brand):`, allAssets.map((a: any) => ({ id: a.id, is_active: a.is_active, brand_id: a.brand_id })));
+        console.log(`[generateCopyBatch][asset-selection] Debug - Sample assets (may have wrong brand_id):`, allAssets.map((a: any) => ({ id: a.id, brand_id: a.brand_id, matches_brand: a.brand_id === brandId })));
       }
       return [];
     }
