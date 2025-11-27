@@ -11,18 +11,20 @@ export default function EngineRoomPostTimePage() {
   const params = useParams()
   const brandId = params.brandId as string
 
-  const { defaultPostTime, isLoading: settingsLoading } = useBrandPostSettings(brandId)
+  const { defaultPostTime: defaultPostTimeFromHook, isLoading: settingsLoading } = useBrandPostSettings(brandId)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [defaultPostTime, setDefaultPostTime] = useState('10:00') // Local state for form input
 
   useEffect(() => {
     if (!settingsLoading) {
-      // Hook ensures defaultPostTime is always non-null with fallback
+      // Sync local state with hook value (hook ensures this is always non-null with fallback)
+      setDefaultPostTime(defaultPostTimeFromHook)
       setLoading(false)
     }
-  }, [settingsLoading])
+  }, [settingsLoading, defaultPostTimeFromHook])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -112,7 +114,7 @@ export default function EngineRoomPostTimePage() {
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm transition focus:border-transparent focus:ring-2 focus:ring-[#6366F1]"
                       placeholder="10:00"
                     />
-                    {!defaultPostTimeFromHook && (
+                    {defaultPostTimeFromHook === '10:00' && (
                       <p className="mt-1 text-xs text-gray-500">
                         Currently using default: 10:00 AM
                       </p>
