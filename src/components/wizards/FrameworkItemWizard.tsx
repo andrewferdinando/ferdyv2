@@ -1038,57 +1038,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.info('[Wizard] Successfully created schedule rule')
       }
 
-      // Auto-push drafts for NEW subcategories (not edits)
-      // This generates drafts from today through end of next month
-      if (mode === 'create') {
-        console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
-        console.log('[Wizard] Auto-push: All schedule_rules saved, triggering push now')
-        
-        // Small delay to ensure database transaction is fully committed
-        // This ensures rpc_framework_targets can see the newly created schedule_rules
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Fire-and-forget: trigger auto-push but don't block the wizard flow
-        fetch('/api/drafts/push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ brandId }),
-        })
-          .then(async (response) => {
-            console.log('[Wizard] Auto-push: Response status:', response.status, response.statusText)
-            console.log('[Wizard] Auto-push: Response headers:', Object.fromEntries(response.headers.entries()))
-            
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}))
-              console.error('[Wizard] Auto-push: Error response:', errorData)
-              throw new Error(errorData.error || 'Failed to create drafts')
-            }
-            const result = await response.json()
-            console.log('[Wizard] Auto-push: Drafts created successfully:', result)
-            console.log('[Wizard] Auto-push: Draft count:', result.draftCount)
-            showToast({
-              title: 'Drafts created',
-              message: 'Drafts have been generated from today through the end of next month.',
-              type: 'success',
-            })
-          })
-          .catch((err) => {
-            console.error('[Wizard] Auto-push: Failed to auto-push drafts:', err)
-            console.error('[Wizard] Auto-push: Error details:', {
-              message: err.message,
-              stack: err.stack,
-              name: err.name
-            })
-            // Show error toast but don't block the wizard flow
-            showToast({
-              title: 'Drafts could not be created automatically',
-              message: 'You can use "Push to Drafts" manually from the Categories page.',
-              type: 'error',
-            })
-          })
-      } else {
-        console.log('[Wizard] Auto-push: Skipping - editing existing subcategory (mode:', mode, ')')
-      }
+      // Note: Auto-push is now deferred until after images are saved (in handleFinish)
+      // This ensures assets exist when asset-selection runs
 
       return { subcategoryId }
     } catch (error) {
@@ -1661,7 +1612,62 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   }
 
-  // Handle Step 4 finish - link images to subcategory
+  // Helper function to trigger auto-push drafts (after images are saved)
+  const triggerAutoPushDrafts = (subcategoryId: string) => {
+    if (mode !== 'create') {
+      return // Only auto-push for new subcategories
+    }
+
+    console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
+    console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
+    
+    // Small delay to ensure asset_tags are fully committed
+    // This ensures asset-selection can find the images
+    setTimeout(() => {
+      fetch('/api/drafts/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId }),
+      })
+        .then(async (response) => {
+          console.log('[Wizard] Auto-push: Response status:', response.status, response.statusText)
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[Wizard] Auto-push: Error response:', errorData)
+            throw new Error(errorData.error || 'Failed to create drafts')
+          }
+          const result = await response.json()
+          console.log('[Wizard] Auto-push: Drafts created successfully:', result)
+          console.log('[Wizard] Auto-push: Draft count:', result.draftCount)
+          
+          // Show success toast with View drafts link
+          showToast({
+            title: 'Category created',
+            message: 'Drafts have been added to your Drafts tab.',
+            type: 'success',
+            actionLabel: 'View drafts',
+            onAction: () => router.push(`/brands/${brandId}/schedule`)
+          })
+        })
+        .catch((err) => {
+          console.error('[Wizard] Auto-push: Failed to auto-push drafts:', err)
+          console.error('[Wizard] Auto-push: Error details:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name
+          })
+          // Show error toast but don't block the wizard flow
+          showToast({
+            title: 'Category created',
+            message: 'Drafts could not be created automatically. You can use "Push to Drafts" manually from the Categories page.',
+            type: 'warning',
+          })
+        })
+    }, 500) // 500ms delay to ensure DB commits
+  }
+
+  // Handle Step 4 finish - link images to subcategory, then trigger auto-push
   const handleFinish = async () => {
     // In edit mode, update existing records
     if (mode === 'edit') {
@@ -1698,93 +1704,86 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
     const subcategoryId = saveResult.subcategoryId
 
-    // If no images selected, just redirect
-    if (selectedAssetIds.length === 0) {
-      showToast({
-        title: 'Category created',
-        message: 'You can now add dates and edit details in the Categories list.',
-        type: 'success'
-      })
-      router.push(`/brands/${brandId}/engine-room/categories`)
-      return
-    }
-
     setIsSaving(true)
 
     try {
-      // Find the subcategory's tag (should exist due to triggers, but handle gracefully if not)
-      let tagId: string | null = null
-      
-      // First, try to find the tag (it should have been created by the trigger)
-      const { data: subcategoryTag, error: tagError } = await supabase
-        .from('tags')
-        .select('id')
-        .eq('brand_id', brandId)
-        .eq('name', details.name.trim())
-        .eq('kind', 'subcategory')
-        .eq('is_active', true)
-        .maybeSingle() // Use maybeSingle instead of single to handle not found gracefully
-
-      if (subcategoryTag) {
-        tagId = subcategoryTag.id
-      } else {
-        // Tag doesn't exist yet (trigger might have failed or there's a delay) - create it
-        console.warn('[Wizard] Subcategory tag not found, creating it:', tagError)
-        const { data: newTag, error: createTagError } = await supabase
+      // Save images if any are selected
+      if (selectedAssetIds.length > 0) {
+        // Find the subcategory's tag (should exist due to triggers, but handle gracefully if not)
+        let tagId: string | null = null
+        
+        // First, try to find the tag (it should have been created by the trigger)
+        const { data: subcategoryTag, error: tagError } = await supabase
           .from('tags')
-          .insert({
-            brand_id: brandId,
-            name: details.name.trim(),
-            kind: 'subcategory',
-            is_active: true
-          })
-          .select()
-          .single()
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('name', details.name.trim())
+          .eq('kind', 'subcategory')
+          .eq('is_active', true)
+          .maybeSingle() // Use maybeSingle instead of single to handle not found gracefully
 
-        if (createTagError || !newTag) {
-          console.error('[Wizard] Failed to create/find subcategory tag:', createTagError)
-          throw new Error('Failed to link images to category. Images were uploaded but not assigned.')
-        }
+        if (subcategoryTag) {
+          tagId = subcategoryTag.id
+        } else {
+          // Tag doesn't exist yet (trigger might have failed or there's a delay) - create it
+          console.warn('[Wizard] Subcategory tag not found, creating it:', tagError)
+          const { data: newTag, error: createTagError } = await supabase
+            .from('tags')
+            .insert({
+              brand_id: brandId,
+              name: details.name.trim(),
+              kind: 'subcategory',
+              is_active: true
+            })
+            .select()
+            .single()
 
-        tagId = newTag.id
-      }
-
-      if (tagId) {
-        // Check which assets are already linked
-        const { data: existingLinks } = await supabase
-          .from('asset_tags')
-          .select('asset_id')
-          .eq('tag_id', tagId)
-          .in('asset_id', selectedAssetIds)
-
-        const existingAssetIds = new Set(existingLinks?.map(link => link.asset_id) || [])
-        const newAssetIds = selectedAssetIds.filter(id => !existingAssetIds.has(id))
-
-        if (newAssetIds.length > 0) {
-          const assetTagInserts = newAssetIds.map(assetId => ({
-            asset_id: assetId,
-            tag_id: tagId
-          }))
-
-          const { error: linkError } = await supabase
-            .from('asset_tags')
-            .insert(assetTagInserts)
-
-          if (linkError) {
-            console.error('[Wizard] Error linking assets to tag:', linkError)
-            throw new Error(`Failed to link images: ${linkError.message}`)
+          if (createTagError || !newTag) {
+            console.error('[Wizard] Failed to create/find subcategory tag:', createTagError)
+            throw new Error('Failed to link images to category. Images were uploaded but not assigned.')
           }
+
+          tagId = newTag.id
         }
 
-        showToast({
-          title: 'Category created and images assigned',
-          message: 'You can now add dates and edit details in the Categories list.',
-          type: 'success'
-        })
-      } else {
-        throw new Error('Failed to find or create subcategory tag')
+        if (tagId) {
+          // Check which assets are already linked
+          const { data: existingLinks } = await supabase
+            .from('asset_tags')
+            .select('asset_id')
+            .eq('tag_id', tagId)
+            .in('asset_id', selectedAssetIds)
+
+          const existingAssetIds = new Set(existingLinks?.map(link => link.asset_id) || [])
+          const newAssetIds = selectedAssetIds.filter(id => !existingAssetIds.has(id))
+
+          if (newAssetIds.length > 0) {
+            const assetTagInserts = newAssetIds.map(assetId => ({
+              asset_id: assetId,
+              tag_id: tagId
+            }))
+
+            const { error: linkError } = await supabase
+              .from('asset_tags')
+              .insert(assetTagInserts)
+
+            if (linkError) {
+              console.error('[Wizard] Error linking assets to tag:', linkError)
+              throw new Error(`Failed to link images: ${linkError.message}`)
+            }
+            
+            console.info('[Wizard] Successfully linked', newAssetIds.length, 'assets to subcategory tag')
+          }
+        } else {
+          throw new Error('Failed to find or create subcategory tag')
+        }
       }
 
+      // Trigger auto-push AFTER images are saved (or even if no images)
+      // This ensures assets exist when asset-selection runs
+      triggerAutoPushDrafts(subcategoryId)
+
+      // Redirect immediately (auto-push runs in background)
       router.push(`/brands/${brandId}/engine-room/categories`)
     } catch (error) {
       console.error('[Wizard] Error linking images:', error)
@@ -1793,6 +1792,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         message: error instanceof Error ? `Images were uploaded but couldn't be linked: ${error.message}. You can manage images from the Content Library.` : 'Images were uploaded but couldn\'t be linked. You can manage images from the Content Library.',
         type: 'error'
       })
+      
+      // Still trigger auto-push even if image linking failed (drafts can be created without images)
+      triggerAutoPushDrafts(subcategoryId)
+      
       router.push(`/brands/${brandId}/engine-room/categories`)
     } finally {
       setIsSaving(false)

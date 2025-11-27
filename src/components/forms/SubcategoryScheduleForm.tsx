@@ -1196,9 +1196,11 @@ export function SubcategoryScheduleForm({
             const result = await response.json()
             console.log('[auto-push] Drafts created successfully:', result)
             console.log('[auto-push] Draft count:', result.draftCount)
+            // Note: SubcategoryScheduleForm doesn't have router access, so we can't add "View drafts" link
+            // But the message is clearer now
             showToast({
-              title: 'Drafts created',
-              message: 'Drafts have been generated from today through the end of next month.',
+              title: 'Category created',
+              message: 'Drafts have been added to your Drafts tab.',
               type: 'success',
             })
           })

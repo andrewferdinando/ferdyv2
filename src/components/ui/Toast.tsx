@@ -6,7 +6,7 @@ export interface Toast {
   id: string
   title: string
   message?: string
-  type: 'success' | 'error'
+  type: 'success' | 'error' | 'warning'
   duration?: number
   actionLabel?: string
   onAction?: () => void
@@ -33,10 +33,11 @@ const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
   }, [toast.id, toast.duration, onRemove])
 
   const isSuccess = toast.type === 'success'
-  const bgColor = isSuccess ? 'bg-[#ECFDF5]' : 'bg-[#FEF2F2]'
-  const borderColor = isSuccess ? 'border-[#10B981]' : 'border-[#EF4444]'
-  const textColor = isSuccess ? 'text-[#10B981]' : 'text-[#EF4444]'
-  const titleColor = isSuccess ? 'text-[#065F46]' : 'text-[#991B1B]'
+  const isWarning = toast.type === 'warning'
+  const bgColor = isSuccess ? 'bg-[#ECFDF5]' : isWarning ? 'bg-[#FFFBEB]' : 'bg-[#FEF2F2]'
+  const borderColor = isSuccess ? 'border-[#10B981]' : isWarning ? 'border-[#F59E0B]' : 'border-[#EF4444]'
+  const textColor = isSuccess ? 'text-[#10B981]' : isWarning ? 'text-[#F59E0B]' : 'text-[#EF4444]'
+  const titleColor = isSuccess ? 'text-[#065F46]' : isWarning ? 'text-[#92400E]' : 'text-[#991B1B]'
 
   return (
     <div
