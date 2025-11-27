@@ -49,7 +49,14 @@ export default function DraftsPushProgressModal({ estimatedMs = 60000, onClose }
       role="dialog" 
       aria-modal="true" 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-      onClick={onClose}
+      onClick={onClose || undefined}
+      onKeyDown={(e) => {
+        // Prevent ESC key from closing if onClose is not provided or should be blocked
+        if (e.key === 'Escape' && !onClose) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+      }}
     >
       <div 
         className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"

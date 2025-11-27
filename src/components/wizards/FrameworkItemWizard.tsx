@@ -3158,19 +3158,24 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           <DraftsPushProgressModal 
             estimatedMs={60000} 
             onClose={() => {
-              // Prevent premature closing - only allow if minimum time has passed
+              // ALWAYS prevent backdrop clicks from closing - the modal should only close
+              // via our closeModalWithMinimumTime function after the API completes
               if (modalStartTimeRef.current) {
                 const elapsed = Date.now() - modalStartTimeRef.current
                 const MIN_MODAL_DISPLAY_MS = 5000
                 if (elapsed < MIN_MODAL_DISPLAY_MS) {
-                  console.log(`[Wizard][AutoPush] Backdrop click ignored - only ${elapsed}ms elapsed (need ${MIN_MODAL_DISPLAY_MS}ms)`)
-                  return // Ignore the close attempt
+                  console.log(`[Wizard][AutoPush] Backdrop click BLOCKED - only ${elapsed}ms elapsed (need ${MIN_MODAL_DISPLAY_MS}ms minimum)`)
+                  return // Ignore the close attempt - modal must stay open
+                }
+                // Even if past minimum, prevent manual closing - let our code handle it
+                if (!modalCloseScheduledRef.current) {
+                  console.log(`[Wizard][AutoPush] Backdrop click BLOCKED - close not scheduled yet (API may still be running)`)
+                  return
                 }
               }
-              // If minimum time has passed, allow closing
-              console.log(`[Wizard][AutoPush] Backdrop click - closing modal`)
-              forceShowModalRef.current = false // Allow modal to close
-              modalCloseScheduledRef.current = true
+              // Only allow closing if we've explicitly scheduled it
+              console.log(`[Wizard][AutoPush] Allowing backdrop close (close was scheduled)`)
+              forceShowModalRef.current = false
               modalStartTimeRef.current = null
               setShowPushProgressModal(false)
             }}
