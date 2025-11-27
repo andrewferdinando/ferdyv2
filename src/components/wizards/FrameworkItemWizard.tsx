@@ -15,6 +15,7 @@ import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
+import DraftsPushProgressModal from '@/components/schedule/DraftsPushProgressModal'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -302,6 +303,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [mode, initialData, brandId, router, showToast])
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
+  const [showPushProgressModal, setShowPushProgressModal] = useState(false)
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
@@ -1621,6 +1623,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
     console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
     
+    // Show progress modal immediately
+    setShowPushProgressModal(true)
+    
     // Delay to ensure asset_tags are fully committed and visible to queries
     // Using 1500ms to account for database replication/transaction isolation
     // This ensures asset-selection can find the images when it runs
@@ -1642,7 +1647,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           console.log('[Wizard] Auto-push: Drafts created successfully:', result)
           console.log('[Wizard] Auto-push: Draft count:', result.draftCount)
           
-          // Show success toast with View drafts link
+          // Close modal first, then show success toast
+          setShowPushProgressModal(false)
           showToast({
             title: 'Category created',
             message: 'Drafts have been added to your Drafts tab.',
@@ -1658,7 +1664,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             stack: err.stack,
             name: err.name
           })
-          // Show error toast but don't block the wizard flow
+          // Close modal first, then show error toast
+          setShowPushProgressModal(false)
           showToast({
             title: 'Category created',
             message: 'Drafts could not be created automatically. You can use "Push to Drafts" manually from the Categories page.',
@@ -3059,6 +3066,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             </div>
           </div>
         </div>
+        
+        {/* Push to Drafts Progress Modal */}
+        {showPushProgressModal && (
+          <DraftsPushProgressModal 
+            estimatedMs={60000} 
+            onClose={() => setShowPushProgressModal(false)}
+          />
+        )}
       </AppLayout>
     </RequireAuth>
   )
