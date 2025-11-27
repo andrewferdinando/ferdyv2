@@ -1657,12 +1657,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     modalCloseScheduledRef.current = false
     forceShowModalRef.current = true
     
-    // Show progress modal immediately and record when it becomes visible
+    // Show progress modal immediately
     console.log(`[Wizard][AutoPush] About to set modal to true. Current state: ${showPushProgressModal}`)
-    const modalVisibleTime = Date.now()
-    modalStartTimeRef.current = modalVisibleTime
     setShowPushProgressModal(true)
-    console.log(`[Wizard][AutoPush] Modal visible, start time recorded at ${modalStartTimeRef.current}`)
+    
+    // Record start time AFTER a brief delay to account for React rendering
+    // This ensures we measure from when the user actually sees the modal
+    setTimeout(() => {
+      modalStartTimeRef.current = Date.now()
+      console.log(`[Wizard][AutoPush] Modal rendered and visible, start time recorded at ${modalStartTimeRef.current}`)
+    }, 100) // Small delay for React to render
     
     // Helper function to close modal ensuring minimum display time
     const closeModalWithMinimumTime = (onClose: () => void) => {
@@ -1672,11 +1676,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         return
       }
       
+      // If start time hasn't been set yet (shouldn't happen, but be defensive)
       if (!modalStartTimeRef.current) {
-        console.error(`[Wizard][AutoPush] No start time recorded, closing immediately`)
-        modalCloseScheduledRef.current = true
-        setShowPushProgressModal(false)
-        onClose()
+        console.warn(`[Wizard][AutoPush] No start time recorded yet, setting it now and waiting full 5 seconds`)
+        modalStartTimeRef.current = Date.now()
+        // Wait the full minimum time
+        setTimeout(() => {
+          closeModalWithMinimumTime(onClose)
+        }, MIN_MODAL_DISPLAY_MS)
         return
       }
       
@@ -1711,8 +1718,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     // Using 1500ms to account for database replication/transaction isolation
     // This ensures asset-selection can find the images when it runs
     setTimeout(() => {
-      const elapsedSoFar = Date.now() - modalStartTimeRef.current!
-      console.log(`[Wizard][AutoPush] Starting fetch after ${elapsedSoFar}ms delay (modal has been visible since ${modalStartTimeRef.current})`)
+      const elapsedSoFar = modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : 0
+      console.log(`[Wizard][AutoPush] Starting fetch after ${DB_DELAY_MS}ms delay (modal visible for ${elapsedSoFar}ms)`)
       
       fetch('/api/drafts/push', {
         method: 'POST',
