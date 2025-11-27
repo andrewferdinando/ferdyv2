@@ -1634,12 +1634,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       const elapsed = Date.now() - modalStartTime
       const remaining = Math.max(0, MIN_MODAL_DISPLAY_MS - elapsed)
       
+      console.log(`[Wizard][AutoPush] Modal display time - elapsed: ${elapsed}ms, remaining: ${remaining}ms`)
+      
       if (remaining > 0) {
         setTimeout(() => {
+          console.log(`[Wizard][AutoPush] Closing modal after minimum display time`)
           setShowPushProgressModal(false)
           onClose()
         }, remaining)
       } else {
+        console.log(`[Wizard][AutoPush] Closing modal immediately (already past minimum time)`)
         setShowPushProgressModal(false)
         onClose()
       }
