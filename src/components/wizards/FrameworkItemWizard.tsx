@@ -309,25 +309,23 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const modalStartTimeRef = useRef<number | null>(null) // Track when modal was opened
   const forceShowModalRef = useRef(false) // Force modal to show for minimum time
   
-  // Debug: Track when modal state changes
+  // Debug: Track when modal state changes and PREVENT premature closing
   useEffect(() => {
     console.log(`[Wizard][ModalState] showPushProgressModal changed to: ${showPushProgressModal}`, {
       modalStartTime: modalStartTimeRef.current,
       closeScheduled: modalCloseScheduledRef.current,
       forceShow: forceShowModalRef.current,
-      elapsed: modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : null
+      elapsed: modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : null,
+      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n')
     })
     
-    // If modal was closed but we're still in the minimum display period, force it back open
-    if (!showPushProgressModal && forceShowModalRef.current && modalStartTimeRef.current) {
-      const elapsed = Date.now() - modalStartTimeRef.current
-      const MIN_MODAL_DISPLAY_MS = 5000
-      if (elapsed < MIN_MODAL_DISPLAY_MS && !modalCloseScheduledRef.current) {
-        console.warn(`[Wizard][ModalState] Modal was closed prematurely! Re-opening. Elapsed: ${elapsed}ms`)
-        // Use setTimeout to avoid state update during render
-        setTimeout(() => {
-          setShowPushProgressModal(true)
-        }, 0)
+    // AGGRESSIVE: If modal was closed but we're forcing it to stay open, immediately re-open it
+    if (!showPushProgressModal && forceShowModalRef.current) {
+      if (!modalCloseScheduledRef.current) {
+        console.error(`[Wizard][ModalState] ⚠️ MODAL WAS CLOSED PREMATURELY! Re-opening immediately.`)
+        // Force it back open immediately
+        setShowPushProgressModal(true)
+        return
       }
     }
   }, [showPushProgressModal])
@@ -1686,14 +1684,24 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       
       // ALWAYS wait the full minimum time from when API completes
       // This ensures the user always sees the modal for a meaningful duration
-      setTimeout(() => {
+      console.log(`[Wizard][AutoPush] Starting ${MIN_MODAL_DISPLAY_MS}ms countdown timer...`)
+      const closeTimer = setTimeout(() => {
         const totalDisplayTime = modalStartTimeRef.current ? Date.now() - modalStartTimeRef.current : MIN_MODAL_DISPLAY_MS
-        console.log(`[Wizard][AutoPush] Closing modal after minimum display time (total visible: ${totalDisplayTime}ms, waited ${MIN_MODAL_DISPLAY_MS}ms after API completion)`)
+        console.log(`[Wizard][AutoPush] Timer expired. Closing modal (total visible: ${totalDisplayTime}ms, waited ${MIN_MODAL_DISPLAY_MS}ms after API completion)`)
+        
+        // Only close if we still have permission
+        if (!modalCloseScheduledRef.current) {
+          console.warn(`[Wizard][AutoPush] Timer fired but close was not scheduled - this shouldn't happen`)
+        }
+        
         forceShowModalRef.current = false // Allow modal to close
         setShowPushProgressModal(false)
         modalStartTimeRef.current = null
         onClose()
       }, MIN_MODAL_DISPLAY_MS)
+      
+      // Store the timer ref so we can verify it's running (debugging)
+      ;(window as any).__modalCloseTimer = closeTimer
     }
     
     // Delay to ensure asset_tags are fully committed and visible to queries
