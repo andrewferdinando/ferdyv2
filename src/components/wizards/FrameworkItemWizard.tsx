@@ -586,6 +586,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       defaultHashtags: '',
       channels: [],
       default_copy_length: defaultCopyLength || 'medium',
+      post_time: defaultPostTime || null,
     })
     setDetailsErrors({})
     
@@ -617,7 +618,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     
     // Reset to step 1
     setCurrentStep(1)
-  }, [brand?.timezone])
+  }, [brand?.timezone, defaultCopyLength, defaultPostTime])
 
   // Track previous type to detect changes
   const prevSubcategoryTypeRef = React.useRef<SubcategoryType | null>(subcategoryType)
