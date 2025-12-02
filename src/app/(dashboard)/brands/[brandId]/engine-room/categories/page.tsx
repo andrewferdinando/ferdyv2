@@ -193,24 +193,26 @@ export default function CategoriesPage() {
     fetchPushStatus()
   }, [fetchPushStatus])
 
-  // Helper function to format last run timestamp
-  const formatLastRunAt = useCallback((lastRunAt: string | null): string | null => {
-    if (!lastRunAt) return null
-    
-    try {
-      const date = new Date(lastRunAt)
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      }).format(date)
-    } catch (e) {
-      return null
-    }
-  }, [])
+  // Helper functions to format dates
+  const formattedLastRun = useMemo(() => {
+    return pushStatus?.lastRunAt
+      ? new Date(pushStatus.lastRunAt).toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : null
+  }, [pushStatus?.lastRunAt])
+
+  const formattedNextPush = useMemo(() => {
+    return pushStatus?.pushDate
+      ? new Date(pushStatus.pushDate).toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : null
+  }, [pushStatus?.pushDate])
 
   const bannerCopy = useMemo(() => {
     if (!pushStatus) {
@@ -847,11 +849,14 @@ export default function CategoriesPage() {
                         </button>
                       </div>
                     )}
-                    {pushStatus?.lastRunAt && (
-                      <p className="mt-1 text-sm text-gray-600">
-                        Last pushed: {formatLastRunAt(pushStatus.lastRunAt)}
+                    <div className="mt-2 space-y-1 text-sm text-gray-600">
+                      <p>
+                        Last push: {formattedLastRun ?? "Not yet run"}
                       </p>
-                    )}
+                      <p>
+                        Next push: {formattedNextPush ?? "To be confirmed"}
+                      </p>
+                    </div>
                     <button
                       onClick={handlePushToDrafts}
                       disabled={pushing}
