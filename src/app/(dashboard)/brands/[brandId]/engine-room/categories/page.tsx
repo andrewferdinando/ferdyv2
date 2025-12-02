@@ -812,7 +812,36 @@ export default function CategoriesPage() {
     <RequireAuth>
       <AppLayout>
         <div className="flex-1 overflow-auto">
-          {/* Header */}
+          {/* Monthly Automation Section */}
+          {isAdmin && (
+            <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 sm:px-6 py-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex-1">
+                    {bannerCopyNZ && (
+                      <p className="text-sm text-gray-700">
+                        {bannerCopyNZ}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    <button
+                      onClick={handlePushToDrafts}
+                      disabled={pushing || draftsAlreadyExist === true}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
+                    >
+                      {pushing && (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                      )}
+                      {pushing ? 'Pushing…' : 'Push to Drafts Now'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Categories Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
               <div>
@@ -835,30 +864,6 @@ export default function CategoriesPage() {
           {/* Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
             <div className="space-y-6">
-              {/* Row 2: Banner + Push Button */}
-              {isAdmin && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="w-full">
-                    {bannerCopyNZ && (
-                      <div className="px-3 py-2 bg-[#EEF2FF] text-[#6366F1] text-sm rounded-lg inline-block">
-                        {bannerCopyNZ}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0 ml-4">
-                    <button
-                      onClick={handlePushToDrafts}
-                      disabled={pushing || draftsAlreadyExist === true}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${(pushing || draftsAlreadyExist === true) ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#6366F1] hover:bg-[#4F46E5]'}`}
-                    >
-                      {pushing && (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
-                      )}
-                      {pushing ? 'Pushing…' : 'Push to Drafts Now'}
-                    </button>
-                  </div>
-                </div>
-              )}
 
               <div className="bg-white rounded-lg border border-gray-200">
                 {(rulesLoading || subcategoriesLoading) ? (
