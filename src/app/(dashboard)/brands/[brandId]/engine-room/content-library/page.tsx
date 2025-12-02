@@ -889,6 +889,13 @@ function AssetDetailView({
       return
     }
 
+    // Validate selected format
+    if (!FORMATS.some(f => f.key === selectedFormat)) {
+      console.error('Invalid format selected:', selectedFormat)
+      alert('Invalid format selected. Please try again.')
+      return
+    }
+
     try {
       setSaving(true)
       
@@ -906,7 +913,9 @@ function AssetDetailView({
           ]),
         )
       
-      const { error: assetError } = await supabase
+        console.log('Saving asset with format:', selectedFormat, 'crops:', cropsToPersist)
+      
+      const { error: assetError, data } = await supabase
         .from('assets')
         .update({
             aspect_ratio: selectedFormat,
@@ -915,10 +924,14 @@ function AssetDetailView({
         })
         .eq('id', asset.id)
         .eq('brand_id', asset.brand_id)
+        .select()
 
       if (assetError) {
-        throw assetError
+        console.error('Supabase error saving asset:', assetError)
+        throw new Error(assetError.message || 'Failed to save asset data')
         }
+        
+        console.log('Asset saved successfully:', data)
       }
 
       await saveAssetTags(asset.id, selectedTagIds)
@@ -926,7 +939,8 @@ function AssetDetailView({
       onBack()
     } catch (error) {
       console.error('Error saving asset:', error)
-      alert('Failed to save asset. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save asset. Please try again.'
+      alert(`Failed to save asset: ${errorMessage}`)
     } finally {
       setSaving(false)
     }
@@ -1017,7 +1031,7 @@ function AssetDetailView({
                   )}
                 </div>
               ) : (
-                <div className={`${aspectClass} relative w-full max-h-[420px] mx-auto overflow-hidden rounded-xl bg-gray-100`}>
+                <div className={`${aspectClass} relative w-full max-w-4xl mx-auto overflow-hidden rounded-xl bg-gray-100`}>
                   <div
                     ref={frameRef}
                     className="absolute inset-0 cursor-move"
