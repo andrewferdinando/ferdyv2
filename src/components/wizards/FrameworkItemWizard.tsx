@@ -837,19 +837,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       })
 
       // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
+      // Force fresh query by adding a timestamp parameter to bypass Supabase client caching
       const { data: brandPostInfo, error: brandPostInfoError } = await supabase
         .from('brand_post_information')
         .select('default_copy_length, default_post_time')
         .eq('brand_id', brandId)
         .maybeSingle()
 
-      // Debug logging
-      console.log('[FrameworkItemWizard] Brand post info query:', {
+      // Debug logging - using warn so it shows up even if console filter is set to warnings
+      console.warn('[FrameworkItemWizard] Brand post info query:', {
         brandId,
         brandPostInfo,
         brandPostInfoError,
         default_post_time: brandPostInfo?.default_post_time,
-        default_copy_length: brandPostInfo?.default_copy_length
+        default_copy_length: brandPostInfo?.default_copy_length,
+        timestamp: new Date().toISOString()
       })
 
       // Use brand defaults from database query (fresh, not cached)
@@ -860,9 +862,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         postTimeToSet = String(brandPostInfo.default_post_time)
       }
 
-      console.log('[FrameworkItemWizard] Values to set:', {
+      console.warn('[FrameworkItemWizard] Values to set for subcategory:', {
         postTimeToSet,
-        rawDefaultPostTime: brandPostInfo?.default_post_time
+        rawDefaultPostTime: brandPostInfo?.default_post_time,
+        copyLength: details.default_copy_length || brandPostInfo?.default_copy_length || 'medium'
       })
 
       const insertData = {
@@ -879,7 +882,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         settings: {}
       }
 
-      console.log('[FrameworkItemWizard] Inserting with data:', {
+      console.warn('[FrameworkItemWizard] Inserting subcategory with data:', {
         ...insertData,
         post_time: insertData.post_time,
         copy_length: insertData.default_copy_length
@@ -891,11 +894,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         .select()
         .single()
 
-      console.info('[FrameworkItemWizard] Subcategory insert response:', { 
+      console.warn('[FrameworkItemWizard] Subcategory insert response:', { 
         data: subcategoryData, 
         error: subcategoryError,
         inserted_post_time: subcategoryData?.post_time,
-        inserted_copy_length: subcategoryData?.default_copy_length
+        inserted_copy_length: subcategoryData?.default_copy_length,
+        '⚠️ CHECK THIS VALUE': subcategoryData?.post_time
       })
 
       if (subcategoryError) {

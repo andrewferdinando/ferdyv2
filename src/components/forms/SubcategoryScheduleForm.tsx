@@ -850,13 +850,14 @@ export function SubcategoryScheduleForm({
           .eq('brand_id', brandId)
           .maybeSingle()
 
-        // Debug logging
-        console.log('[SubcategoryScheduleForm] Brand post info query:', {
+        // Debug logging - using warn so it shows up even if console filter is set to warnings
+        console.warn('[SubcategoryScheduleForm] Brand post info query:', {
           brandId,
           brandPostInfo,
           brandPostInfoError,
           default_post_time: brandPostInfo?.default_post_time,
-          default_copy_length: brandPostInfo?.default_copy_length
+          default_copy_length: brandPostInfo?.default_copy_length,
+          timestamp: new Date().toISOString()
         })
 
         // Use brand defaults from database query (fresh, not cached)
@@ -871,7 +872,7 @@ export function SubcategoryScheduleForm({
           postTimeToSet = String(brandPostInfo.default_post_time)
         }
 
-        console.log('[SubcategoryScheduleForm] Values to set:', {
+        console.warn('[SubcategoryScheduleForm] Values to set for subcategory:', {
           copyLengthToSet,
           postTimeToSet,
           rawDefaultPostTime: brandPostInfo?.default_post_time
@@ -891,7 +892,7 @@ export function SubcategoryScheduleForm({
           post_time: postTimeToSet || null
         }
 
-        console.log('[SubcategoryScheduleForm] Inserting with data:', {
+        console.warn('[SubcategoryScheduleForm] Inserting subcategory with data:', {
           ...insertData,
           post_time: insertData.post_time,
           copy_length: insertData.copy_length
@@ -903,11 +904,12 @@ export function SubcategoryScheduleForm({
           .select()
           .single()
 
-        console.info('[SubcategoryScheduleForm] Insert response:', { 
+        console.warn('[SubcategoryScheduleForm] Insert response:', { 
           data, 
           error,
           inserted_post_time: data?.post_time,
-          inserted_copy_length: data?.copy_length
+          inserted_copy_length: data?.copy_length,
+          '⚠️ CHECK THIS VALUE': data?.post_time
         })
 
         if (error) {
