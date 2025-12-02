@@ -311,10 +311,10 @@ export default function IntegrationsPage() {
                         : 'Connect'
 
                 const connectionSummary = isConnected ? (
-                  <span className="inline-flex items-baseline gap-1">
-                    <span>Connected as</span>
+                  <div className="flex flex-col">
+                    <span className="text-gray-600">Connected as:</span>
                     <span className="font-medium text-gray-900">{displayHandle}</span>
-                  </span>
+                  </div>
                 ) : provider.id === 'linkedin' ? (
                   <>Connect LinkedIn Profile</>
                 ) : (
