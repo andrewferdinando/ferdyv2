@@ -10,13 +10,14 @@ import { Input, Textarea } from '@/components/ui/Input'
 import { useBrand } from '@/hooks/useBrand'
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
-import { normalizeHashtags, parseHashtags } from '@/lib/utils/hashtags'
+import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
 import UploadAsset from '@/components/assets/UploadAsset'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { usePushProgress } from '@/contexts/PushProgressContext'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
+import { HashtagInput } from '@/components/ui/HashtagInput'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -206,7 +207,7 @@ type WizardDetails = {
   name: string
   detail: string
   url: string
-  defaultHashtags: string
+  defaultHashtags: string[] // Changed from string to array
   channels: string[]
   default_copy_length: 'short' | 'medium' | 'long'
   post_time: string | null // Post time (HH:MM format, or null)
@@ -340,7 +341,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         name: initialData.subcategory.name || '',
         detail: initialData.subcategory.detail || '',
         url: initialData.subcategory.url || '',
-        defaultHashtags: (initialData.subcategory.default_hashtags || []).join(', '),
+        defaultHashtags: initialData.subcategory.default_hashtags || [],
         channels: initialData.subcategory.channels || [],
         default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
         post_time: postTime,
@@ -353,7 +354,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       name: '',
       detail: '',
       url: '',
-      defaultHashtags: '',
+      defaultHashtags: [], // Changed from empty string to empty array
       channels: [],
       default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
       post_time: defaultPostTime ?? null, // Hook provides HH:MM format, explicitly include even if null
@@ -601,7 +602,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       name: '',
       detail: '',
       url: '',
-      defaultHashtags: '',
+      defaultHashtags: [],
       channels: [],
       default_copy_length: defaultCopyLength || 'medium',
       post_time: defaultPostTime || null,
@@ -857,9 +858,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     setIsSaving(true)
 
     try {
-      // Parse and normalize hashtags
-      const parsedHashtags = parseHashtags(details.defaultHashtags)
-      const normalizedHashtags = normalizeHashtags(parsedHashtags)
+      // Normalize hashtags (already an array)
+      const normalizedHashtags = normalizeHashtags(details.defaultHashtags)
 
       // Create subcategory
       console.info('[Wizard] Creating subcategory:', {
@@ -1237,8 +1237,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       const subcategoryId = savedSubcategoryId
 
       // 1. Update subcategory
-      const parsedHashtags = parseHashtags(details.defaultHashtags)
-      const normalizedHashtags = normalizeHashtags(parsedHashtags)
+      // Normalize hashtags (already an array)
+      const normalizedHashtags = normalizeHashtags(details.defaultHashtags)
 
       console.info('[Wizard] Updating subcategory:', subcategoryId)
 
@@ -2244,10 +2244,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
                       {/* Default Hashtags */}
                       <FormField label="Default hashtags (optional)">
-                        <Input
+                        <HashtagInput
                           value={details.defaultHashtags}
-                          onChange={(e) => setDetails(prev => ({ ...prev, defaultHashtags: e.target.value }))}
+                          onChange={(hashtags) => setDetails(prev => ({ ...prev, defaultHashtags: hashtags }))}
                           placeholder="brandname, event, networking"
+                          helperText="Press Enter to add a hashtag"
                         />
                       </FormField>
 

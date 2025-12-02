@@ -12,6 +12,7 @@ import { SubcategoryType } from '@/types/subcategories'
 import TimezoneSelect from './TimezoneSelect'
 import { useToast } from '@/components/ui/ToastProvider'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
+import { HashtagInput } from '@/components/ui/HashtagInput'
 
 interface SubcategoryData {
   name: string
@@ -354,7 +355,6 @@ export function SubcategoryScheduleForm({
   // Form state
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [hashtagInput, setHashtagInput] = useState('')
   const [draftOccurrences, setDraftOccurrences] = useState<Array<{
     id: string
     frequency: 'date' | 'date_range'
@@ -556,7 +556,6 @@ export function SubcategoryScheduleForm({
     }
 
     setErrors({})
-    setHashtagInput('')
     setNewTimeInput('')
     setDraftOccurrences([])
   }, [editingSubcategory, editingScheduleRule, isOpen])
@@ -694,33 +693,7 @@ export function SubcategoryScheduleForm({
     return Object.keys(newErrors).length === 0
   }, [subcategoryData, scheduleData, editingSubcategory])
 
-  // Hashtag management
-  const addHashtag = () => {
-    if (hashtagInput.trim()) {
-      // Normalize hashtags when adding
-      const newTags = [...subcategoryData.hashtags, hashtagInput.trim()];
-      const normalized = normalizeHashtags(newTags);
-      setSubcategoryData(prev => ({
-        ...prev,
-        hashtags: normalized
-      }))
-      setHashtagInput('')
-    }
-  }
-
-  const removeHashtag = (tagToRemove: string) => {
-    setSubcategoryData(prev => ({
-      ...prev,
-      hashtags: prev.hashtags.filter(tag => tag !== tagToRemove)
-    }))
-  }
-
-  const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      addHashtag()
-    }
-  }
+  // Hashtag management - now handled by HashtagInput component
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1581,40 +1554,12 @@ export function SubcategoryScheduleForm({
               </FormField>
 
               <FormField label="Hashtags">
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      value={hashtagInput}
-                      onChange={(e) => setHashtagInput(e.target.value)}
-                      onKeyPress={handleHashtagKeyPress}
-                      placeholder="Type hashtag and press Enter or comma"
-                    />
-                    <button
-                      type="button"
-                      onClick={addHashtag}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {subcategoryData.hashtags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md"
-                      >
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => removeHashtag(tag)}
-                          className="ml-1 text-blue-600 hover:text-blue-800"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <HashtagInput
+                  value={subcategoryData.hashtags}
+                  onChange={(hashtags) => setSubcategoryData(prev => ({ ...prev, hashtags }))}
+                  placeholder="Type hashtag and press Enter"
+                  helperText="Press Enter to add a hashtag"
+                />
               </FormField>
             </div>
           </div>
