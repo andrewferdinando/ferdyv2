@@ -62,10 +62,7 @@ export default function DraftsPushProgressModal({ estimatedMs = 60000, onClose }
         className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold mb-1 text-gray-950">Generating your drafts…</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          You can keep working — we&apos;ll let you know when it&apos;s done.
-        </p>
+        <h2 className="text-lg font-semibold mb-4 text-gray-950">Generating your drafts…</h2>
 
         {/* Progress */}
         <div className="mb-4">
