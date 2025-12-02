@@ -204,7 +204,7 @@ export default function CategoriesPage() {
 
     // If already pushed, show "have been pushed" message
     if (hasRun) {
-      return `${targetMonthName} posts have been pushed to Drafts.`
+      return `${targetMonthName} posts have been pushed to Drafts. You can push again if you've made changes.`
     }
 
     // Format push date (15th of previous month)
@@ -818,8 +818,8 @@ export default function CategoriesPage() {
                     )}
                     <button
                       onClick={handlePushToDrafts}
-                      disabled={pushing || pushStatus?.hasRun === true}
-                      className={`text-sm font-medium transition-opacity self-start ${(pushing || pushStatus?.hasRun === true) ? 'text-gray-400 cursor-not-allowed' : 'text-[#6366F1] underline hover:opacity-70'}`}
+                      disabled={pushing}
+                      className={`text-sm font-medium transition-opacity self-start ${pushing ? 'text-gray-400 cursor-not-allowed' : 'text-[#6366F1] underline hover:opacity-70'}`}
                     >
                       {pushing && (
                         <span className="inline-block h-3 w-3 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent align-middle" />
