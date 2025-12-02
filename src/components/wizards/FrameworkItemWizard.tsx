@@ -837,11 +837,20 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       })
 
       // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
-      const { data: brandPostInfo } = await supabase
+      const { data: brandPostInfo, error: brandPostInfoError } = await supabase
         .from('brand_post_information')
         .select('default_copy_length, default_post_time')
         .eq('brand_id', brandId)
         .maybeSingle()
+
+      // Debug logging
+      console.log('[FrameworkItemWizard] Brand post info query:', {
+        brandId,
+        brandPostInfo,
+        brandPostInfoError,
+        default_post_time: brandPostInfo?.default_post_time,
+        default_copy_length: brandPostInfo?.default_copy_length
+      })
 
       // Use brand defaults from database query (fresh, not cached)
       // post_time: use brand default from DB if available, otherwise null
@@ -851,25 +860,43 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         postTimeToSet = String(brandPostInfo.default_post_time)
       }
 
+      console.log('[FrameworkItemWizard] Values to set:', {
+        postTimeToSet,
+        rawDefaultPostTime: brandPostInfo?.default_post_time
+      })
+
+      const insertData = {
+        brand_id: brandId,
+        category_id: null,
+        name: details.name.trim(),
+        detail: details.detail.trim(),
+        url: details.url.trim() || null,
+        default_hashtags: normalizedHashtags,
+        channels: details.channels.length > 0 ? details.channels : null,
+        subcategory_type: subcategoryType || 'other',
+        default_copy_length: details.default_copy_length || brandPostInfo?.default_copy_length || 'medium',
+        post_time: postTimeToSet,
+        settings: {}
+      }
+
+      console.log('[FrameworkItemWizard] Inserting with data:', {
+        ...insertData,
+        post_time: insertData.post_time,
+        copy_length: insertData.default_copy_length
+      })
+
       const { data: subcategoryData, error: subcategoryError } = await supabase
         .from('subcategories')
-        .insert({
-          brand_id: brandId,
-          category_id: null,
-          name: details.name.trim(),
-          detail: details.detail.trim(),
-          url: details.url.trim() || null,
-          default_hashtags: normalizedHashtags,
-          channels: details.channels.length > 0 ? details.channels : null,
-          subcategory_type: subcategoryType || 'other',
-          default_copy_length: details.default_copy_length || brandPostInfo?.default_copy_length || 'medium',
-          post_time: postTimeToSet,
-          settings: {}
-        })
+        .insert(insertData)
         .select()
         .single()
 
-      console.info('[Wizard] Subcategory insert response:', { data: subcategoryData, error: subcategoryError })
+      console.info('[FrameworkItemWizard] Subcategory insert response:', { 
+        data: subcategoryData, 
+        error: subcategoryError,
+        inserted_post_time: subcategoryData?.post_time,
+        inserted_copy_length: subcategoryData?.default_copy_length
+      })
 
       if (subcategoryError) {
         console.error('[Wizard] Subcategory insert error:', subcategoryError)

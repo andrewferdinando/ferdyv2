@@ -844,11 +844,20 @@ export function SubcategoryScheduleForm({
         })
 
         // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
-        const { data: brandPostInfo } = await supabase
+        const { data: brandPostInfo, error: brandPostInfoError } = await supabase
           .from('brand_post_information')
           .select('default_copy_length, default_post_time')
           .eq('brand_id', brandId)
           .maybeSingle()
+
+        // Debug logging
+        console.log('[SubcategoryScheduleForm] Brand post info query:', {
+          brandId,
+          brandPostInfo,
+          brandPostInfoError,
+          default_post_time: brandPostInfo?.default_post_time,
+          default_copy_length: brandPostInfo?.default_copy_length
+        })
 
         // Use brand defaults from database query (fresh, not cached)
         // copy_length: use brand default from DB, fallback to 'medium'
@@ -862,25 +871,44 @@ export function SubcategoryScheduleForm({
           postTimeToSet = String(brandPostInfo.default_post_time)
         }
 
+        console.log('[SubcategoryScheduleForm] Values to set:', {
+          copyLengthToSet,
+          postTimeToSet,
+          rawDefaultPostTime: brandPostInfo?.default_post_time
+        })
+
+        const insertData = {
+          brand_id: brandId,
+          category_id: null, // No longer using categories
+          name: subcategoryData.name,
+          detail: subcategoryData.detail.trim(),
+          url: subcategoryData.url || null,
+          default_hashtags: normalizedHashtags,
+          channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+          subcategory_type: subcategoryData.subcategory_type || 'other',
+          settings: settings || {},
+          copy_length: copyLengthToSet,
+          post_time: postTimeToSet || null
+        }
+
+        console.log('[SubcategoryScheduleForm] Inserting with data:', {
+          ...insertData,
+          post_time: insertData.post_time,
+          copy_length: insertData.copy_length
+        })
+
         const { data, error } = await supabase
           .from('subcategories')
-          .insert({
-            brand_id: brandId,
-            category_id: null, // No longer using categories
-            name: subcategoryData.name,
-            detail: subcategoryData.detail.trim(),
-            url: subcategoryData.url || null,
-            default_hashtags: normalizedHashtags,
-            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
-            subcategory_type: subcategoryData.subcategory_type || 'other',
-            settings: settings || {},
-            copy_length: copyLengthToSet,
-            post_time: postTimeToSet || null
-          })
+          .insert(insertData)
           .select()
           .single()
 
-        console.info('[SubcategoryScheduleForm] Insert response:', { data, error })
+        console.info('[SubcategoryScheduleForm] Insert response:', { 
+          data, 
+          error,
+          inserted_post_time: data?.post_time,
+          inserted_copy_length: data?.copy_length
+        })
 
         if (error) {
           console.error('[SubcategoryScheduleForm] Subcategory insert error:', error)
