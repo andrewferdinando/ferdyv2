@@ -36,14 +36,14 @@ BEGIN
     v_push_date := (v_month - interval '1 month')::date + interval '14 days';
     
     -- Check if a successful run exists for this target_month
-    -- Using name = 'push_to_drafts' and checking scope->>'target_month'
+    -- Using kind = 'push_to_drafts' and checking target_month column
     SELECT EXISTS (
         SELECT 1
         FROM runs
         WHERE brand_id = p_brand_id
-          AND name = 'push_to_drafts'
+          AND kind = 'push_to_drafts'
           AND status = 'success'
-          AND (scope->>'target_month')::date = v_month
+          AND target_month = v_month
     ) INTO v_has_run;
     
     -- Format month name (e.g., 'January')
