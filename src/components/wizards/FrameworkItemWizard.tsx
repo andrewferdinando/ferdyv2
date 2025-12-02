@@ -573,10 +573,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     mode === 'edit' && initialData?.assets ? initialData.assets : []
   )
   const [imageMode, setImageMode] = useState<'upload' | 'existing'>(() => {
-    // In edit mode, if we have existing assets, default to 'existing' mode
-    if (mode === 'edit' && initialData?.assets && initialData.assets.length > 0) {
-      return 'existing'
-    }
+    // Always default to 'upload' mode
     return 'upload'
   })
   
@@ -2901,7 +2898,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
                     {/* Mode Toggle */}
                     <div className="mb-6">
-                      <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+                      <div className="flex rounded-lg border border-gray-300 p-1 bg-white">
                         <button
                           type="button"
                           onClick={() => setImageMode('upload')}
@@ -2909,8 +2906,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all
                             ${
                               imageMode === 'upload'
-                                ? 'bg-white text-[#6366F1] shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
+                                ? 'bg-[#6366F1] text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 bg-transparent'
                             }
                           `}
                         >
@@ -2923,8 +2920,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all
                             ${
                               imageMode === 'existing'
-                                ? 'bg-white text-[#6366F1] shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
+                                ? 'bg-[#6366F1] text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 bg-transparent'
                             }
                           `}
                         >
