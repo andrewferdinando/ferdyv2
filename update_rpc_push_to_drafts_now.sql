@@ -2,6 +2,9 @@
 -- This function ensures next-month framework exists, gets the framework window,
 -- logs to runs table, and creates drafts from framework targets
 
+-- Drop existing function first (in case return type changed)
+DROP FUNCTION IF EXISTS rpc_push_to_drafts_now(uuid) CASCADE;
+
 CREATE OR REPLACE FUNCTION rpc_push_to_drafts_now(p_brand_id uuid)
 RETURNS integer AS $$
 DECLARE
