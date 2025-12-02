@@ -252,6 +252,7 @@ export interface WizardInitialData {
     channels: string[]
     subcategory_type: SubcategoryType
     default_copy_length?: 'short' | 'medium' | 'long'
+    post_time?: string | null
     settings?: any
   }
   scheduleRule?: {
