@@ -836,6 +836,25 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         subcategoryType
       })
 
+      // Load brand defaults for post_time
+      const { data: brandPostInfo } = await supabase
+        .from('brand_post_information')
+        .select('default_copy_length, default_post_time')
+        .eq('brand_id', brandId)
+        .maybeSingle()
+
+      // Format post_time: use brand default if available, otherwise use hook default
+      let postTimeToSet: string | null = null
+      if (brandPostInfo?.default_post_time) {
+        // Use the time from database as-is (Supabase returns time columns as strings)
+        postTimeToSet = String(brandPostInfo.default_post_time)
+      } else if (defaultPostTime) {
+        // Hook provides HH:MM format, ensure it's HH:MM:SS for consistency
+        postTimeToSet = defaultPostTime.includes(':') && defaultPostTime.split(':').length === 2
+          ? `${defaultPostTime}:00`
+          : defaultPostTime
+      }
+
       const { data: subcategoryData, error: subcategoryError } = await supabase
         .from('subcategories')
         .insert({
@@ -847,7 +866,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           default_hashtags: normalizedHashtags,
           channels: details.channels.length > 0 ? details.channels : null,
           subcategory_type: subcategoryType || 'other',
-          default_copy_length: details.default_copy_length || 'medium',
+          default_copy_length: details.default_copy_length || brandPostInfo?.default_copy_length || defaultCopyLength || 'medium',
+          post_time: postTimeToSet,
           settings: {}
         })
         .select()

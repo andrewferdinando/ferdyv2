@@ -15,6 +15,8 @@ export interface Subcategory {
   settings: Record<string, any>
   hashtags: string[] // Maps to default_hashtags in database
   channels?: string[] // Social media channels
+  copy_length?: string | null // Copy length (short/medium/long)
+  post_time?: string | null // Post time (HH:MM format)
   created_at: string
   updated_at: string
 }
@@ -48,7 +50,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         return
       }
 
-      // Map default_hashtags to hashtags and include channels, subcategory_type, settings
+      // Map default_hashtags to hashtags and include channels, subcategory_type, settings, copy_length, post_time
       const mappedData = (data || []).map((item: {
         id: string;
         brand_id: string;
@@ -60,6 +62,8 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         settings?: any;
         default_hashtags?: string[];
         channels?: string[];
+        copy_length?: string | null;
+        post_time?: string | null;
         created_at: string;
         updated_at: string;
       }) => ({
@@ -67,7 +71,9 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         subcategory_type: (item.subcategory_type as SubcategoryType) ?? 'unspecified',
         settings: item.settings ?? {},
         hashtags: item.default_hashtags || [],
-        channels: item.channels || []
+        channels: item.channels || [],
+        copy_length: item.copy_length ?? null,
+        post_time: item.post_time ?? null
       }))
 
       setSubcategories(mappedData)
@@ -242,6 +248,8 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
             settings?: any;
             default_hashtags?: string[];
             channels?: string[];
+            copy_length?: string | null;
+            post_time?: string | null;
             created_at: string;
             updated_at: string;
           }) => ({
@@ -249,7 +257,9 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
             subcategory_type: (item.subcategory_type as SubcategoryType) ?? 'unspecified',
             settings: item.settings ?? {},
             hashtags: item.default_hashtags || [],
-            channels: item.channels || []
+            channels: item.channels || [],
+            copy_length: item.copy_length ?? null,
+            post_time: item.post_time ?? null
           }))
           setSubcategories(mappedData)
         }
