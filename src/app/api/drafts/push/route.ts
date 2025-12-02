@@ -76,9 +76,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Call the RPC function to create drafts
-    console.log(`[api/drafts/push] Calling rpc_push_framework_to_drafts for brand ${brandId}`);
+    console.log(`[api/drafts/push] Calling rpc_push_to_drafts_now for brand ${brandId}`);
     const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
-      'rpc_push_framework_to_drafts',
+      'rpc_push_to_drafts_now',
       { p_brand_id: brandId }
     );
 

@@ -100,9 +100,12 @@ export default function CategoriesPage() {
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(true)
 
   const [pushing, setPushing] = useState(false)
-  const [draftsAlreadyExist, setDraftsAlreadyExist] = useState<boolean | null>(null)
   const { startPushProgress, completePushProgress, failPushProgress } = usePushProgress()
-  const [frameworkWindow, setFrameworkWindow] = useState<{ start_date: string; end_date: string } | null>(null)
+  const [pushStatus, setPushStatus] = useState<{
+    targetMonthName: string | null
+    pushDate: string | null
+    hasRun: boolean
+  } | null>(null)
 
   // Fetch all subcategories to include those without schedule rules
   useEffect(() => {
@@ -162,95 +165,64 @@ export default function CategoriesPage() {
     }
   }, [brandId, rulesLoading])
 
-  // Check if drafts already exist for the current framework month
-  const checkExistingDrafts = useCallback(async () => {
+  // Fetch push to drafts status
+  const fetchPushStatus = useCallback(async () => {
     if (!brandId) return
 
     try {
-      // Get the framework window dates
-      const { data: window, error: windowError } = await supabase
-        .rpc('rpc_next_framework_window', { p_brand_id: brandId })
-
-      if (windowError || !window || window.length === 0) {
-        console.error('Error fetching framework window:', windowError)
-        setDraftsAlreadyExist(false)
+      const response = await fetch(`/api/drafts/push/status?brandId=${brandId}`)
+      if (!response.ok) {
+        console.error('Error fetching push status:', response.statusText)
         return
       }
 
-      const { start_date, end_date } = window[0]
-      setFrameworkWindow({ start_date, end_date })
-
-      // Check for existing framework drafts in that date range
-      const { count, error: countError } = await supabase
-        .from('drafts')
-        .select('id', { count: 'exact', head: true })
-        .eq('brand_id', brandId)
-        .eq('schedule_source', 'framework')
-        .gte('scheduled_for', start_date)
-        .lte('scheduled_for', end_date)
-
-      if (countError) {
-        console.error('Error checking existing drafts:', countError)
-        setDraftsAlreadyExist(false)
-        return
-      }
-
-      setDraftsAlreadyExist((count || 0) > 0)
+      const data = await response.json()
+      setPushStatus({
+        targetMonthName: data.targetMonthName || null,
+        pushDate: data.pushDate || null,
+        hasRun: data.hasRun || false,
+      })
     } catch (err) {
-      console.error('Error in checkExistingDrafts:', err)
-      setDraftsAlreadyExist(false)
+      console.error('Error fetching push status:', err)
     }
   }, [brandId])
 
   useEffect(() => {
-    checkExistingDrafts()
-  }, [checkExistingDrafts])
+    fetchPushStatus()
+  }, [fetchPushStatus])
 
-  const bannerCopyNZ = useMemo(() => {
-    // If we know drafts exist, show "have been pushed" message
-    if (draftsAlreadyExist === true && frameworkWindow) {
-      try {
-        const targetDate = new Date(frameworkWindow.start_date)
-        const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(targetDate)
-        return `${monthName} posts have been pushed to Drafts.`
-      } catch (e) {
-        return 'Drafts have been pushed for this month.'
-      }
+  const bannerCopy = useMemo(() => {
+    if (!pushStatus) {
+      return null
     }
 
-    // Otherwise show the standard "will be pushed" message
+    const { targetMonthName, pushDate, hasRun } = pushStatus
+
+    if (!targetMonthName || !pushDate) {
+      return null
+    }
+
+    // If already pushed, show "have been pushed" message
+    if (hasRun) {
+      return `${targetMonthName} posts have been pushed to Drafts.`
+    }
+
+    // Format push date (15th of previous month)
     try {
-      const parts = new Intl.DateTimeFormat('en-NZ', {
-        timeZone: 'Pacific/Auckland',
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric'
-      }).formatToParts(new Date())
+      const date = new Date(pushDate)
+      const day = date.getDate()
+      const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(date)
+      
+      // Format as "January 15th" or similar
+      const ordinal = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'
+      const formattedDate = `${monthName} ${day}${ordinal}`
 
-      const get = (type: string) => Number(parts.find(p => p.type === type)?.value || '0')
-      const year = get('year')
-      const month = get('month') - 1 // 0-based
-      const day = get('day')
-
-      // If after the 15th NZT, create next month for the month-after-next
-      let createMonthIndex = day > 15 ? month + 1 : month
-      let createYear = year
-      if (createMonthIndex > 11) { createMonthIndex -= 1  // will add back below safely
-      }
-
-      let targetMonthIndex = day > 15 ? month + 2 : month + 1
-      let targetYear = year
-      while (targetMonthIndex > 11) { targetMonthIndex -= 12; targetYear += 1 }
-      while (createMonthIndex > 11) { createMonthIndex -= 12; createYear += 1 }
-
-      const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(new Date(targetYear, targetMonthIndex, 1))
-      const createMonthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(new Date(createYear, createMonthIndex, 15))
-
-      return `${monthName} posts will be pushed to Drafts on ${createMonthName} 15th.`
+      return `${targetMonthName} posts will be pushed to Drafts on ${formattedDate}.`
     } catch (e) {
-      return ''
+      // Fallback to simple format
+      return `${targetMonthName} posts will be pushed to Drafts on ${pushDate}.`
     }
-  }, [draftsAlreadyExist, frameworkWindow])
+  }, [pushStatus])
 
   const selectImageForSubcategory = async (brandId: string, subcategoryId: string): Promise<string | null> => {
     try {
@@ -477,8 +449,8 @@ export default function CategoriesPage() {
       // Refresh data
       await refetchRules()
       
-      // Re-check if drafts exist to update banner and button
-      await checkExistingDrafts()
+      // Refetch push status to update banner and button
+      await fetchPushStatus()
       
       // Complete the progress modal (will auto-close after minimum display time)
       const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : undefined)
@@ -839,15 +811,15 @@ export default function CategoriesPage() {
               {isAdmin && (
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 sm:px-6 py-4">
                   <div className="flex flex-col gap-3">
-                    {bannerCopyNZ && (
+                    {bannerCopy && (
                       <p className="text-sm text-gray-700">
-                        {bannerCopyNZ}
+                        {bannerCopy}
                       </p>
                     )}
                     <button
                       onClick={handlePushToDrafts}
-                      disabled={pushing || draftsAlreadyExist === true}
-                      className={`text-sm font-medium transition-opacity self-start ${(pushing || draftsAlreadyExist === true) ? 'text-gray-400 cursor-not-allowed' : 'text-[#6366F1] underline hover:opacity-70'}`}
+                      disabled={pushing || pushStatus?.hasRun === true}
+                      className={`text-sm font-medium transition-opacity self-start ${(pushing || pushStatus?.hasRun === true) ? 'text-gray-400 cursor-not-allowed' : 'text-[#6366F1] underline hover:opacity-70'}`}
                     >
                       {pushing && (
                         <span className="inline-block h-3 w-3 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent align-middle" />
