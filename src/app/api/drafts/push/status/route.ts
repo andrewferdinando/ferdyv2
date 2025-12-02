@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
         targetMonthName: null,
         pushDate: null,
         hasRun: false,
+        lastRunAt: null,
       });
     }
 
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest) {
       targetMonthName: status.target_month_name || null,
       pushDate: status.push_date ? new Date(status.push_date).toISOString().split('T')[0] : null,
       hasRun: status.has_run || false,
+      lastRunAt: status.last_run_at || null,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

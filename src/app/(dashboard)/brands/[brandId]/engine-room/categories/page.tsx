@@ -105,6 +105,7 @@ export default function CategoriesPage() {
     targetMonthName: string | null
     pushDate: string | null
     hasRun: boolean
+    lastRunAt: string | null
   } | null>(null)
 
   // Fetch all subcategories to include those without schedule rules
@@ -181,6 +182,7 @@ export default function CategoriesPage() {
         targetMonthName: data.targetMonthName || null,
         pushDate: data.pushDate || null,
         hasRun: data.hasRun || false,
+        lastRunAt: data.lastRunAt || null,
       })
     } catch (err) {
       console.error('Error fetching push status:', err)
@@ -190,6 +192,25 @@ export default function CategoriesPage() {
   useEffect(() => {
     fetchPushStatus()
   }, [fetchPushStatus])
+
+  // Helper function to format last run timestamp
+  const formatLastRunAt = useCallback((lastRunAt: string | null): string | null => {
+    if (!lastRunAt) return null
+    
+    try {
+      const date = new Date(lastRunAt)
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).format(date)
+    } catch (e) {
+      return null
+    }
+  }, [])
 
   const bannerCopy = useMemo(() => {
     if (!pushStatus) {
@@ -809,11 +830,26 @@ export default function CategoriesPage() {
             <div className="space-y-6">
               {/* Monthly Automation Section */}
               {isAdmin && (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 sm:px-6 py-4">
+                <div className="rounded-2xl border border-gray-200 bg-[#6366F1]/5 px-6 py-5 md:py-6">
                   <div className="flex flex-col gap-3">
                     {bannerCopy && (
-                      <p className="text-sm text-gray-700">
-                        {bannerCopy}
+                      <div className="flex items-start gap-2">
+                        <p className="text-sm md:text-base font-medium text-gray-900">
+                          {bannerCopy}
+                        </p>
+                        <button
+                          type="button"
+                          className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-[10px] text-gray-500 hover:bg-gray-100"
+                          aria-label="How pushes work"
+                          title="Ferdy creates drafts one month ahead. Manual push triggers the next scheduled month immediately. You can push again any time if you've changed your categories or schedule."
+                        >
+                          ?
+                        </button>
+                      </div>
+                    )}
+                    {pushStatus?.lastRunAt && (
+                      <p className="mt-1 text-sm text-gray-600">
+                        Last pushed: {formatLastRunAt(pushStatus.lastRunAt)}
                       </p>
                     )}
                     <button
@@ -824,7 +860,7 @@ export default function CategoriesPage() {
                       {pushing && (
                         <span className="inline-block h-3 w-3 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent align-middle" />
                       )}
-                      {pushing ? 'Pushing…' : 'Push to Drafts Now →'}
+                      {pushing ? 'Pushing…' : (pushStatus?.hasRun ? 'Push to Drafts Again →' : 'Push to Drafts Now →')}
                     </button>
                   </div>
                 </div>
