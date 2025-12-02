@@ -309,6 +309,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const { startPushProgress, completePushProgress, failPushProgress } = usePushProgress()
   const { defaultPostTime, defaultCopyLength } = useBrandPostSettings(brandId)
   
+  // Log brand defaults for debugging
+  React.useEffect(() => {
+    console.log("Brand defaults:", { default_post_time: defaultPostTime, default_copy_length: defaultCopyLength })
+  }, [defaultPostTime, defaultCopyLength])
+  
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
     if (mode === 'edit' && initialData?.subcategory?.subcategory_type) {
@@ -331,7 +336,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             ? initialData.subcategory.post_time.substring(0, 5) // Extract HH:MM from HH:MM:SS
             : null)
         : null
-      return {
+      const initialValues = {
         name: initialData.subcategory.name || '',
         detail: initialData.subcategory.detail || '',
         url: initialData.subcategory.url || '',
@@ -340,9 +345,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
         post_time: postTime,
       }
+      console.log("Initial form values for edit subcategory:", initialValues)
+      return initialValues
     }
     // For new subcategories, use brand default (hook ensures this is always non-null)
-    return {
+    const initialValues = {
       name: '',
       detail: '',
       url: '',
@@ -351,6 +358,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
       post_time: defaultPostTime || null, // Hook provides HH:MM format
     }
+    console.log("Initial form values for new subcategory:", initialValues)
+    return initialValues
   })
   
   // Update default_copy_length and post_time when brand settings load (only for new subcategories)

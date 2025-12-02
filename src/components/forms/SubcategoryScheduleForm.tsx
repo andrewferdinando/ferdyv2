@@ -252,6 +252,20 @@ export function SubcategoryScheduleForm({
     timezone: brand?.timezone || 'Pacific/Auckland'  // Default to brand timezone
   })
 
+  // Log defaultValues for debugging
+  React.useEffect(() => {
+    const defaultValues = {
+      brandDefaults: { default_post_time: defaultPostTime, default_copy_length: defaultCopyLength },
+      scheduleData: {
+        timeOfDay: scheduleData.timeOfDay,
+        frequency: scheduleData.frequency
+      },
+      editingSubcategory: editingSubcategory ? { id: editingSubcategory.id, name: editingSubcategory.name } : null,
+      editingScheduleRule: editingScheduleRule ? { id: editingScheduleRule.id } : null
+    }
+    console.log("SubcategoryScheduleForm defaultValues:", defaultValues)
+  }, [defaultPostTime, defaultCopyLength, scheduleData.timeOfDay, scheduleData.frequency, editingSubcategory, editingScheduleRule])
+
   // Update timezone and auto-populate timeOfDay when brand loads (only for new subcategories)
   useEffect(() => {
     if (brand && !editingScheduleRule && !editingSubcategory) {
@@ -496,12 +510,9 @@ export function SubcategoryScheduleForm({
       setDaysBeforeInput((editingRule.daysBefore || []).join(','))
       setDaysDuringInput((editingRule.daysDuring || []).join(','))
     } else {
-      // Auto-populate timeOfDay from brand.default_post_time if available
-      const defaultTime = brand?.default_post_time 
-        ? (typeof brand.default_post_time === 'string' 
-            ? brand.default_post_time.substring(0, 5) // Extract HH:MM from HH:MM:SS
-            : '')
-        : ''
+      // Auto-populate timeOfDay from brand default_post_time (use hook value)
+      // Hook ensures defaultPostTime is always non-null with fallback
+      const defaultTime = defaultPostTime || ''
       
       setScheduleData({
         frequency: 'weekly',
