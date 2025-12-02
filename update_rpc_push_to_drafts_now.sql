@@ -26,6 +26,8 @@ DECLARE
     v_channel text;
     v_first_channel text;
     v_asset_id uuid;
+    v_is_first_run boolean;
+    v_current_date date;
 BEGIN
     -- Ensure next-month framework exists (if this function exists)
     BEGIN
@@ -35,18 +37,42 @@ BEGIN
         NULL;
     END;
     
-    -- Get the next framework window
-    SELECT * INTO v_window
-    FROM rpc_next_framework_window(p_brand_id)
-    LIMIT 1;
+    -- Detect whether this is the first push for this brand
+    SELECT NOT EXISTS (
+        SELECT 1
+        FROM runs
+        WHERE brand_id = p_brand_id
+          AND kind = 'push_to_drafts'
+    ) INTO v_is_first_run;
     
-    IF v_window IS NULL THEN
-        RAISE EXCEPTION 'No framework window found for brand %', p_brand_id;
+    v_current_date := CURRENT_DATE;
+    
+    -- Set date window based on whether this is the first run
+    IF v_is_first_run = true THEN
+        -- First run: from today to end of next month
+        v_start := v_current_date::timestamptz;
+        v_end := (
+            date_trunc('month', v_current_date + interval '1 month')
+            + interval '1 month'
+            - interval '1 day'
+        )::date::timestamptz + interval '23 hours 59 minutes 59 seconds';
+        
+        -- Target month is the first day of next month
+        v_month := date_trunc('month', v_current_date + interval '1 month')::date;
+    ELSE
+        -- Subsequent runs: use rpc_next_framework_window
+        SELECT * INTO v_window
+        FROM rpc_next_framework_window(p_brand_id)
+        LIMIT 1;
+        
+        IF v_window IS NULL THEN
+            RAISE EXCEPTION 'No framework window found for brand %', p_brand_id;
+        END IF;
+        
+        v_start := v_window.start_date;
+        v_end := v_window.end_date;
+        v_month := date_trunc('month', v_start)::date;
     END IF;
-    
-    v_start := v_window.start_date;
-    v_end := v_window.end_date;
-    v_month := date_trunc('month', v_start)::date;
     
     -- Create a run record for tracking
     INSERT INTO runs (brand_id, kind, target_month, status, started_at)
@@ -218,4 +244,4 @@ GRANT EXECUTE ON FUNCTION rpc_push_to_drafts_now(uuid) TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION rpc_push_to_drafts_now(uuid) IS 
-    'Ensures next-month framework exists, gets the framework window, logs to runs table with target_month, and creates drafts from framework targets using rpc_framework_targets. Returns the count of drafts created.';
+    'Ensures next-month framework exists, gets the framework window (from today to end of next month on first run, or next month window on subsequent runs), logs to runs table with target_month, and creates drafts from framework targets using rpc_framework_targets. Returns the count of drafts created.';
