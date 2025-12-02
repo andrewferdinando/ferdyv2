@@ -843,28 +843,23 @@ export function SubcategoryScheduleForm({
           hasUrl: !!subcategoryData.url
         })
 
-        // Load brand defaults for copy_length and post_time
+        // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
         const { data: brandPostInfo } = await supabase
           .from('brand_post_information')
           .select('default_copy_length, default_post_time')
           .eq('brand_id', brandId)
           .maybeSingle()
 
-        // Use brand defaults, with fallbacks if not available
-        // copy_length: use brand default, fallback to hook default, then 'medium'
-        const copyLengthToSet = brandPostInfo?.default_copy_length || defaultCopyLength || 'medium'
+        // Use brand defaults from database query (fresh, not cached)
+        // copy_length: use brand default from DB, fallback to 'medium'
+        const copyLengthToSet = brandPostInfo?.default_copy_length || 'medium'
         
-        // post_time: use brand default if available, otherwise use hook default
+        // post_time: use brand default from DB if available, otherwise null
         // PostgreSQL time columns accept both HH:MM and HH:MM:SS formats
         let postTimeToSet: string | null = null
         if (brandPostInfo?.default_post_time) {
           // Use the time from database as-is (Supabase returns time columns as strings)
           postTimeToSet = String(brandPostInfo.default_post_time)
-        } else if (defaultPostTime) {
-          // Hook provides HH:MM format, ensure it's HH:MM:SS for consistency
-          postTimeToSet = defaultPostTime.includes(':') && defaultPostTime.split(':').length === 2
-            ? `${defaultPostTime}:00`
-            : defaultPostTime
         }
 
         const { data, error } = await supabase
