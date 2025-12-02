@@ -253,7 +253,7 @@ export function SubcategoryScheduleForm({
   })
 
   // Log defaultValues for debugging
-  React.useEffect(() => {
+  useEffect(() => {
     const defaultValues = {
       brandDefaults: { default_post_time: defaultPostTime, default_copy_length: defaultCopyLength },
       scheduleData: {
