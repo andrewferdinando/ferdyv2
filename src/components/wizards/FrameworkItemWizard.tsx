@@ -356,7 +356,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       defaultHashtags: '',
       channels: [],
       default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
-      post_time: defaultPostTime || null, // Hook provides HH:MM format
+      post_time: defaultPostTime ?? null, // Hook provides HH:MM format, explicitly include even if null
     }
     console.log("Initial form values for new subcategory:", initialValues)
     return initialValues
@@ -426,10 +426,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         weekday: weekday,
       }
     }
-    // For new schedule rules, use brand default time (hook ensures this is always non-null with fallback)
+    // For new schedule rules, initialize timeOfDay from details.post_time if available,
+    // otherwise fall back to brand default (hook ensures this is always non-null with fallback)
+    // Note: details state is initialized after schedule, so we use defaultPostTime directly here
+    // and sync with details.post_time in the useEffect below
     return {
       frequency: null,
-      timeOfDay: defaultPostTime, // Hook ensures this is always '10:00' or the DB value
+      timeOfDay: defaultPostTime || '', // Hook ensures this is always '10:00' or the DB value
       timezone: getDefaultTimezone(null, brand?.timezone),
       daysOfWeek: [],
       dayOfMonth: null,
@@ -439,12 +442,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   })
   
-  // Update timeOfDay when brand settings load (only for new schedule rules, and only if not already set)
+  // Update timeOfDay when brand settings load (only for new schedule rules)
+  // Sync schedule.timeOfDay with details.post_time to ensure they stay in sync
   useEffect(() => {
-    if (mode === 'create' && defaultPostTime && !schedule.timeOfDay) {
-      setSchedule(prev => ({ ...prev, timeOfDay: defaultPostTime }))
+    if (mode === 'create') {
+      // Use details.post_time if available (it should have the brand default),
+      // otherwise fall back to defaultPostTime from the hook
+      const timeToUse = details.post_time || defaultPostTime || ''
+      if (timeToUse && schedule.timeOfDay !== timeToUse) {
+        setSchedule(prev => ({ ...prev, timeOfDay: timeToUse }))
+      }
     }
-  }, [defaultPostTime, mode, schedule.timeOfDay])
+  }, [defaultPostTime, details.post_time, mode, schedule.timeOfDay])
   
   const [scheduleErrors, setScheduleErrors] = useState<{
     frequency?: string

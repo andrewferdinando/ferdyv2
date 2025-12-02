@@ -83,6 +83,7 @@ interface SubcategoryScheduleFormProps {
     settings?: Record<string, any>
     hashtags: string[]
     channels?: string[]
+    post_time?: string | null // Post time from subcategory (HH:MM:SS or HH:MM format)
   }
   editingScheduleRule?: {
     id: string
@@ -234,10 +235,24 @@ export function SubcategoryScheduleForm({
   })
 
   // Schedule rule state
-  // Default timezone to brand timezone, fallback to Pacific/Auckland
+  // Initialize timeOfDay from editingSubcategory.post_time if editing, otherwise use brand default
+  // Convert post_time from database format (HH:MM:SS) to form format (HH:MM) if needed
+  const getInitialTimeOfDay = (): string => {
+    if (editingSubcategory?.post_time) {
+      const postTime = editingSubcategory.post_time
+      // Convert from HH:MM:SS to HH:MM if needed
+      if (postTime.includes(':') && postTime.split(':').length === 3) {
+        return postTime.substring(0, 5) // Extract HH:MM from HH:MM:SS
+      }
+      return postTime // Already in HH:MM format
+    }
+    // For new subcategories, use brand default (hook ensures this is always non-null with fallback)
+    return defaultPostTime || ''
+  }
+  
   const [scheduleData, setScheduleData] = useState<ScheduleRuleData>({
     frequency: 'weekly',
-    timeOfDay: defaultPostTime, // Use brand default (hook ensures this is always non-null with fallback)
+    timeOfDay: getInitialTimeOfDay(),
     timesOfDay: [],
     daysOfWeek: [],
     daysOfMonth: [],
@@ -260,8 +275,13 @@ export function SubcategoryScheduleForm({
         timeOfDay: scheduleData.timeOfDay,
         frequency: scheduleData.frequency
       },
-      editingSubcategory: editingSubcategory ? { id: editingSubcategory.id, name: editingSubcategory.name } : null,
-      editingScheduleRule: editingScheduleRule ? { id: editingScheduleRule.id } : null
+      editingSubcategory: editingSubcategory ? { 
+        id: editingSubcategory.id, 
+        name: editingSubcategory.name,
+        post_time: editingSubcategory.post_time ?? null
+      } : null,
+      editingScheduleRule: editingScheduleRule ? { id: editingScheduleRule.id } : null,
+      post_time: editingSubcategory?.post_time ?? (defaultPostTime || null) // Explicitly include post_time
     }
     console.log("SubcategoryScheduleForm defaultValues:", defaultValues)
   }, [defaultPostTime, defaultCopyLength, scheduleData.timeOfDay, scheduleData.frequency, editingSubcategory, editingScheduleRule])
@@ -279,9 +299,10 @@ export function SubcategoryScheduleForm({
         
         // Auto-populate timeOfDay from brand_post_information.default_post_time if it's empty
         // Only for new schedule rules (never override existing values when editing)
-        // Hook ensures defaultPostTime is always non-null, so we just check if timeOfDay is empty
-        if (!prev.timeOfDay) {
-          updates.timeOfDay = defaultPostTime
+        // Use defaultPostTime from hook (which provides brand default)
+        const timeToUse = defaultPostTime || ''
+        if (timeToUse && prev.timeOfDay !== timeToUse) {
+          updates.timeOfDay = timeToUse
         }
         
         // Only update if there are changes
