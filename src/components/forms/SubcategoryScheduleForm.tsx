@@ -843,53 +843,16 @@ export function SubcategoryScheduleForm({
           hasUrl: !!subcategoryData.url
         })
 
-        // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
-        let { data: brandPostInfo, error: brandPostInfoError } = await supabase
-          .from('brand_post_information')
-          .select('default_copy_length, default_post_time')
-          .eq('brand_id', brandId)
-          .maybeSingle()
+        // Use brand defaults from hook (mirroring copy_length pattern)
+        // These come from useBrandPostSettings hook which is already loaded
+        const copyLengthToSet = defaultCopyLength || 'medium'
         
-        // If query returned null/undefined, try one more time after a tiny delay to ensure DB transaction is committed
-        if (!brandPostInfo && !brandPostInfoError) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          const { data: retryData } = await supabase
-            .from('brand_post_information')
-            .select('default_copy_length, default_post_time')
-            .eq('brand_id', brandId)
-            .maybeSingle()
-          if (retryData) {
-            brandPostInfo = retryData
-          }
-        }
-
-        // Debug logging - using warn so it shows up even if console filter is set to warnings
-        console.warn('[SubcategoryScheduleForm] Brand post info query:', {
-          brandId,
-          brandPostInfo,
-          brandPostInfoError,
-          default_post_time: brandPostInfo?.default_post_time,
-          default_copy_length: brandPostInfo?.default_copy_length,
-          timestamp: new Date().toISOString()
-        })
-
-        // Use brand defaults from database query (fresh, not cached)
-        // copy_length: use brand default from DB, fallback to 'medium'
-        const copyLengthToSet = brandPostInfo?.default_copy_length || 'medium'
-        
-        // post_time: use brand default from DB if available, otherwise null
-        // PostgreSQL time columns accept both HH:MM and HH:MM:SS formats
-        let postTimeToSet: string | null = null
-        if (brandPostInfo?.default_post_time) {
-          // Use the time from database as-is (Supabase returns time columns as strings)
-          postTimeToSet = String(brandPostInfo.default_post_time)
-        }
-
-        console.warn('[SubcategoryScheduleForm] Values to set for subcategory:', {
-          copyLengthToSet,
-          postTimeToSet,
-          rawDefaultPostTime: brandPostInfo?.default_post_time
-        })
+        // Convert post_time from hook format (HH:MM) to database format (HH:MM:SS)
+        const postTimeToSet: string | null = defaultPostTime
+          ? (defaultPostTime.includes(':') && defaultPostTime.split(':').length === 2
+              ? `${defaultPostTime}:00`
+              : defaultPostTime)
+          : null
 
         const insertData = {
           brand_id: brandId,
@@ -902,14 +865,8 @@ export function SubcategoryScheduleForm({
           subcategory_type: subcategoryData.subcategory_type || 'other',
           settings: settings || {},
           copy_length: copyLengthToSet,
-          post_time: postTimeToSet || null
+          post_time: postTimeToSet
         }
-
-        console.warn('[SubcategoryScheduleForm] Inserting subcategory with data:', {
-          ...insertData,
-          post_time: insertData.post_time,
-          copy_length: insertData.copy_length
-        })
 
         const { data, error } = await supabase
           .from('subcategories')
@@ -917,13 +874,7 @@ export function SubcategoryScheduleForm({
           .select()
           .single()
 
-        console.warn('[SubcategoryScheduleForm] Insert response:', { 
-          data, 
-          error,
-          inserted_post_time: data?.post_time,
-          inserted_copy_length: data?.copy_length,
-          '⚠️ CHECK THIS VALUE': data?.post_time
-        })
+        console.info('[SubcategoryScheduleForm] Insert response:', { data, error })
 
         if (error) {
           console.error('[SubcategoryScheduleForm] Subcategory insert error:', error)

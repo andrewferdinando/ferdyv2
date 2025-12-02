@@ -114,6 +114,7 @@ export default function EditCategoryPage() {
             channels: subcategory.channels || [],
             subcategory_type: (subcategory.subcategory_type as SubcategoryType) || 'other',
             default_copy_length: (subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
+            post_time: subcategory.post_time || null,
             settings: subcategory.settings || {}
           },
           assets: assetIds,

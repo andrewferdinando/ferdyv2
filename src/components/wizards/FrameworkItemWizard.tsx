@@ -209,6 +209,7 @@ type WizardDetails = {
   defaultHashtags: string
   channels: string[]
   default_copy_length: 'short' | 'medium' | 'long'
+  post_time: string | null // Post time (HH:MM format, or null)
 }
 
 type WizardSchedule = {
@@ -323,6 +324,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [details, setDetails] = useState<WizardDetails>(() => {
     if (mode === 'edit' && initialData?.subcategory) {
       // When editing, use existing value (never override with brand default)
+      // Convert post_time from database format (HH:MM:SS) to form format (HH:MM)
+      const postTime = initialData.subcategory.post_time
+        ? (typeof initialData.subcategory.post_time === 'string'
+            ? initialData.subcategory.post_time.substring(0, 5) // Extract HH:MM from HH:MM:SS
+            : null)
+        : null
       return {
         name: initialData.subcategory.name || '',
         detail: initialData.subcategory.detail || '',
@@ -330,6 +337,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         defaultHashtags: (initialData.subcategory.default_hashtags || []).join(', '),
         channels: initialData.subcategory.channels || [],
         default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
+        post_time: postTime,
       }
     }
     // For new subcategories, use brand default (hook ensures this is always non-null)
@@ -340,16 +348,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       defaultHashtags: '',
       channels: [],
       default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
+      post_time: defaultPostTime || null, // Hook provides HH:MM format
     }
   })
   
-  // Update default_copy_length when brand settings load (only for new subcategories)
+  // Update default_copy_length and post_time when brand settings load (only for new subcategories)
   // This handles the case where hook loads after component mounts
   useEffect(() => {
-    if (mode === 'create' && defaultCopyLength) {
-      setDetails(prev => ({ ...prev, default_copy_length: defaultCopyLength }))
+    if (mode === 'create') {
+      setDetails(prev => ({
+        ...prev,
+        default_copy_length: defaultCopyLength || prev.default_copy_length,
+        post_time: defaultPostTime || prev.post_time
+      }))
     }
-  }, [defaultCopyLength, mode])
+  }, [defaultCopyLength, defaultPostTime, mode])
   
   const [detailsErrors, setDetailsErrors] = useState<{
     name?: string
@@ -836,55 +849,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         subcategoryType
       })
 
-      // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
-      // Query with head: false to ensure we get data, not just headers (helps bypass cache)
-      const { data: brandPostInfo, error: brandPostInfoError } = await supabase
-        .from('brand_post_information')
-        .select('default_copy_length, default_post_time')
-        .eq('brand_id', brandId)
-        .maybeSingle()
-      
-      // If query returned null/undefined, try one more time after a tiny delay to ensure DB transaction is committed
-      let finalBrandPostInfo = brandPostInfo
-      if (!brandPostInfo && !brandPostInfoError) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        const { data: retryData } = await supabase
-          .from('brand_post_information')
-          .select('default_copy_length, default_post_time')
-          .eq('brand_id', brandId)
-          .maybeSingle()
-        if (retryData) {
-          finalBrandPostInfo = retryData
-        }
-      }
-
-      // Use finalBrandPostInfo (which may be from retry)
-      const brandInfoToUse = finalBrandPostInfo || brandPostInfo
-
-      // Debug logging - using warn so it shows up even if console filter is set to warnings
-      console.warn('[FrameworkItemWizard] Brand post info query:', {
-        brandId,
-        brandPostInfo: brandInfoToUse,
-        brandPostInfoError,
-        default_post_time: brandInfoToUse?.default_post_time,
-        default_copy_length: brandInfoToUse?.default_copy_length,
-        timestamp: new Date().toISOString()
-      })
-
-      // Use brand defaults from database query (fresh, not cached)
-      // post_time: use brand default from DB if available, otherwise null
-      let postTimeToSet: string | null = null
-      if (brandInfoToUse?.default_post_time) {
-        // Use the time from database as-is (Supabase returns time columns as strings)
-        postTimeToSet = String(brandInfoToUse.default_post_time)
-      }
-
-      console.warn('[FrameworkItemWizard] Values to set for subcategory:', {
-        postTimeToSet,
-        rawDefaultPostTime: brandInfoToUse?.default_post_time,
-        copyLength: details.default_copy_length || brandInfoToUse?.default_copy_length || 'medium'
-      })
-
+      // Use form values for copy_length and post_time (mirroring copy_length pattern)
+      // These values come from the form state which was initialized from brand defaults via useBrandPostSettings hook
       const insertData = {
         brand_id: brandId,
         category_id: null,
@@ -894,16 +860,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         default_hashtags: normalizedHashtags,
         channels: details.channels.length > 0 ? details.channels : null,
         subcategory_type: subcategoryType || 'other',
-        default_copy_length: details.default_copy_length || brandInfoToUse?.default_copy_length || 'medium',
-        post_time: postTimeToSet,
+        default_copy_length: details.default_copy_length || 'medium',
+        // Convert post_time from form format (HH:MM) to database format (HH:MM:SS)
+        post_time: details.post_time 
+          ? (details.post_time.includes(':') && details.post_time.split(':').length === 2
+              ? `${details.post_time}:00`
+              : details.post_time)
+          : null,
         settings: {}
       }
-
-      console.warn('[FrameworkItemWizard] Inserting subcategory with data:', {
-        ...insertData,
-        post_time: insertData.post_time,
-        copy_length: insertData.default_copy_length
-      })
 
       const { data: subcategoryData, error: subcategoryError } = await supabase
         .from('subcategories')
@@ -1267,6 +1232,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           channels: details.channels.length > 0 ? details.channels : null,
           subcategory_type: subcategoryType || 'other',
           default_copy_length: details.default_copy_length || 'medium',
+          // Convert post_time from form format (HH:MM) to database format (HH:MM:SS)
+          post_time: details.post_time 
+            ? (details.post_time.includes(':') && details.post_time.split(':').length === 2
+                ? `${details.post_time}:00`
+                : details.post_time)
+            : null,
           settings: {}
         })
         .eq('id', subcategoryId)
