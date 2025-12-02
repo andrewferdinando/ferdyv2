@@ -837,35 +837,52 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       })
 
       // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
-      // Force fresh query by adding a timestamp parameter to bypass Supabase client caching
+      // Query with head: false to ensure we get data, not just headers (helps bypass cache)
       const { data: brandPostInfo, error: brandPostInfoError } = await supabase
         .from('brand_post_information')
         .select('default_copy_length, default_post_time')
         .eq('brand_id', brandId)
         .maybeSingle()
+      
+      // If query returned null/undefined, try one more time after a tiny delay to ensure DB transaction is committed
+      let finalBrandPostInfo = brandPostInfo
+      if (!brandPostInfo && !brandPostInfoError) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        const { data: retryData } = await supabase
+          .from('brand_post_information')
+          .select('default_copy_length, default_post_time')
+          .eq('brand_id', brandId)
+          .maybeSingle()
+        if (retryData) {
+          finalBrandPostInfo = retryData
+        }
+      }
+
+      // Use finalBrandPostInfo (which may be from retry)
+      const brandInfoToUse = finalBrandPostInfo || brandPostInfo
 
       // Debug logging - using warn so it shows up even if console filter is set to warnings
       console.warn('[FrameworkItemWizard] Brand post info query:', {
         brandId,
-        brandPostInfo,
+        brandPostInfo: brandInfoToUse,
         brandPostInfoError,
-        default_post_time: brandPostInfo?.default_post_time,
-        default_copy_length: brandPostInfo?.default_copy_length,
+        default_post_time: brandInfoToUse?.default_post_time,
+        default_copy_length: brandInfoToUse?.default_copy_length,
         timestamp: new Date().toISOString()
       })
 
       // Use brand defaults from database query (fresh, not cached)
       // post_time: use brand default from DB if available, otherwise null
       let postTimeToSet: string | null = null
-      if (brandPostInfo?.default_post_time) {
+      if (brandInfoToUse?.default_post_time) {
         // Use the time from database as-is (Supabase returns time columns as strings)
-        postTimeToSet = String(brandPostInfo.default_post_time)
+        postTimeToSet = String(brandInfoToUse.default_post_time)
       }
 
       console.warn('[FrameworkItemWizard] Values to set for subcategory:', {
         postTimeToSet,
-        rawDefaultPostTime: brandPostInfo?.default_post_time,
-        copyLength: details.default_copy_length || brandPostInfo?.default_copy_length || 'medium'
+        rawDefaultPostTime: brandInfoToUse?.default_post_time,
+        copyLength: details.default_copy_length || brandInfoToUse?.default_copy_length || 'medium'
       })
 
       const insertData = {
@@ -877,7 +894,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         default_hashtags: normalizedHashtags,
         channels: details.channels.length > 0 ? details.channels : null,
         subcategory_type: subcategoryType || 'other',
-        default_copy_length: details.default_copy_length || brandPostInfo?.default_copy_length || 'medium',
+        default_copy_length: details.default_copy_length || brandInfoToUse?.default_copy_length || 'medium',
         post_time: postTimeToSet,
         settings: {}
       }

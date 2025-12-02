@@ -844,11 +844,24 @@ export function SubcategoryScheduleForm({
         })
 
         // Load brand defaults for copy_length and post_time - query fresh from DB to avoid stale cache
-        const { data: brandPostInfo, error: brandPostInfoError } = await supabase
+        let { data: brandPostInfo, error: brandPostInfoError } = await supabase
           .from('brand_post_information')
           .select('default_copy_length, default_post_time')
           .eq('brand_id', brandId)
           .maybeSingle()
+        
+        // If query returned null/undefined, try one more time after a tiny delay to ensure DB transaction is committed
+        if (!brandPostInfo && !brandPostInfoError) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          const { data: retryData } = await supabase
+            .from('brand_post_information')
+            .select('default_copy_length, default_post_time')
+            .eq('brand_id', brandId)
+            .maybeSingle()
+          if (retryData) {
+            brandPostInfo = retryData
+          }
+        }
 
         // Debug logging - using warn so it shows up even if console filter is set to warnings
         console.warn('[SubcategoryScheduleForm] Brand post info query:', {
