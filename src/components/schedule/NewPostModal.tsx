@@ -70,7 +70,7 @@ export default function NewPostModal({ isOpen, onClose, brandId, onSuccess }: Ne
   const [assetTab, setAssetTab] = useState<AssetTab>('images');
   const [isLoading, setIsLoading] = useState(false);
   const [publishMode, setPublishMode] = useState<'schedule' | 'publish-now'>('schedule');
-  const { assets, loading: assetsLoading } = useAssets(brandId);
+  const { assets, loading: assetsLoading } = useAssets(brandId, { onlyReady: true });
   
   // Use shared publish-now hook
   const {

@@ -64,7 +64,12 @@ interface AssetFromDB {
   }>
 }
 
-export function useAssets(brandId: string) {
+export interface UseAssetsOptions {
+  onlyReady?: boolean
+}
+
+export function useAssets(brandId: string, options?: UseAssetsOptions) {
+  const { onlyReady = false } = options || {}
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,6 +133,22 @@ export function useAssets(brandId: string) {
       setLoading(true)
       setError(null)
 
+      // If onlyReady is true, fetch IDs from assets_needing_tags to exclude them
+      let assetsNeedingTagsIds: Set<string> = new Set()
+      if (onlyReady) {
+        const { data: needingTagsData, error: needingTagsError } = await supabase
+          .from('assets_needing_tags')
+          .select('id')
+          .eq('brand_id', brandId)
+
+        if (needingTagsError) {
+          console.warn('Error fetching assets needing tags:', needingTagsError)
+          // Continue with the query even if this fails
+        } else {
+          assetsNeedingTagsIds = new Set((needingTagsData || []).map((item) => item.id))
+        }
+      }
+
       const { data, error } = await supabase
         .from('assets')
         .select(
@@ -152,14 +173,20 @@ export function useAssets(brandId: string) {
       }
 
       const assetsWithUrls = await Promise.all((data || []).map((asset: AssetFromDB) => mapAsset(asset)))
-      setAssets(assetsWithUrls)
+      
+      // Filter out assets that need tags if onlyReady is true
+      const filteredAssets = onlyReady
+        ? assetsWithUrls.filter((asset) => !assetsNeedingTagsIds.has(asset.id))
+        : assetsWithUrls
+
+      setAssets(filteredAssets)
     } catch (err) {
       console.error('Error fetching assets:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch assets')
     } finally {
       setLoading(false)
     }
-  }, [brandId])
+  }, [brandId, onlyReady])
 
   useEffect(() => {
     if (brandId) {

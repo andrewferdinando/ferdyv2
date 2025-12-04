@@ -21,7 +21,7 @@ export default function NewPostPage() {
   const { brand, loading: brandLoading } = useBrand(brandId);
   
   // Fetch brand assets
-  const { assets, loading: assetsLoading } = useAssets(brandId);
+  const { assets, loading: assetsLoading } = useAssets(brandId, { onlyReady: true });
   
   // Debug: Log assets to see storage_path format
   React.useEffect(() => {
