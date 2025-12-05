@@ -1,0 +1,389 @@
+# Schedule Rules — Ferdy
+
+## TL;DR (for AI tools)
+
+Schedule Rules live in the `schedule_rules` table and define **when** Ferdy should create posts for a given Category (subcategory):
+
+- Frequency: `daily` | `weekly` | `monthly` | `specific` (events/date-based)
+- Pattern: days of week, days of month, or Nth weekday of the month
+- Time: one or more times of day
+- Timezone: which timezone the schedule is based on
+- Channels: which social channels to post to
+- Event-related offsets: `start_date`, `end_date`, `days_before`, `days_during`
+- Creative strategy: image selection & rotation rules
+
+Schedule Rules are:
+
+- **Created/updated** in Step 3 (Schedule) of the Create Category wizard.
+- Can be effectively edited via **Edit Post** in the Schedule page (Drafts/Scheduled tab) or when creating a **New Post** manually.
+- Used by:
+  - `rpc_framework_targets` to expand rules into concrete future posting slots.
+  - `rpc_push_to_drafts_now` to turn those slots into `drafts` + `post_jobs`.
+  - Copy generation (to understand if something is an event vs evergreen).
+
+---
+
+## 1. Business-level explanation
+
+**Schedule Rules tell Ferdy *when* to post for each Category.**  
+They sit between a Category and the actual Draft posts:
+
+- Each Category (subcategory) has one associated Schedule Rule.
+- The rule can be:
+  - Weekly: e.g. Mon, Wed, Fri at 10:00
+  - Monthly: e.g. 1st and 15th, or “First Monday of the month”
+  - Event-based: specific event date or date range, with before/during windows
+- The rule specifies:
+  - Time of day
+  - Timezone
+  - Channels (IG, FB, LinkedIn, etc.)
+
+Ferdy uses these rules during automation:
+
+1. **Framework expansion**: `rpc_framework_targets` expands schedule rules into calendar dates/times (“targets”).
+2. **Draft generation**: `rpc_push_to_drafts_now` converts targets into `drafts` and `post_jobs`.
+3. **Copy generation**: uses frequency + dates to adjust tone and urgency.
+4. **Publishing**: `post_jobs` are picked up and sent to channels at the scheduled times.
+
+---
+
+## 2. Where Schedule Rules are created/edited in the UI
+
+### 2.1 Category Creation Wizard — Step 3 (Schedule)
+
+When creating a Category, **Step 3: Schedule**:
+
+- Asks how often this category should post:
+  - Weekly
+  - Monthly
+  - (Event-style categories also capture event timing)
+- Lets the user select:
+  - Days of week or dates of month
+  - Time of day
+  - Timezone
+
+This step creates (or updates) a **single `schedule_rules` row** linked to the new Category.
+
+> This is the main place Schedule Rules are created in a structured way.
+
+---
+
+### 2.2 Editing via the Schedule page
+
+Schedule can also be effectively changed from:
+
+#### A. **Edit Post** — Drafts or Scheduled tab
+
+- On the Schedule page, the user can edit an upcoming post:
+  - Change date/time
+  - Change channels (depending on UI)
+- If this post was driven by a Schedule Rule, the system may:
+  - Update the rule itself, or
+  - Create a one-off override (implementation detail).
+
+*(Behaviour here may change; this doc focuses on the core “rule-per-category” setup.)*
+
+#### B. **New Post — manual scheduling**
+
+- User clicks **New Post** on the Schedule page and sets date/time/channels manually.
+- If they tie this to a Category, Ferdy can create:
+  - A new Schedule Rule, or
+  - A one-off post not tied to a recurring rule.
+
+---
+
+## 3. Data model — `schedule_rules`
+
+**Table: `schedule_rules`**
+
+### 3.1 Identity & linking
+
+| Column          | Type   | Null? | Default           | Purpose |
+|-----------------|--------|-------|-------------------|---------|
+| `id`            | uuid   | NO    | `gen_random_uuid()` | Unique ID for the rule. |
+| `brand_id`      | uuid   | NO    |                   | Brand this rule belongs to. |
+| `name`          | text   | YES   |                   | Optional label for the rule (may or may not be exposed in UI). |
+| `category_id`   | uuid   | YES   |                   | Legacy / optional link to a higher-level category (if used). |
+| `subcategory_id`| uuid   | YES   |                   | Core link to the Category (subcategory) this rule applies to. |
+
+---
+
+### 3.2 Creative behaviour
+
+These fields influence copy / hashtag / image behaviour:
+
+| Column           | Type  | Purpose |
+|------------------|-------|---------|
+| `tone`           | text  | Optional tone indicator for copy (e.g. friendly, formal). Currently not heavily used. |
+| `hashtag_rule`   | jsonb | Structured rules for how to apply hashtags beyond `default_hashtags`. |
+| `image_tag_rule` | jsonb | Rules for which tagged images to use. |
+| `image_strategy` | text  | How to pick images, default `'by_subcategory_tag'`. |
+| `image_rotation_strategy` | text | How to rotate through images, default `'round_robin'`. |
+| `image_cursor`   | int   | Index used in rotation to avoid repeating the same image each time. |
+
+These work together with:
+
+- `tags` / `asset_tags`
+- `rpc_pick_asset_for_rule(schedule_rule_id)`
+
+to decide which assets are attached to each generated draft.
+
+---
+
+### 3.3 Frequency & pattern
+
+| Column          | Type      | Null? | Purpose |
+|-----------------|-----------|-------|---------|
+| `frequency`     | text      | NO    | Main frequency type. Known values in code: `"daily"`, `"weekly"`, `"monthly"`, `"specific"`. |
+| `times_per_week`| integer   | YES   | For flexible “up to N times per week” patterns (if used). |
+| `days_of_week`  | text[]/int[] | YES | Days in a week to post (e.g. Mon, Wed, Fri). Implementation-specific encoding. |
+| `day_of_month`  | int[]     | YES   | Specific days in the month (e.g. 1, 15, 28). |
+| `nth_week`      | integer   | YES   | For patterns like “First Monday of the month” (1 = first, etc.). |
+| `weekday`       | integer   | YES   | Weekday index for “Nth weekday of month” rules. |
+
+**Usage patterns:**
+
+- **Weekly**:
+  - `frequency = 'weekly'`
+  - `days_of_week` set
+  - `times_of_day` set
+- **Monthly, by date**:
+  - `frequency = 'monthly'`
+  - `day_of_month` set
+- **Monthly, by pattern (Nth weekday)**:
+  - `frequency = 'monthly'`
+  - `nth_week` and `weekday` set
+- **Specific (events / date-based)**:
+  - `frequency = 'specific'`
+  - Works together with `start_date`, `end_date`, `days_before`, `days_during`.
+
+---
+
+### 3.4 Time, timezone & channels
+
+| Column         | Type          | Null? | Default                        | Purpose |
+|----------------|---------------|-------|--------------------------------|---------|
+| `time_of_day`  | ARRAY         | YES   |                                | Older/legacy array-of-times field. |
+| `times_of_day` | time[]        | YES   | `'{}'::time without time zone[]` | Canonical list of times of day to post. |
+| `channels`     | text[]        | YES   |                                | Channels to post to (mirrors Category channels but can be more specific). |
+| `timezone`     | text          | YES   |                                | Timezone identifier (e.g. `"Pacific/Auckland"`). |
+
+In practice:
+
+- `times_of_day` is the primary field used when expanding rules to actual datetimes.
+- `timezone` is essential when converting schedule into local times (used by `rpc_framework_targets` and publishing).
+
+---
+
+### 3.5 Lifecycle & run tracking
+
+| Column          | Type        | Purpose |
+|-----------------|------------|---------|
+| `is_active`     | boolean    | Whether this rule is currently active (default `true`). |
+| `first_run_month` | date     | First month this rule was used in a framework run. |
+| `last_run_month`  | date     | Last month this rule was used. |
+| `created_at`    | timestamptz| When the rule was created. |
+| `updated_at`    | timestamptz| When the rule was last updated. |
+| `archived_at`   | timestamptz| Soft-delete archiving timestamp (rule no longer used). |
+
+These help `rpc_next_framework_window` and other routines decide which rules are eligible for future runs.
+
+---
+
+### 3.6 Event-related fields
+
+| Column        | Type    | Purpose |
+|---------------|---------|---------|
+| `start_date`  | date    | For event/date-based rules: event start. |
+| `end_date`    | date    | For event/date-based rules: event end. |
+| `days_before` | int[]   | Relative days before the event(s) when posts should run. |
+| `days_during` | int[]   | Relative days during the event window when posts should run. |
+| `url`         | text    | Event or occurrence-specific URL (overrides subcategory url when present). |
+
+These are especially important for:
+
+- Categories of type `event_series` (events-based).
+- `frequency = 'specific'` rules, which treat `start_date`/`end_date` as anchor dates.
+- Helping copy generation understand whether a post is “before” or “during” the event.
+
+At draft generation time, `rpc_framework_targets` combines:
+
+- Event dates (`start_date`, `end_date`)
+- Offsets (`days_before`, `days_during`)
+- Times (`times_of_day`)
+- Timezone (`timezone`)
+
+to produce concrete `scheduled_at` datetimes. Those feed into drafts + copy generation.
+
+---
+
+## 4. Creation & update flow
+
+### 4.1 Created via Category Creation Wizard (Step 3)
+
+In `FrameworkItemWizard.tsx`:
+
+- Wizard state:
+  - For events: `eventScheduling`
+  - For other types: `schedule` (Weekly/Monthly)
+- When the user moves from Step 3 → Step 4, the wizard calls:
+
+  - `ensureSubcategorySaved()`
+
+This function:
+
+1. Inserts or updates the `subcategories` row.
+2. Inserts or updates the `schedule_rules` row for that subcategory.
+3. For event types, also inserts `event_occurrences` rows.
+
+The mapping is broadly:
+
+- Weekly schedule → `frequency = 'weekly'`, `days_of_week`, `times_of_day`, `timezone`, `channels`.
+- Monthly schedule → `frequency = 'monthly'`, with either:
+  - `day_of_month[]` for specific dates, or
+  - `nth_week` + `weekday` for “Nth weekday” patterns.
+- Events:
+  - `frequency = 'specific'`
+  - `start_date`, `end_date`
+  - `days_before` and `days_during` define how far before/during the event posts should run.
+  - `url` can override the subcategory URL for event-specific landing pages.
+
+---
+
+### 4.2 Impact of editing the schedule
+
+When a user:
+
+- Edits a Category’s schedule via the wizard, or
+- Uses Schedule page interactions (Edit Post, New Post tied to a Category),
+
+The app:
+
+- Updates the existing `schedule_rules` row for that subcategory, or
+- Creates a new one (depending on the UI action and dev logic).
+
+Changes to Schedule Rules will affect:
+
+- **Future frameworks** (via `rpc_framework_targets`).
+- **Future draft generations** (via Push to Drafts).
+- They will **not automatically change drafts that have already been generated** unless explicitly coded (e.g. via a re-run).
+
+---
+
+## 5. How other processes use Schedule Rules
+
+### 5.1 Framework Targets — `rpc_framework_targets(p_brand_id)`
+
+This function (documented elsewhere) uses `schedule_rules` to produce rows like:
+
+- `brand_id`
+- `schedule_rule_id`
+- `subcategory_id`
+- `scheduled_at` (UTC)
+- `frequency`
+
+It:
+
+- Applies the pattern defined by `frequency`, `days_of_week`, `day_of_month`, `nth_week`, `weekday`, `times_of_day`, `timezone`.
+- For events:
+  - Uses `start_date`, `end_date`, `days_before`, `days_during`.
+
+These rows are later consumed by:
+
+- `rpc_push_to_drafts_now` (to create drafts + post_jobs).
+- Copy generation code (to distinguish event vs evergreen posts).
+
+---
+
+### 5.2 Draft generation — `rpc_push_to_drafts_now`
+
+As documented in the Push to Drafts doc:
+
+- Reads `rpc_framework_targets(p_brand_id)` to get future targets.
+- For each target:
+  - Uses `schedule_rule_id` to:
+    - Determine channels (`schedule_rules.channels`).
+    - Determine `frequency` and event metadata (via `start_date`, `end_date`, `url`).
+  - Inserts a `draft` with:
+    - `subcategory_id` from the target.
+    - `channel` + `post_jobs` based on the rule’s channels.
+  - Marks `schedule_source = 'framework'`.
+
+---
+
+### 5.3 Copy generation & tone
+
+In the `/api/drafts/push` route:
+
+- Schedule rules are fetched:
+
+  ```ts
+  supabaseAdmin
+    .from('schedule_rules')
+    .select('id, frequency, subcategory_id, start_date, end_date, url')
+    .eq('brand_id', brandId)
+    .eq('is_active', true);
+For each draft, a frequencyType is derived:
+
+daily → "daily"
+
+weekly → "weekly"
+
+monthly → "monthly"
+
+specific → "date" or "date_range" depending on start_date and end_date.
+
+Event posts:
+
+Single date or date range turned into event_date or start_date + end_date.
+
+Schedule object passed into AI payload to shape the messaging (before/during event, etc).
+
+URL:
+
+Prefer schedule_rules.url (event-specific URL).
+
+Fallback to subcategories.url.
+
+6. Lifecycle: activation, archiving & runs
+is_active = true:
+
+Only these rules are used by framework generation and Push to Drafts.
+
+archived_at:
+
+When set, rule is effectively retired even if not physically deleted.
+
+first_run_month / last_run_month:
+
+Used by helper functions (like rpc_next_framework_window) to decide what future windows still need content.
+
+7. History / notes
+2025-12-05 — Schedule Rules documented from actual schedule_rules schema, FrameworkItemWizard.tsx behaviour, and Push to Drafts integration.
+
+If you change:
+
+frequency value conventions,
+
+event scheduling logic,
+
+or image strategies,
+you should update this doc and any dependent RPCs (rpc_framework_targets, rpc_push_to_drafts_now, rpc_next_framework_window, rpc_pick_asset_for_rule).
+
+Mermaid:
+flowchart TD
+    U[User] -->|Wizard Step 3\nor New Post / Edit Post| UI[Schedule UI]
+
+    UI -->|Create / Update| SR[(schedule_rules)]
+
+    SR -->|read by| FRAME[rpc_framework_targets()]
+    SR -->|read by| PUSH[rpc_push_to_drafts_now()]
+    SR -->|read by| PUBLISH[Publishing Engine\n(post_jobs selection)]
+
+    subgraph Brand & Defaults
+        BS[(brands.timezone)]
+        BPI[(brand_post_information.default_post_time)]
+    end
+
+    BS --> UI
+    BPI --> UI
