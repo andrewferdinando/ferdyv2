@@ -44,7 +44,7 @@ export default function SettingsPage() {
     {
       title: 'Content Library',
       description: 'Tag and re-size your content.',
-      href: `/brands/${brandId}/content-library`,
+      href: `/brands/${brandId}/engine-room/content-library`,
       icon: ContentLibraryIcon,
       actionText: 'Open',
     },
@@ -58,7 +58,7 @@ export default function SettingsPage() {
     {
       title: 'Integrations',
       description: 'Connect your social media accounts.',
-      href: `/brands/${brandId}/integrations`,
+      href: `/brands/${brandId}/engine-room/integrations`,
       icon: IntegrationsIcon,
       actionText: 'Open',
     },
