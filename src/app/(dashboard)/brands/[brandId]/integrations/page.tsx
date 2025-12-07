@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export default function IntegrationsRedirectPage({ params }: { params: { brandId: string } }) {
-  redirect(`/brands/${params.brandId}/engine-room/integrations`);
+export default async function IntegrationsRedirectPage({ params }: { params: Promise<{ brandId: string }> }) {
+  const { brandId } = await params;
+  redirect(`/brands/${brandId}/engine-room/integrations`);
 }

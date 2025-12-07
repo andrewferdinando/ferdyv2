@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export default function ProfileRedirectPage({ params }: { params: { brandId: string } }) {
-  redirect(`/brands/${params.brandId}/account/profile`);
+export default async function ProfileRedirectPage({ params }: { params: Promise<{ brandId: string }> }) {
+  const { brandId } = await params;
+  redirect(`/brands/${brandId}/account/profile`);
 }

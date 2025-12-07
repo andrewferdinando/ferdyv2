@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export default function BillingRedirectPage({ params }: { params: { brandId: string } }) {
-  redirect(`/brands/${params.brandId}/account/billing`);
+export default async function BillingRedirectPage({ params }: { params: Promise<{ brandId: string }> }) {
+  const { brandId } = await params;
+  redirect(`/brands/${brandId}/account/billing`);
 }

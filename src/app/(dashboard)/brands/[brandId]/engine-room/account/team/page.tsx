@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export default function TeamRedirectPage({ params }: { params: { brandId: string } }) {
-  redirect(`/brands/${params.brandId}/account/team`);
+export default async function TeamRedirectPage({ params }: { params: Promise<{ brandId: string }> }) {
+  const { brandId } = await params;
+  redirect(`/brands/${brandId}/account/team`);
 }
