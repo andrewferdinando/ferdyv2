@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSupabase } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabase-browser'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
@@ -28,7 +28,6 @@ export function OnboardingWizard() {
   const [error, setError] = useState<string | null>(null)
 
   const router = useRouter()
-  const supabase = useSupabase()
 
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault()

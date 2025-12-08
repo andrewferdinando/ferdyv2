@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSupabase } from './useSupabase'
+import { supabase } from '@/lib/supabase-browser'
 
 export interface Group {
   id: string
@@ -20,7 +20,6 @@ export interface GroupMembership {
 }
 
 export function useUserGroup() {
-  const supabase = useSupabase()
   const [group, setGroup] = useState<Group | null>(null)
   const [membership, setMembership] = useState<GroupMembership | null>(null)
   const [loading, setLoading] = useState(true)

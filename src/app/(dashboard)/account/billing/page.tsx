@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useUserGroup } from '@/hooks/useUserGroup'
-import { useSupabase } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabase-browser'
 
 interface SubscriptionDetails {
   status: string
@@ -17,7 +17,6 @@ interface SubscriptionDetails {
 
 export default function BillingPage() {
   const router = useRouter()
-  const supabase = useSupabase()
   const { group, membership, loading: groupLoading, canManageBilling } = useUserGroup()
   
   const [brandCount, setBrandCount] = useState(0)
