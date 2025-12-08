@@ -170,7 +170,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         if (needsBackfill.length > 0 && !backfillingRef.current) {
           backfillingRef.current = true;
           try {
-            await Promise.all(needsBackfill.map(async (d) => {
+            await Promise.all(needsBackfill.map(async (d: any) => {
               // Select image by subcategory tag when available; else fallback to any random active asset
               let chosenAssetId: string | null = null;
               if (d.subcategory_id) {
