@@ -145,7 +145,7 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
           console.warn('Error fetching assets needing tags:', needingTagsError)
           // Continue with the query even if this fails
         } else {
-          assetsNeedingTagsIds = new Set((needingTagsData || []).map((item) => item.id))
+          assetsNeedingTagsIds = new Set((needingTagsData || []).map((item: any) => item.id))
         }
       }
 
