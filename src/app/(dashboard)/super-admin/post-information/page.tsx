@@ -100,7 +100,7 @@ export default function PostInformationPage() {
           'fb_post_examples, ig_post_examples, post_tone, avg_char_length, avg_word_count, analysed_at, updated_at',
         )
         .eq('brand_id', brandId)
-        .maybeSingle<BrandPostInformation>();
+        .maybeSingle();
 
       if (queryError) {
         throw queryError;
