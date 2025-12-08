@@ -73,8 +73,8 @@ export default function EditCategoryPage() {
 
           // Determine occurrence type: if any occurrence has end_at, assume range mode
           // Otherwise, assume single mode
-          if (eventOccurrences?.length > 0) {
-            eventOccurrenceType = eventOccurrences.some((occ: any) => occ.end_at) ? 'range' : 'single'
+          if ((eventOccurrences?.length ?? 0) > 0) {
+            eventOccurrenceType = eventOccurrences?.some((occ: any) => occ.end_at) ? 'range' : 'single'
           } else {
             eventOccurrenceType = 'single' // Default to single if no occurrences yet
           }
