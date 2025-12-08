@@ -1424,7 +1424,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         )
 
         const idsToDelete = Array.from(existingOccurrenceIds).filter(
-          id => !desiredOccurrenceIds.has(id)
+          (id: any) => !desiredOccurrenceIds.has(id)
         )
 
         if (idsToDelete.length > 0) {
