@@ -1,6 +1,16 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
+let resendInstance: Resend | null = null
+
+function getResend(): Resend {
+  if (!resendInstance) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not set in environment variables')
+    }
+    resendInstance = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resendInstance
+}
 
 const FROM_EMAIL = 'Ferdy <hello@ferdy.io>'
 
@@ -12,6 +22,7 @@ interface SendEmailParams {
 
 async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
+    const resend = getResend()
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
