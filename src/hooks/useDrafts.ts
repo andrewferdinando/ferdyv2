@@ -409,7 +409,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
       }
 
       // Now fetch assets for each draft that has asset_ids
-      const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
+      const draftsWithAssets = await Promise.all((data || []).map(async (draft: any) => {
         if (draft.asset_ids && draft.asset_ids.length > 0) {
           const assets = await loadAssetsByIds(draft.asset_ids);
           return { ...draft, assets };
