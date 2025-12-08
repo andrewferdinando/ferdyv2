@@ -524,7 +524,7 @@ export default function CategoriesPage() {
       }
 
       if (scheduleRules && scheduleRules.length > 0) {
-        const ruleIds = scheduleRules.map(r => r.id)
+        const ruleIds = scheduleRules.map((r: any) => r.id)
         
         // Delete drafts first
         const { data: postJobs, error: fetchPostJobsError } = await supabase
