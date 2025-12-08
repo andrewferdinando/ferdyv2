@@ -1575,7 +1575,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           .select('asset_id')
           .eq('tag_id', tagId)
 
-        const existingAssetIds = new Set(existingLinks?.map(link => link.asset_id) || [])
+        const existingAssetIds = new Set(existingLinks?.map((link: any) => link.asset_id) || [])
         const desiredAssetIds = new Set(selectedAssetIds)
 
         // Find assets to add
@@ -1847,7 +1847,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .eq('tag_id', tagId)
             .in('asset_id', selectedAssetIds)
 
-          const existingAssetIds = new Set(existingLinks?.map(link => link.asset_id) || [])
+          const existingAssetIds = new Set(existingLinks?.map((link: any) => link.asset_id) || [])
           const newAssetIds = selectedAssetIds.filter(id => !existingAssetIds.has(id))
 
           if (newAssetIds.length > 0) {
