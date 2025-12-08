@@ -178,7 +178,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                   .from('tags')
                   .select('id')
                   .eq('subcategory_id', d.subcategory_id);
-                const tagIds = (tags || []).map(t => t.id);
+                const tagIds = (tags || []).map((t: any) => t.id);
                 if (tagIds.length > 0) {
                   const { data: assetTagRows } = await supabase
                     .from('assets_tags')
