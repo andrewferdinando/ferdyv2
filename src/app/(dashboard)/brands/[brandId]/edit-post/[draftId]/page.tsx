@@ -298,7 +298,7 @@ export default function EditPostPage() {
 
       const normalized =
         (data || [])
-          .map((job) => {
+          .map((job: any) => {
             const canonical = canonicalizeChannel(job.channel);
             if (!canonical) return null;
             return {
