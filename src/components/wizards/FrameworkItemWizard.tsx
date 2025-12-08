@@ -1333,7 +1333,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           .select('id')
           .eq('subcategory_id', subcategoryId)
 
-        const existingOccurrenceIds = new Set(existingOccurrences?.map(occ => occ.id) || [])
+        const existingOccurrenceIds = new Set(existingOccurrences?.map((occ: any) => occ.id) || [])
 
         // Build desired occurrences from wizard state
         const occurrencesToUpsert = await Promise.all(
