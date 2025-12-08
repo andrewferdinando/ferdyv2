@@ -117,7 +117,7 @@ export function useScheduled(brandId: string) {
 
       if (fetchError) throw fetchError;
 
-      const scheduledWithAssets = await Promise.all((data || []).map(async (draft) => {
+      const scheduledWithAssets = await Promise.all((data || []).map(async (draft: any) => {
         const normalizedDraft = {
           ...draft,
           hashtags: normalizeHashtags(draft.hashtags || []),
