@@ -166,7 +166,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         setJobsByDraftId(jobsMap);
 
         // Backfill any drafts missing copy or assets (framework-created without client post-processing)
-        const needsBackfill = (data || []).filter(d => (!d.copy || d.copy.trim() === '') || !d.asset_ids || d.asset_ids.length === 0);
+        const needsBackfill = (data || []).filter((d: any) => (!d.copy || d.copy.trim() === '') || !d.asset_ids || d.asset_ids.length === 0);
         if (needsBackfill.length > 0 && !backfillingRef.current) {
           backfillingRef.current = true;
           try {
