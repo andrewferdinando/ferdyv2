@@ -1581,7 +1581,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         // Find assets to add
         const assetsToAdd = selectedAssetIds.filter(id => !existingAssetIds.has(id))
         // Find assets to remove
-        const assetsToRemove = Array.from(existingAssetIds).filter(id => !desiredAssetIds.has(id))
+        const assetsToRemove = Array.from(existingAssetIds).filter((id: any) => !desiredAssetIds.has(id))
 
         // Add new associations
         if (assetsToAdd.length > 0) {
