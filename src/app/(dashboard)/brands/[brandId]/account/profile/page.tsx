@@ -147,7 +147,7 @@ export default function ProfilePage() {
         console.log('Successfully created ferdy_assets bucket');
       } else {
         // Use the first available bucket if ferdy_assets doesn't exist
-        const ferdyBucket = buckets.find(b => b.name === 'ferdy_assets');
+        const ferdyBucket = buckets.find((b: any) => b.name === 'ferdy_assets');
         if (!ferdyBucket) {
           bucketName = buckets[0].name;
           console.log('Using first available bucket:', bucketName);
