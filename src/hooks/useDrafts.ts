@@ -184,7 +184,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                     .from('assets_tags')
                     .select('asset_id')
                     .in('tag_id', tagIds);
-                  const assetIds = (assetTagRows || []).map(r => r.asset_id);
+                  const assetIds = (assetTagRows || []).map((r: any) => r.asset_id);
                   if (assetIds.length > 0) {
                     const { data: match } = await supabase
                       .from('assets')
