@@ -235,7 +235,7 @@ const renderChannelIcons = (channels: string[]) =>
 
       console.log('EventOccurrencesManager: Fetched occurrences:', data?.length || 0, 'items')
 
-      const mapped = (data || []).map((rule): EventOccurrence => ({
+      const mapped = (data || []).map((rule: any): EventOccurrence => ({
         id: rule.id,
         frequency: (rule.end_date && rule.end_date !== rule.start_date ? 'date_range' : 'date') as 'date' | 'date_range',
         start_date: rule.start_date,
