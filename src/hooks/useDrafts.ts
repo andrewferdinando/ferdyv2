@@ -246,7 +246,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
               console.error('useDrafts: Refetch error:', refetchError);
               throw refetchError;
             }
-            const refreshedWithAssets = await Promise.all((refreshed || []).map(async (draft) => {
+            const refreshedWithAssets = await Promise.all((refreshed || []).map(async (draft: any) => {
               if (draft.asset_ids && draft.asset_ids.length > 0) {
             const assets = await loadAssetsByIds(draft.asset_ids);
             return { ...draft, assets };
