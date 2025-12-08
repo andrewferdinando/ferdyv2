@@ -37,6 +37,12 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
+          <a 
+            href="#video"
+            className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+          >
+            Watch demo
+          </a>
           <Link 
             href="/auth/sign-in"
             className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"

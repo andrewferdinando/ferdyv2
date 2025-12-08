@@ -1,7 +1,10 @@
 import Hero from '@/components/marketing/Hero'
 import Features from '@/components/marketing/Features'
 import HowItWorks from '@/components/marketing/HowItWorks'
+import Examples from '@/components/marketing/Examples'
+import Comparison from '@/components/marketing/Comparison'
 import Pricing from '@/components/marketing/Pricing'
+import BottomCTA from '@/components/marketing/BottomCTA'
 
 export const metadata = {
   title: 'Ferdy – Social Media Automation for Small Businesses',
@@ -14,7 +17,10 @@ export default function Home() {
       <Hero />
       <Features />
       <HowItWorks />
+      <Examples />
+      <Comparison />
       <Pricing />
+      <BottomCTA />
     </>
   )
 }
