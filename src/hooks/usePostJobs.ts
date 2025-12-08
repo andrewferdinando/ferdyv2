@@ -34,14 +34,14 @@ export async function fetchJobsByDraftId(
   if (jobsData && jobsData.length > 0) {
     // Group by draft_id to see distribution
     const byDraftId: Record<string, number> = {};
-    jobsData.forEach(job => {
+    jobsData.forEach((job: any) => {
       if (job.draft_id) {
         byDraftId[job.draft_id] = (byDraftId[job.draft_id] || 0) + 1;
       }
     });
     console.log('fetchJobsByDraftId: Jobs per draft:', byDraftId);
     // Log first few jobs for debugging
-    console.log('fetchJobsByDraftId: First 5 jobs:', jobsData.slice(0, 5).map(j => ({ 
+    console.log('fetchJobsByDraftId: First 5 jobs:', jobsData.slice(0, 5).map((j: any) => ({ 
       id: j.id, 
       draft_id: j.draft_id, 
       channel: j.channel 
@@ -49,7 +49,7 @@ export async function fetchJobsByDraftId(
   }
 
   const map: Record<string, PostJobSummary[]> = {};
-  (jobsData ?? []).forEach((job) => {
+  (jobsData ?? []).forEach((job: any) => {
     if (!job.draft_id) return;
     const canonical = canonicalizeChannel(job.channel) ?? job.channel;
     const entry: PostJobSummary = {

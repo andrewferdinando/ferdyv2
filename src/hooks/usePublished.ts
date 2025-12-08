@@ -101,7 +101,7 @@ export function usePublished(brandId: string) {
       }
 
       // Fetch publishes for all drafts
-      const draftIds = draftsData.map((d) => d.id);
+      const draftIds = draftsData.map((d: any) => d.id);
       const { data: publishesData, error: publishesError } = await supabase
         .from('publishes')
         .select('*')
@@ -115,7 +115,7 @@ export function usePublished(brandId: string) {
       // If multiple publishes exist for a draft, we already ordered by published_at DESC,
       // so the first one we encounter will be the most recent
       const publishesByDraftId = new Map<string, any>();
-      (publishesData || []).forEach((publish) => {
+      (publishesData || []).forEach((publish: any) => {
         if (publish.draft_id && !publishesByDraftId.has(publish.draft_id)) {
           // Use published_at if available, otherwise fall back to created_at
           publishesByDraftId.set(publish.draft_id, {
@@ -126,12 +126,12 @@ export function usePublished(brandId: string) {
       });
 
       // Merge publishes into drafts data
-      const data = draftsData.map((draft) => ({
+      const data = draftsData.map((draft: any) => ({
         ...draft,
         publishes: publishesByDraftId.get(draft.id) || null,
       }));
 
-      const publishedWithAssets = await Promise.all((data || []).map(async (draft) => {
+      const publishedWithAssets = await Promise.all((data || []).map(async (draft: any) => {
         const normalizedDraft = {
           ...draft,
           hashtags: normalizeHashtags(draft.hashtags || []),
@@ -198,7 +198,7 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
     return [];
   }
 
-  const assets = (data as RawAsset[]).map((raw) => ({
+  const assets = (data as RawAsset[]).map((raw: any) => ({
     id: raw.id,
     brand_id: raw.brand_id,
     title: raw.title,

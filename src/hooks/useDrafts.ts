@@ -492,7 +492,7 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
 
 async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
   const tags: Tag[] = (raw.asset_tags || [])
-    .map((at) => {
+    .map((at: any) => {
       const tag = Array.isArray(at.tags) ? at.tags[0] : at.tags;
       return tag && tag.is_active
         ? {
@@ -504,7 +504,7 @@ async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
     })
     .filter((tag): tag is Tag => Boolean(tag));
 
-  const tagIds = tags.map((tag) => tag.id);
+  const tagIds = tags.map((tag: any) => tag.id);
   const assetType = raw.asset_type === 'video' ? 'video' : 'image';
 
   let signedUrl: string | undefined;

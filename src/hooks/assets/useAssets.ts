@@ -86,14 +86,14 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
 
   const mapAsset = async (asset: AssetFromDB) => {
     const assetTags: Tag[] = (asset.asset_tags || [])
-      .filter((at) => at.tags && at.tags.is_active)
-      .map((at) => ({
+      .filter((at: any) => at.tags && at.tags.is_active)
+      .map((at: any) => ({
         id: at.tags!.id,
         name: at.tags!.name,
         kind: at.tags!.kind,
       }))
 
-    const tagIds = assetTags.map((tag) => tag.id)
+    const tagIds = assetTags.map((tag: any) => tag.id)
     const assetType = (asset.asset_type as 'image' | 'video' | null) ?? 'image'
 
     const signedUrl = await buildSignedUrl(asset.storage_path)

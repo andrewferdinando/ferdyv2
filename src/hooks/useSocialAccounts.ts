@@ -68,8 +68,8 @@ export function useSocialAccounts(brandId: string) {
       const userIds = Array.from(
         new Set(
           socialAccounts
-            .map((account) => account.connected_by_user_id)
-            .filter((id): id is string => typeof id === 'string' && id.length > 0),
+            .map((account: any) => account.connected_by_user_id)
+            .filter((id: any): id is string => typeof id === 'string' && id.length > 0),
         ),
       )
 
@@ -94,7 +94,7 @@ export function useSocialAccounts(brandId: string) {
         }
       }
 
-      const normalized: SocialAccountSummary[] = socialAccounts.map((account) => ({
+      const normalized: SocialAccountSummary[] = socialAccounts.map((account: any) => ({
         ...account,
         connected_by: account.connected_by_user_id
           ? userNameLookup[account.connected_by_user_id] ?? null
