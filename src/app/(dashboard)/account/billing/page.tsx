@@ -1,0 +1,259 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import AppLayout from '@/components/layout/AppLayout'
+import RequireAuth from '@/components/auth/RequireAuth'
+import { useUserGroup } from '@/hooks/useUserGroup'
+import { useSupabase } from '@/hooks/useSupabase'
+
+interface SubscriptionDetails {
+  status: string
+  current_period_end: number
+  cancel_at_period_end: boolean
+  default_payment_method: any
+  latest_invoice: any
+}
+
+export default function BillingPage() {
+  const router = useRouter()
+  const supabase = useSupabase()
+  const { group, membership, loading: groupLoading, canManageBilling } = useUserGroup()
+  
+  const [brandCount, setBrandCount] = useState(0)
+  const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadBillingData() {
+      if (!group) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        // Get brand count
+        const { count, error: countError } = await supabase
+          .from('brands')
+          .select('id', { count: 'exact', head: true })
+          .eq('group_id', group.id)
+
+        if (countError) throw countError
+        setBrandCount(count || 0)
+
+        // Get subscription details if exists
+        if (group.stripe_subscription_id) {
+          const response = await fetch(`/api/stripe/subscription-details?groupId=${group.id}`)
+          if (response.ok) {
+            const data = await response.json()
+            setSubscription(data.subscription)
+          }
+        }
+
+        setLoading(false)
+      } catch (err: any) {
+        console.error('Error loading billing data:', err)
+        setError(err.message)
+        setLoading(false)
+      }
+    }
+
+    if (!groupLoading) {
+      loadBillingData()
+    }
+  }, [group, groupLoading, supabase])
+
+  const handleManageBilling = async () => {
+    if (!group) return
+
+    try {
+      const response = await fetch('/api/stripe/billing-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: group.id,
+          returnUrl: window.location.href,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to create billing portal session')
+
+      const { url } = await response.json()
+      window.location.href = url
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
+  if (groupLoading || loading) {
+    return (
+      <RequireAuth>
+        <AppLayout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading billing information...</p>
+            </div>
+          </div>
+        </AppLayout>
+      </RequireAuth>
+    )
+  }
+
+  if (!group) {
+    return (
+      <RequireAuth>
+        <AppLayout>
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-yellow-900">No Group Found</h3>
+              <p className="mt-2 text-sm text-yellow-700">
+                You need to complete onboarding first.
+              </p>
+              <button
+                onClick={() => router.push('/onboarding/start')}
+                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-yellow-900 bg-yellow-100 hover:bg-yellow-200"
+              >
+                Start Onboarding
+              </button>
+            </div>
+          </div>
+        </AppLayout>
+      </RequireAuth>
+    )
+  }
+
+  const pricePerBrand = group.price_per_brand_cents / 100
+  const totalMonthly = (brandCount * pricePerBrand).toFixed(2)
+
+  return (
+    <RequireAuth>
+      <AppLayout>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Billing & Subscription</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Manage your subscription and billing information
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          {/* Subscription Overview */}
+          <div className="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Subscription Overview</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-gray-500">Account</p>
+                <p className="mt-1 text-2xl font-semibold text-gray-900">{group.name}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-500">Active Brands</p>
+                <p className="mt-1 text-2xl font-semibold text-gray-900">{brandCount}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-500">Monthly Total</p>
+                <p className="mt-1 text-2xl font-semibold text-gray-900">
+                  ${totalMonthly} <span className="text-sm text-gray-500">{group.currency.toUpperCase()}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Price per brand</p>
+                  <p className="text-sm text-gray-500">
+                    ${pricePerBrand.toFixed(2)} / month × {brandCount} {brandCount === 1 ? 'brand' : 'brands'}
+                  </p>
+                </div>
+                
+                {subscription && (
+                  <div className="text-right">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      subscription.status === 'active' 
+                        ? 'bg-green-100 text-green-800'
+                        : subscription.status === 'past_due'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {subscription.status}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Subscription Details */}
+          {subscription && (
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Subscription Details</h2>
+              
+              <dl className="space-y-4">
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Status</dt>
+                  <dd className="mt-1 text-sm text-gray-900 capitalize">{subscription.status}</dd>
+                </div>
+                
+                {subscription.current_period_end && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">
+                      {subscription.cancel_at_period_end ? 'Cancels on' : 'Next billing date'}
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {new Date(subscription.current_period_end * 1000).toLocaleDateString()}
+                    </dd>
+                  </div>
+                )}
+                
+                {subscription.default_payment_method && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Payment Method</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {subscription.default_payment_method.card?.brand.toUpperCase()} •••• {subscription.default_payment_method.card?.last4}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {/* Actions */}
+          {canManageBilling && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Manage Billing</h2>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                Update your payment method, view invoices, or cancel your subscription.
+              </p>
+              
+              <button
+                onClick={handleManageBilling}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Manage Billing
+              </button>
+            </div>
+          )}
+
+          {!canManageBilling && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+              <p className="text-sm text-gray-600">
+                You don't have permission to manage billing. Contact your account owner.
+              </p>
+            </div>
+          )}
+        </div>
+      </AppLayout>
+    </RequireAuth>
+  )
+}

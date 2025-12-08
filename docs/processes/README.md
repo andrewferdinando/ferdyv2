@@ -91,6 +91,22 @@ This is the document that controls how Ferdy actually **publishes** content.
 
 ---
 
+---
+
+## 💳 Billing & Account Management
+
+### **Groups and Billing**
+`groups-and-billing.md`  
+Documents the multi-tenant billing system:
+- Group-based account structure
+- Per-brand Stripe pricing ($86/month per brand)
+- Subscription management and proration
+- User roles (owner, admin, billing, member)
+- Onboarding flow
+- Email notifications via Resend
+
+---
+
 ## 🏗 Future Additions (Reserved)
 
 These will be added as the system expands:
