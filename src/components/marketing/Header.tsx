@@ -15,6 +15,13 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   return (
     <header 
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 border-b ${
@@ -37,24 +44,24 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <a 
-            href="#video"
+          <button 
+            onClick={() => scrollToSection('how-it-works')}
             className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
           >
             Watch demo
-          </a>
+          </button>
           <Link 
             href="/auth/sign-in"
             className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
           >
             Log in
           </Link>
-          <Link
-            href="/auth/sign-in"
+          <button
+            onClick={() => scrollToSection('take-action')}
             className="inline-flex items-center justify-center px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg shadow-blue-600/20 transition-all hover:scale-105"
           >
             Get Started
-          </Link>
+          </button>
         </div>
       </div>
     </header>

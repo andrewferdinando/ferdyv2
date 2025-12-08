@@ -5,7 +5,7 @@ import { useState } from 'react'
 interface ContactFormProps {
   title: string
   description: string
-  formType: 'loom' | 'training' | 'demo'
+  formType: 'loom' | 'training' | 'demo' | 'book-call'
   onClose: () => void
 }
 

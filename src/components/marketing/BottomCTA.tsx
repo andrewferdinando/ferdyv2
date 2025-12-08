@@ -9,7 +9,7 @@ export default function BottomCTA() {
 
   return (
     <>
-      <section className="py-24 bg-white border-t border-gray-200">
+      <section id="take-action" className="py-24 bg-white border-t border-gray-200">
         <div className="container">
           <div className="grid md:grid-cols-2 gap-16 max-w-6xl mx-auto">
             

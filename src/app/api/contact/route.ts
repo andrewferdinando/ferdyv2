@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
       subject = 'New Training/Onboarding Request'
     } else if (formType === 'demo') {
       subject = 'New Demo Request'
+    } else if (formType === 'book-call') {
+      subject = 'New Multi-Brand Call Request'
     }
 
     // Format the email content
