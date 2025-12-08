@@ -161,7 +161,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         setDrafts(draftsWithAssets);
 
         // Fetch post_jobs for all drafts and group by draft_id
-        const draftIds = (data || []).map((draft: any) => draft.id).filter((id): id is string => Boolean(id));
+        const draftIds = (data || []).map((draft: any) => draft.id).filter((id: any): id is string => Boolean(id));
         const jobsMap = await fetchJobsByDraftId(draftIds);
         setJobsByDraftId(jobsMap);
 
