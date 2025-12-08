@@ -144,7 +144,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         }
 
         // Now fetch assets for each draft that has asset_ids, and normalize hashtags
-        const draftsWithAssets = await Promise.all((data || []).map(async (draft) => {
+        const draftsWithAssets = await Promise.all((data || []).map(async (draft: any) => {
           // Normalize hashtags
           const normalizedDraft = {
             ...draft,
