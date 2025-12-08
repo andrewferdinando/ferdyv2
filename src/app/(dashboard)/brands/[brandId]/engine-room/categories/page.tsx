@@ -538,7 +538,7 @@ export default function CategoriesPage() {
         }
 
         if (postJobs && postJobs.length > 0) {
-          const postJobIds = postJobs.map(j => j.id)
+          const postJobIds = postJobs.map((j: any) => j.id)
           
           // Delete drafts
           const { error: draftsError } = await supabase
@@ -716,7 +716,7 @@ export default function CategoriesPage() {
 
       // Copy all schedule rules to the new subcategory
       if (scheduleRules && scheduleRules.length > 0) {
-        const newRules = scheduleRules.map(rule => {
+        const newRules = scheduleRules.map((rule: any) => {
           const ruleData: {
             brand_id: string
             category_id: string | null
@@ -880,7 +880,7 @@ export default function CategoriesPage() {
                   </div>
                 ) : (() => {
                   const activeRules = (rules || []).filter(r => r.is_active)
-                  const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
+                  const subcategoriesWithRulesSet = new Set(activeRules.map((r: any) => r.subcategory_id))
                   const subcategoriesWithoutRulesList = allSubcategories.filter(sub => !subcategoriesWithRulesSet.has(sub.id))
                   
                   if (activeRules.length > 0 || subcategoriesWithoutRulesList.length > 0) {
@@ -948,7 +948,7 @@ export default function CategoriesPage() {
                                              startDate.getUTCFullYear() === endDate.getUTCFullYear()
                               
                               // Check if there are duplicate dates (same day/month, different year) in this subcategory
-                              const allDates = occurrences.map(occ => {
+                              const allDates = occurrences.map((occ: any) => {
                                 if (!occ.start_date) return null
                                 const normalized = normalizeToUTC(occ.start_date)
                                 const date = new Date(normalized)
@@ -1033,7 +1033,7 @@ export default function CategoriesPage() {
                             })
 
                             // Add subcategories without rules to the items array
-                            const subcategoriesWithRulesSet = new Set(activeRules.map(r => r.subcategory_id))
+                            const subcategoriesWithRulesSet = new Set(activeRules.map((r: any) => r.subcategory_id))
                             allSubcategories.forEach((sub) => {
                               if (!subcategoriesWithRulesSet.has(sub.id)) {
                                 subcategoryItems.push({
