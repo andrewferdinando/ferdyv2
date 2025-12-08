@@ -137,7 +137,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
       if (error) throw error
 
       setSubcategories(prev => 
-        prev.map(sub => sub.id === id ? data : sub)
+        prev.map((sub: any) => sub.id === id ? data : sub)
       )
       return data
     } catch (err) {
@@ -163,7 +163,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
       // Delete in order: drafts -> post_jobs -> schedule_rules -> subcategory
       // This ensures foreign key constraints are satisfied
       if (scheduleRules && scheduleRules.length > 0) {
-        const ruleIds = scheduleRules.map(r => r.id)
+        const ruleIds = scheduleRules.map((r: any) => r.id)
         
         // 1. Delete drafts that reference post_jobs with these schedule_rules
         const { data: postJobs, error: fetchPostJobsError } = await supabase
@@ -172,7 +172,7 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
           .in('schedule_rule_id', ruleIds)
 
         if (!fetchPostJobsError && postJobs && postJobs.length > 0) {
-          const postJobIds = postJobs.map(j => j.id)
+          const postJobIds = postJobs.map((j: any) => j.id)
           
           // Delete drafts first
           const { error: draftsError } = await supabase
