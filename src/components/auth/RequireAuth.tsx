@@ -41,7 +41,7 @@ export default function RequireAuth({ children }: RequireAuthProps) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: any, session: any) => {
         console.debug('[RequireAuth] Auth state change', { event, hasSession: !!session })
         if (event === 'SIGNED_OUT' || !session) {
           const next = encodeURIComponent(pathname)
