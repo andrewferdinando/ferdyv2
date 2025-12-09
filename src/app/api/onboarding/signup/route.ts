@@ -61,13 +61,15 @@ export async function POST(request: NextRequest) {
 
     const userId = authData.user.id
 
-    // Create profile (account-level role)
+    // Create profile (account-level role) - use upsert to handle duplicates
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
+      .upsert({
         user_id: userId,
         role: 'admin', // First user is always admin
         full_name: name,
+      }, {
+        onConflict: 'user_id'
       })
 
     if (profileError) {
