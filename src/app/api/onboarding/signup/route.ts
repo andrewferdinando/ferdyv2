@@ -65,8 +65,11 @@ export async function POST(request: NextRequest) {
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
+        id: userId,
         user_id: userId,
         role: 'admin', // First user is always admin
+        full_name: name,
+        email: email,
       })
 
     if (profileError) {
