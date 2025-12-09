@@ -339,7 +339,7 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
 
     try {
-      const { error: submitError } = await stripe.confirmPayment({
+      const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/brands`,
@@ -349,8 +349,12 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
 
       if (submitError) {
         setError(submitError.message || 'Payment failed')
-      } else {
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // Payment succeeded, redirect to dashboard
         onSuccess()
+      } else {
+        // Payment is processing or requires action
+        setError('Payment is being processed. Please wait...')
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
