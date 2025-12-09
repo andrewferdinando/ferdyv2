@@ -52,6 +52,20 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       },
     })
 
+    console.log('Subscription created, checking for payment_intent...')
+    console.log('Latest invoice ID:', (subscription.latest_invoice as any)?.id)
+    console.log('Latest invoice type:', typeof subscription.latest_invoice)
+    
+    // If latest_invoice is just an ID string, we need to retrieve it with expansion
+    let invoice = subscription.latest_invoice
+    if (typeof invoice === 'string') {
+      console.log('Invoice is a string ID, retrieving with expansion...')
+      invoice = await stripe.invoices.retrieve(invoice, {
+        expand: ['payment_intent']
+      })
+      console.log('Retrieved invoice, has payment_intent:', !!(invoice as any).payment_intent)
+    }
+
     // Update group with Stripe IDs
     const { error: updateError } = await supabase
       .from('groups')
@@ -66,21 +80,21 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error(`Failed to update group: ${updateError.message}`)
     }
 
-    // Extract client secret
-    const latestInvoice = subscription.latest_invoice as any
-    const paymentIntent = latestInvoice?.payment_intent
+    // Extract client secret from the invoice (either expanded or retrieved)
+    const paymentIntent = (invoice as any)?.payment_intent
     const clientSecret = paymentIntent?.client_secret
 
     console.log('Stripe subscription created:', {
       subscriptionId: subscription.id,
-      hasLatestInvoice: !!latestInvoice,
+      hasInvoice: !!invoice,
+      invoiceType: typeof invoice,
       hasPaymentIntent: !!paymentIntent,
       hasClientSecret: !!clientSecret,
       clientSecret: clientSecret || 'MISSING'
     })
 
     if (!clientSecret) {
-      console.error('Missing client secret! Full subscription object:', JSON.stringify(subscription, null, 2))
+      console.error('Missing client secret! Invoice object:', JSON.stringify(invoice, null, 2))
       throw new Error('Failed to get client secret from Stripe subscription')
     }
 
