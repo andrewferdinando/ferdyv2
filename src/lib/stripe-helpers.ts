@@ -73,7 +73,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
     console.log('Invoice retrieved:', {
       invoiceId: invoice.id,
       status: invoice.status,
-      hasPaymentIntent: !!invoice.payment_intent
+      hasPaymentIntent: !!(invoice as any).payment_intent
     })
 
     // Update group with Stripe IDs
@@ -90,8 +90,8 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error(`Failed to update group: ${updateError.message}`)
     }
 
-    // Extract client secret from the invoice (either expanded or retrieved)
-    const paymentIntent = (invoice as any)?.payment_intent
+    // Extract client secret from the invoice
+    const paymentIntent = (invoice as any).payment_intent
     const clientSecret = paymentIntent?.client_secret
 
     console.log('Stripe subscription created:', {
