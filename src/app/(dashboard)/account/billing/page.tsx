@@ -15,11 +15,17 @@ interface SubscriptionDetails {
   latest_invoice: any
 }
 
+interface Brand {
+  id: string
+  name: string
+}
+
 export default function BillingPage() {
   const router = useRouter()
   const { group, membership, loading: groupLoading, canManageBilling } = useUserGroup()
   
   const [brandCount, setBrandCount] = useState(0)
+  const [brands, setBrands] = useState<Brand[]>([])
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,14 +38,16 @@ export default function BillingPage() {
       }
 
       try {
-        // Get brand count
-        const { count, error: countError } = await supabase
+        // Get brands
+        const { data: brandsData, error: brandsError } = await supabase
           .from('brands')
-          .select('id', { count: 'exact', head: true })
+          .select('id, name')
           .eq('group_id', group.id)
+          .order('name')
 
-        if (countError) throw countError
-        setBrandCount(count || 0)
+        if (brandsError) throw brandsError
+        setBrands(brandsData || [])
+        setBrandCount(brandsData?.length || 0)
 
         // Get subscription details if exists
         if (group.stripe_subscription_id) {
@@ -66,6 +74,12 @@ export default function BillingPage() {
   const handleManageBilling = async () => {
     if (!group) return
 
+    // Check if Stripe customer exists
+    if (!group.stripe_customer_id) {
+      setError('No billing account found. Please contact support to set up billing.')
+      return
+    }
+
     try {
       const response = await fetch('/api/stripe/billing-portal', {
         method: 'POST',
@@ -76,7 +90,10 @@ export default function BillingPage() {
         }),
       })
 
-      if (!response.ok) throw new Error('Failed to create billing portal session')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create billing portal session')
+      }
 
       const { url } = await response.json()
       window.location.href = url
@@ -191,6 +208,21 @@ export default function BillingPage() {
               </div>
             </div>
           </div>
+
+          {/* Brands List */}
+          {brands.length > 0 && (
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Active Brands</h2>
+              <ul className="divide-y divide-gray-200">
+                {brands.map((brand) => (
+                  <li key={brand.id} className="py-3 flex items-center justify-between">
+                    <span className="text-sm text-gray-900">{brand.name}</span>
+                    <span className="text-sm text-gray-500">${pricePerBrand.toFixed(2)}/month</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Subscription Details */}
           {subscription && (
