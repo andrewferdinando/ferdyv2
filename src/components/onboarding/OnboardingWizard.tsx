@@ -9,21 +9,28 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface OnboardingData {
+  name: string
+  email: string
+  password: string
+  isMultipleBrands: boolean | null
   groupName: string
   brandName: string
-  email: string
   countryCode: string
 }
 
 export function OnboardingWizard() {
   const [step, setStep] = useState(1)
   const [data, setData] = useState<OnboardingData>({
+    name: '',
+    email: '',
+    password: '',
+    isMultipleBrands: null,
     groupName: '',
     brandName: '',
-    email: '',
     countryCode: 'US',
   })
   const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [groupId, setGroupId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,15 +42,60 @@ export function OnboardingWizard() {
     setLoading(true)
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      // Validate required fields
+      if (!data.name || !data.email || !data.password || !data.brandName) {
+        throw new Error('Please fill in all required fields')
+      }
+
+      if (data.isMultipleBrands && !data.groupName) {
+        throw new Error('Please enter your company/agency name')
+      }
+
+      // Auto-generate group name if single brand
+      const finalGroupName = data.isMultipleBrands 
+        ? data.groupName 
+        : `${data.brandName}'s Account`
+
+      // Create user account
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.name,
+          }
+        }
+      })
+
+      if (signUpError) throw signUpError
+      if (!authData.user) throw new Error('Failed to create user account')
+
+      // Create profile (account-level role)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'admin', // First user is always admin
+        })
+
+      if (profileError) throw profileError
+
+      // Create user profile (user details)
+      const { error: userProfileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: authData.user.id,
+          name: data.name,
+          email: data.email,
+        })
+
+      if (userProfileError) throw userProfileError
 
       // Create group
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .insert({
-          name: data.groupName,
+          name: finalGroupName,
           country_code: data.countryCode,
         })
         .select()
@@ -51,12 +103,12 @@ export function OnboardingWizard() {
 
       if (groupError) throw groupError
 
-      // Add user as admin
+      // Add user as admin of group
       const { error: memberError } = await supabase
         .from('group_memberships')
         .insert({
           group_id: group.id,
-          user_id: user.id,
+          user_id: authData.user.id,
           role: 'admin',
         })
 
@@ -79,11 +131,14 @@ export function OnboardingWizard() {
         .from('brand_memberships')
         .insert({
           brand_id: brand.id,
-          user_id: user.id,
+          user_id: authData.user.id,
           role: 'admin',
         })
 
       if (brandMemberError) throw brandMemberError
+
+      // Store group ID for payment step
+      setGroupId(group.id)
 
       // Create Stripe subscription
       const response = await fetch('/api/stripe/create-subscription', {
@@ -91,8 +146,8 @@ export function OnboardingWizard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           groupId: group.id,
-          groupName: data.groupName,
-          email: data.email || user.email,
+          groupName: finalGroupName,
+          email: data.email,
           countryCode: data.countryCode,
           brandCount: 1,
         }),
@@ -104,20 +159,18 @@ export function OnboardingWizard() {
       }
 
       const { clientSecret: secret } = await response.json()
-
       setClientSecret(secret)
       setStep(2)
     } catch (err: any) {
       console.error('Onboarding error:', err)
-      setError(err.message || 'Something went wrong')
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleSkipPayment = async () => {
-    // Only allow super admin to skip
-    // TODO: Add super admin check
+    // For super admin testing only
     router.push('/brands')
   }
 
@@ -130,78 +183,147 @@ export function OnboardingWizard() {
               Welcome to Ferdy
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              Let's set up your account
+              Let's get your account set up
             </p>
           </div>
 
-          <form className="mt-8 space-y-6" onSubmit={handleStep1Submit}>
-            <div className="rounded-md shadow-sm space-y-4">
-              <div>
-                <label htmlFor="groupName" className="block text-sm font-medium text-gray-700">
-                  Company/Agency Name
+          <form onSubmit={handleStep1Submit} className="mt-8 space-y-6">
+            <div className="space-y-4">
+              {/* Multiple brands question */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-900 mb-3">
+                  Will you be managing multiple brands (e.g., agencies, group businesses)?
                 </label>
-                <input
-                  id="groupName"
-                  name="groupName"
-                  type="text"
-                  required
-                  value={data.groupName}
-                  onChange={(e) => setData({ ...data, groupName: e.target.value })}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Acme Marketing"
-                />
+                <div className="space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isMultipleBrands"
+                      checked={data.isMultipleBrands === true}
+                      onChange={() => setData({ ...data, isMultipleBrands: true })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Yes, I manage multiple brands</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isMultipleBrands"
+                      checked={data.isMultipleBrands === false}
+                      onChange={() => setData({ ...data, isMultipleBrands: false })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">No, just one brand</span>
+                  </label>
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="brandName" className="block text-sm font-medium text-gray-700">
-                  First Brand Name
-                </label>
-                <input
-                  id="brandName"
-                  name="brandName"
-                  type="text"
-                  required
-                  value={data.brandName}
-                  onChange={(e) => setData({ ...data, brandName: e.target.value })}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="My Brand"
-                />
-              </div>
+              {/* Show form only after brand type is selected */}
+              {data.isMultipleBrands !== null && (
+                <>
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                      Your Name
+                    </label>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      value={data.name}
+                      onChange={(e) => setData({ ...data, name: e.target.value })}
+                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="John Smith"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Billing Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={data.email}
-                  onChange={(e) => setData({ ...data, email: e.target.value })}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="billing@company.com"
-                />
-              </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      value={data.email}
+                      onChange={(e) => setData({ ...data, email: e.target.value })}
+                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="john@company.com"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="countryCode" className="block text-sm font-medium text-gray-700">
-                  Country
-                </label>
-                <select
-                  id="countryCode"
-                  name="countryCode"
-                  value={data.countryCode}
-                  onChange={(e) => setData({ ...data, countryCode: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="US">United States</option>
-                  <option value="NZ">New Zealand</option>
-                  <option value="AU">Australia</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="CA">Canada</option>
-                </select>
-              </div>
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      required
+                      minLength={8}
+                      value={data.password}
+                      onChange={(e) => setData({ ...data, password: e.target.value })}
+                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="At least 8 characters"
+                    />
+                  </div>
+
+                  {data.isMultipleBrands && (
+                    <div>
+                      <label htmlFor="groupName" className="block text-sm font-medium text-gray-700">
+                        Company/Agency Name
+                      </label>
+                      <input
+                        id="groupName"
+                        name="groupName"
+                        type="text"
+                        required={data.isMultipleBrands}
+                        value={data.groupName}
+                        onChange={(e) => setData({ ...data, groupName: e.target.value })}
+                        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                        placeholder="Acme Marketing Agency"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="brandName" className="block text-sm font-medium text-gray-700">
+                      {data.isMultipleBrands ? 'First Brand Name' : 'Brand Name'}
+                    </label>
+                    <input
+                      id="brandName"
+                      name="brandName"
+                      type="text"
+                      required
+                      value={data.brandName}
+                      onChange={(e) => setData({ ...data, brandName: e.target.value })}
+                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder={data.isMultipleBrands ? "Client Brand A" : "My Business"}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="countryCode" className="block text-sm font-medium text-gray-700">
+                      Country
+                    </label>
+                    <select
+                      id="countryCode"
+                      name="countryCode"
+                      value={data.countryCode}
+                      onChange={(e) => setData({ ...data, countryCode: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                      <option value="US">United States</option>
+                      <option value="NZ">New Zealand</option>
+                      <option value="AU">Australia</option>
+                      <option value="GB">United Kingdom</option>
+                      <option value="CA">Canada</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
 
             {error && (
@@ -210,15 +332,17 @@ export function OnboardingWizard() {
               </div>
             )}
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {loading ? 'Setting up...' : 'Continue to Payment'}
-              </button>
-            </div>
+            {data.isMultipleBrands !== null && (
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {loading ? 'Setting up your account...' : 'Continue to Payment'}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>
@@ -266,30 +390,39 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!stripe || !elements) return
+    if (!stripe || !elements) {
+      return
+    }
 
     setLoading(true)
     setError(null)
 
-    const { error: submitError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/brands`,
-      },
-      redirect: 'if_required',
-    })
+    try {
+      const { error: submitError } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/brands`,
+        },
+        redirect: 'if_required',
+      })
 
-    if (submitError) {
-      setError(submitError.message || 'Payment failed')
+      if (submitError) {
+        setError(submitError.message || 'Payment failed')
+      } else {
+        onSuccess()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong')
+    } finally {
       setLoading(false)
-    } else {
-      onSuccess()
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+      <div className="bg-white p-6 rounded-lg shadow">
+        <PaymentElement />
+      </div>
 
       {error && (
         <div className="rounded-md bg-red-50 p-4">
@@ -300,9 +433,9 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
       <button
         type="submit"
         disabled={!stripe || loading}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+        className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
       >
-        {loading ? 'Processing...' : 'Complete Setup'}
+        {loading ? 'Processing...' : 'Complete Payment'}
       </button>
     </form>
   )
