@@ -75,6 +75,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     .update({
       stripe_subscription_id: subscription.id,
       stripe_customer_id: subscription.customer as string,
+      subscription_status: subscription.status,
       updated_at: new Date().toISOString(),
     })
     .eq('id', groupId)
@@ -82,6 +83,8 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   if (error) {
     console.error('Error updating group:', error)
   }
+
+  console.log(`Updated group ${groupId} subscription status to: ${subscription.status}`)
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -97,6 +100,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     .from('groups')
     .update({
       stripe_subscription_id: null,
+      subscription_status: 'canceled',
       updated_at: new Date().toISOString(),
     })
     .eq('id', groupId)
@@ -105,6 +109,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     console.error('Error updating group:', error)
   }
 
+  console.log(`Subscription canceled for group ${groupId}`)
   // TODO: Send email notification about subscription cancellation
 }
 
