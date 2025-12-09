@@ -51,13 +51,13 @@ export function OnboardingWizard() {
 
       if (groupError) throw groupError
 
-      // Add user as owner
+      // Add user as admin
       const { error: memberError } = await supabase
         .from('group_memberships')
         .insert({
           group_id: group.id,
           user_id: user.id,
-          role: 'owner',
+          role: 'admin',
         })
 
       if (memberError) throw memberError
@@ -74,13 +74,13 @@ export function OnboardingWizard() {
 
       if (brandError) throw brandError
 
-      // Add user to brand
+      // Add user to brand as admin
       const { error: brandMemberError } = await supabase
         .from('brand_memberships')
         .insert({
           brand_id: brand.id,
           user_id: user.id,
-          role: 'owner',
+          role: 'admin',
         })
 
       if (brandMemberError) throw brandMemberError

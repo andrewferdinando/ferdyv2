@@ -44,7 +44,7 @@ export default function AccountSettingsPage() {
   }, []);
 
   const isPrivileged =
-    profileRole === 'admin' || profileRole === 'super_admin' || profileRole === 'owner';
+    profileRole === 'admin' || profileRole === 'super_admin';
 
   const accountSettings = useMemo(() => {
     const entries: Array<{

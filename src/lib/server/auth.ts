@@ -2,7 +2,7 @@
 
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-const ADMIN_ROLES = new Set(['owner', 'admin', 'super_admin'])
+const ADMIN_ROLES = new Set(['admin'])
 
 export async function requireAdminForBrand(brandId: string, userId: string) {
   const { data, error } = await supabaseAdmin

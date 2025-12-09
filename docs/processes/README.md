@@ -105,6 +105,16 @@ Documents the multi-tenant billing system:
 - Onboarding flow
 - Email notifications via Resend
 
+### **Roles and Permissions**
+`roles-and-permissions.md`  
+Comprehensive guide to access control:
+- Group-level roles (Super Admin, Admin, Owner, Member)
+- Brand-level roles (Admin, Editor)
+- Complete permissions matrix
+- Role assignment workflows
+- Implementation guidelines and code examples
+- Database schema and RLS policies
+
 ---
 
 ## 🏗 Future Additions (Reserved)

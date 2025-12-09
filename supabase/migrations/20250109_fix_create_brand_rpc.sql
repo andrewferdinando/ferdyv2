@@ -1,6 +1,6 @@
--- RPC to create a brand and assign the creator as admin in a single transaction
--- Updated to support Groups architecture
--- Run this in Supabase SQL editor (or include in migration pipeline) after updating the schema.
+-- Migration: Fix rpc_create_brand_with_admin to support Groups architecture
+-- Date: 2025-01-09
+-- Description: Update the RPC function to include group_id when creating brands
 
 create or replace function public.rpc_create_brand_with_admin(
   p_user_id uuid,

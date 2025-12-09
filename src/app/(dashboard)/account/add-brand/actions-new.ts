@@ -63,7 +63,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('You do not have access to this group.')
   }
 
-  if (!['owner', 'admin'].includes(membership.role)) {
+  if (!['admin', 'super_admin'].includes(membership.role)) {
     throw new Error('You do not have permission to create brands in this group.')
   }
 
@@ -85,13 +85,13 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('Creating the brand failed. Please try again.')
   }
 
-  // Add user as brand owner
+  // Add user as brand admin
   const { error: brandMemberError } = await supabaseAdmin
     .from('brand_memberships')
     .insert({
       brand_id: brand.id,
       user_id: userId,
-      role: 'owner',
+      role: 'admin',
     })
 
   if (brandMemberError) {
@@ -172,7 +172,7 @@ export async function deleteBrandAction(brandId: string, userId: string) {
     throw new Error('Brand not found.')
   }
 
-  // Verify user is owner of the group
+  // Verify user is admin of the group
   const { data: membership, error: memberError } = await supabaseAdmin
     .from('group_memberships')
     .select('role')
@@ -184,8 +184,8 @@ export async function deleteBrandAction(brandId: string, userId: string) {
     throw new Error('You do not have access to this group.')
   }
 
-  if (membership.role !== 'owner') {
-    throw new Error('Only group owners can delete brands.')
+  if (!['admin', 'super_admin'].includes(membership.role)) {
+    throw new Error('Only group admins can delete brands.')
   }
 
   // Delete brand (cascade will handle brand_memberships)

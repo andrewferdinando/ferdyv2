@@ -285,7 +285,7 @@ export default function AccountTeamPage() {
                       >
                         <option value="member">Member</option>
                         <option value="admin">Admin</option>
-                        {currentUserRole === 'super_admin' && <option value="owner">Owner</option>}
+
                       </select>
                       <p className="mt-1 text-xs text-gray-500">Account-level permissions for billing and settings</p>
                     </div>
