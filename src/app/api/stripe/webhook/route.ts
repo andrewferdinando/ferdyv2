@@ -43,6 +43,10 @@ export async function POST(request: NextRequest) {
         await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
         break
 
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+        break
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -136,6 +140,37 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     }
   } catch (emailError) {
     console.error('Failed to send invoice paid email:', emailError)
+  }
+}
+
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  console.log('PaymentIntent succeeded:', paymentIntent.id)
+  
+  // Get invoice_id from metadata
+  const invoiceId = paymentIntent.metadata.invoice_id
+  const subscriptionId = paymentIntent.metadata.subscription_id
+  const groupId = paymentIntent.metadata.group_id
+
+  if (!invoiceId || !subscriptionId) {
+    console.error('Missing invoice_id or subscription_id in PaymentIntent metadata')
+    return
+  }
+
+  try {
+    // Pay the invoice using the PaymentIntent
+    await stripe.invoices.pay(invoiceId, {
+      paid_out_of_band: true, // Mark as paid manually since we used a separate PaymentIntent
+    })
+
+    console.log(`Invoice ${invoiceId} marked as paid for subscription ${subscriptionId}`)
+
+    // The invoice.paid webhook will handle sending the email
+  } catch (error: any) {
+    console.error('Error paying invoice:', error)
+    // If invoice is already paid, that's okay
+    if (error.code !== 'invoice_already_paid') {
+      throw error
+    }
   }
 }
 
