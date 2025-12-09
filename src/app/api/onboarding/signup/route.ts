@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         role: 'admin', // First user is always admin
         full_name: name,
-        email: email,
       })
 
     if (profileError) {
