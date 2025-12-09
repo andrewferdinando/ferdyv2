@@ -324,9 +324,13 @@ export default function AddBrandPage() {
       }))
 
       if (memberships.length > 0) {
+        // Use upsert to handle case where creator is already assigned by RPC
         const { error } = await supabase
           .from('brand_memberships')
-          .insert(memberships)
+          .upsert(memberships, {
+            onConflict: 'brand_id,user_id',
+            ignoreDuplicates: false
+          })
 
         if (error) throw error
       }
