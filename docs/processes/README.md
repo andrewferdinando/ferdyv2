@@ -95,6 +95,15 @@ This is the document that controls how Ferdy actually **publishes** content.
 
 ## 💳 Billing & Account Management
 
+### **Onboarding Process**
+`onboarding.md`  
+Complete technical documentation of the 2-step onboarding wizard:
+- Account and brand creation flow
+- Stripe subscription setup with PaymentIntent
+- Webhook chain for payment handling
+- Database schema and state management
+- Troubleshooting common issues
+
 ### **Groups and Billing**
 `groups-and-billing.md`  
 Documents the multi-tenant billing system:
@@ -102,7 +111,6 @@ Documents the multi-tenant billing system:
 - Per-brand Stripe pricing ($86/month per brand)
 - Subscription management and proration
 - User roles (owner, admin, billing, member)
-- Onboarding flow
 - Email notifications via Resend
 
 ### **Roles and Permissions**
