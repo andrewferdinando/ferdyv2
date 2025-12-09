@@ -40,7 +40,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       customer: customer.id,
       items: [
         {
-          price: process.env.STRIPE_PRICE_ID!,
+          price: process.env.STRIPE_PRICE_ID!.trim(),
           quantity: brandCount,
         },
       ],
@@ -58,7 +58,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       .update({
         stripe_customer_id: customer.id,
         stripe_subscription_id: subscription.id,
-        stripe_price_id: process.env.STRIPE_PRICE_ID!,
+        stripe_price_id: process.env.STRIPE_PRICE_ID!.trim(),
       })
       .eq('id', groupId)
 
