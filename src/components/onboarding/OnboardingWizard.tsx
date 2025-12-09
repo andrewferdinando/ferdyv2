@@ -51,102 +51,43 @@ export function OnboardingWizard() {
         throw new Error('Please enter your company/agency name')
       }
 
+      // Call server-side API to create account
+      const signupResponse = await fetch('/api/onboarding/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          isMultipleBrands: data.isMultipleBrands,
+          groupName: data.groupName,
+          brandName: data.brandName,
+          countryCode: data.countryCode,
+        }),
+      })
+
+      if (!signupResponse.ok) {
+        const errorData = await signupResponse.json()
+        throw new Error(errorData.error || 'Failed to create account')
+      }
+
+      const { groupId: createdGroupId, groupName: createdGroupName } = await signupResponse.json()
+      
+      // Store group ID for payment step
+      setGroupId(createdGroupId)
+
       // Auto-generate group name if single brand
       const finalGroupName = data.isMultipleBrands 
         ? data.groupName 
         : `${data.brandName}'s Account`
-
-      // Create user account
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.name,
-          }
-        }
-      })
-
-      if (signUpError) throw signUpError
-      if (!authData.user) throw new Error('Failed to create user account')
-
-      // Create profile (account-level role)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'admin', // First user is always admin
-        })
-
-      if (profileError) throw profileError
-
-      // Create user profile (user details)
-      const { error: userProfileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: authData.user.id,
-          name: data.name,
-          email: data.email,
-        })
-
-      if (userProfileError) throw userProfileError
-
-      // Create group
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .insert({
-          name: finalGroupName,
-          country_code: data.countryCode,
-        })
-        .select()
-        .single()
-
-      if (groupError) throw groupError
-
-      // Add user as admin of group
-      const { error: memberError } = await supabase
-        .from('group_memberships')
-        .insert({
-          group_id: group.id,
-          user_id: authData.user.id,
-          role: 'admin',
-        })
-
-      if (memberError) throw memberError
-
-      // Create first brand
-      const { data: brand, error: brandError } = await supabase
-        .from('brands')
-        .insert({
-          name: data.brandName,
-          group_id: group.id,
-        })
-        .select()
-        .single()
-
-      if (brandError) throw brandError
-
-      // Add user to brand as admin
-      const { error: brandMemberError } = await supabase
-        .from('brand_memberships')
-        .insert({
-          brand_id: brand.id,
-          user_id: authData.user.id,
-          role: 'admin',
-        })
-
-      if (brandMemberError) throw brandMemberError
-
-      // Store group ID for payment step
-      setGroupId(group.id)
 
       // Create Stripe subscription
       const response = await fetch('/api/stripe/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupId: group.id,
-          groupName: finalGroupName,
+          groupId: createdGroupId,
+          groupName: createdGroupName,
           email: data.email,
           countryCode: data.countryCode,
           brandCount: 1,
