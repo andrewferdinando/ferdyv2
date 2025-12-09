@@ -76,6 +76,17 @@ export function OnboardingWizard() {
       // Store group ID for payment step
       setGroupId(createdGroupId)
 
+      // Log in the user to create a session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      })
+
+      if (signInError) {
+        console.error('Sign in error:', signInError)
+        throw new Error('Account created but failed to log in. Please try logging in manually.')
+      }
+
       // Auto-generate group name if single brand
       const finalGroupName = data.isMultipleBrands 
         ? data.groupName 
@@ -100,7 +111,9 @@ export function OnboardingWizard() {
       }
 
       const { clientSecret: secret } = await response.json()
+      console.log('Got clientSecret:', secret ? 'YES' : 'NO')
       setClientSecret(secret)
+      console.log('Setting step to 2')
       setStep(2)
     } catch (err: any) {
       console.error('Onboarding error:', err)
@@ -304,7 +317,7 @@ export function OnboardingWizard() {
           </div>
 
           <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <PaymentForm onSuccess={() => router.push('/brands')} />
+            <PaymentForm onSuccess={() => window.location.href = '/brands'} />
           </Elements>
 
           {/* Super admin skip option */}
@@ -319,7 +332,16 @@ export function OnboardingWizard() {
     )
   }
 
-  return null
+  // Fallback for unexpected state
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <p className="text-gray-600">Loading... (Step: {step}, ClientSecret: {clientSecret ? 'Yes' : 'No'})</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function PaymentForm({ onSuccess }: { onSuccess: () => void }) {

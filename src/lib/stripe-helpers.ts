@@ -66,10 +66,28 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error(`Failed to update group: ${updateError.message}`)
     }
 
+    // Extract client secret
+    const latestInvoice = subscription.latest_invoice as any
+    const paymentIntent = latestInvoice?.payment_intent
+    const clientSecret = paymentIntent?.client_secret
+
+    console.log('Stripe subscription created:', {
+      subscriptionId: subscription.id,
+      hasLatestInvoice: !!latestInvoice,
+      hasPaymentIntent: !!paymentIntent,
+      hasClientSecret: !!clientSecret,
+      clientSecret: clientSecret || 'MISSING'
+    })
+
+    if (!clientSecret) {
+      console.error('Missing client secret! Full subscription object:', JSON.stringify(subscription, null, 2))
+      throw new Error('Failed to get client secret from Stripe subscription')
+    }
+
     return {
       customerId: customer.id,
       subscriptionId: subscription.id,
-      clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
+      clientSecret,
     }
   } catch (error: any) {
     console.error('Error creating Stripe subscription:', error)
