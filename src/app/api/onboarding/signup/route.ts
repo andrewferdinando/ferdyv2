@@ -74,10 +74,12 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error('Profile error:', profileError)
+      console.error('Profile error details:', JSON.stringify(profileError, null, 2))
+      console.error('Attempted to insert:', { id: userId, user_id: userId, role: 'admin', full_name: name, email })
       // Rollback: delete user
       await supabaseAdmin.auth.admin.deleteUser(userId)
       return NextResponse.json(
-        { error: 'Failed to create profile' },
+        { error: `Failed to create profile: ${profileError.message || JSON.stringify(profileError)}` },
         { status: 500 }
       )
     }
