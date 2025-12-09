@@ -10,7 +10,6 @@ import { useUserGroup } from '@/hooks/useUserGroup'
 interface Brand {
   id: string
   name: string
-  description: string | null
   created_at: string
 }
 
@@ -30,7 +29,7 @@ export default function AccountBrandSettingsPage() {
       try {
         const { data: brandsData, error: brandsError } = await supabase
           .from('brands')
-          .select('id, name, description, created_at')
+          .select('id, name, created_at')
           .eq('group_id', group.id)
           .order('name')
 
@@ -105,9 +104,6 @@ export default function AccountBrandSettingsPage() {
                           >
                             <div className="flex-1">
                               <h3 className="text-sm font-medium text-gray-900">{brand.name}</h3>
-                              {brand.description && (
-                                <p className="text-sm text-gray-500 mt-1">{brand.description}</p>
-                              )}
                               <p className="text-xs text-gray-400 mt-1">
                                 Created {new Date(brand.created_at).toLocaleDateString()}
                               </p>
