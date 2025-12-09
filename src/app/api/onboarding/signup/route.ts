@@ -87,10 +87,11 @@ export async function POST(request: NextRequest) {
     // Create user profile (user details)
     const { error: userProfileError } = await supabaseAdmin
       .from('user_profiles')
-      .insert({
+      .upsert({
         id: userId,
         name,
-        email,
+      }, {
+        onConflict: 'id'
       })
 
     if (userProfileError) {
