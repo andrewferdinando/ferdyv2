@@ -84,26 +84,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create user profile (user details)
-    const { error: userProfileError } = await supabaseAdmin
-      .from('user_profiles')
-      .upsert({
-        id: userId,
-        name,
-      }, {
-        onConflict: 'id'
-      })
-
-    if (userProfileError) {
-      console.error('User profile error:', userProfileError)
-      // Rollback
-      await supabaseAdmin.from('profiles').delete().eq('user_id', userId)
-      await supabaseAdmin.auth.admin.deleteUser(userId)
-      return NextResponse.json(
-        { error: 'Failed to create user profile' },
-        { status: 500 }
-      )
-    }
+    // Note: user_profiles is a VIEW, not a table - no insert needed
+    // User data is stored in profiles.full_name and auth.users metadata
 
     // Create group
     const { data: group, error: groupError } = await supabaseAdmin
