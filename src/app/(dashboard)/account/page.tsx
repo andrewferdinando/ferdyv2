@@ -86,6 +86,29 @@ export default function AccountOverviewPage() {
                 {isAccountAdmin ? (
                   <div className="grid gap-6 md:grid-cols-1">
                     <Link
+                      href="/account/billing"
+                      className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#6366F1] transition-colors group-hover:bg-[#6366F1] group-hover:text-white">
+                            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-semibold text-gray-900">Billing</h2>
+                            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+                              Manage your subscription, view invoices, and update payment methods.
+                            </p>
+                          </div>
+                        </div>
+                        <svg className="h-5 w-5 text-gray-400 transition-colors group-hover:text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Link>
+                    <Link
                       href="/account/add-brand"
                       className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg"
                     >
