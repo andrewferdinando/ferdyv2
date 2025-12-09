@@ -65,15 +65,16 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error('No invoice created with subscription')
     }
 
-    // Retrieve invoice with payment_intent expanded
-    const invoice = await stripe.invoices.retrieve(invoiceId, {
+    // Finalize the invoice to create a PaymentIntent
+    // This is required when using payment_behavior: 'default_incomplete'
+    const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoiceId, {
       expand: ['payment_intent']
     })
 
-    console.log('Invoice retrieved:', {
-      invoiceId: invoice.id,
-      status: invoice.status,
-      hasPaymentIntent: !!(invoice as any).payment_intent
+    console.log('Invoice finalized:', {
+      invoiceId: finalizedInvoice.id,
+      status: finalizedInvoice.status,
+      hasPaymentIntent: !!(finalizedInvoice as any).payment_intent
     })
 
     // Update group with Stripe IDs
@@ -90,22 +91,21 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error(`Failed to update group: ${updateError.message}`)
     }
 
-    // Extract client secret from the invoice
-    const paymentIntent = (invoice as any).payment_intent
+    // Extract client secret from the finalized invoice
+    const paymentIntent = (finalizedInvoice as any).payment_intent
     const clientSecret = paymentIntent?.client_secret
 
     console.log('Stripe subscription created:', {
       subscriptionId: subscription.id,
-      hasInvoice: !!invoice,
-      invoiceType: typeof invoice,
+      invoiceId: finalizedInvoice.id,
+      invoiceStatus: finalizedInvoice.status,
       hasPaymentIntent: !!paymentIntent,
-      hasClientSecret: !!clientSecret,
-      clientSecret: clientSecret || 'MISSING'
+      hasClientSecret: !!clientSecret
     })
 
     if (!clientSecret) {
-      console.error('Missing client secret! Invoice object:', JSON.stringify(invoice, null, 2))
-      throw new Error('Failed to get client secret from Stripe subscription')
+      console.error('Missing client secret! PaymentIntent:', JSON.stringify(paymentIntent, null, 2))
+      throw new Error('Failed to get client secret from Stripe - PaymentIntent not created')
     }
 
     return {
