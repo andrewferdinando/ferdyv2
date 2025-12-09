@@ -75,6 +75,11 @@ export default function AddBrandPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [serverError, setServerError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showTeamAssignment, setShowTeamAssignment] = useState(false)
+  const [newBrandId, setNewBrandId] = useState<string | null>(null)
+  const [newBrandName, setNewBrandName] = useState<string>('')
+  const [teamMembers, setTeamMembers] = useState<Array<{id: string, name: string, email: string}>>([]) 
+  const [selectedMembers, setSelectedMembers] = useState<Array<{userId: string, role: 'admin' | 'editor'}>>([])
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: '',
@@ -216,12 +221,14 @@ export default function AddBrandPage() {
         timezone: formValues.timezone.trim(),
       })
 
-      showToast({
-        title: 'Brand created successfully.',
-        type: 'success',
-      })
-
-      router.push('/brands')
+      // Store brand info and show team assignment modal
+      setNewBrandId(brandId)
+      setNewBrandName(formValues.name.trim())
+      
+      // Load team members for assignment
+      await loadTeamMembers()
+      
+      setShowTeamAssignment(true)
     } catch (error) {
       console.error('AddBrandPage: failed to create brand', error)
       setServerError(error instanceof Error ? error.message : 'Failed to create brand. Please try again.')
@@ -232,6 +239,113 @@ export default function AddBrandPage() {
 
   const handleFormSubmit = (event: FormEvent) => {
     void handleSubmit(event)
+  }
+
+  const loadTeamMembers = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Get user's group
+      const { data: membership } = await supabase
+        .from('group_memberships')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!membership) return
+
+      // Get all group members
+      const { data: memberships } = await supabase
+        .from('group_memberships')
+        .select('user_id')
+        .eq('group_id', membership.group_id)
+
+      if (!memberships) return
+
+      // Get user profiles
+      const members = []
+      for (const m of memberships) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('name')
+          .eq('id', m.user_id)
+          .single()
+
+        members.push({
+          id: m.user_id,
+          name: profile?.name || 'Unknown',
+          email: m.user_id === user.id ? user.email || '' : 'Email hidden'
+        })
+      }
+
+      setTeamMembers(members)
+    } catch (error) {
+      console.error('Error loading team members:', error)
+    }
+  }
+
+  const handleMemberToggle = (userId: string) => {
+    setSelectedMembers(prev => {
+      const exists = prev.find(m => m.userId === userId)
+      if (exists) {
+        return prev.filter(m => m.userId !== userId)
+      } else {
+        return [...prev, { userId, role: 'editor' }]
+      }
+    })
+  }
+
+  const handleMemberRoleChange = (userId: string, role: 'admin' | 'editor') => {
+    setSelectedMembers(prev =>
+      prev.map(m => m.userId === userId ? { ...m, role } : m)
+    )
+  }
+
+  const handleSkipTeamAssignment = () => {
+    showToast({
+      title: 'Brand created successfully.',
+      type: 'success',
+    })
+    router.push('/brands')
+  }
+
+  const handleSaveTeamAssignment = async () => {
+    if (!newBrandId) return
+
+    try {
+      setIsSubmitting(true)
+
+      // Create brand memberships
+      const memberships = selectedMembers.map(m => ({
+        brand_id: newBrandId,
+        user_id: m.userId,
+        role: m.role,
+      }))
+
+      if (memberships.length > 0) {
+        const { error } = await supabase
+          .from('brand_memberships')
+          .insert(memberships)
+
+        if (error) throw error
+      }
+
+      showToast({
+        title: `Brand created with ${selectedMembers.length} team member(s) assigned.`,
+        type: 'success',
+      })
+
+      router.push('/brands')
+    } catch (error) {
+      console.error('Error assigning team members:', error)
+      showToast({
+        title: 'Failed to assign team members',
+        type: 'error',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const isFormValid = BrandFormSchema.safeParse(formValues).success
@@ -373,6 +487,80 @@ export default function AddBrandPage() {
             {renderContent()}
           </div>
         </div>
+
+        {/* Team Assignment Modal */}
+        {showTeamAssignment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Assign Team Members to {newBrandName}</h2>
+                <p className="mt-1 text-sm text-gray-600">Select which team members should have access to this brand</p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {teamMembers.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">No other team members found</p>
+                ) : (
+                  <div className="space-y-2">
+                    {teamMembers.map((member) => {
+                      const assignment = selectedMembers.find(m => m.userId === member.id)
+                      const isSelected = !!assignment
+
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <label className="flex items-center cursor-pointer flex-1">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleMemberToggle(member.id)}
+                              className="mr-3 rounded border-gray-300 text-[#6366F1] focus:ring-[#6366F1]"
+                            />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                              <p className="text-xs text-gray-500">{member.email}</p>
+                            </div>
+                          </label>
+
+                          {isSelected && (
+                            <select
+                              value={assignment.role}
+                              onChange={(e) => handleMemberRoleChange(member.id, e.target.value as 'admin' | 'editor')}
+                              className="ml-3 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <option value="editor">Editor</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <p className="mt-4 text-xs text-gray-500">Selected: {selectedMembers.length} of {teamMembers.length} members</p>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={handleSkipTeamAssignment}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Skip for Now
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTeamAssignment}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#6366F1] hover:bg-[#4F46E5] disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Assigning...' : `Assign ${selectedMembers.length} Member${selectedMembers.length !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </AppLayout>
     </RequireAuth>
   )
