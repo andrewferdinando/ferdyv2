@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-})
+const stripe = getStripe()
 
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
