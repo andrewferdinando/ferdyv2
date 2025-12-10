@@ -156,8 +156,8 @@ export async function createBrandAction(payload: CreateBrandPayload) {
           await sendBrandAdded({
             to: user.email,
             brandName: name,
-            newBrandCount: brandCount,
-            newMonthlyTotal: brandCount * groupData.price_per_brand_cents,
+            newBrandCount: brandCount || 0,
+            newMonthlyTotal: (brandCount || 0) * groupData.price_per_brand_cents,
             currency: groupData.currency || 'usd',
           })
           console.log(`[createBrandAction] Successfully sent brand added email`)
