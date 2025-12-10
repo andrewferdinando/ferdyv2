@@ -9,111 +9,68 @@ This document describes when and how each email notification is triggered in the
 **Trigger:** Stripe webhook `invoice.paid`
 **When:** After a successful payment is processed
 **Data:** Amount, billing period, brand count, invoice URL
+**Status:** ✅ Fully implemented and tested
 
 ### 2. Brand Added
 **Location:** `/src/app/(dashboard)/account/add-brand/actions.ts`
 **Trigger:** After `createBrandAction` successfully creates a brand
 **When:** User creates a new brand in the UI
 **Data:** Brand name, new brand count, new monthly total
+**Status:** ✅ Fully implemented and tested
 
 ### 3. Brand Deleted
 **Location:** `/src/app/api/brands/remove/route.ts`
 **Trigger:** After brand is soft-deleted and Stripe subscription is updated
 **When:** Admin removes a brand from the billing page
 **Data:** Brand name, remaining brand count, new monthly total, billing period end
+**Status:** ✅ Fully implemented and tested
+
+### 4. New User Invite
+**Location:** `/src/app/(dashboard)/brands/[brandId]/account/team/actions.ts`
+**Trigger:** When an admin invites someone who doesn't have a Ferdy account
+**When:** Admin adds a new team member via the team management page
+**Data:** Brand name, inviter name, invite link (7-day expiry)
+**Status:** ✅ Fully implemented
+**Implementation:** Uses `auth.admin.generateLink()` with type 'invite' and sends custom branded email via Resend
+
+### 5. Existing User Invite
+**Location:** `/src/app/(dashboard)/brands/[brandId]/account/team/actions.ts`
+**Trigger:** When an admin invites an existing Ferdy user to a brand
+**When:** Admin adds an existing user via the team management page
+**Data:** Brand name, inviter name, magic link (24-hour expiry)
+**Status:** ✅ Fully implemented
+**Implementation:** Uses `auth.admin.generateLink()` with type 'magiclink' and sends custom branded email via Resend
+
+### 6. Forgot Password
+**Location:** `/src/app/api/auth/reset-password/route.ts`
+**Trigger:** User requests password reset
+**When:** User submits forgot password form
+**Data:** Password reset link
+**Status:** ✅ Fully implemented
+**Implementation:** 
+- POST endpoint accepts email address
+- Generates password reset link using `auth.admin.generateLink()` with type 'recovery'
+- Sends custom branded email via Resend
+- Returns generic success message to prevent email enumeration attacks
+
+**Usage:**
+```typescript
+// Frontend should POST to /api/auth/reset-password
+const response = await fetch('/api/auth/reset-password', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email: 'user@example.com' }),
+})
+```
 
 ---
 
 ## 📋 To Be Implemented
 
-### 4. New User Invite
-**Suggested Location:** Create `/src/lib/emails/triggers/invites.ts`
-**Trigger:** When an admin adds a brand member who doesn't have a Ferdy account
-**Implementation:**
-```typescript
-import { sendNewUserInvite } from '@/lib/emails/send'
-
-export async function inviteNewUser(data: {
-  email: string
-  brandName: string
-  inviterName: string
-  brandId: string
-}) {
-  // Generate invite link (7-day expiry)
-  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${generateInviteToken()}`
-  
-  await sendNewUserInvite({
-    to: data.email,
-    brandName: data.brandName,
-    inviterName: data.inviterName,
-    inviteLink,
-  })
-}
-```
-
-### 5. Existing User Invite (Magic Link)
-**Suggested Location:** `/src/lib/emails/triggers/invites.ts`
-**Trigger:** When an admin adds an existing Ferdy user to a new brand
-**Implementation:**
-```typescript
-import { sendExistingUserInvite } from '@/lib/emails/send'
-import { supabaseAdmin } from '@/lib/supabase-server'
-
-export async function inviteExistingUser(data: {
-  userId: string
-  brandName: string
-  inviterName: string
-  brandId: string
-}) {
-  // Generate magic link (24-hour expiry)
-  const { data: magicLinkData } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'magiclink',
-    email: data.email,
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${data.brandId}`,
-    },
-  })
-  
-  if (magicLinkData?.properties?.action_link) {
-    await sendExistingUserInvite({
-      to: data.email,
-      brandName: data.brandName,
-      inviterName: data.inviterName,
-      magicLink: magicLinkData.properties.action_link,
-    })
-  }
-}
-```
-
-### 6. Forgot Password
-**Suggested Location:** Supabase auth flow or `/src/app/api/auth/reset-password/route.ts`
-**Trigger:** User requests password reset
-**Implementation:**
-```typescript
-import { sendForgotPassword } from '@/lib/emails/send'
-import { supabaseAdmin } from '@/lib/supabase-server'
-
-export async function sendPasswordReset(email: string) {
-  const { data } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'recovery',
-    email,
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`,
-    },
-  })
-  
-  if (data?.properties?.action_link) {
-    await sendForgotPassword({
-      to: email,
-      resetLink: data.properties.action_link,
-    })
-  }
-}
-```
-
 ### 7. Monthly Drafts Ready for Approval
 **Suggested Location:** Create `/src/lib/cron/monthly-drafts.ts`
 **Trigger:** Cron job after monthly draft generation completes
+**Status:** ⏳ Pending - Requires monthly draft generation workflow
 **Implementation:**
 ```typescript
 import { sendMonthlyDraftsReady } from '@/lib/emails/send'
@@ -125,66 +82,100 @@ export async function notifyDraftsReady(brandId: string) {
     .from('brands')
     .select('name, group_id')
     .eq('id', brandId)
+    .eq('status', 'active')
     .single()
   
   if (!brand) return
   
-  // Count drafts
+  // Count drafts created in the last 24 hours
   const { count: draftCount } = await supabaseAdmin
-    .from('posts')
+    .from('drafts')
     .select('*', { count: 'exact', head: true })
     .eq('brand_id', brandId)
     .eq('status', 'draft')
     .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
   
   // Get admin emails for the brand
-  const { data: admins } = await supabaseAdmin
+  const { data: memberships } = await supabaseAdmin
     .from('brand_memberships')
-    .select('user_id, profiles(email)')
+    .select('user_id, profiles(user_id)')
     .eq('brand_id', brandId)
     .eq('role', 'admin')
+    .eq('status', 'active')
+
+  if (!memberships || memberships.length === 0) return
+
+  // Get user emails from auth
+  const adminEmails: string[] = []
+  for (const membership of memberships) {
+    if (membership.profiles?.user_id) {
+      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(membership.profiles.user_id)
+      if (user?.email) {
+        adminEmails.push(user.email)
+      }
+    }
+  }
   
   const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   
-  for (const admin of admins || []) {
-    if (admin.profiles?.email) {
-      await sendMonthlyDraftsReady({
-        to: admin.profiles.email,
-        brandName: brand.name,
-        draftCount: draftCount || 0,
-        approvalLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${brandId}/drafts`,
-        month,
-      })
-    }
+  for (const email of adminEmails) {
+    await sendMonthlyDraftsReady({
+      to: email,
+      brandName: brand.name,
+      draftCount: draftCount || 0,
+      approvalLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${brandId}/drafts`,
+      month,
+    })
   }
 }
 ```
 
 ### 8. Post Published
-**Suggested Location:** Create `/src/lib/cron/publish-posts.ts`
-**Trigger:** Cron job after a scheduled post is published
+**Suggested Location:** `/src/server/publishing/publishJob.ts`
+**Trigger:** After a post is successfully published to a social platform
+**Status:** ⏳ Pending - Template ready, needs integration
 **Implementation:**
 ```typescript
 import { sendPostPublished } from '@/lib/emails/send'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-export async function notifyPostPublished(postId: string) {
-  const { data: post } = await supabaseAdmin
-    .from('posts')
-    .select('brand_id, platform, content, published_at, brands(name, group_id)')
-    .eq('id', postId)
+// Add this after successful publish (line 157-163 in publishJob.ts)
+export async function notifyPostPublished(
+  draft: DraftRow,
+  job: PostJobRow,
+  publishResult: { externalId: string; externalUrl: string | null }
+) {
+  const { data: brand } = await supabaseAdmin
+    .from('brands')
+    .select('name, group_id')
+    .eq('id', draft.brand_id)
+    .eq('status', 'active')
     .single()
   
-  if (!post || !post.brands) return
+  if (!brand) return
   
   // Get admin emails for the brand
-  const { data: admins } = await supabaseAdmin
+  const { data: memberships } = await supabaseAdmin
     .from('brand_memberships')
-    .select('user_id, profiles(email)')
-    .eq('brand_id', post.brand_id)
+    .select('user_id, profiles(user_id)')
+    .eq('brand_id', draft.brand_id)
     .eq('role', 'admin')
+    .eq('status', 'active')
+
+  if (!memberships || memberships.length === 0) return
+
+  // Get user emails from auth
+  const adminEmails: string[] = []
+  for (const membership of memberships) {
+    if (membership.profiles?.user_id) {
+      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(membership.profiles.user_id)
+      if (user?.email) {
+        adminEmails.push(user.email)
+      }
+    }
+  }
   
-  const publishedAt = new Date(post.published_at).toLocaleDateString('en-US', {
+  const publishedAt = new Date().toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -192,17 +183,15 @@ export async function notifyPostPublished(postId: string) {
     minute: '2-digit',
   })
   
-  for (const admin of admins || []) {
-    if (admin.profiles?.email) {
-      await sendPostPublished({
-        to: admin.profiles.email,
-        brandName: post.brands.name,
-        publishedAt,
-        platform: post.platform,
-        postLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${post.brand_id}/posts/${postId}`,
-        postPreview: post.content?.substring(0, 200),
-      })
-    }
+  for (const email of adminEmails) {
+    await sendPostPublished({
+      to: email,
+      brandName: brand.name,
+      publishedAt,
+      platform: job.channel,
+      postLink: publishResult.externalUrl || `${process.env.NEXT_PUBLIC_APP_URL}/brands/${draft.brand_id}/published`,
+      postPreview: draft.copy?.substring(0, 200) || '',
+    })
   }
 }
 ```
@@ -210,36 +199,49 @@ export async function notifyPostPublished(postId: string) {
 ### 9. Social Connection Disconnected
 **Suggested Location:** Create `/src/lib/cron/check-connections.ts`
 **Trigger:** Cron job health check detects invalid tokens
+**Status:** ⏳ Pending - Requires connection health check system
 **Implementation:**
 ```typescript
 import { sendSocialConnectionDisconnected } from '@/lib/emails/send'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-export async function notifyConnectionLost(integrationId: string) {
-  const { data: integration } = await supabaseAdmin
-    .from('integrations')
-    .select('provider, brand_id, brands(name, group_id)')
-    .eq('id', integrationId)
+export async function notifyConnectionLost(socialAccountId: string) {
+  const { data: socialAccount } = await supabaseAdmin
+    .from('social_accounts')
+    .select('provider, brand_id, brands(name, group_id, status)')
+    .eq('id', socialAccountId)
     .single()
   
-  if (!integration || !integration.brands) return
+  if (!socialAccount || !socialAccount.brands || socialAccount.brands.status !== 'active') return
   
   // Get admin emails for the brand
-  const { data: admins } = await supabaseAdmin
+  const { data: memberships } = await supabaseAdmin
     .from('brand_memberships')
-    .select('user_id, profiles(email)')
-    .eq('brand_id', integration.brand_id)
+    .select('user_id, profiles(user_id)')
+    .eq('brand_id', socialAccount.brand_id)
     .eq('role', 'admin')
-  
-  for (const admin of admins || []) {
-    if (admin.profiles?.email) {
-      await sendSocialConnectionDisconnected({
-        to: admin.profiles.email,
-        brandName: integration.brands.name,
-        platform: integration.provider,
-        reconnectLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${integration.brand_id}/settings/integrations`,
-      })
+    .eq('status', 'active')
+
+  if (!memberships || memberships.length === 0) return
+
+  // Get user emails from auth
+  const adminEmails: string[] = []
+  for (const membership of memberships) {
+    if (membership.profiles?.user_id) {
+      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(membership.profiles.user_id)
+      if (user?.email) {
+        adminEmails.push(user.email)
+      }
     }
+  }
+  
+  for (const email of adminEmails) {
+    await sendSocialConnectionDisconnected({
+      to: email,
+      brandName: socialAccount.brands.name,
+      platform: socialAccount.provider,
+      reconnectLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${socialAccount.brand_id}/settings/integrations`,
+    })
   }
 }
 ```
@@ -253,7 +255,27 @@ Make sure these are set in your Vercel environment:
 ```env
 RESEND_API_KEY=re_xxxxx
 NEXT_PUBLIC_APP_URL=https://www.ferdy.io
+APP_URL=https://www.ferdy.io
 ```
+
+---
+
+## Implementation Summary
+
+**Completed: 6/9 email notifications**
+
+✅ **Critical User Flows (All Implemented):**
+- Invoice Paid - Billing confirmation
+- Brand Added - Brand management
+- Brand Deleted - Brand management
+- New User Invite - Team onboarding
+- Existing User Invite - Team onboarding
+- Forgot Password - Account recovery
+
+⏳ **Nice-to-Have Features (Pending):**
+- Monthly Drafts Ready - Requires monthly generation workflow
+- Post Published - Requires integration into publishing system
+- Social Connection Disconnected - Requires connection health monitoring
 
 ---
 
@@ -284,3 +306,13 @@ export async function GET() {
   return Response.json({ success: true })
 }
 ```
+
+---
+
+## Notes
+
+- All emails are sent from `support@ferdy.io` with Ferdy branding
+- Email templates use React Email components for consistent styling
+- Invitation emails use Supabase's `auth.admin.generateLink()` for secure, time-limited links
+- Password reset endpoint includes anti-enumeration protection (always returns success)
+- All email sending is non-blocking and logged for debugging

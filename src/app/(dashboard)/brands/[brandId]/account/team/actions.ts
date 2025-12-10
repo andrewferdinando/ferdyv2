@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { requireAdminForBrand } from '@/lib/server/auth'
 import { upsertBrandInvite } from '@/lib/server/brandInvites'
+import { sendNewUserInvite, sendExistingUserInvite } from '@/lib/emails/send'
 
 const APP_URL = process.env.APP_URL!
 
@@ -41,35 +42,78 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
 
   await requireAdminForBrand(brandId, inviterId)
 
+  // Get brand name for email
+  const { data: brand } = await supabaseAdmin
+    .from('brands')
+    .select('name')
+    .eq('id', brandId)
+    .single()
+
+  // Get inviter name for email
+  const { data: inviter } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name')
+    .eq('user_id', inviterId)
+    .single()
+
+  const brandName = brand?.name || 'the brand'
+  const inviterName = inviter?.full_name || 'A team member'
+
   const { data: list } = await supabaseAdmin.auth.admin.listUsers()
   const existing = list?.users?.find(
     (user) => user.email?.toLowerCase() === normalizedEmail,
   )
 
   if (!existing) {
-    await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, {
-      data: {
-        brand_id: brandId,
-        invitee_name: name,
-        role,
-        src: 'team_invite',
-      },
-      redirectTo: `${APP_URL}/auth/set-password?src=invite&brand_id=${brandId}`,
-    })
-
-  } else {
-    const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
+    // New user - generate invite link and send custom email
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
       email: normalizedEmail,
       options: {
-        emailRedirectTo: `${APP_URL}/auth/existing-invite?src=invite&brand_id=${brandId}&email=${encodeURIComponent(
+        data: {
+          brand_id: brandId,
+          invitee_name: name,
+          role,
+          src: 'team_invite',
+        },
+        redirectTo: `${APP_URL}/auth/set-password?src=invite&brand_id=${brandId}`,
+      },
+    })
+
+    if (inviteError || !inviteData?.properties?.action_link) {
+      console.error('Error generating invite link', inviteError)
+      throw new Error('Failed to generate invite link')
+    }
+
+    // Send custom branded email via Resend
+    try {
+      await sendNewUserInvite({
+        to: normalizedEmail,
+        brandName,
+        inviterName,
+        inviteLink: inviteData.properties.action_link,
+      })
+      console.log(`[sendTeamInvite] Sent new user invite email to ${normalizedEmail}`)
+    } catch (emailError) {
+      console.error('[sendTeamInvite] Failed to send new user invite email:', emailError)
+      throw new Error('Failed to send invite email')
+    }
+
+  } else {
+    // Existing user - generate magic link and send custom email
+    const { data: magicLinkData, error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: normalizedEmail,
+      options: {
+        redirectTo: `${APP_URL}/auth/existing-invite?src=invite&brand_id=${brandId}&email=${encodeURIComponent(
           normalizedEmail,
         )}`,
       },
     })
 
-    if (otpError) {
-      console.error('Error sending magic link', otpError)
-      throw new Error('Failed to send invite email')
+    if (magicLinkError || !magicLinkData?.properties?.action_link) {
+      console.error('Error generating magic link', magicLinkError)
+      throw new Error('Failed to generate magic link')
     }
 
     const updatedMetadata = {
@@ -100,6 +144,19 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
         { onConflict: 'user_id' },
       )
 
+    // Send custom branded email via Resend
+    try {
+      await sendExistingUserInvite({
+        to: normalizedEmail,
+        brandName,
+        inviterName,
+        magicLink: magicLinkData.properties.action_link,
+      })
+      console.log(`[sendTeamInvite] Sent existing user invite email to ${normalizedEmail}`)
+    } catch (emailError) {
+      console.error('[sendTeamInvite] Failed to send existing user invite email:', emailError)
+      throw new Error('Failed to send invite email')
+    }
   }
 
   await upsertBrandInvite({
