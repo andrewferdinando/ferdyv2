@@ -1,4 +1,5 @@
 import { stripe, STRIPE_CONFIG } from './stripe'
+import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
