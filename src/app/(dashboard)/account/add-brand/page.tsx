@@ -10,7 +10,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/ToastProvider'
 import { supabase } from '@/lib/supabase-browser'
 import { getTimezonesByCountry, getAllTimezones } from '@/lib/utils/timezone'
-import { createBrandAction } from './actions'
+import { createBrandAction } from './actions-new'
 import { z } from 'zod'
 
 const CountryOptions = [
