@@ -287,29 +287,36 @@ export default function BillingPage() {
           {/* Billing Explanation */}
           <div id="how-billing-works" className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
             <h2 className="text-lg font-medium text-blue-900 mb-3">How Billing Works</h2>
-            <div className="space-y-2 text-sm text-blue-800">
-              <p>
-                <strong>Initial Brand:</strong> When you sign up, you're charged upfront for your first brand for the full billing period (e.g., $86 for one month).
-              </p>
-              <p>
-                <strong>Adding Brands Mid-Cycle:</strong> When you add additional brands during your billing period, the charges are added to your <em>next</em> invoice, not charged immediately. Your next invoice will include:
-              </p>
-              <ul className="list-disc list-inside pl-4 space-y-1">
-                <li>Prorated charge for the new brands covering the remaining time in the current period</li>
-                <li>Credit for unused time on your previous brand count</li>
-                <li>Full monthly charge for all brands for the upcoming period (billed in advance)</li>
-              </ul>
-              <p>
-                <strong>Example:</strong> If you add 2 brands halfway through your billing period:
-              </p>
-              <ul className="list-disc list-inside pl-4 space-y-1">
-                <li>Remaining time for 3 brands (15 days): ~$129</li>
-                <li>Credit for unused time on 1 brand (15 days): ~-$43</li>
-                <li>Next full period for 3 brands (30 days): $258</li>
-                <li><strong>Total next invoice: ~$344</strong></li>
-              </ul>
-              <p className="pt-2 border-t border-blue-200">
-                <strong>Current Price:</strong> ${pricePerBrand.toFixed(2)} per brand per month
+            <div className="space-y-4 text-sm text-blue-800">
+              <div>
+                <p className="font-semibold mb-1">1. Your First Brand</p>
+                <p>When you sign up, you're charged upfront for your first brand for the full month.</p>
+                <p className="mt-1 italic">Example: $86 covers your first brand for the next 30 days.</p>
+              </div>
+              
+              <div>
+                <p className="font-semibold mb-1">2. Adding More Brands Mid-Month</p>
+                <p>If you add more brands part way through your billing month, you're not charged immediately. Instead, everything is rolled into your next invoice, which will include:</p>
+                <ul className="list-none pl-4 space-y-1 mt-2">
+                  <li>✅ A partial charge for the new brands for the rest of the current month</li>
+                  <li>✅ A small credit if any time from your original setup overlaps</li>
+                  <li>✅ The full monthly charge in advance for all brands for the next month</li>
+                </ul>
+              </div>
+              
+              <div>
+                <p className="font-semibold mb-1">3. Simple Example</p>
+                <p>If you add 2 extra brands halfway through the month, your next invoice might look like this:</p>
+                <ul className="list-none pl-4 space-y-1 mt-2">
+                  <li>Remaining time this month for 3 brands: ~$129</li>
+                  <li>Credit for unused time on your original setup: ~–$43</li>
+                  <li>Next full month for 3 brands: $258</li>
+                  <li className="font-semibold">Total next invoice: ~$344</li>
+                </ul>
+              </div>
+              
+              <p className="pt-3 border-t border-blue-200 font-medium">
+                Current Price: ${pricePerBrand.toFixed(2)} per brand per month
               </p>
             </div>
           </div>
