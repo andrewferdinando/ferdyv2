@@ -116,12 +116,20 @@ export default function BillingPage() {
       setBrands(prev => prev.filter(b => b.id !== brandToRemove.id))
       setBrandCount(prev => prev - 1)
       
-      showToast('Brand removed successfully. Billing will stop at the end of the current period.', 'success')
+      showToast({ 
+        title: 'Brand removed successfully', 
+        message: 'Billing will stop at the end of the current period.',
+        type: 'success' 
+      })
       setShowRemoveDialog(false)
       setBrandToRemove(null)
     } catch (err: any) {
       console.error('Error removing brand:', err)
-      showToast(err.message || 'Failed to remove brand', 'error')
+      showToast({ 
+        title: 'Error', 
+        message: err.message || 'Failed to remove brand',
+        type: 'error' 
+      })
     } finally {
       setIsRemoving(false)
     }
