@@ -75,7 +75,10 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       })
     } else {
       console.log('Invoice already finalized with status:', invoice.status)
-      finalizedInvoice = invoice
+      // Retrieve the invoice again with payment_intent expanded to ensure we have it
+      finalizedInvoice = await stripe.invoices.retrieve(invoice.id, {
+        expand: ['payment_intent'],
+      })
     }
     
     console.log('Invoice finalized:', {
