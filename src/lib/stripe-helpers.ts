@@ -112,6 +112,14 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
         id: paymentIntent.id,
         status: paymentIntent.status
       })
+
+      // Attach the PaymentIntent to the invoice
+      // This ensures that when the payment succeeds, the invoice is marked as paid
+      // and the subscription becomes active
+      await stripe.invoices.attachPayment(invoice.id, {
+        payment_intent: paymentIntent.id
+      })
+      console.log('PaymentIntent attached to invoice')
     }
 
     const clientSecret = paymentIntent.client_secret
