@@ -165,14 +165,25 @@ export default function BillingPage() {
             <h2 className="text-lg font-medium text-blue-900 mb-3">How Billing Works</h2>
             <div className="space-y-2 text-sm text-blue-800">
               <p>
-                <strong>Initial Brand:</strong> When you sign up, you're charged upfront for your first brand for the full billing period.
+                <strong>Initial Brand:</strong> When you sign up, you're charged upfront for your first brand for the full billing period (e.g., $86 for one month).
               </p>
               <p>
-                <strong>Adding Brands Mid-Cycle:</strong> When you add additional brands during your billing period, you're charged a prorated amount for the remaining time in the current period. The full monthly charge for all brands will begin on your next billing date.
+                <strong>Adding Brands Mid-Cycle:</strong> When you add additional brands during your billing period, the charges are added to your <em>next</em> invoice, not charged immediately. Your next invoice will include:
               </p>
+              <ul className="list-disc list-inside pl-4 space-y-1">
+                <li>Prorated charge for the new brands covering the remaining time in the current period</li>
+                <li>Credit for unused time on your previous brand count</li>
+                <li>Full monthly charge for all brands for the upcoming period (billed in advance)</li>
+              </ul>
               <p>
-                <strong>Example:</strong> If you add a brand halfway through your billing period, you'll be charged approximately 50% of the monthly price immediately, then the full monthly price for all brands on your next billing date.
+                <strong>Example:</strong> If you add 2 brands halfway through your billing period:
               </p>
+              <ul className="list-disc list-inside pl-4 space-y-1">
+                <li>Remaining time for 3 brands (15 days): ~$129</li>
+                <li>Credit for unused time on 1 brand (15 days): ~-$43</li>
+                <li>Next full period for 3 brands (30 days): $258</li>
+                <li><strong>Total next invoice: ~$344</strong></li>
+              </ul>
               <p className="pt-2 border-t border-blue-200">
                 <strong>Current Price:</strong> ${pricePerBrand.toFixed(2)} per brand per month
               </p>
