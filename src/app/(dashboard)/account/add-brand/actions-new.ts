@@ -107,8 +107,11 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     .select('id', { count: 'exact', head: true })
     .eq('group_id', groupId)
 
+  console.log(`[createBrandAction] Brand count for group ${groupId}: ${brandCount}`)
+
   // Update Stripe subscription quantity
   if (brandCount && brandCount > 0) {
+    console.log(`[createBrandAction] Updating Stripe subscription quantity to ${brandCount}`)
     try {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.ferdy.io'
       const response = await fetch(`${baseUrl}/api/stripe/update-quantity`, {
@@ -124,13 +127,18 @@ export async function createBrandAction(payload: CreateBrandPayload) {
       })
 
       if (!response.ok) {
-        console.error('Failed to update Stripe subscription quantity:', await response.text())
+        const errorText = await response.text()
+        console.error(`[createBrandAction] Failed to update Stripe subscription quantity:`, errorText)
         // Don't throw - brand is created, just log the error
+      } else {
+        console.log(`[createBrandAction] Successfully updated Stripe subscription quantity to ${brandCount}`)
       }
     } catch (err) {
-      console.error('Error updating Stripe subscription:', err)
+      console.error('[createBrandAction] Error updating Stripe subscription:', err)
       // Don't throw - brand is created, just log the error
     }
+  } else {
+    console.log(`[createBrandAction] Skipping Stripe update - brandCount is ${brandCount}`)
   }
 
   // Fire-and-forget: Generate AI summary via API endpoint
