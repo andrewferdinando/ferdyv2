@@ -80,22 +80,39 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       payment_intent: (invoice as any).payment_intent
     })
 
-    // Get the PaymentIntent ID from the invoice
-    const paymentIntentId = typeof (invoice as any).payment_intent === 'string'
+    // Check if invoice has a payment_intent
+    let paymentIntent
+    const existingPaymentIntentId = typeof (invoice as any).payment_intent === 'string'
       ? (invoice as any).payment_intent
       : (invoice as any).payment_intent?.id
 
-    if (!paymentIntentId) {
-      throw new Error('No payment_intent found on invoice')
+    if (existingPaymentIntentId) {
+      // PaymentIntent exists, retrieve it
+      paymentIntent = await stripe.paymentIntents.retrieve(existingPaymentIntentId)
+      console.log('PaymentIntent retrieved:', {
+        id: paymentIntent.id,
+        status: paymentIntent.status
+      })
+    } else {
+      // No PaymentIntent exists, create one for the invoice
+      console.log('No PaymentIntent on invoice, creating one...')
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: invoice.amount_due,
+        currency: invoice.currency,
+        customer: invoice.customer as string,
+        metadata: {
+          invoice_id: invoice.id,
+          group_id: groupId
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      })
+      console.log('PaymentIntent created:', {
+        id: paymentIntent.id,
+        status: paymentIntent.status
+      })
     }
-
-    // Retrieve the PaymentIntent to get the client_secret
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
-    console.log('PaymentIntent retrieved:', {
-      id: paymentIntent.id,
-      status: paymentIntent.status,
-      hasClientSecret: !!paymentIntent.client_secret
-    })
 
     const clientSecret = paymentIntent.client_secret
 
