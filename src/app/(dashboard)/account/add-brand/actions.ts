@@ -134,10 +134,9 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     } else {
       console.log(`[createBrandAction] Skipping Stripe update - brandCount is ${brandCount}`)
     }
-  }
 
-  // Send brand added email
-  if (!brandFetchError && brandData?.group_id && brandCount) {
+    // Send brand added email
+    console.log(`[createBrandAction] Preparing to send brand added email - brandCount: ${brandCount}, group_id: ${brandData.group_id}`)
     try {
       const { data: groupData } = await supabaseAdmin
         .from('groups')
@@ -145,9 +144,13 @@ export async function createBrandAction(payload: CreateBrandPayload) {
         .eq('id', brandData.group_id)
         .single()
 
+      console.log(`[createBrandAction] Group data retrieved:`, groupData)
+
       if (groupData) {
         // Get user email from auth.users table using the userId
         const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
+        console.log(`[createBrandAction] User retrieved - email: ${user?.email}`)
+        
         if (user?.email) {
           console.log(`[createBrandAction] Sending brand added email to ${user.email}`)
           await sendBrandAdded({
@@ -161,6 +164,8 @@ export async function createBrandAction(payload: CreateBrandPayload) {
         } else {
           console.error('[createBrandAction] No email found for user:', userId)
         }
+      } else {
+        console.error('[createBrandAction] No group data found for group:', brandData.group_id)
       }
     } catch (emailError) {
       console.error('[createBrandAction] Failed to send brand added email:', emailError)
