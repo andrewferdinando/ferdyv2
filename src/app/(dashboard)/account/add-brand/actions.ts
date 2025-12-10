@@ -146,8 +146,10 @@ export async function createBrandAction(payload: CreateBrandPayload) {
         .single()
 
       if (groupData) {
-        const { data: { user } } = await supabaseAdmin.auth.getUser()
+        // Get user email from auth.users table using the userId
+        const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
         if (user?.email) {
+          console.log(`[createBrandAction] Sending brand added email to ${user.email}`)
           await sendBrandAdded({
             to: user.email,
             brandName: name,
@@ -155,6 +157,9 @@ export async function createBrandAction(payload: CreateBrandPayload) {
             newMonthlyTotal: brandCount * groupData.price_per_brand_cents,
             currency: groupData.currency || 'usd',
           })
+          console.log(`[createBrandAction] Successfully sent brand added email`)
+        } else {
+          console.error('[createBrandAction] No email found for user:', userId)
         }
       }
     } catch (emailError) {
