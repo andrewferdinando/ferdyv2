@@ -77,13 +77,13 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
     console.log('Invoice retrieved:', {
       id: invoice.id,
       status: invoice.status,
-      payment_intent: invoice.payment_intent
+      payment_intent: (invoice as any).payment_intent
     })
 
     // Get the PaymentIntent ID from the invoice
-    const paymentIntentId = typeof invoice.payment_intent === 'string'
-      ? invoice.payment_intent
-      : (invoice.payment_intent as any)?.id
+    const paymentIntentId = typeof (invoice as any).payment_intent === 'string'
+      ? (invoice as any).payment_intent
+      : (invoice as any).payment_intent?.id
 
     if (!paymentIntentId) {
       throw new Error('No payment_intent found on invoice')
