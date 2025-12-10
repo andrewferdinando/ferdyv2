@@ -36,11 +36,15 @@ const CancelInviteSchema = z.object({
 })
 
 export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
+  console.log('[sendTeamInvite] Called with input:', { brandId: input.brandId, email: input.email, role: input.role })
+  
   const payload = InviteSchema.parse(input)
   const { brandId, email, name, role, inviterId } = payload
   const normalizedEmail = email.trim().toLowerCase()
 
+  console.log('[sendTeamInvite] Normalized email:', normalizedEmail)
   await requireAdminForBrand(brandId, inviterId)
+  console.log('[sendTeamInvite] Admin check passed')
 
   // Get brand name for email
   const { data: brand } = await supabaseAdmin
@@ -59,12 +63,17 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   const brandName = brand?.name || 'the brand'
   const inviterName = inviter?.full_name || 'A team member'
 
+  console.log('[sendTeamInvite] Brand name:', brandName, 'Inviter name:', inviterName)
+
   const { data: list } = await supabaseAdmin.auth.admin.listUsers()
   const existing = list?.users?.find(
     (user) => user.email?.toLowerCase() === normalizedEmail,
   )
 
+  console.log('[sendTeamInvite] User exists:', !!existing)
+
   if (!existing) {
+    console.log('[sendTeamInvite] Processing new user invite')
     // New user - generate invite link and send custom email
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
