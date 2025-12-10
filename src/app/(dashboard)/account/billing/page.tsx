@@ -160,6 +160,25 @@ export default function BillingPage() {
             </div>
           )}
 
+          {/* Billing Explanation */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-medium text-blue-900 mb-3">How Billing Works</h2>
+            <div className="space-y-2 text-sm text-blue-800">
+              <p>
+                <strong>Initial Brand:</strong> When you sign up, you're charged upfront for your first brand for the full billing period.
+              </p>
+              <p>
+                <strong>Adding Brands Mid-Cycle:</strong> When you add additional brands during your billing period, you're charged a prorated amount for the remaining time in the current period. The full monthly charge for all brands will begin on your next billing date.
+              </p>
+              <p>
+                <strong>Example:</strong> If you add a brand halfway through your billing period, you'll be charged approximately 50% of the monthly price immediately, then the full monthly price for all brands on your next billing date.
+              </p>
+              <p className="pt-2 border-t border-blue-200">
+                <strong>Current Price:</strong> ${pricePerBrand.toFixed(2)} per brand per month
+              </p>
+            </div>
+          </div>
+
           {/* Subscription Overview */}
           <div className="bg-white shadow rounded-lg p-6 mb-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Subscription Overview</h2>
