@@ -44,11 +44,12 @@ export default function BillingPage() {
       }
 
       try {
-        // Get brands
+        // Get brands (only active ones)
         const { data: brandsData, error: brandsError } = await supabase
           .from('brands')
           .select('id, name')
           .eq('group_id', group.id)
+          .eq('status', 'active')
           .order('name')
 
         if (brandsError) throw brandsError
