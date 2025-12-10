@@ -83,6 +83,53 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('Could not create the brand. Please try again.')
   }
 
+  // Get the group_id from the brand to update Stripe subscription
+  const { data: brandData, error: brandFetchError } = await supabaseAdmin
+    .from('brands')
+    .select('group_id')
+    .eq('id', brand.id)
+    .single()
+
+  if (!brandFetchError && brandData?.group_id) {
+    // Get current brand count for the group
+    const { count: brandCount } = await supabaseAdmin
+      .from('brands')
+      .select('id', { count: 'exact', head: true })
+      .eq('group_id', brandData.group_id)
+
+    console.log(`[createBrandAction] Brand count for group ${brandData.group_id}: ${brandCount}`)
+
+    // Update Stripe subscription quantity
+    if (brandCount && brandCount > 0) {
+      console.log(`[createBrandAction] Updating Stripe subscription quantity to ${brandCount}`)
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.ferdy.io'
+        const response = await fetch(`${baseUrl}/api/stripe/update-quantity`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+          },
+          body: JSON.stringify({
+            groupId: brandData.group_id,
+            brandCount,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`[createBrandAction] Failed to update Stripe subscription quantity:`, errorText)
+        } else {
+          console.log(`[createBrandAction] Successfully updated Stripe subscription quantity to ${brandCount}`)
+        }
+      } catch (err) {
+        console.error('[createBrandAction] Error updating Stripe subscription:', err)
+      }
+    } else {
+      console.log(`[createBrandAction] Skipping Stripe update - brandCount is ${brandCount}`)
+    }
+  }
+
   // Fire-and-forget: Generate AI summary via API endpoint
   // Calling the API endpoint ensures it runs in a separate serverless function
   // that won't be terminated when this server action completes
