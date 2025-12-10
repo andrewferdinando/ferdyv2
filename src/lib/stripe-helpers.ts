@@ -38,7 +38,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
 
     // Create subscription with payment_behavior: 'default_incomplete'
     // This creates the subscription with status=incomplete and automatically creates a PaymentIntent
-    // We expand 'confirmation_secret' to get the client_secret for Stripe Elements
+    // The confirmation_secret is returned directly (no expand needed)
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [
@@ -52,7 +52,6 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
         save_default_payment_method: 'on_subscription',
         payment_method_types: ['card']
       },
-      expand: ['confirmation_secret'],
       metadata: {
         group_id: groupId,
       },
