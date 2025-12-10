@@ -113,22 +113,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Update Stripe subscription quantity
-    const newQuantity = currentQuantity - 1
-    console.log('[remove-brand] Updating Stripe subscription:', {
-      subscriptionItemId: subscriptionItem.id,
-      currentQuantity,
-      newQuantity
-    })
-
-    await stripe.subscriptionItems.update(subscriptionItem.id, {
-      quantity: newQuantity,
-      proration_behavior: 'create_prorations',
-    })
-
-    console.log('[remove-brand] Stripe subscription updated successfully')
-
-    // 7. Soft-delete the brand in Supabase
+    // 6. Soft-delete the brand in Supabase FIRST
     const { error: updateError } = await supabaseAdmin
       .from('brands')
       .update({ 
@@ -139,9 +124,42 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('[remove-brand] Failed to update brand status:', updateError)
-      // Note: Stripe has already been updated, so we log but don't fail
-      // The brand will need manual cleanup
+      return NextResponse.json(
+        { error: 'Failed to update brand status' },
+        { status: 500 }
+      )
     }
+
+    // 7. Count ACTUAL active brands in Supabase
+    const { count: activeBrandCount, error: countError } = await supabaseAdmin
+      .from('brands')
+      .select('id', { count: 'exact', head: true })
+      .eq('group_id', groupId)
+      .eq('status', 'active')
+
+    if (countError) {
+      console.error('[remove-brand] Failed to count active brands:', countError)
+      return NextResponse.json(
+        { error: 'Failed to count active brands' },
+        { status: 500 }
+      )
+    }
+
+    const newQuantity = activeBrandCount || 1
+    console.log('[remove-brand] Updating Stripe subscription:', {
+      subscriptionItemId: subscriptionItem.id,
+      currentStripeQuantity: currentQuantity,
+      actualActiveBrands: activeBrandCount,
+      newQuantity
+    })
+
+    // 8. Update Stripe to match actual active brand count
+    await stripe.subscriptionItems.update(subscriptionItem.id, {
+      quantity: newQuantity,
+      proration_behavior: 'create_prorations',
+    })
+
+    console.log('[remove-brand] Stripe subscription updated successfully')
 
     // 8. Deactivate brand memberships
     const { error: membershipError } = await supabaseAdmin

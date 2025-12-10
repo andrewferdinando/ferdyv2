@@ -36,6 +36,7 @@ export function useBrands() {
         const { data, error } = await supabase
           .from('brands')
           .select('*')
+          .eq('status', 'active')
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -66,6 +67,7 @@ export function useBrands() {
       const { data, error } = await supabase
         .from('brands')
         .select('*')
+        .eq('status', 'active')
         .order('name', { ascending: true });
 
       if (error) throw error;

@@ -99,6 +99,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
       .from('brands')
       .select('id', { count: 'exact', head: true })
       .eq('group_id', brandData.group_id)
+      .eq('status', 'active')
     
     brandCount = count
 

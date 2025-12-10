@@ -28,6 +28,7 @@ export function useBrand(brandId: string | null) {
           .from('brands')
           .select('*')
           .eq('id', brandId)
+          .eq('status', 'active')
           .single()
 
         if (fetchError) {
