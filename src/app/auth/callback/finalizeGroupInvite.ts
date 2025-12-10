@@ -35,15 +35,20 @@ export async function finalizeGroupInvite({
     throw new Error('Email missing from user profile')
   }
 
+  console.log('[finalizeGroupInvite] User metadata:', JSON.stringify(user.user_metadata, null, 2))
+  console.log('[finalizeGroupInvite] App metadata:', JSON.stringify(user.app_metadata, null, 2))
+
   // Get group and brand data from user metadata
   const groupId = user.user_metadata?.group_id
   const groupRole = user.user_metadata?.group_role || 'member'
   const brandAssignments = user.user_metadata?.brand_assignments as BrandAssignment[] | undefined
 
-  console.log('[finalizeGroupInvite] Metadata:', { groupId, groupRole, brandAssignments })
+  console.log('[finalizeGroupInvite] Extracted values:', { groupId, groupRole, brandAssignments })
 
   if (!groupId) {
-    throw new Error('Group invite data not found')
+    console.error('[finalizeGroupInvite] No group_id found in metadata')
+    console.error('[finalizeGroupInvite] Full user object:', JSON.stringify(user, null, 2))
+    throw new Error('Group invite data not found. Please request a new invitation.')
   }
 
   // Add user to group
