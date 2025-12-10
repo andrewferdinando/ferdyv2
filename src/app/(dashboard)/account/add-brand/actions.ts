@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { sendBrandAdded } from '@/lib/emails/send'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
@@ -90,12 +91,16 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     .eq('id', brand.id)
     .single()
 
+  let brandCount: number | null = null
+  
   if (!brandFetchError && brandData?.group_id) {
     // Get current brand count for the group
-    const { count: brandCount } = await supabaseAdmin
+    const { count } = await supabaseAdmin
       .from('brands')
       .select('id', { count: 'exact', head: true })
       .eq('group_id', brandData.group_id)
+    
+    brandCount = count
 
     console.log(`[createBrandAction] Brand count for group ${brandData.group_id}: ${brandCount}`)
 
@@ -127,6 +132,33 @@ export async function createBrandAction(payload: CreateBrandPayload) {
       }
     } else {
       console.log(`[createBrandAction] Skipping Stripe update - brandCount is ${brandCount}`)
+    }
+  }
+
+  // Send brand added email
+  if (!brandFetchError && brandData?.group_id && brandCount) {
+    try {
+      const { data: groupData } = await supabaseAdmin
+        .from('groups')
+        .select('price_per_brand_cents, currency')
+        .eq('id', brandData.group_id)
+        .single()
+
+      if (groupData) {
+        const { data: { user } } = await supabaseAdmin.auth.getUser()
+        if (user?.email) {
+          await sendBrandAdded({
+            to: user.email,
+            brandName: name,
+            newBrandCount: brandCount,
+            newMonthlyTotal: brandCount * groupData.price_per_brand_cents,
+            currency: groupData.currency || 'usd',
+          })
+        }
+      }
+    } catch (emailError) {
+      console.error('[createBrandAction] Failed to send brand added email:', emailError)
+      // Don't fail brand creation if email fails
     }
   }
 

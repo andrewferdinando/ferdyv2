@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
-import { sendInvoicePaidEmail, sendPaymentFailedEmail } from '@/lib/email'
+import { sendInvoicePaid } from '@/lib/emails/send'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -131,13 +131,35 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     const customer = await stripe.customers.retrieve(customerId)
     const email = (customer as Stripe.Customer).email
     
+    // Get brand count for the group
+    const { data: brands } = await supabase
+      .from('brands')
+      .select('id')
+      .eq('group_id', group.id)
+      .eq('status', 'active')
+    
+    const brandCount = brands?.length || 1
+    
+    // Format billing period dates
+    const periodStart = invoice.period_start 
+      ? new Date(invoice.period_start * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    
+    const periodEnd = invoice.period_end
+      ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    
     if (email) {
-      await sendInvoicePaidEmail(
-        email,
-        group.name,
-        invoice.amount_paid,
-        invoice.hosted_invoice_url || ''
-      )
+      await sendInvoicePaid({
+        to: email,
+        amount: invoice.amount_paid,
+        currency: invoice.currency,
+        planName: 'Ferdy monthly subscription',
+        brandCount,
+        billingPeriodStart: periodStart,
+        billingPeriodEnd: periodEnd,
+        invoiceUrl: invoice.hosted_invoice_url || '',
+      })
     }
   } catch (emailError) {
     console.error('Failed to send invoice paid email:', emailError)
@@ -164,18 +186,21 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   // Send email notification about payment failure
   console.log(`Payment failed for group ${group.name}:`, invoice.id)
   
-  try {
-    const customer = await stripe.customers.retrieve(customerId)
-    const email = (customer as Stripe.Customer).email
-    
-    if (email) {
-      await sendPaymentFailedEmail(
-        email,
-        group.name,
-        invoice.amount_due
-      )
-    }
-  } catch (emailError) {
-    console.error('Failed to send payment failed email:', emailError)
-  }
+  // TODO: Implement payment failed email template
+  // try {
+  //   const customer = await stripe.customers.retrieve(customerId)
+  //   const email = (customer as Stripe.Customer).email
+  //   
+  //   if (email) {
+  //     await sendPaymentFailed({
+  //       to: email,
+  //       groupName: group.name,
+  //       amount: invoice.amount_due,
+  //       currency: invoice.currency,
+  //       invoiceUrl: invoice.hosted_invoice_url || '',
+  //     })
+  //   }
+  // } catch (emailError) {
+  //   console.error('Failed to send payment failed email:', emailError)
+  // }
 }

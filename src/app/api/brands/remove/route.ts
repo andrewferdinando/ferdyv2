@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { getStripe } from '@/lib/stripe'
+import { sendBrandDeleted } from '@/lib/emails/send'
 
 const stripe = getStripe()
 
@@ -178,6 +179,34 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[remove-brand] Brand removed successfully')
+
+    // 10. Send email notification
+    try {
+      const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id) as any
+      const periodEnd = subscription?.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+      const { data: groupData } = await supabaseAdmin
+        .from('groups')
+        .select('name, price_per_brand_cents, currency')
+        .eq('id', groupId)
+        .single()
+
+      if (groupData) {
+        await sendBrandDeleted({
+          to: user.email!,
+          brandName: brand.name,
+          remainingBrandCount: newQuantity,
+          newMonthlyTotal: newQuantity * groupData.price_per_brand_cents,
+          currency: groupData.currency || 'usd',
+          billingPeriodEnd: periodEnd,
+        })
+      }
+    } catch (emailError) {
+      console.error('[remove-brand] Failed to send email:', emailError)
+      // Don't fail the request if email fails
+    }
 
     return NextResponse.json({
       success: true,
