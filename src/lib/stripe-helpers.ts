@@ -78,7 +78,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
     })
 
     // Get the PaymentIntent from the finalized invoice
-    const paymentIntent = finalizedInvoice.payment_intent
+    const paymentIntent = finalizedInvoice.payment_intent as Stripe.PaymentIntent
     
     if (!paymentIntent || typeof paymentIntent === 'string') {
       throw new Error('Invoice finalization did not create a PaymentIntent')
