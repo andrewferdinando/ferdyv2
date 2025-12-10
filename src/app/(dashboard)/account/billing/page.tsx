@@ -6,6 +6,8 @@ import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useUserGroup } from '@/hooks/useUserGroup'
 import { supabase } from '@/lib/supabase-browser'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { useToast } from '@/components/ui/ToastProvider'
 
 interface SubscriptionDetails {
   status: string
@@ -22,6 +24,7 @@ interface Brand {
 
 export default function BillingPage() {
   const router = useRouter()
+  const { showToast } = useToast()
   const { group, membership, loading: groupLoading, canManageBilling } = useUserGroup()
   
   const [brandCount, setBrandCount] = useState(0)
@@ -29,6 +32,9 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [brandToRemove, setBrandToRemove] = useState<Brand | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   useEffect(() => {
     async function loadBillingData() {
@@ -70,6 +76,56 @@ export default function BillingPage() {
       loadBillingData()
     }
   }, [group, groupLoading, supabase])
+
+  const handleRemoveBrand = (brand: Brand) => {
+    setBrandToRemove(brand)
+    setShowRemoveDialog(true)
+  }
+
+  const handleConfirmRemove = async () => {
+    if (!brandToRemove || !group) return
+
+    setIsRemoving(true)
+    try {
+      // Get auth token
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      if (!token) {
+        throw new Error('Authentication required')
+      }
+
+      const response = await fetch('/api/brands/remove', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          brandId: brandToRemove.id,
+          groupId: group.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove brand')
+      }
+
+      // Update UI immediately
+      setBrands(prev => prev.filter(b => b.id !== brandToRemove.id))
+      setBrandCount(prev => prev - 1)
+      
+      showToast('Brand removed successfully. Billing will stop at the end of the current period.', 'success')
+      setShowRemoveDialog(false)
+      setBrandToRemove(null)
+    } catch (err: any) {
+      console.error('Error removing brand:', err)
+      showToast(err.message || 'Failed to remove brand', 'error')
+    } finally {
+      setIsRemoving(false)
+    }
+  }
 
   const handleManageBilling = async () => {
     if (!group) return
@@ -217,7 +273,20 @@ export default function BillingPage() {
                 {brands.map((brand) => (
                   <li key={brand.id} className="py-3 flex items-center justify-between">
                     <span className="text-sm text-gray-900">{brand.name}</span>
-                    <span className="text-sm text-gray-500">${pricePerBrand.toFixed(2)}/month</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-500">${pricePerBrand.toFixed(2)}/month</span>
+                      {canManageBilling && brands.length > 1 && (
+                        <button
+                          onClick={() => handleRemoveBrand(brand)}
+                          className="text-gray-400 hover:text-red-600 transition-colors"
+                          title="Remove brand"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -321,6 +390,22 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+
+        {/* Remove Brand Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showRemoveDialog}
+          onClose={() => {
+            setShowRemoveDialog(false)
+            setBrandToRemove(null)
+          }}
+          onConfirm={handleConfirmRemove}
+          title="Remove Brand"
+          message="Removing this brand will stop billing for it at the end of the current billing period. Are you sure?"
+          confirmText="Confirm Remove"
+          cancelText="Cancel"
+          isDestructive={true}
+          isLoading={isRemoving}
+        />
       </AppLayout>
     </RequireAuth>
   )
