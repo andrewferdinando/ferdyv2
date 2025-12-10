@@ -65,31 +65,26 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error('No invoice created with subscription')
     }
 
-    // Retrieve the invoice to check its status
-    const invoice = await stripe.invoices.retrieve(invoiceId)
+    // Finalize the invoice to create a PaymentIntent
+    const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoiceId, {
+      expand: ['payment_intent'],
+    })
     
-    console.log('Invoice status:', {
-      id: invoice.id,
-      status: invoice.status,
-      amount: invoice.amount_due
+    console.log('Invoice finalized:', {
+      id: finalizedInvoice.id,
+      status: finalizedInvoice.status,
+      amount: finalizedInvoice.amount_due,
+      hasPaymentIntent: !!finalizedInvoice.payment_intent
     })
 
-    // Create a PaymentIntent manually for the invoice amount
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: invoice.amount_due,
-      currency: invoice.currency,
-      customer: customer.id,
-      metadata: {
-        invoice_id: invoice.id,
-        subscription_id: subscription.id,
-        group_id: groupId,
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    })
+    // Get the PaymentIntent from the finalized invoice
+    const paymentIntent = finalizedInvoice.payment_intent
+    
+    if (!paymentIntent || typeof paymentIntent === 'string') {
+      throw new Error('Invoice finalization did not create a PaymentIntent')
+    }
 
-    console.log('PaymentIntent created:', {
+    console.log('PaymentIntent from invoice:', {
       id: paymentIntent.id,
       status: paymentIntent.status,
       hasClientSecret: !!paymentIntent.client_secret
@@ -109,17 +104,17 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error(`Failed to update group: ${updateError.message}`)
     }
 
-    // Extract client secret from the manually created PaymentIntent
+    // Extract client secret from the invoice's PaymentIntent
     const clientSecret = paymentIntent.client_secret
 
     if (!clientSecret) {
       console.error('Missing client secret! PaymentIntent:', JSON.stringify(paymentIntent, null, 2))
-      throw new Error('Failed to get client secret from Stripe - PaymentIntent not created')
+      throw new Error('Failed to get client secret from Stripe PaymentIntent')
     }
 
     console.log('Subscription setup complete:', {
       subscriptionId: subscription.id,
-      invoiceId: invoice.id,
+      invoiceId: finalizedInvoice.id,
       paymentIntentId: paymentIntent.id,
       clientSecret: 'PRESENT'
     })
