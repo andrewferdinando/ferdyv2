@@ -23,7 +23,7 @@ function getResend(): Resend {
   return resendInstance
 }
 
-const FROM_EMAIL = 'Ferdy <hello@ferdy.io>'
+const FROM_EMAIL = 'Ferdy <support@ferdy.io>'
 
 // Type definitions for each email
 export interface NewUserInviteData {
