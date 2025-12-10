@@ -157,6 +157,18 @@ export default function AccountTeamPage() {
     setSuccess(null)
 
     try {
+      // Get current user's name for the email
+      const { data: { user } } = await supabase.auth.getUser()
+      let inviterName = 'A team member'
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .single()
+        inviterName = profile?.full_name || 'A team member'
+      }
+
       const response = await fetch('/api/team/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,6 +177,7 @@ export default function AccountTeamPage() {
           groupRole: inviteRole,
           groupId: group.id,
           brandAssignments: brandAssignments,
+          inviterName: inviterName,
         }),
       })
 

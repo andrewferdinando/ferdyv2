@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase-server'
+import { sendNewUserInvite, sendExistingUserInvite } from '@/lib/emails/send'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io'
 
 interface BrandAssignment {
   brandId: string
@@ -14,12 +12,15 @@ interface BrandAssignment {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, groupRole, groupId, brandAssignments } = body as {
+    const { email, groupRole, groupId, brandAssignments, inviterName } = body as {
       email: string
       groupRole: string
       groupId: string
       brandAssignments: BrandAssignment[]
+      inviterName?: string
     }
+
+    console.log('[team/invite] Received invite request:', { email, groupRole, groupId, brandCount: brandAssignments?.length })
 
     if (!email || !groupRole || !groupId) {
       return NextResponse.json(
@@ -37,16 +38,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const normalizedEmail = email.trim().toLowerCase()
+
     // Check if user already exists
-    const { data: existingUser } = await supabase.auth.admin.listUsers()
-    const userExists = existingUser?.users.find(u => u.email === email)
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
+    const userExists = existingUser?.users.find(u => u.email?.toLowerCase() === normalizedEmail)
+
+    console.log('[team/invite] User exists:', !!userExists)
 
     if (userExists) {
       // User exists - add them to the group and brands
       const userId = userExists.id
 
       // Check if already a member of this group
-      const { data: existingMembership } = await supabase
+      const { data: existingMembership } = await supabaseAdmin
         .from('group_memberships')
         .select('id')
         .eq('group_id', groupId)
@@ -61,7 +66,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Add to group
-      const { error: groupError } = await supabase
+      const { error: groupError } = await supabaseAdmin
         .from('group_memberships')
         .insert({
           group_id: groupId,
@@ -70,7 +75,7 @@ export async function POST(request: NextRequest) {
         })
 
       if (groupError) {
-        console.error('Error adding user to group:', groupError)
+        console.error('[team/invite] Error adding user to group:', groupError)
         throw new Error('Failed to add user to group')
       }
 
@@ -82,45 +87,109 @@ export async function POST(request: NextRequest) {
           role: assignment.role,
         }))
 
-        const { error: brandError } = await supabase
+        const { error: brandError } = await supabaseAdmin
           .from('brand_memberships')
           .insert(brandMemberships)
 
         if (brandError) {
-          console.error('Error adding brand memberships:', brandError)
+          console.error('[team/invite] Error adding brand memberships:', brandError)
           // Don't fail the whole operation, just log it
         }
       }
 
-      // TODO: Send notification email to existing user about being added to group
+      // Send notification email to existing user with magic link
+      try {
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: normalizedEmail,
+          options: {
+            redirectTo: `${APP_URL}/brands`,
+          },
+        })
+
+        if (linkError || !linkData?.properties?.action_link) {
+          console.error('[team/invite] Error generating magic link:', linkError)
+        } else {
+          // Get brand names for the email
+          let brandNames = 'your brands'
+          if (brandAssignments && brandAssignments.length > 0) {
+            const { data: brands } = await supabaseAdmin
+              .from('brands')
+              .select('name')
+              .in('id', brandAssignments.map(b => b.brandId))
+            
+            if (brands && brands.length > 0) {
+              brandNames = brands.map(b => b.name).join(', ')
+            }
+          }
+
+          await sendExistingUserInvite({
+            to: normalizedEmail,
+            brandName: brandNames,
+            inviterName: inviterName || 'A team member',
+            magicLink: linkData.properties.action_link,
+          })
+          
+          console.log('[team/invite] Sent existing user invite email to', normalizedEmail)
+        }
+      } catch (emailError) {
+        console.error('[team/invite] Error sending existing user email:', emailError)
+        // Don't fail the operation if email fails
+      }
 
       return NextResponse.json({
         success: true,
         message: 'Existing user added to group and brands',
       })
     } else {
-      // User doesn't exist - create invitation
-      // For now, we'll store the invitation in a pending_invitations table
-      // In production, you'd send an email with a signup link
+      // User doesn't exist - generate invite link and send custom email
+      console.log('[team/invite] Processing new user invite')
 
-      const { error: inviteError } = await supabase
-        .from('pending_invitations')
-        .insert({
-          email,
-          group_id: groupId,
-          group_role: groupRole,
-          brand_assignments: brandAssignments,
-          invited_at: new Date().toISOString(),
-        })
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email: normalizedEmail,
+        options: {
+          data: {
+            group_id: groupId,
+            group_role: groupRole,
+            brand_assignments: brandAssignments,
+            src: 'team_invite',
+          },
+          redirectTo: `${APP_URL}/auth/set-password?src=invite&group_id=${groupId}`,
+        },
+      })
 
-      if (inviteError) {
-        // If pending_invitations table doesn't exist, just return success
-        // The table will be created in a migration
-        console.warn('pending_invitations table may not exist:', inviteError)
+      if (inviteError || !inviteData?.properties?.action_link) {
+        console.error('[team/invite] Error generating invite link:', inviteError)
+        throw new Error('Failed to generate invite link')
       }
 
-      // TODO: Send invitation email with signup link
-      // The signup link should include a token that auto-adds them to the group
+      // Get brand names for the email
+      let brandNames = 'your brands'
+      if (brandAssignments && brandAssignments.length > 0) {
+        const { data: brands } = await supabaseAdmin
+          .from('brands')
+          .select('name')
+          .in('id', brandAssignments.map(b => b.brandId))
+        
+        if (brands && brands.length > 0) {
+          brandNames = brands.map(b => b.name).join(', ')
+        }
+      }
+
+      // Send custom branded email via Resend
+      try {
+        await sendNewUserInvite({
+          to: normalizedEmail,
+          brandName: brandNames,
+          inviterName: inviterName || 'A team member',
+          inviteLink: inviteData.properties.action_link,
+        })
+        console.log('[team/invite] Sent new user invite email to', normalizedEmail)
+      } catch (emailError) {
+        console.error('[team/invite] Failed to send new user invite email:', emailError)
+        throw new Error('Failed to send invite email')
+      }
 
       return NextResponse.json({
         success: true,
@@ -128,7 +197,7 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error: any) {
-    console.error('Error in team invite API:', error)
+    console.error('[team/invite] Error in team invite API:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
