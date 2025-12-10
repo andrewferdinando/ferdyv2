@@ -38,6 +38,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
 
     // Create subscription with payment_behavior: 'default_incomplete'
     // This creates the subscription with status=incomplete and automatically creates a PaymentIntent
+    // We expand 'confirmation_secret' to get the client_secret for Stripe Elements
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [
@@ -51,7 +52,7 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
         save_default_payment_method: 'on_subscription',
         payment_method_types: ['card']
       },
-      expand: ['latest_invoice.payment_intent'],
+      expand: ['confirmation_secret'],
       metadata: {
         group_id: groupId,
       },
@@ -60,68 +61,23 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
     console.log('Subscription created:', {
       id: subscription.id,
       status: subscription.status,
-      latest_invoice: typeof subscription.latest_invoice === 'string' ? subscription.latest_invoice : subscription.latest_invoice?.id
+      confirmation_secret: !!(subscription as any).confirmation_secret
     })
 
-    // Log the full subscription object to see what we got
-    console.log('Full subscription object:', JSON.stringify(subscription, null, 2))
-
-    // Get the PaymentIntent from the subscription's latest_invoice
-    // With payment_behavior: 'default_incomplete', Stripe automatically creates the PaymentIntent
-    let paymentIntent: Stripe.PaymentIntent | null = null
+    // Get the client_secret from the subscription's confirmation_secret
+    // This is the correct way to get the client_secret for Stripe Elements
+    const confirmationSecret = (subscription as any).confirmation_secret
     
-    if (typeof subscription.latest_invoice === 'string') {
-      // If latest_invoice is a string ID, retrieve it with payment_intent expanded
-      console.log('Retrieving invoice:', subscription.latest_invoice)
-      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
-        expand: ['payment_intent'],
-      })
-      console.log('Retrieved invoice:', JSON.stringify(invoice, null, 2))
-      paymentIntent = (invoice as any).payment_intent as Stripe.PaymentIntent
-    } else if (subscription.latest_invoice) {
-      // If latest_invoice is expanded, get payment_intent from it
-      console.log('Latest invoice is expanded:', JSON.stringify(subscription.latest_invoice, null, 2))
-      paymentIntent = (subscription.latest_invoice as any).payment_intent as Stripe.PaymentIntent
+    if (!confirmationSecret || typeof confirmationSecret !== 'object') {
+      console.error('No confirmation_secret found. Subscription:', JSON.stringify(subscription, null, 2))
+      throw new Error('Failed to get confirmation_secret from subscription')
     }
     
-    console.log('PaymentIntent retrieved:', paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : 'NULL')
+    const clientSecret = confirmationSecret.client_secret
     
-    // If no PaymentIntent was found, the invoice needs to be paid to create one
-    // With payment_behavior: 'default_incomplete', we need to manually trigger payment
-    if (!paymentIntent || typeof paymentIntent === 'string') {
-      console.log('No PaymentIntent found in invoice, attempting to pay invoice to create one...')
-      
-      const invoiceId = typeof subscription.latest_invoice === 'string' 
-        ? subscription.latest_invoice 
-        : subscription.latest_invoice?.id
-      
-      if (!invoiceId) {
-        throw new Error('No invoice ID found')
-      }
-      
-      try {
-        // Attempt to pay the invoice, which will create a PaymentIntent
-        // Use paid_out_of_band=false to just create the PaymentIntent without actually charging
-        const paidInvoice = await stripe.invoices.pay(invoiceId, {
-          expand: ['payment_intent'],
-        })
-        
-        console.log('Invoice pay response:', JSON.stringify(paidInvoice, null, 2))
-        paymentIntent = (paidInvoice as any).payment_intent as Stripe.PaymentIntent
-        
-        if (!paymentIntent || typeof paymentIntent === 'string') {
-          throw new Error('Invoice.pay did not return a PaymentIntent')
-        }
-      } catch (payError: any) {
-        console.error('Error paying invoice:', payError)
-        throw new Error(`Failed to create PaymentIntent: ${payError.message}`)
-      }
-    }
-
-    console.log('PaymentIntent from invoice:', {
-      id: paymentIntent.id,
-      status: paymentIntent.status,
-      hasClientSecret: !!paymentIntent.client_secret
+    console.log('Confirmation secret retrieved:', {
+      hasClientSecret: !!clientSecret,
+      type: confirmationSecret.type
     })
 
     // Update group with Stripe IDs
@@ -138,17 +94,13 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       throw new Error(`Failed to update group: ${updateError.message}`)
     }
 
-    // Extract client secret from the invoice's PaymentIntent
-    const clientSecret = paymentIntent.client_secret
-
     if (!clientSecret) {
-      console.error('Missing client secret! PaymentIntent:', JSON.stringify(paymentIntent, null, 2))
-      throw new Error('Failed to get client secret from Stripe PaymentIntent')
+      console.error('Missing client secret!')
+      throw new Error('Failed to get client secret from Stripe')
     }
 
     console.log('Subscription setup complete:', {
       subscriptionId: subscription.id,
-      paymentIntentId: paymentIntent.id,
       clientSecret: 'PRESENT'
     })
 
