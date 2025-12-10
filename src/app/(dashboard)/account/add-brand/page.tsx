@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { getTimezonesByCountry, getAllTimezones } from '@/lib/utils/timezone'
 import { createBrandAction } from './actions'
 import { z } from 'zod'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 const CountryOptions = [
   { code: '', name: 'Select a country (optional)' },
@@ -80,6 +81,9 @@ export default function AddBrandPage() {
   const [newBrandName, setNewBrandName] = useState<string>('')
   const [teamMembers, setTeamMembers] = useState<Array<{id: string, name: string, email: string}>>([]) 
   const [selectedMembers, setSelectedMembers] = useState<Array<{userId: string, role: 'admin' | 'editor'}>>([])
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [pricePerBrand, setPricePerBrand] = useState<number | null>(null)
+  const [currency, setCurrency] = useState<string>('USD')
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: '',
@@ -153,6 +157,26 @@ export default function AddBrandPage() {
           return
         }
 
+        // Fetch group pricing information
+        const { data: membership } = await supabase
+          .from('group_memberships')
+          .select('group_id')
+          .eq('user_id', user.id)
+          .single()
+
+        if (membership) {
+          const { data: group } = await supabase
+            .from('groups')
+            .select('price_per_brand_cents, currency')
+            .eq('id', membership.group_id)
+            .single()
+
+          if (group) {
+            setPricePerBrand(group.price_per_brand_cents)
+            setCurrency(group.currency.toUpperCase())
+          }
+        }
+
         setAuthState('ready')
       } catch (error) {
         console.error('AddBrandPage: unexpected auth error', error)
@@ -209,12 +233,18 @@ export default function AddBrandPage() {
       return
     }
 
+    // Show confirmation dialog before creating brand
+    setShowConfirmDialog(true)
+  }
+
+  const handleConfirmAddBrand = async () => {
+    setShowConfirmDialog(false)
     setIsSubmitting(true)
     setServerError('')
 
     try {
       const brandId = await createBrandAction({
-        userId: currentUserId,
+        userId: currentUserId!,
         name: formValues.name.trim(),
         websiteUrl: formValues.websiteUrl?.trim() || '',
         countryCode: formValues.countryCode?.trim().toUpperCase(),
@@ -491,6 +521,20 @@ export default function AddBrandPage() {
             {renderContent()}
           </div>
         </div>
+
+        {/* Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showConfirmDialog}
+          onClose={() => setShowConfirmDialog(false)}
+          onConfirm={handleConfirmAddBrand}
+          title="Confirm Add Brand"
+          message={pricePerBrand !== null
+            ? `Adding a new brand will cost ${currency === 'USD' ? '$' : currency + ' '}${(pricePerBrand / 100).toFixed(2)} per month. This will be prorated and added to your next invoice. Do you want to proceed?`
+            : 'Are you sure you want to add this brand? The cost will be added to your next invoice.'}
+          confirmText="Add Brand"
+          cancelText="Cancel"
+          isLoading={false}
+        />
 
         {/* Team Assignment Modal */}
         {showTeamAssignment && (
