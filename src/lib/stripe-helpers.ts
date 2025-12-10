@@ -63,23 +63,31 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       latest_invoice: typeof subscription.latest_invoice === 'string' ? subscription.latest_invoice : subscription.latest_invoice?.id
     })
 
+    // Log the full subscription object to see what we got
+    console.log('Full subscription object:', JSON.stringify(subscription, null, 2))
+
     // Get the PaymentIntent from the subscription's latest_invoice
     // With payment_behavior: 'default_incomplete', Stripe automatically creates the PaymentIntent
     let paymentIntent: Stripe.PaymentIntent | null = null
     
     if (typeof subscription.latest_invoice === 'string') {
       // If latest_invoice is a string ID, retrieve it with payment_intent expanded
+      console.log('Retrieving invoice:', subscription.latest_invoice)
       const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
         expand: ['payment_intent'],
       })
+      console.log('Retrieved invoice:', JSON.stringify(invoice, null, 2))
       paymentIntent = (invoice as any).payment_intent as Stripe.PaymentIntent
     } else if (subscription.latest_invoice) {
       // If latest_invoice is expanded, get payment_intent from it
+      console.log('Latest invoice is expanded:', JSON.stringify(subscription.latest_invoice, null, 2))
       paymentIntent = (subscription.latest_invoice as any).payment_intent as Stripe.PaymentIntent
     }
     
+    console.log('PaymentIntent retrieved:', paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : 'NULL')
+    
     if (!paymentIntent || typeof paymentIntent === 'string') {
-      console.error('No PaymentIntent found. Subscription:', JSON.stringify(subscription, null, 2))
+      console.error('No PaymentIntent found. PaymentIntent value:', paymentIntent)
       throw new Error('Failed to create PaymentIntent for subscription')
     }
 
