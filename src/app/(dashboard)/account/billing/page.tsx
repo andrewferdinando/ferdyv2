@@ -150,7 +150,7 @@ export default function BillingPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Billing & Subscription</h1>
             <p className="mt-2 text-sm text-gray-600">
-              Manage your subscription and billing information
+              Manage your subscription and billing information · <a href="#how-billing-works" className="text-blue-600 hover:text-blue-800 underline">How billing works</a>
             </p>
           </div>
 
@@ -159,36 +159,6 @@ export default function BillingPage() {
               <p className="text-sm text-red-800">{error}</p>
             </div>
           )}
-
-          {/* Billing Explanation */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-medium text-blue-900 mb-3">How Billing Works</h2>
-            <div className="space-y-2 text-sm text-blue-800">
-              <p>
-                <strong>Initial Brand:</strong> When you sign up, you're charged upfront for your first brand for the full billing period (e.g., $86 for one month).
-              </p>
-              <p>
-                <strong>Adding Brands Mid-Cycle:</strong> When you add additional brands during your billing period, the charges are added to your <em>next</em> invoice, not charged immediately. Your next invoice will include:
-              </p>
-              <ul className="list-disc list-inside pl-4 space-y-1">
-                <li>Prorated charge for the new brands covering the remaining time in the current period</li>
-                <li>Credit for unused time on your previous brand count</li>
-                <li>Full monthly charge for all brands for the upcoming period (billed in advance)</li>
-              </ul>
-              <p>
-                <strong>Example:</strong> If you add 2 brands halfway through your billing period:
-              </p>
-              <ul className="list-disc list-inside pl-4 space-y-1">
-                <li>Remaining time for 3 brands (15 days): ~$129</li>
-                <li>Credit for unused time on 1 brand (15 days): ~-$43</li>
-                <li>Next full period for 3 brands (30 days): $258</li>
-                <li><strong>Total next invoice: ~$344</strong></li>
-              </ul>
-              <p className="pt-2 border-t border-blue-200">
-                <strong>Current Price:</strong> ${pricePerBrand.toFixed(2)} per brand per month
-              </p>
-            </div>
-          </div>
 
           {/* Subscription Overview */}
           <div className="bg-white shadow rounded-lg p-6 mb-6">
@@ -313,6 +283,36 @@ export default function BillingPage() {
               </p>
             </div>
           )}
+
+          {/* Billing Explanation */}
+          <div id="how-billing-works" className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+            <h2 className="text-lg font-medium text-blue-900 mb-3">How Billing Works</h2>
+            <div className="space-y-2 text-sm text-blue-800">
+              <p>
+                <strong>Initial Brand:</strong> When you sign up, you're charged upfront for your first brand for the full billing period (e.g., $86 for one month).
+              </p>
+              <p>
+                <strong>Adding Brands Mid-Cycle:</strong> When you add additional brands during your billing period, the charges are added to your <em>next</em> invoice, not charged immediately. Your next invoice will include:
+              </p>
+              <ul className="list-disc list-inside pl-4 space-y-1">
+                <li>Prorated charge for the new brands covering the remaining time in the current period</li>
+                <li>Credit for unused time on your previous brand count</li>
+                <li>Full monthly charge for all brands for the upcoming period (billed in advance)</li>
+              </ul>
+              <p>
+                <strong>Example:</strong> If you add 2 brands halfway through your billing period:
+              </p>
+              <ul className="list-disc list-inside pl-4 space-y-1">
+                <li>Remaining time for 3 brands (15 days): ~$129</li>
+                <li>Credit for unused time on 1 brand (15 days): ~-$43</li>
+                <li>Next full period for 3 brands (30 days): $258</li>
+                <li><strong>Total next invoice: ~$344</strong></li>
+              </ul>
+              <p className="pt-2 border-t border-blue-200">
+                <strong>Current Price:</strong> ${pricePerBrand.toFixed(2)} per brand per month
+              </p>
+            </div>
+          </div>
         </div>
       </AppLayout>
     </RequireAuth>
