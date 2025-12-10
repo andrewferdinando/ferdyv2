@@ -35,19 +35,41 @@ export async function finalizeGroupInvite({
     throw new Error('Email missing from user profile')
   }
 
-  console.log('[finalizeGroupInvite] User metadata:', JSON.stringify(user.user_metadata, null, 2))
-  console.log('[finalizeGroupInvite] App metadata:', JSON.stringify(user.app_metadata, null, 2))
+  // Try to get invitation from database first
+  const { data: invitation, error: inviteError } = await supabaseAdmin
+    .from('pending_team_invitations')
+    .select('*')
+    .eq('email', userEmail)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  // Get group and brand data from user metadata
-  const groupId = user.user_metadata?.group_id
-  const groupRole = user.user_metadata?.group_role || 'member'
-  const brandAssignments = user.user_metadata?.brand_assignments as BrandAssignment[] | undefined
+  console.log('[finalizeGroupInvite] Database invitation:', invitation)
+  console.log('[finalizeGroupInvite] User metadata:', user.user_metadata)
 
-  console.log('[finalizeGroupInvite] Extracted values:', { groupId, groupRole, brandAssignments })
+  // Get group and brand data from database or fallback to metadata
+  let groupId: string | null = null
+  let groupRole = 'member'
+  let brandAssignments: BrandAssignment[] | undefined
+
+  if (invitation) {
+    groupId = invitation.group_id
+    groupRole = invitation.group_role || 'member'
+    brandAssignments = invitation.brand_assignments as BrandAssignment[] | undefined
+    console.log('[finalizeGroupInvite] Using database invitation')
+  } else {
+    // Fallback to metadata
+    groupId = user.user_metadata?.group_id
+    groupRole = user.user_metadata?.group_role || 'member'
+    brandAssignments = user.user_metadata?.brand_assignments as BrandAssignment[] | undefined
+    console.log('[finalizeGroupInvite] Using metadata fallback')
+  }
+
+  console.log('[finalizeGroupInvite] Final values:', { groupId, groupRole, brandAssignments })
 
   if (!groupId) {
-    console.error('[finalizeGroupInvite] No group_id found in metadata')
-    console.error('[finalizeGroupInvite] Full user object:', JSON.stringify(user, null, 2))
+    console.error('[finalizeGroupInvite] No group_id found')
     throw new Error('Group invite data not found. Please request a new invitation.')
   }
 
@@ -122,6 +144,19 @@ export async function finalizeGroupInvite({
 
   if (profileError) {
     console.error('[finalizeGroupInvite] profile upsert error', profileError)
+  }
+
+  // Mark invitation as accepted if it came from database
+  if (invitation) {
+    await supabaseAdmin
+      .from('pending_team_invitations')
+      .update({
+        status: 'accepted',
+        accepted_at: new Date().toISOString(),
+      })
+      .eq('id', invitation.id)
+    
+    console.log('[finalizeGroupInvite] Marked invitation as accepted')
   }
 
   // If no brands assigned, redirect to brands list

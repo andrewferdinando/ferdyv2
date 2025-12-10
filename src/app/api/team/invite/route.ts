@@ -145,6 +145,22 @@ export async function POST(request: NextRequest) {
       // User doesn't exist - generate invite link and send custom email
       console.log('[team/invite] Processing new user invite')
 
+      // Store invitation in database for retrieval during signup
+      const { error: storeError } = await supabaseAdmin
+        .from('pending_team_invitations')
+        .insert({
+          email: normalizedEmail,
+          group_id: groupId,
+          group_role: groupRole,
+          brand_assignments: brandAssignments,
+          status: 'pending',
+        })
+
+      if (storeError) {
+        console.error('[team/invite] Error storing invitation:', storeError)
+        // Continue anyway - we'll try to create the table if it doesn't exist
+      }
+
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'invite',
         email: normalizedEmail,
@@ -155,7 +171,7 @@ export async function POST(request: NextRequest) {
             brand_assignments: brandAssignments,
             src: 'team_invite',
           },
-          redirectTo: `${APP_URL}/auth/set-password?src=invite&group_id=${groupId}`,
+          redirectTo: `${APP_URL}/auth/set-password?src=team_invite&group_id=${groupId}`,
         },
       })
 
