@@ -6,6 +6,7 @@ import { Form } from '@/components/ui/Form'
 import { Input } from '@/components/ui/Input'
 import { supabase } from '@/lib/supabase-browser'
 import { finalizeInvite } from '../callback/actions'
+import { finalizeGroupInvite } from '../callback/finalizeGroupInvite'
 
 export default function SetPasswordPage() {
   const router = useRouter()
@@ -17,7 +18,9 @@ export default function SetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
 
   const [brandId, setBrandId] = useState<string | null>(null)
+  const [groupId, setGroupId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
+  const [isGroupInvite, setIsGroupInvite] = useState(false)
 
   const passwordStrengthHint = useMemo(
     () => 'Use at least 8 characters, including a mix of letters, numbers, and symbols.',
@@ -38,6 +41,14 @@ export default function SetPasswordPage() {
 
       const currentUrl = new URL(window.location.href)
       const pendingBrandId = currentUrl.searchParams.get('brand_id')
+      const pendingGroupId = currentUrl.searchParams.get('group_id')
+      const inviteSource = currentUrl.searchParams.get('src')
+
+      // Determine if this is a group invite
+      if (pendingGroupId || inviteSource === 'team_invite') {
+        setIsGroupInvite(true)
+        setGroupId(pendingGroupId)
+      }
 
       if (!access || !refresh) {
         setError('This invite link is invalid or has expired. Please request a new invitation.')
@@ -100,20 +111,34 @@ export default function SetPasswordPage() {
         return
       }
 
-      const result = await finalizeInvite({
-        accessToken,
-        brandId,
-      })
+      let result
+      if (isGroupInvite) {
+        result = await finalizeGroupInvite({
+          accessToken,
+        })
+      } else {
+        result = await finalizeInvite({
+          accessToken,
+          brandId,
+        })
+      }
 
       try {
-        localStorage.setItem('selectedBrandId', result.brandId)
-        localStorage.setItem('selectedBrandName', result.brandName)
-        localStorage.setItem('welcomeBrandName', result.brandName)
+        if (result.brandId) {
+          localStorage.setItem('selectedBrandId', result.brandId)
+          localStorage.setItem('selectedBrandName', result.brandName)
+          localStorage.setItem('welcomeBrandName', result.brandName)
+        }
       } catch (storageError) {
         console.warn('SetPasswordPage: failed to persist brand context', storageError)
       }
 
-      router.replace(`/brands/${result.brandId}/schedule?welcome=1`)
+      // Redirect to brand schedule if available, otherwise to brands list
+      if (result.brandId) {
+        router.replace(`/brands/${result.brandId}/schedule?welcome=1`)
+      } else {
+        router.replace('/brands?welcome=1')
+      }
     } catch (inviteError) {
       console.error('SetPasswordPage: finalize invite error', inviteError)
       setError(
