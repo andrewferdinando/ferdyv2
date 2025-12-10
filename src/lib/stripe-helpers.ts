@@ -86,9 +86,36 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
     
     console.log('PaymentIntent retrieved:', paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : 'NULL')
     
+    // If no PaymentIntent was found, the invoice needs to be paid to create one
+    // With payment_behavior: 'default_incomplete', we need to manually trigger payment
     if (!paymentIntent || typeof paymentIntent === 'string') {
-      console.error('No PaymentIntent found. PaymentIntent value:', paymentIntent)
-      throw new Error('Failed to create PaymentIntent for subscription')
+      console.log('No PaymentIntent found in invoice, attempting to pay invoice to create one...')
+      
+      const invoiceId = typeof subscription.latest_invoice === 'string' 
+        ? subscription.latest_invoice 
+        : subscription.latest_invoice?.id
+      
+      if (!invoiceId) {
+        throw new Error('No invoice ID found')
+      }
+      
+      try {
+        // Attempt to pay the invoice, which will create a PaymentIntent
+        // Use paid_out_of_band=false to just create the PaymentIntent without actually charging
+        const paidInvoice = await stripe.invoices.pay(invoiceId, {
+          expand: ['payment_intent'],
+        })
+        
+        console.log('Invoice pay response:', JSON.stringify(paidInvoice, null, 2))
+        paymentIntent = (paidInvoice as any).payment_intent as Stripe.PaymentIntent
+        
+        if (!paymentIntent || typeof paymentIntent === 'string') {
+          throw new Error('Invoice.pay did not return a PaymentIntent')
+        }
+      } catch (payError: any) {
+        console.error('Error paying invoice:', payError)
+        throw new Error(`Failed to create PaymentIntent: ${payError.message}`)
+      }
     }
 
     console.log('PaymentIntent from invoice:', {
