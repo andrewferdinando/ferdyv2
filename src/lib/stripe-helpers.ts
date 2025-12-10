@@ -36,8 +36,8 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       },
     })
 
-    // Create subscription with quantity = brand count
-    // Using payment_behavior: 'default_incomplete' creates subscription with first invoice in draft
+    // Create subscription with payment_behavior: 'default_incomplete'
+    // This creates the subscription with status=incomplete and automatically creates a PaymentIntent
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [
@@ -57,42 +57,30 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       },
     })
 
-    // Get the invoice (it's expanded in the subscription response)
-    const invoice = typeof subscription.latest_invoice === 'string'
-      ? await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] })
-      : subscription.latest_invoice as Stripe.Invoice
-
-    if (!invoice) {
-      throw new Error('No invoice created with subscription')
-    }
-
-    // Check if invoice is already finalized, if not, finalize it
-    let finalizedInvoice: Stripe.Invoice
-    if (invoice.status === 'draft') {
-      console.log('Invoice is in draft status, finalizing...')
-      finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id, {
-        expand: ['payment_intent'],
-      })
-    } else {
-      console.log('Invoice already finalized with status:', invoice.status)
-      // Retrieve the invoice again with payment_intent expanded to ensure we have it
-      finalizedInvoice = await stripe.invoices.retrieve(invoice.id, {
-        expand: ['payment_intent'],
-      })
-    }
-    
-    console.log('Invoice finalized:', {
-      id: finalizedInvoice.id,
-      status: finalizedInvoice.status,
-      amount: finalizedInvoice.amount_due,
-      hasPaymentIntent: !!(finalizedInvoice as any).payment_intent
+    console.log('Subscription created:', {
+      id: subscription.id,
+      status: subscription.status,
+      latest_invoice: typeof subscription.latest_invoice === 'string' ? subscription.latest_invoice : subscription.latest_invoice?.id
     })
 
-    // Get the PaymentIntent from the finalized invoice
-    const paymentIntent = (finalizedInvoice as any).payment_intent as Stripe.PaymentIntent
+    // Get the PaymentIntent from the subscription's latest_invoice
+    // With payment_behavior: 'default_incomplete', Stripe automatically creates the PaymentIntent
+    let paymentIntent: Stripe.PaymentIntent | null = null
+    
+    if (typeof subscription.latest_invoice === 'string') {
+      // If latest_invoice is a string ID, retrieve it with payment_intent expanded
+      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
+        expand: ['payment_intent'],
+      })
+      paymentIntent = (invoice as any).payment_intent as Stripe.PaymentIntent
+    } else if (subscription.latest_invoice) {
+      // If latest_invoice is expanded, get payment_intent from it
+      paymentIntent = (subscription.latest_invoice as any).payment_intent as Stripe.PaymentIntent
+    }
     
     if (!paymentIntent || typeof paymentIntent === 'string') {
-      throw new Error('Invoice finalization did not create a PaymentIntent')
+      console.error('No PaymentIntent found. Subscription:', JSON.stringify(subscription, null, 2))
+      throw new Error('Failed to create PaymentIntent for subscription')
     }
 
     console.log('PaymentIntent from invoice:', {
@@ -125,7 +113,6 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
 
     console.log('Subscription setup complete:', {
       subscriptionId: subscription.id,
-      invoiceId: finalizedInvoice.id,
       paymentIntentId: paymentIntent.id,
       clientSecret: 'PRESENT'
     })
