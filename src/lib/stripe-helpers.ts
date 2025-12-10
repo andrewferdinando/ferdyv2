@@ -60,24 +60,48 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
     console.log('Subscription created:', {
       id: subscription.id,
       status: subscription.status,
-      confirmation_secret: !!(subscription as any).confirmation_secret
+      latest_invoice: subscription.latest_invoice
     })
 
-    // Get the client_secret from the subscription's confirmation_secret
-    // This is the correct way to get the client_secret for Stripe Elements
-    const confirmationSecret = (subscription as any).confirmation_secret
-    
-    if (!confirmationSecret || typeof confirmationSecret !== 'object') {
-      console.error('No confirmation_secret found. Subscription:', JSON.stringify(subscription, null, 2))
-      throw new Error('Failed to get confirmation_secret from subscription')
+    // Get the invoice ID
+    const invoiceId = typeof subscription.latest_invoice === 'string'
+      ? subscription.latest_invoice
+      : (subscription.latest_invoice as any)?.id
+
+    if (!invoiceId) {
+      throw new Error('No invoice found on subscription')
     }
-    
-    const clientSecret = confirmationSecret.client_secret
-    
-    console.log('Confirmation secret retrieved:', {
-      hasClientSecret: !!clientSecret,
-      type: confirmationSecret.type
+
+    // Retrieve the invoice to get the payment_intent ID
+    const invoice = await stripe.invoices.retrieve(invoiceId)
+    console.log('Invoice retrieved:', {
+      id: invoice.id,
+      status: invoice.status,
+      payment_intent: invoice.payment_intent
     })
+
+    // Get the PaymentIntent ID from the invoice
+    const paymentIntentId = typeof invoice.payment_intent === 'string'
+      ? invoice.payment_intent
+      : (invoice.payment_intent as any)?.id
+
+    if (!paymentIntentId) {
+      throw new Error('No payment_intent found on invoice')
+    }
+
+    // Retrieve the PaymentIntent to get the client_secret
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    console.log('PaymentIntent retrieved:', {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      hasClientSecret: !!paymentIntent.client_secret
+    })
+
+    const clientSecret = paymentIntent.client_secret
+
+    if (!clientSecret) {
+      throw new Error('No client_secret found on PaymentIntent')
+    }
 
     // Update group with Stripe IDs
     const { error: updateError } = await supabase
