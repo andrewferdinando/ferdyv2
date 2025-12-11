@@ -141,48 +141,29 @@ export async function finalizeGroupInvite({
   }
 
   // Create/update user profile with name
-  console.log('[finalizeGroupInvite] Creating user_profile with name:', inviteeName)
+  // Note: user_profiles is a VIEW based on the profiles table
+  // We must insert into profiles table with both 'name' and 'full_name' columns
+  console.log('[finalizeGroupInvite] Creating profile with name:', inviteeName)
   
-  const { data: userProfileData, error: userProfileError } = await supabaseAdmin
-    .from('user_profiles')
+  const userName = inviteeName || userEmail.split('@')[0]
+  
+  const { data: profileData, error: profileError } = await supabaseAdmin
+    .from('profiles')
     .upsert(
       {
-        id: user.id,
-        name: inviteeName || userEmail.split('@')[0],
+        user_id: user.id,
+        name: userName,
+        full_name: userName,
       },
-      { onConflict: 'id' }
+      { onConflict: 'user_id' }
     )
     .select()
 
-  if (userProfileError) {
-    console.error('[finalizeGroupInvite] user_profiles upsert error:', userProfileError)
-    console.error('[finalizeGroupInvite] Attempted to insert:', { id: user.id, name: inviteeName })
+  if (profileError) {
+    console.error('[finalizeGroupInvite] profiles upsert error:', profileError)
+    console.error('[finalizeGroupInvite] Attempted to insert:', { user_id: user.id, name: userName, full_name: userName })
   } else {
-    console.log('[finalizeGroupInvite] user_profiles created successfully:', userProfileData)
-  }
-
-  // Update profiles table (optional - for group role tracking)
-  // Note: This table may have role constraints, so we don't fail if it errors
-  try {
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert(
-        {
-          user_id: user.id,
-          role: groupRole,
-          full_name: inviteeName || userEmail.split('@')[0],
-        },
-        { onConflict: 'user_id' }
-      )
-
-    if (profileError) {
-      console.error('[finalizeGroupInvite] profiles table upsert error (non-critical):', profileError)
-      console.log('[finalizeGroupInvite] Continuing without profiles table update - user_profiles is the primary source')
-    } else {
-      console.log('[finalizeGroupInvite] profiles table updated successfully')
-    }
-  } catch (profileException) {
-    console.error('[finalizeGroupInvite] profiles table exception (non-critical):', profileException)
+    console.log('[finalizeGroupInvite] profiles created successfully:', profileData)
   }
 
   // Mark invitation as accepted if it came from database
