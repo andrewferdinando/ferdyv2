@@ -16,6 +16,15 @@ export default function AuthCallbackPage() {
         const hashParams = new URLSearchParams(hash)
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
+        const type = hashParams.get('type')
+
+        // If this is a password recovery link, redirect to reset-password page
+        if (type === 'recovery') {
+          console.log('[auth callback] Detected recovery link, redirecting to reset-password')
+          // The tokens will be in the URL hash, Supabase will handle the session
+          window.location.replace('/auth/reset-password' + window.location.hash)
+          return
+        }
 
         if (!accessToken || !refreshToken) {
           console.error('Auth callback missing tokens', {
