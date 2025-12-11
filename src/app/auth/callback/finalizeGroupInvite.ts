@@ -70,7 +70,13 @@ export async function finalizeGroupInvite({
 
   if (!groupId) {
     console.error('[finalizeGroupInvite] No group_id found')
-    throw new Error('Group invite data not found. Please request a new invitation.')
+    const debugInfo = {
+      hasInvitation: !!invitation,
+      inviteError: inviteError?.message,
+      hasMetadata: !!user.user_metadata,
+      metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
+    }
+    throw new Error(`Group invite data not found. Debug: ${JSON.stringify(debugInfo)}`)
   }
 
   // Add user to group
