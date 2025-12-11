@@ -841,7 +841,7 @@ export default function EditPostPage() {
           .update({
             scheduled_at: scheduledAt.toISOString(),
             channel: selectedChannels[0], // Use first channel for post_job constraint
-            status: 'scheduled' // Update status to scheduled
+            status: 'pending' // Update status to pending (valid post_job status)
           })
           .eq('id', draft.post_job_id);
 
