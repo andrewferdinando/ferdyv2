@@ -43,6 +43,10 @@ export async function POST(request: NextRequest) {
         await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
         break
 
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+        break
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -166,7 +170,92 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   }
 }
 
-// Removed handlePaymentIntentSucceeded - no longer needed since we use the invoice's own PaymentIntent
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  // This handles standalone PaymentIntents that aren't automatically linked to invoices
+  // Check if this PaymentIntent has invoice/subscription metadata
+  const invoiceId = paymentIntent.metadata.invoice_id
+  const subscriptionId = paymentIntent.metadata.subscription_id
+  const groupId = paymentIntent.metadata.group_id
+
+  console.log('PaymentIntent succeeded:', {
+    id: paymentIntent.id,
+    invoice_id: invoiceId,
+    subscription_id: subscriptionId,
+    group_id: groupId
+  })
+
+  if (!invoiceId || !subscriptionId || !groupId) {
+    console.log('PaymentIntent has no invoice/subscription metadata, skipping')
+    return
+  }
+
+  try {
+    // Mark the invoice as paid
+    await stripe.invoices.pay(invoiceId, {
+      paid_out_of_band: true
+    })
+    console.log(`Invoice ${invoiceId} marked as paid`)
+
+    // Retrieve the subscription to check its status
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    console.log(`Subscription ${subscriptionId} status: ${subscription.status}`)
+
+    // Update group subscription status
+    const { error } = await supabase
+      .from('groups')
+      .update({
+        subscription_status: subscription.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', groupId)
+
+    if (error) {
+      console.error('Error updating group subscription status:', error)
+    } else {
+      console.log(`Updated group ${groupId} subscription status to: ${subscription.status}`)
+    }
+
+    // Send invoice paid email if subscription is now active
+    if (subscription.status === 'active') {
+      const customer = await stripe.customers.retrieve(paymentIntent.customer as string)
+      const email = (customer as Stripe.Customer).email
+      
+      if (email) {
+        const { data: brands } = await supabase
+          .from('brands')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('status', 'active')
+        
+        const brandCount = brands?.length || 1
+        
+        // Get invoice for period dates
+        const invoice = await stripe.invoices.retrieve(invoiceId)
+        const periodStart = invoice.period_start 
+          ? new Date(invoice.period_start * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        
+        const periodEnd = invoice.period_end
+          ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        
+        await sendInvoicePaid({
+          to: email,
+          amount: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          planName: 'Ferdy monthly subscription',
+          brandCount,
+          billingPeriodStart: periodStart,
+          billingPeriodEnd: periodEnd,
+          invoiceUrl: invoice.hosted_invoice_url || '',
+        })
+        console.log(`Sent invoice paid email to ${email}`)
+      }
+    }
+  } catch (error: any) {
+    console.error('Error processing PaymentIntent success:', error)
+  }
+}
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
