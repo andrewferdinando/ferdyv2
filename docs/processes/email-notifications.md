@@ -65,70 +65,17 @@ const response = await fetch('/api/auth/reset-password', {
 
 ---
 
-## 📋 To Be Implemented
-
 ### 7. Monthly Drafts Ready for Approval
-**Suggested Location:** Create `/src/lib/cron/monthly-drafts.ts`
-**Trigger:** Cron job after monthly draft generation completes
-**Status:** ⏳ Pending - Requires monthly draft generation workflow
-**Implementation:**
-```typescript
-import { sendMonthlyDraftsReady } from '@/lib/emails/send'
-import { supabaseAdmin } from '@/lib/supabase-server'
+**Location:** `/src/app/api/drafts/push/route.ts`
+**Trigger:** After monthly drafts are created and copy generation completes
+**When:** Drafts are pushed either manually (via button) or automatically (on 15th of month)
+**Data:** Brand name, draft count, approval link, current month
+**Status:** ✅ Fully implemented
+**Recipients:** All brand admins and editors (both roles can approve drafts)
 
-export async function notifyDraftsReady(brandId: string) {
-  // Get brand details
-  const { data: brand } = await supabaseAdmin
-    .from('brands')
-    .select('name, group_id')
-    .eq('id', brandId)
-    .eq('status', 'active')
-    .single()
-  
-  if (!brand) return
-  
-  // Count drafts created in the last 24 hours
-  const { count: draftCount } = await supabaseAdmin
-    .from('drafts')
-    .select('*', { count: 'exact', head: true })
-    .eq('brand_id', brandId)
-    .eq('status', 'draft')
-    .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-  
-  // Get admin emails for the brand
-  const { data: memberships } = await supabaseAdmin
-    .from('brand_memberships')
-    .select('user_id, profiles(user_id)')
-    .eq('brand_id', brandId)
-    .eq('role', 'admin')
-    .eq('status', 'active')
+---
 
-  if (!memberships || memberships.length === 0) return
-
-  // Get user emails from auth
-  const adminEmails: string[] = []
-  for (const membership of memberships) {
-    if (membership.profiles?.user_id) {
-      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(membership.profiles.user_id)
-      if (user?.email) {
-        adminEmails.push(user.email)
-      }
-    }
-  }
-  
-  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  
-  for (const email of adminEmails) {
-    await sendMonthlyDraftsReady({
-      to: email,
-      brandName: brand.name,
-      draftCount: draftCount || 0,
-      approvalLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${brandId}/drafts`,
-      month,
-    })
-  }
-}
-```
+## 📋 To Be Implemented
 
 ### 8. Post Published
 **Suggested Location:** `/src/server/publishing/publishJob.ts`
@@ -262,7 +209,7 @@ APP_URL=https://www.ferdy.io
 
 ## Implementation Summary
 
-**Completed: 6/9 email notifications**
+**Completed: 7/9 email notifications**
 
 ✅ **Critical User Flows (All Implemented):**
 - Invoice Paid - Billing confirmation
@@ -272,8 +219,10 @@ APP_URL=https://www.ferdy.io
 - Existing User Invite - Team onboarding
 - Forgot Password - Account recovery
 
+✅ **Content Workflow:**
+- Monthly Drafts Ready - Notifies admins/editors when drafts are ready for approval
+
 ⏳ **Nice-to-Have Features (Pending):**
-- Monthly Drafts Ready - Requires monthly generation workflow
 - Post Published - Requires integration into publishing system
 - Social Connection Disconnected - Requires connection health monitoring
 
