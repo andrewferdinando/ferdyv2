@@ -44,10 +44,13 @@ The first step of the onboarding process is to collect the user's information an
 ### User Input
 
 The user is prompted to provide the following information:
-- **Company/Agency Name**: The name of the group that will own the brands.
+- **Multiple Brands Question**: Whether the user will manage multiple brands (agency/group) or just one brand.
+- **Company/Agency Name**: The name of the group that will own the brands (if managing multiple brands).
 - **First Brand Name**: The name of the user's first brand.
 - **Full Name**: The user's full name.
 - **Email**: The user's email address, which will be used for login and communication.
+- **Password**: The user's password for account security.
+- **Country Code**: The country where the brand operates.
 - **Password**: A password for the new account.
 
 ### API Request and Backend Logic
@@ -80,6 +83,22 @@ The `createStripeSubscription` function performs the following steps:
 
 The `OnboardingWizard` component receives the `client_secret` and uses it to mount the Stripe `PaymentElement`. The user then enters their payment details and submits the form directly to Stripe for processing.
 
+### Skipping Payment Setup
+
+Users have the option to skip payment setup during onboarding by clicking the subtle "Set up payment later" link at the bottom of the payment form. This allows for:
+
+- **Manual onboarding**: Admins can create accounts for clients and set up payment later.
+- **Testing**: Development and testing workflows without requiring payment.
+- **Flexible onboarding**: Users can complete account setup and explore the platform before committing to payment.
+
+When payment is skipped:
+1. The user is redirected to `/brands` with an incomplete subscription.
+2. The `subscription_status` in the `groups` table remains `incomplete`.
+3. A prominent warning banner appears on the billing page (`/account/billing`) for users with billing permissions.
+4. The banner includes a "Complete Payment Setup" button that redirects to `/onboarding/payment-setup`.
+5. The payment setup page creates a new Stripe subscription session and presents the same payment form.
+6. Once payment is completed, the subscription becomes active and the warning banner is hidden.
+
 ## Step 3: Webhook-Driven Payment Handling
 
 Once the user submits their payment, Stripe sends a series of webhooks to the `/api/stripe/webhook` endpoint to automate the post-payment workflow.
@@ -98,7 +117,14 @@ Upon successful completion of the onboarding process, the user is redirected to 
 
 ### Database Schema
 
-The onboarding flow required the addition of a `subscription_status` column to the `groups` table to cache the Stripe subscription status. The possible values are `incomplete`, `active`, `past_due`, and `canceled`.
+The onboarding flow required the addition of a `subscription_status` column to the `groups` table to cache the Stripe subscription status. The possible values are:
+
+- **`incomplete`**: Payment has not been set up or completed (default for new accounts).
+- **`active`**: Subscription is active and in good standing.
+- **`past_due`**: Payment failed and needs to be updated.
+- **`canceled`**: Subscription has been canceled.
+
+This field is used to determine whether to show the payment setup warning in the billing page.
 
 ### Important Notes
 
