@@ -52,7 +52,8 @@ export default function SetPasswordPage() {
       })
 
       // Determine if this is a group invite
-      if (pendingGroupId || inviteSource === 'team_invite') {
+      // Check URL params OR check if it's an invite type (which uses metadata)
+      if (pendingGroupId || inviteSource === 'team_invite' || inviteSource === 'invite') {
         console.log('[SetPasswordPage] Detected as group invite')
         setIsGroupInvite(true)
         setGroupId(pendingGroupId)

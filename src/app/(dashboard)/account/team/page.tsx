@@ -97,11 +97,12 @@ export default function AccountTeamPage() {
 
         setTeamMembers(members)
 
-        // Load brands for assignment
+        // Load brands for assignment (only active brands)
         const { data: brandsData, error: brandsError } = await supabase
           .from('brands')
           .select('id, name')
           .eq('group_id', group.id)
+          .eq('status', 'active')
           .order('name')
 
         if (brandsError) throw brandsError
