@@ -141,7 +141,9 @@ export async function finalizeGroupInvite({
   }
 
   // Create/update user profile with name
-  const { error: userProfileError } = await supabaseAdmin
+  console.log('[finalizeGroupInvite] Creating user_profile with name:', inviteeName)
+  
+  const { data: userProfileData, error: userProfileError } = await supabaseAdmin
     .from('user_profiles')
     .upsert(
       {
@@ -151,10 +153,13 @@ export async function finalizeGroupInvite({
       },
       { onConflict: 'id' }
     )
+    .select()
 
   if (userProfileError) {
-    console.error('[finalizeGroupInvite] user profile error', userProfileError)
-    // Don't fail - continue with profile creation
+    console.error('[finalizeGroupInvite] user_profiles upsert error:', userProfileError)
+    console.error('[finalizeGroupInvite] Attempted to insert:', { id: user.id, name: inviteeName, email: userEmail })
+  } else {
+    console.log('[finalizeGroupInvite] user_profiles created successfully:', userProfileData)
   }
 
   // Update profile

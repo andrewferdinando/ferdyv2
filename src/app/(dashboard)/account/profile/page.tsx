@@ -408,7 +408,7 @@ export default function ProfilePage() {
 
                   {/* Role (Read-only) */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Account Role</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Group Role</label>
                     <div className="flex items-center space-x-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(profile.role)}`}>
                         {getRoleDisplayName(profile.role)}
