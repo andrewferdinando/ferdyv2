@@ -274,6 +274,36 @@ post_jobs replaced older "single-channel on draft" logic and allows multi-channe
 
 Channel names were normalized (e.g. instagram → instagram_feed, linkedin → linkedin_profile) to ensure consistency.
 
+**Important: Ambiguous Relationship Fix (Dec 2024)**
+
+The `post_jobs` and `drafts` tables have TWO foreign key relationships:
+1. `drafts.post_job_id` → `post_jobs.id` (one-to-many)
+2. `post_jobs.draft_id` → `drafts.id` (many-to-one)
+
+When querying `post_jobs` with an inner join to `drafts`, you MUST explicitly specify which relationship to use:
+```typescript
+// ❌ WRONG - causes PGRST201 error
+drafts!inner(id, status)
+
+// ✅ CORRECT - specifies the foreign key
+drafts!post_jobs_draft_id_fkey!inner(id, status)
+```
+
+Without specifying the foreign key, Supabase returns error PGRST201 and the query fails silently, returning 0 results.
+
+**Important: post_jobs Status Constraints**
+
+The `post_jobs` table has a check constraint that only allows these status values:
+- `pending` - Initial state for new jobs
+- `ready` - Job is ready to be published immediately
+- `generated` - Job has been generated and is waiting
+- `publishing` - Job is currently being published
+- `success` - Job was published successfully
+- `failed` - Job failed to publish
+- `canceled` - Job was cancelled
+
+**NOT** `scheduled` - that is a draft status, not a post_job status. Attempting to set `post_jobs.status = 'scheduled'` will violate the check constraint and fail.
+
 Any change to:
 
 provider APIs
