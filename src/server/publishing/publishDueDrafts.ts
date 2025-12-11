@@ -471,12 +471,19 @@ async function processDraft(
   const { allowedStatuses, ensureJobs, summary } = options
   const nowIso = new Date().toISOString()
 
+  console.log(`[processDraft] Starting for draft ${draft.id}`, {
+    draftStatus: draft.status,
+    allowedStatuses: Array.from(allowedStatuses),
+  })
+  
   // Defensive guard: verify draft still exists and is in a valid status
   const { data: currentDraft } = await supabaseAdmin
     .from('drafts')
     .select('id, status')
     .eq('id', draft.id)
     .single()
+
+  console.log(`[processDraft] Current draft from DB:`, currentDraft)
 
   if (!currentDraft) {
     console.warn(`[processDraft] Draft ${draft.id} no longer exists, cancelling related jobs`)
@@ -521,6 +528,8 @@ async function processDraft(
 
   // Safely query post_jobs for this draft - only get jobs where draft status is valid
   // This is a defensive check even though we already verified the draft above
+  console.log(`[processDraft] Querying post_jobs for draft ${draft.id}`)
+  
   const { data: existingJobsData, error: jobsError } = await supabaseAdmin
     .from('post_jobs')
     .select(`
@@ -530,7 +539,14 @@ async function processDraft(
     .eq('draft_id', draft.id)
     .in('drafts.status', ['scheduled', 'partially_published'])
 
+  console.log(`[processDraft] Post jobs query result:`, {
+    found: existingJobsData?.length || 0,
+    error: jobsError,
+    jobs: existingJobsData?.map(j => ({ id: j.id, status: j.status, channel: j.channel })),
+  })
+
   if (jobsError) {
+    console.error(`[processDraft] Error querying post_jobs:`, jobsError)
     summary.errors.push({
       draftId: draft.id,
       channel: 'all',
@@ -541,6 +557,7 @@ async function processDraft(
 
   // If no jobs found, it might be because draft status changed - cancel any orphaned jobs
   if (!existingJobsData || existingJobsData.length === 0) {
+    console.warn(`[processDraft] No jobs found for draft ${draft.id} with inner join`)
     // Check if there are any orphaned jobs (jobs without valid draft)
     const { data: orphanedJobs } = await supabaseAdmin
       .from('post_jobs')
