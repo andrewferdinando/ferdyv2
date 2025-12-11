@@ -222,6 +222,14 @@ export async function sendForgotPassword(data: ForgotPasswordData) {
 export async function sendMonthlyDraftsReady(data: MonthlyDraftsReadyData) {
   const resend = getResend()
   
+  console.log('[sendMonthlyDraftsReady] Input data:', {
+    to: data.to,
+    brandName: data.brandName,
+    draftCount: data.draftCount,
+    approvalLink: data.approvalLink,
+    month: data.month,
+  })
+  
   const html = await render(
     MonthlyDraftsReady({
       brandName: data.brandName,
@@ -230,6 +238,10 @@ export async function sendMonthlyDraftsReady(data: MonthlyDraftsReadyData) {
       month: data.month,
     })
   )
+  
+  // Log a snippet of the HTML to verify the link is correct
+  const linkMatch = html.match(/href="([^"]*schedule\/drafts[^"]*)"/);
+  console.log('[sendMonthlyDraftsReady] Link in rendered HTML:', linkMatch ? linkMatch[1] : 'NOT FOUND');
 
   return resend.emails.send({
     from: FROM_EMAIL,
