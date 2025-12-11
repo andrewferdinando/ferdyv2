@@ -44,10 +44,20 @@ export default function SetPasswordPage() {
       const pendingGroupId = currentUrl.searchParams.get('group_id')
       const inviteSource = currentUrl.searchParams.get('src')
 
+      console.log('[SetPasswordPage] URL params:', {
+        pendingBrandId,
+        pendingGroupId,
+        inviteSource,
+        fullUrl: window.location.href,
+      })
+
       // Determine if this is a group invite
       if (pendingGroupId || inviteSource === 'team_invite') {
+        console.log('[SetPasswordPage] Detected as group invite')
         setIsGroupInvite(true)
         setGroupId(pendingGroupId)
+      } else {
+        console.log('[SetPasswordPage] Detected as brand invite')
       }
 
       if (!access || !refresh) {
@@ -111,12 +121,16 @@ export default function SetPasswordPage() {
         return
       }
 
+      console.log('[SetPasswordPage] About to finalize, isGroupInvite:', isGroupInvite)
+
       let result
       if (isGroupInvite) {
+        console.log('[SetPasswordPage] Calling finalizeGroupInvite')
         result = await finalizeGroupInvite({
           accessToken,
         })
       } else {
+        console.log('[SetPasswordPage] Calling finalizeInvite')
         result = await finalizeInvite({
           accessToken,
           brandId,
