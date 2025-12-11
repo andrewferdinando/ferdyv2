@@ -25,7 +25,7 @@ interface Brand {
 export default function BillingPage() {
   const router = useRouter()
   const { showToast } = useToast()
-  const { group, membership, loading: groupLoading, canManageBilling } = useUserGroup()
+  const { group, membership, loading: groupLoading, canManageBilling, refetch } = useUserGroup()
   
   const [brandCount, setBrandCount] = useState(0)
   const [brands, setBrands] = useState<Brand[]>([])
@@ -35,6 +35,13 @@ export default function BillingPage() {
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const [brandToRemove, setBrandToRemove] = useState<Brand | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+
+  // Refetch group data when component mounts (e.g., after returning from payment setup)
+  useEffect(() => {
+    if (refetch && !groupLoading) {
+      refetch()
+    }
+  }, [])
 
   useEffect(() => {
     async function loadBillingData() {

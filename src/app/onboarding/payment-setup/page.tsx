@@ -55,8 +55,8 @@ export default function PaymentSetupPage() {
 
         const brandCount = brands?.length || 1
 
-        // Create Stripe subscription
-        const response = await fetch('/api/stripe/create-subscription', {
+        // Get or create Stripe subscription
+        const response = await fetch('/api/stripe/get-or-create-payment-setup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -62,6 +62,31 @@ export function useUserGroup() {
     loadGroup()
   }, [supabase])
 
+  const refetch = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return
+      }
+
+      const { data: memberships, error: memberError } = await supabase
+        .from('group_memberships')
+        .select('*, groups(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+
+      if (memberError) throw memberError
+
+      if (memberships && memberships.length > 0) {
+        const firstMembership = memberships[0]
+        setMembership(firstMembership as any)
+        setGroup((firstMembership as any).groups)
+      }
+    } catch (err: any) {
+      console.error('Error refetching group:', err)
+    }
+  }
+
   return {
     group,
     membership,
@@ -69,5 +94,6 @@ export function useUserGroup() {
     error,
     isAdmin: membership?.role === 'admin' || membership?.role === 'super_admin',
     canManageBilling: membership?.role === 'admin' || membership?.role === 'super_admin',
+    refetch,
   }
 }
