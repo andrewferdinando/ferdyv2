@@ -352,6 +352,29 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
     throw new Error('Cannot publish deleted draft')
   }
 
+  // Auto-fix: If draft status is 'draft' but approved=true, update to 'scheduled'
+  // This handles cases where the frontend update didn't complete
+  if (draft.status === 'draft' && draft.approved) {
+    console.log(`[publishDraftNow] Auto-fixing draft ${draftId} status from 'draft' to 'scheduled'`)
+    const { error: statusUpdateError } = await supabaseAdmin
+      .from('drafts')
+      .update({ status: 'scheduled' })
+      .eq('id', draftId)
+    
+    if (statusUpdateError) {
+      console.error(`[publishDraftNow] Failed to update draft status:`, statusUpdateError)
+      throw new Error(`Draft has invalid status 'draft' and could not be updated: ${statusUpdateError.message}`)
+    }
+    
+    // Update local draft object
+    draft.status = 'scheduled'
+  }
+
+  // Defensive guard: verify draft is in a valid status for publishing
+  if (draft.status !== 'scheduled' && draft.status !== 'partially_published') {
+    throw new Error(`Draft has invalid status '${draft.status}'. Expected 'scheduled' or 'partially_published'.`)
+  }
+
   // Load all post_jobs for this draft
   const { data: existingJobsData, error: jobsError } = await supabaseAdmin
     .from('post_jobs')

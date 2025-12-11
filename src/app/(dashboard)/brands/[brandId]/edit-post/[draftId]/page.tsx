@@ -793,30 +793,46 @@ export default function EditPostPage() {
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
       
+      const updatePayload = {
+        copy: postCopy.trim(),
+        hashtags: normalizedHashtags,
+        asset_ids: selectedAssets.map((asset) => asset.id),
+        channel: selectedChannels.join(','),
+        approved: true, // Mark as approved
+        status: 'scheduled',
+        scheduled_for: scheduledAt.toISOString(), // UTC timestamp
+        scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
+        schedule_source: 'manual',
+        scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
+      }
+      
+      console.log('[approveAndScheduleDraft] Updating draft with:', {
+        draftId,
+        brandId,
+        status: updatePayload.status,
+        approved: updatePayload.approved,
+        scheduled_for: updatePayload.scheduled_for,
+      })
+      
       const { data, error } = await supabase
         .from('drafts')
-        .update({
-          copy: postCopy.trim(),
-          hashtags: normalizedHashtags,
-          asset_ids: selectedAssets.map((asset) => asset.id),
-          channel: selectedChannels.join(','),
-          approved: true, // Mark as approved
-          status: 'scheduled',
-          scheduled_for: scheduledAt.toISOString(), // UTC timestamp
-          scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
-          schedule_source: 'manual',
-          scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
-        })
+        .update(updatePayload)
         .eq('id', draftId)
         .eq('brand_id', brandId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating draft:', error);
+        console.error('[approveAndScheduleDraft] Error updating draft:', error);
         alert(`Failed to approve post: ${error.message}`);
         return { success: false, error };
       }
+      
+      console.log('[approveAndScheduleDraft] Draft updated successfully:', {
+        id: data.id,
+        status: data.status,
+        approved: data.approved,
+      })
 
       // Update the post_job if it exists
       if (draft?.post_job_id) {
