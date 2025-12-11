@@ -518,17 +518,20 @@ async function notifyDraftsReady(brandId: string, draftCount: number) {
     return;
   }
   
-  console.log(`[notifyDraftsReady] Sending to ${adminEmails.length} recipients`);
+  // Deduplicate email addresses (in case user has multiple roles)
+  const uniqueEmails = [...new Set(adminEmails)];
+  
+  console.log(`[notifyDraftsReady] Sending to ${uniqueEmails.length} unique recipients (${adminEmails.length} total memberships)`);
   
   // Get current month for email
   const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   
   // Get app URL from environment
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io';
-  const approvalLink = `${appUrl}/brands/${brandId}/drafts`;
+  const approvalLink = `${appUrl}/brands/${brandId}/schedule/drafts`;
   
-  // Send email to each admin/editor
-  for (const email of adminEmails) {
+  // Send email to each unique admin/editor
+  for (const email of uniqueEmails) {
     try {
       await sendMonthlyDraftsReady({
         to: email,
