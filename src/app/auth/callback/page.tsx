@@ -21,8 +21,9 @@ export default function AuthCallbackPage() {
         // If this is a password recovery link, redirect to reset-password page
         if (type === 'recovery') {
           console.log('[auth callback] Detected recovery link, redirecting to reset-password')
-          // The tokens will be in the URL hash, Supabase will handle the session
-          window.location.replace('/auth/reset-password' + window.location.hash)
+          // Supabase has already established the session from the hash
+          // Don't preserve the hash to avoid redirect loops
+          window.location.replace('/auth/reset-password')
           return
         }
 

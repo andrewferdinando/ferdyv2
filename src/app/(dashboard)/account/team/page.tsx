@@ -79,18 +79,23 @@ export default function AccountTeamPage() {
 
         // Get user details for each membership
         const members: TeamMember[] = []
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        
         for (const membership of memberships || []) {
-          const { data: userProfile } = await supabase
-            .from('profiles')
-            .select('name, full_name')
-            .eq('user_id', membership.user_id)
+          // Query auth.users table for name/full_name with COALESCE
+          const { data: userData, error: userError } = await supabase
+            .from('user_profiles')
+            .select('id, name')
+            .eq('id', membership.user_id)
             .single()
-
-          const { data: { user: authUser } } = await supabase.auth.getUser()
+          
+          if (userError) {
+            console.error('[team page] Error fetching user profile:', membership.user_id, userError)
+          }
           
           members.push({
             id: membership.user_id,
-            name: userProfile?.name || userProfile?.full_name || 'Unknown',
+            name: userData?.name || 'Unknown',
             email: membership.user_id === authUser?.id ? authUser.email || 'No email' : 'Email hidden',
             role: membership.role || 'member'
           })
