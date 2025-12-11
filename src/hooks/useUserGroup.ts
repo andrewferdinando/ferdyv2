@@ -6,6 +6,7 @@ export interface Group {
   name: string
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
+  subscription_status: string
   price_per_brand_cents: number
   currency: string
   created_at: string
