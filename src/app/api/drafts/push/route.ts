@@ -528,7 +528,7 @@ async function notifyDraftsReady(brandId: string, draftCount: number) {
   
   // Get app URL from environment
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io';
-  const approvalLink = `${appUrl}/brands/${brandId}/schedule/drafts`;
+  const approvalLink = `${appUrl}/brands/${brandId}/schedule?tab=drafts`;
   
   console.log(`[notifyDraftsReady] Brand ID: ${brandId}`);
   console.log(`[notifyDraftsReady] Approval link: ${approvalLink}`);
