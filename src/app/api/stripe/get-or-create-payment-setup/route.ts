@@ -61,32 +61,47 @@ export async function POST(request: NextRequest) {
           : (invoice as any).payment_intent?.id
 
         if (!paymentIntentId) {
-          // No PaymentIntent exists, create one for this invoice
-          console.log('No PaymentIntent on invoice, creating one...')
-          paymentIntent = await stripe.paymentIntents.create({
-            amount: invoice.amount_due,
-            currency: invoice.currency,
-            customer: invoice.customer as string,
-            metadata: {
-              invoice_id: invoice.id,
-              group_id: groupId
-            },
-            automatic_payment_methods: {
-              enabled: true,
-            },
-          })
-          console.log('PaymentIntent created:', {
-            id: paymentIntent.id,
-            status: paymentIntent.status
-          })
-
-          // Attach the PaymentIntent to the invoice
-          // This ensures that when the payment succeeds, the invoice is marked as paid
-          // and the subscription becomes active
-          await stripe.invoices.update(invoiceId, {
-            payment_intent: paymentIntent.id
-          } as any)
-          console.log('PaymentIntent attached to invoice')
+          // No PaymentIntent exists on invoice
+          // Finalize the invoice if it's not already finalized - this creates a PaymentIntent
+          console.log('No PaymentIntent on invoice, finalizing invoice...')
+          
+          if (invoice.status === 'draft') {
+            const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoiceId)
+            const finalizedPaymentIntentId = typeof finalizedInvoice.payment_intent === 'string'
+              ? finalizedInvoice.payment_intent
+              : (finalizedInvoice.payment_intent as any)?.id
+            
+            if (!finalizedPaymentIntentId) {
+              throw new Error('Failed to create PaymentIntent via invoice finalization')
+            }
+            
+            paymentIntent = await stripe.paymentIntents.retrieve(finalizedPaymentIntentId)
+            console.log('Invoice finalized, PaymentIntent created:', {
+              id: paymentIntent.id,
+              status: paymentIntent.status
+            })
+          } else {
+            // Invoice is already finalized but has no payment_intent
+            // This shouldn't happen, but create a standalone PaymentIntent as fallback
+            console.log('Invoice already finalized but no PaymentIntent, creating standalone...')
+            paymentIntent = await stripe.paymentIntents.create({
+              amount: invoice.amount_due,
+              currency: invoice.currency,
+              customer: invoice.customer as string,
+              metadata: {
+                invoice_id: invoice.id,
+                subscription_id: subscription.id,
+                group_id: groupId
+              },
+              automatic_payment_methods: {
+                enabled: true,
+              },
+            })
+            console.log('Standalone PaymentIntent created:', {
+              id: paymentIntent.id,
+              status: paymentIntent.status
+            })
+          }
         } else {
           // Retrieve the existing payment intent
           paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
