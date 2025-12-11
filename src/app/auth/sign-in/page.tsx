@@ -135,17 +135,9 @@ function SignInForm() {
             </div>
             
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <a
-                  href="/auth/forgot-password"
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  Forgot password?
-                </a>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
               <Input
                 type="password"
                 value={password}
@@ -164,6 +156,15 @@ function SignInForm() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
+          </div>
+          
+          <div className="text-center">
+            <a
+              href="/auth/forgot-password"
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+            >
+              Forgot password?
+            </a>
           </div>
         </Form>
       </div>

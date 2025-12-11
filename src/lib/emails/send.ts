@@ -28,6 +28,7 @@ const FROM_EMAIL = 'Ferdy <support@ferdy.io>'
 // Type definitions for each email
 export interface NewUserInviteData {
   to: string
+  inviteeName: string
   brandName: string
   inviterName: string
   inviteLink: string
@@ -103,6 +104,7 @@ export async function sendNewUserInvite(data: NewUserInviteData) {
   
   const html = await render(
     NewUserInvite({
+      inviteeName: data.inviteeName,
       brandName: data.brandName,
       inviterName: data.inviterName,
       inviteLink: data.inviteLink,

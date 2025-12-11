@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS pending_team_invitations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
+  invitee_name TEXT,
   group_id UUID NOT NULL,
   group_role TEXT NOT NULL,
   brand_assignments JSONB,

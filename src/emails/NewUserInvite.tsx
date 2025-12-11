@@ -3,12 +3,14 @@ import { Text, Link, Section } from '@react-email/components'
 import { EmailLayout, emailStyles } from './components/EmailLayout'
 
 interface NewUserInviteProps {
+  inviteeName: string
   brandName: string
   inviterName: string
   inviteLink: string
 }
 
 export function NewUserInvite({
+  inviteeName,
   brandName,
   inviterName,
   inviteLink,
@@ -18,7 +20,7 @@ export function NewUserInvite({
       <Text style={emailStyles.h1}>You're invited to join {brandName}! 🎉</Text>
       
       <Text style={emailStyles.paragraph}>
-        Hi there,
+        Hi {inviteeName},
       </Text>
 
       <Text style={emailStyles.paragraph}>

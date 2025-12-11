@@ -98,6 +98,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     try {
       await sendNewUserInvite({
         to: normalizedEmail,
+        inviteeName: normalizedEmail.split('@')[0],
         brandName,
         inviterName,
         inviteLink: inviteData.properties.action_link,

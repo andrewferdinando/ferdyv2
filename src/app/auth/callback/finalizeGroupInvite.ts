@@ -52,17 +52,20 @@ export async function finalizeGroupInvite({
   let groupId: string | null = null
   let groupRole = 'member'
   let brandAssignments: BrandAssignment[] | undefined
+  let inviteeName: string | null = null
 
   if (invitation) {
     groupId = invitation.group_id
     groupRole = invitation.group_role || 'member'
     brandAssignments = invitation.brand_assignments as BrandAssignment[] | undefined
+    inviteeName = invitation.invitee_name
     console.log('[finalizeGroupInvite] Using database invitation')
   } else {
     // Fallback to metadata
     groupId = user.user_metadata?.group_id
     groupRole = user.user_metadata?.group_role || 'member'
     brandAssignments = user.user_metadata?.brand_assignments as BrandAssignment[] | undefined
+    inviteeName = user.user_metadata?.invitee_name
     console.log('[finalizeGroupInvite] Using metadata fallback')
   }
 
@@ -137,6 +140,23 @@ export async function finalizeGroupInvite({
     }
   }
 
+  // Create/update user profile with name
+  const { error: userProfileError } = await supabaseAdmin
+    .from('user_profiles')
+    .upsert(
+      {
+        id: user.id,
+        name: inviteeName || userEmail.split('@')[0],
+        email: userEmail,
+      },
+      { onConflict: 'id' }
+    )
+
+  if (userProfileError) {
+    console.error('[finalizeGroupInvite] user profile error', userProfileError)
+    // Don't fail - continue with profile creation
+  }
+
   // Update profile
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
@@ -144,6 +164,7 @@ export async function finalizeGroupInvite({
       {
         user_id: user.id,
         role: groupRole,
+        full_name: inviteeName || userEmail.split('@')[0],
       },
       { onConflict: 'user_id' }
     )

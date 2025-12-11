@@ -33,6 +33,7 @@ export default function AccountTeamPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState('member')
   const [brandAssignments, setBrandAssignments] = useState<BrandAssignment[]>([])
   const [selectAllBrands, setSelectAllBrands] = useState(false)
@@ -175,6 +176,7 @@ export default function AccountTeamPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: inviteEmail,
+          inviteeName: inviteName,
           groupRole: inviteRole,
           groupId: group.id,
           brandAssignments: brandAssignments,
@@ -189,6 +191,7 @@ export default function AccountTeamPage() {
 
       setSuccess(`Invitation sent to ${inviteEmail} with access to ${brandAssignments.length} brand(s)`)
       setInviteEmail('')
+      setInviteName('')
       setInviteRole('member')
       setBrandAssignments([])
       setSelectAllBrands(false)
@@ -246,6 +249,11 @@ export default function AccountTeamPage() {
                 )}
               </div>
 
+              {/* Info box */}
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">You can only add team members for brands where you're an admin.</p>
+              </div>
+
               {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                   <p className="text-sm text-red-800">{error}</p>
@@ -278,6 +286,18 @@ export default function AccountTeamPage() {
                   </div>
                   
                   <form onSubmit={handleInvite} className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                      <input
+                        type="text"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none"
+                        placeholder="John Smith"
+                        required
+                      />
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                       <input

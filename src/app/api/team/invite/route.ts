@@ -12,8 +12,9 @@ interface BrandAssignment {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, groupRole, groupId, brandAssignments, inviterName } = body as {
+    const { email, inviteeName, groupRole, groupId, brandAssignments, inviterName } = body as {
       email: string
+      inviteeName?: string
       groupRole: string
       groupId: string
       brandAssignments: BrandAssignment[]
@@ -150,6 +151,7 @@ export async function POST(request: NextRequest) {
         .from('pending_team_invitations')
         .insert({
           email: normalizedEmail,
+          invitee_name: inviteeName,
           group_id: groupId,
           group_role: groupRole,
           brand_assignments: brandAssignments,
@@ -166,6 +168,7 @@ export async function POST(request: NextRequest) {
         email: normalizedEmail,
         options: {
           data: {
+            invitee_name: inviteeName,
             group_id: groupId,
             group_role: groupRole,
             brand_assignments: brandAssignments,
@@ -197,6 +200,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendNewUserInvite({
           to: normalizedEmail,
+          inviteeName: inviteeName || normalizedEmail,
           brandName: brandNames,
           inviterName: inviterName || 'A team member',
           inviteLink: inviteData.properties.action_link,

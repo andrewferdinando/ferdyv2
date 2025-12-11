@@ -29,6 +29,8 @@ export default function ProfilePage() {
     email: '',
     profile_image_url: ''
   });
+  
+  const [brandMemberships, setBrandMemberships] = useState<Array<{brand_name: string, role: string}>>([]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -76,6 +78,28 @@ export default function ProfilePage() {
         profile_image_url: userProfile.profile_image_url || ''
       });
       console.log('Profile loaded with image URL:', userProfile.profile_image_url);
+      
+      // Get brand memberships
+      const { data: memberships, error: membershipsError } = await supabase
+        .from('brand_memberships')
+        .select(`
+          role,
+          brands!inner (
+            name,
+            status
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('brands.status', 'active');
+      
+      if (!membershipsError && memberships) {
+        setBrandMemberships(
+          memberships.map((m: any) => ({
+            brand_name: m.brands.name,
+            role: m.role
+          }))
+        );
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
       setError('Failed to load profile data');
@@ -384,7 +408,7 @@ export default function ProfilePage() {
 
                   {/* Role (Read-only) */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Account Role</label>
                     <div className="flex items-center space-x-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(profile.role)}`}>
                         {getRoleDisplayName(profile.role)}
@@ -392,6 +416,25 @@ export default function ProfilePage() {
                       <span className="text-sm text-gray-500">Role cannot be changed</span>
                     </div>
                   </div>
+
+                  {/* Brand Memberships */}
+                  {brandMemberships.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Brand Access</label>
+                      <div className="space-y-2">
+                        {brandMemberships.map((membership, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span className="text-sm text-gray-900">{membership.brand_name}</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              membership.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                            }`}>
+                              {membership.role === 'admin' ? 'Admin' : 'Editor'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Save Button */}
                   <div className="flex justify-end pt-4">

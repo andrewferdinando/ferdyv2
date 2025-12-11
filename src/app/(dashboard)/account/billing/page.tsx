@@ -219,6 +219,11 @@ export default function BillingPage() {
             </p>
           </div>
 
+          {/* Info box */}
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">You can only see billing for brands where you're an admin.</p>
+          </div>
+
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-sm text-red-800">{error}</p>
