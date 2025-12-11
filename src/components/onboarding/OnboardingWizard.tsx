@@ -320,13 +320,15 @@ export function OnboardingWizard() {
             <PaymentForm onSuccess={() => window.location.href = '/brands'} />
           </Elements>
 
-          {/* Super admin skip option */}
-          <button
-            onClick={handleSkipPayment}
-            className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
-          >
-            Skip payment (admin only)
-          </button>
+          {/* Skip payment option */}
+          <div className="text-center">
+            <button
+              onClick={handleSkipPayment}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Set up payment later
+            </button>
+          </div>
         </div>
       </div>
     )
