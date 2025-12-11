@@ -18,8 +18,14 @@ function ResetPasswordForm() {
   useEffect(() => {
     // Check if we have a valid session from the reset link
     const checkSession = async () => {
+      // Give Supabase time to process the hash and establish session
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       const { data: { session } } = await supabase.auth.getSession()
+      console.log('[reset-password] Session check:', { hasSession: !!session })
+      
       if (!session) {
+        console.error('[reset-password] No session found')
         setError('Invalid or expired reset link. Please request a new one.')
       }
     }
