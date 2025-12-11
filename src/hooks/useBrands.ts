@@ -33,16 +33,44 @@ export function useBrands() {
         setLoading(true);
         setError(null);
 
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+
+        // Fetch brands where user has membership
         const { data, error } = await supabase
-          .from('brands')
-          .select('*')
+          .from('brand_memberships')
+          .select(`
+            brand_id,
+            brands (
+              id,
+              name,
+              website_url,
+              country_code,
+              timezone,
+              default_post_time,
+              ai_summary,
+              ai_summary_last_generated_at,
+              created_at,
+              updated_at
+            )
+          `)
+          .eq('user_id', user.id)
           .eq('status', 'active')
-          .order('name', { ascending: true });
+          .eq('brands.status', 'active');
 
         if (error) throw error;
 
-        setBrands(data || []);
-        console.log('useBrands: Fetched brands:', data?.length || 0, 'items');
+        // Extract brands from the joined data
+        const brandsData = data
+          ?.map((membership: any) => membership.brands)
+          .filter((brand: any) => brand !== null)
+          .sort((a: any, b: any) => a.name.localeCompare(b.name)) || [];
+
+        setBrands(brandsData);
+        console.log('useBrands: Fetched brands for user:', brandsData.length, 'items');
       } catch (err) {
         console.error('useBrands: Error fetching brands:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch brands');
@@ -64,15 +92,43 @@ export function useBrands() {
     setError(null);
     
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Fetch brands where user has membership
       const { data, error } = await supabase
-        .from('brands')
-        .select('*')
+        .from('brand_memberships')
+        .select(`
+          brand_id,
+          brands (
+            id,
+            name,
+            website_url,
+            country_code,
+            timezone,
+            default_post_time,
+            ai_summary,
+            ai_summary_last_generated_at,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('user_id', user.id)
         .eq('status', 'active')
-        .order('name', { ascending: true });
+        .eq('brands.status', 'active');
 
       if (error) throw error;
 
-      setBrands(data || []);
+      // Extract brands from the joined data
+      const brandsData = data
+        ?.map((membership: any) => membership.brands)
+        .filter((brand: any) => brand !== null)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name)) || [];
+
+      setBrands(brandsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch brands');
     } finally {
