@@ -81,16 +81,16 @@ export default function AccountTeamPage() {
         const members: TeamMember[] = []
         for (const membership of memberships || []) {
           const { data: userProfile } = await supabase
-            .from('user_profiles')
-            .select('name')
-            .eq('id', membership.user_id)
+            .from('profiles')
+            .select('name, full_name')
+            .eq('user_id', membership.user_id)
             .single()
 
           const { data: { user: authUser } } = await supabase.auth.getUser()
           
           members.push({
             id: membership.user_id,
-            name: userProfile?.name || 'Unknown',
+            name: userProfile?.name || userProfile?.full_name || 'Unknown',
             email: membership.user_id === authUser?.id ? authUser.email || 'No email' : 'Email hidden',
             role: membership.role || 'member'
           })
