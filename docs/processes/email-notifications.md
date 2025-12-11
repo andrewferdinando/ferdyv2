@@ -73,80 +73,23 @@ const response = await fetch('/api/auth/reset-password', {
 **Status:** ✅ Fully implemented
 **Recipients:** All brand admins and editors (both roles can approve drafts)
 
+### 8. Post Published
+**Location:** `/src/server/publishing/publishJob.ts`
+**Trigger:** After a post is successfully published to a social platform
+**When:** Post is published either manually (via "Publish Now") or automatically (via scheduled cron)
+**Data:** Brand name, platform, published time, post link, post preview
+**Status:** ✅ Fully implemented
+**Recipients:** All brand admins and editors
+
 ---
 
 ## 📋 To Be Implemented
 
-### 8. Post Published
-**Suggested Location:** `/src/server/publishing/publishJob.ts`
-**Trigger:** After a post is successfully published to a social platform
-**Status:** ⏳ Pending - Template ready, needs integration
-**Implementation:**
-```typescript
-import { sendPostPublished } from '@/lib/emails/send'
-import { supabaseAdmin } from '@/lib/supabase-server'
-
-// Add this after successful publish (line 157-163 in publishJob.ts)
-export async function notifyPostPublished(
-  draft: DraftRow,
-  job: PostJobRow,
-  publishResult: { externalId: string; externalUrl: string | null }
-) {
-  const { data: brand } = await supabaseAdmin
-    .from('brands')
-    .select('name, group_id')
-    .eq('id', draft.brand_id)
-    .eq('status', 'active')
-    .single()
-  
-  if (!brand) return
-  
-  // Get admin emails for the brand
-  const { data: memberships } = await supabaseAdmin
-    .from('brand_memberships')
-    .select('user_id, profiles(user_id)')
-    .eq('brand_id', draft.brand_id)
-    .eq('role', 'admin')
-    .eq('status', 'active')
-
-  if (!memberships || memberships.length === 0) return
-
-  // Get user emails from auth
-  const adminEmails: string[] = []
-  for (const membership of memberships) {
-    if (membership.profiles?.user_id) {
-      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(membership.profiles.user_id)
-      if (user?.email) {
-        adminEmails.push(user.email)
-      }
-    }
-  }
-  
-  const publishedAt = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-  
-  for (const email of adminEmails) {
-    await sendPostPublished({
-      to: email,
-      brandName: brand.name,
-      publishedAt,
-      platform: job.channel,
-      postLink: publishResult.externalUrl || `${process.env.NEXT_PUBLIC_APP_URL}/brands/${draft.brand_id}/published`,
-      postPreview: draft.copy?.substring(0, 200) || '',
-    })
-  }
-}
-```
-
 ### 9. Social Connection Disconnected
 **Suggested Location:** Create `/src/lib/cron/check-connections.ts`
 **Trigger:** Cron job health check detects invalid tokens
-**Status:** ⏳ Pending - Requires connection health check system
+**Status:** ⏳ Pending - Template ready, needs connection health check system
+
 **Implementation:**
 ```typescript
 import { sendSocialConnectionDisconnected } from '@/lib/emails/send'
@@ -209,7 +152,7 @@ APP_URL=https://www.ferdy.io
 
 ## Implementation Summary
 
-**Completed: 7/9 email notifications**
+**Completed: 8/9 email notifications**
 
 ✅ **Critical User Flows (All Implemented):**
 - Invoice Paid - Billing confirmation
@@ -219,11 +162,11 @@ APP_URL=https://www.ferdy.io
 - Existing User Invite - Team onboarding
 - Forgot Password - Account recovery
 
-✅ **Content Workflow:**
+✅ **Content Workflow (All Implemented):**
 - Monthly Drafts Ready - Notifies admins/editors when drafts are ready for approval
+- Post Published - Notifies admins/editors when a post is successfully published
 
 ⏳ **Nice-to-Have Features (Pending):**
-- Post Published - Requires integration into publishing system
 - Social Connection Disconnected - Requires connection health monitoring
 
 ---

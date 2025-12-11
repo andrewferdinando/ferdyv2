@@ -6,6 +6,7 @@ import {
 } from '@/lib/channels'
 import { publishFacebookPost } from './providers/facebook'
 import { publishInstagramFeedPost, publishInstagramStory } from './providers/instagram'
+import { sendPostPublished } from '@/lib/emails/send'
 
 type DraftRow = {
   id: string
@@ -160,6 +161,14 @@ export async function publishJob(
       externalId: publishResult.externalId,
     })
 
+    // Send email notification to brand admins/editors
+    try {
+      await notifyPostPublished(draft, job, publishResult, jobChannel)
+    } catch (emailError) {
+      console.error('[publishJob] Failed to send post published email:', emailError)
+      // Don't fail the publish if email fails
+    }
+
     return { success: true }
   } else {
     await supabaseAdmin
@@ -265,3 +274,104 @@ async function publishToChannel(
   }
 }
 
+/**
+ * Send email notification to brand admins/editors when a post is published
+ */
+async function notifyPostPublished(
+  draft: DraftRow,
+  job: PostJobRow,
+  publishResult: { externalId: string; externalUrl: string | null },
+  channel: string
+) {
+  console.log(`[notifyPostPublished] Sending notifications for job ${job.id}, brand ${draft.brand_id}`)
+
+  // Get brand details
+  const { data: brand, error: brandError } = await supabaseAdmin
+    .from('brands')
+    .select('name, group_id, status')
+    .eq('id', draft.brand_id)
+    .single()
+
+  if (brandError || !brand || brand.status !== 'active') {
+    console.error('[notifyPostPublished] Brand not found or inactive:', brandError)
+    return
+  }
+
+  // Get admin and editor emails for the brand
+  const { data: memberships, error: membershipsError } = await supabaseAdmin
+    .from('brand_memberships')
+    .select('user_id, role')
+    .eq('brand_id', draft.brand_id)
+    .in('role', ['admin', 'editor'])
+    .eq('status', 'active')
+
+  if (membershipsError || !memberships || memberships.length === 0) {
+    console.error('[notifyPostPublished] No active admins/editors found:', membershipsError)
+    return
+  }
+
+  console.log(`[notifyPostPublished] Found ${memberships.length} admins/editors`)
+
+  // Get user emails from auth
+  const adminEmails: string[] = []
+  for (const membership of memberships) {
+    try {
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(membership.user_id)
+      if (userError) {
+        console.error(`[notifyPostPublished] Error fetching user ${membership.user_id}:`, userError)
+        continue
+      }
+      if (user?.email) {
+        adminEmails.push(user.email)
+      }
+    } catch (err) {
+      console.error(`[notifyPostPublished] Exception fetching user ${membership.user_id}:`, err)
+    }
+  }
+
+  if (adminEmails.length === 0) {
+    console.error('[notifyPostPublished] No valid email addresses found')
+    return
+  }
+
+  // Deduplicate email addresses
+  const uniqueEmails = [...new Set(adminEmails)]
+
+  console.log(`[notifyPostPublished] Sending to ${uniqueEmails.length} unique recipients`)
+
+  // Format the published time
+  const publishedAt = new Date().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  // Get app URL from environment
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io'
+  
+  // Use external URL if available, otherwise link to published page
+  const postLink = publishResult.externalUrl || `${appUrl}/brands/${draft.brand_id}/schedule?tab=published`
+
+  // Format channel name for display (e.g., "instagram_feed" -> "Instagram")
+  const platformName = channel.split('_')[0].charAt(0).toUpperCase() + channel.split('_')[0].slice(1)
+
+  // Send email to each unique admin/editor
+  for (const email of uniqueEmails) {
+    try {
+      await sendPostPublished({
+        to: email,
+        brandName: brand.name,
+        publishedAt,
+        platform: platformName,
+        postLink,
+        postPreview: draft.copy?.substring(0, 200) || '',
+      })
+      console.log(`[notifyPostPublished] Email sent to ${email}`)
+    } catch (err) {
+      console.error(`[notifyPostPublished] Failed to send email to ${email}:`, err)
+      // Continue sending to other recipients even if one fails
+    }
+  }
+}
