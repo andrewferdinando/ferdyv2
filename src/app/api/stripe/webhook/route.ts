@@ -215,43 +215,8 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       console.log(`Updated group ${groupId} subscription status to: ${subscription.status}`)
     }
 
-    // Send invoice paid email if subscription is now active
-    if (subscription.status === 'active') {
-      const customer = await stripe.customers.retrieve(paymentIntent.customer as string)
-      const email = (customer as Stripe.Customer).email
-      
-      if (email) {
-        const { data: brands } = await supabase
-          .from('brands')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('status', 'active')
-        
-        const brandCount = brands?.length || 1
-        
-        // Get invoice for period dates
-        const invoice = await stripe.invoices.retrieve(invoiceId)
-        const periodStart = invoice.period_start 
-          ? new Date(invoice.period_start * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        
-        const periodEnd = invoice.period_end
-          ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        
-        await sendInvoicePaid({
-          to: email,
-          amount: paymentIntent.amount,
-          currency: paymentIntent.currency,
-          planName: 'Ferdy monthly subscription',
-          brandCount,
-          billingPeriodStart: periodStart,
-          billingPeriodEnd: periodEnd,
-          invoiceUrl: invoice.hosted_invoice_url || '',
-        })
-        console.log(`Sent invoice paid email to ${email}`)
-      }
-    }
+    // Note: Don't send email here - the invoice.paid webhook will handle that
+    // to avoid duplicate emails
   } catch (error: any) {
     console.error('Error processing PaymentIntent success:', error)
   }
