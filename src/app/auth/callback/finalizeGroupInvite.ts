@@ -149,7 +149,6 @@ export async function finalizeGroupInvite({
       {
         id: user.id,
         name: inviteeName || userEmail.split('@')[0],
-        email: userEmail,
       },
       { onConflict: 'id' }
     )
@@ -157,25 +156,33 @@ export async function finalizeGroupInvite({
 
   if (userProfileError) {
     console.error('[finalizeGroupInvite] user_profiles upsert error:', userProfileError)
-    console.error('[finalizeGroupInvite] Attempted to insert:', { id: user.id, name: inviteeName, email: userEmail })
+    console.error('[finalizeGroupInvite] Attempted to insert:', { id: user.id, name: inviteeName })
   } else {
     console.log('[finalizeGroupInvite] user_profiles created successfully:', userProfileData)
   }
 
-  // Update profile
-  const { error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .upsert(
-      {
-        user_id: user.id,
-        role: groupRole,
-        full_name: inviteeName || userEmail.split('@')[0],
-      },
-      { onConflict: 'user_id' }
-    )
+  // Update profiles table (optional - for group role tracking)
+  // Note: This table may have role constraints, so we don't fail if it errors
+  try {
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert(
+        {
+          user_id: user.id,
+          role: groupRole,
+          full_name: inviteeName || userEmail.split('@')[0],
+        },
+        { onConflict: 'user_id' }
+      )
 
-  if (profileError) {
-    console.error('[finalizeGroupInvite] profile upsert error', profileError)
+    if (profileError) {
+      console.error('[finalizeGroupInvite] profiles table upsert error (non-critical):', profileError)
+      console.log('[finalizeGroupInvite] Continuing without profiles table update - user_profiles is the primary source')
+    } else {
+      console.log('[finalizeGroupInvite] profiles table updated successfully')
+    }
+  } catch (profileException) {
+    console.error('[finalizeGroupInvite] profiles table exception (non-critical):', profileException)
   }
 
   // Mark invitation as accepted if it came from database
