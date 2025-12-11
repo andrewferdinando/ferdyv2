@@ -54,17 +54,45 @@ export async function POST(request: NextRequest) {
         // Retrieve the invoice
         const invoice = await stripe.invoices.retrieve(invoiceId)
         
-        // Get the payment intent
+        // Get or create the payment intent
+        let paymentIntent
         const paymentIntentId = typeof (invoice as any).payment_intent === 'string'
           ? (invoice as any).payment_intent
           : (invoice as any).payment_intent?.id
 
         if (!paymentIntentId) {
-          throw new Error('No payment intent found on invoice')
-        }
+          // No PaymentIntent exists, create one for this invoice
+          console.log('No PaymentIntent on invoice, creating one...')
+          paymentIntent = await stripe.paymentIntents.create({
+            amount: invoice.amount_due,
+            currency: invoice.currency,
+            customer: invoice.customer as string,
+            metadata: {
+              invoice_id: invoice.id,
+              group_id: groupId
+            },
+            automatic_payment_methods: {
+              enabled: true,
+            },
+          })
+          console.log('PaymentIntent created:', {
+            id: paymentIntent.id,
+            status: paymentIntent.status
+          })
 
-        // Retrieve the payment intent
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+          // Attach the PaymentIntent to the invoice
+          await stripe.invoices.update(invoiceId, {
+            default_payment_method: undefined // Clear any default to allow new payment
+          })
+          console.log('PaymentIntent ready for invoice')
+        } else {
+          // Retrieve the existing payment intent
+          paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+          console.log('Retrieved existing PaymentIntent:', {
+            id: paymentIntent.id,
+            status: paymentIntent.status
+          })
+        }
         
         if (!paymentIntent.client_secret) {
           throw new Error('No client_secret found on PaymentIntent')
