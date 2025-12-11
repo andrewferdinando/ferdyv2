@@ -1,211 +1,68 @@
-# Add Team Member Process
+# Team Member Invitation Process
 
-**File:** `doc/processes/add-team-member.md`  
-**Owner:** Andrew / Ferdy core team  
-**Last updated:** 2025-12-08
+This document details the process of inviting a team member to a brand in the Ferdy application. It covers the user interface flow, the authentication and authorization mechanisms, and the creation of brand memberships.
 
-## Purpose
+## User Interface and Initial Actions
 
-Document how a **team member is invited to a brand** in Ferdy via the Team page, including:
+The invitation process begins on the Team page, accessible at `/brands/:brandId/account/team`. An existing member of the brand with appropriate permissions can initiate an invitation by clicking the "Invite Team Member" button. This action opens a modal window with the following fields:
 
-- UI flow (what the inviter sees and does)
-- Auth flow (what Supabase does)
-- Brand membership creation timing (when `brand_memberships` is populated)
-- Notes for future email provider migration (Supabase → Resend)
+-   **Name**: The full name of the person being invited.
+-   **Email Address**: The email address of the invitee.
+-   **Role**: A dropdown menu to select the user's role, which defaults to "Editor".
 
-This is for developers and AI coding tools (Cursor) so they can safely extend or refactor the invite/onboarding process.
+Upon clicking "Send Invitation," the client-side application validates the input and triggers the backend invitation flow.
 
----
+## Authentication and User Creation
 
-## Entry Points
+The backend is responsible for creating or locating a user in Supabase Auth and sending an invitation email. The process differs depending on whether the invited user is new to Ferdy or an existing user.
 
-- **UI page:**  
-  `https://www.ferdy.io/brands/:brandId/account/team`
+### New User Invitation
 
-- **Who uses this page:**  
-  An existing member of the brand (typically you during onboarding) who wants to invite another user.
+If the invited user does not have an existing Ferdy account, a new user record is created in Supabase Auth with a "Waiting for verification" status. An invitation email is sent to the user's email address, containing a link to verify their account and set a password. The invitation link is valid for seven days.
 
-- **Auth requirement:**  
-  User must be signed in via Supabase Auth and must belong to the brand.
+### Existing User Invitation
 
----
-
-## UI Flow
-
-From the Team page, the inviter clicks a button (e.g. **“Invite Team Member”**).  
-This opens the **Invite Team Member** modal:
-
-**Fields:**
-
-- **Name** – Free-text input (invited person’s full name)
-- **Email Address** – Email input
-- **Role** – Dropdown, default: **Editor**  
-  (Exact list of roles lives in the front-end; typically includes `Editor` and may include others like `Admin`.)
-
-**Buttons:**
-
-- **Cancel** – Close modal, do nothing.
-- **Send Invitation** – Trigger invite flow.
-
-**Behaviour on “Send Invitation”:**
-
-1. Client validates input (required fields + email format).
-2. Client calls a backend/server-side function (or directly calls Supabase Auth admin API) to:
-   - Create or find a user in **Supabase Auth** for the given email.
-   - Trigger an **invite / verification email** to that address.
-3. UI shows a success or error state (e.g. toast or inline message).
-
----
-
-## Auth Behaviour (Supabase)
-
-### What we have confirmed
-
-From Supabase Auth → Users:
-
-- When **Send Invitation** is clicked:
-  - A new **Auth user record is created immediately** for the invited email.
-  - The user’s status shows as **“Waiting for verification”** (they have not yet signed in).
-  - No `brand_memberships` row is created at this point.
-- The invited user receives an email sent by **Supabase** (current state):
-  - The email contains a link for verification / sign-in.
-
-### What this means
-
-- Ferdy/Supabase creates the **user at invite time**, not at first sign-in.
-- However, **brand access is not granted yet** – there is no membership row until after they sign in (see next section).
-
----
+If the invited user already has a Ferdy account, they are sent an email with a magic link that allows them to join the brand. This link is valid for 24 hours.
 
 ## Brand Membership Creation
 
-**Table:** `brand_memberships`
+Crucially, a `brand_memberships` record is **not** created at the time of invitation. Instead, Ferdy waits until the invited user successfully signs in and accepts the invitation. The process is as follows:
 
-Relevant columns:
+1.  **At the time of invitation**: A user record is created in Supabase Auth, but no `brand_memberships` row is created for the user and brand.
+2.  **Upon first successful sign-in**: After the user clicks the invitation link and signs in, the application logic detects that the user has been invited to a specific brand. It then creates a new row in the `brand_memberships` table with the appropriate `brand_id`, `user_id`, and `role`.
+3.  **After membership creation**: The user is granted access to the brand and can see it listed in their account. The Team page will also be updated to include the new member.
 
-- `id` (uuid, PK, default `gen_random_uuid()`)
-- `brand_id` (uuid, FK → brands.id, required)
-- `user_id` (uuid, FK → auth.users.id, required)
-- `role` (text, default `'editor'`)
-- `created_at` (timestamptz, default `now()`)
+To ensure that the correct brand and role are associated with the user upon sign-in, the application must store this information. This is typically achieved through the use of `user_metadata` in Supabase Auth, a separate `invitations` table, or by including signed tokens or query parameters in the invitation link.
 
-### Confirmed behaviour
+## End-to-End Invitation Flow
 
-> **Ferdy waits until the invited user signs in to create the `brand_memberships` row.**
-
-So the sequence is:
-
-1. **At invite time:**
-   - Auth user is created in Supabase.
-   - No `brand_memberships` row exists yet for that user + brand.
-
-2. **At first successful sign-in (after clicking the invite email link):**
-   - Some application logic runs (in your Next.js app / backend) that:
-     - Detects that this user has been invited to a specific brand.
-     - Creates a row in `brand_memberships` with:
-       - `brand_id` = the brand that issued the invite.
-       - `user_id` = this user’s Supabase user ID.
-       - `role` = the role that was chosen in the invite modal (e.g. `editor`).
-
-3. **After membership creation:**
-   - The user can see and access the brand inside Ferdy.
-   - The Team page will list them as a member.
-
-### Implementation detail (to be checked in code later)
-
-The app must store **which brand** and **which role** the user was invited with, so that it can create the correct `brand_memberships` row on first login. This is typically done via:
-
-- Auth `user_metadata`, or
-- A separate `invitations` table keyed by email, or
-- Signed token/query parameters in the invite link.
-
-This file intentionally does **not** guess which pattern is used; it only records the **observable behaviour**.
-
----
-
-## End-to-End Flow (Mermaid)
-
-This diagram shows **what actually happens**, based on the confirmed behaviour.
+The following diagram illustrates the complete end-to-end flow for inviting a team member:
 
 ```mermaid
 flowchart TD
 
-  A[Existing brand member<br/>on /brands/:brandId/account/team] --> B[Click 'Invite Team Member']
-  B --> C[Invite Modal<br/>Name, Email, Role]
+  A[Existing brand member on /brands/:brandId/account/team] --> B[Click 'Invite Team Member']
+  B --> C[Invite Modal: Name, Email, Role]
   C --> D[Click 'Send Invitation']
 
   D --> E[Client validates input]
-  E --> F[Backend/Supabase Auth<br/>create user + send invite email]
+  E --> F[Backend/Supabase Auth: create user + send invite email]
 
-  F --> G[Auth user exists<br/>Status: Waiting for verification]
+  F --> G[Auth user exists, status: Waiting for verification]
   G -.->|No brand_memberships row yet| H[(brand_memberships)]
 
-  %% Second phase: invited user flow
-  I[User opens invite email<br/>and clicks link] --> J[Supabase verifies email<br/>User signs in]
-  J --> K[App logic on first login<br/>detect invite → create brand_memberships row]
+  I[User opens invite email and clicks link] --> J[Supabase verifies email, user signs in]
+  J --> K[App logic on first login detects invite and creates brand_memberships row]
   K --> L[(brand_memberships)]
-  L --> M[User now has access<br/>to that brand in Ferdy]
-Key points:
+  L --> M[User now has access to the brand in Ferdy]
+```
 
-The Auth user is created at invite time.
+## Email Delivery and Security
 
-The brand_memberships row is created at first successful sign-in.
+All invitation emails are sent using Resend, a third-party email delivery service. The emails are branded with the Ferdy logo and sent from a `@ferdy.io` address. The backend generates a secure, time-limited invitation or magic link using Supabase Auth's `generateLink` method.
 
-Current Email Behaviour
-All invite emails are currently sent by Supabase.
+### Security Considerations
 
-Emails come from the Supabase-configured sender identity.
-
-The app does not yet use Resend for these invitations.
-
-Future State – Moving Invitations to Resend
-When you switch to Resend for email delivery:
-
-Supabase Auth will still:
-
-Create the user.
-
-Generate verification / magic-link tokens.
-
-Resend will:
-
-Send branded emails from a @ferdy.io address.
-
-Use templates for:
-
-“You’ve been invited to join [Brand Name] on Ferdy.”
-
-Possibly additional onboarding messaging.
-
-A likely future pattern:
-
-Backend calls Supabase to create the user and generate an invite/verification link.
-
-Backend calls Resend with:
-
-Recipient email
-
-Invite/verification link
-
-brand_name, role, etc. for personalisation.
-
-Resend handles the actual email delivery.
-
-This process file should be updated once the Resend integration is implemented.
-
-RLS / Security Considerations (Conceptual)
-Only members of a brand should be able to invite others to that brand.
-
-Creation of brand_memberships rows should be restricted so:
-
-A user cannot add themselves to arbitrary brands.
-
-Invite processing logic ensures brand_id and user_id are correctly set.
-
-When reviewing RLS:
-
-Check that brand_memberships insert/updates are only allowed via:
-
-Trusted backend logic, or
-
-Policies that use auth.uid() and validated invite metadata.
+-   Only members of a brand with the appropriate permissions should be able to invite others to that brand.
+-   The creation of `brand_memberships` rows should be restricted to prevent users from adding themselves to arbitrary brands.
+-   Row-Level Security (RLS) policies should be in place to ensure that `brand_memberships` inserts and updates are only allowed through trusted backend logic or policies that validate the user's `auth.uid()` and invitation metadata.

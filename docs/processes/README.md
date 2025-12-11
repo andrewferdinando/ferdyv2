@@ -1,142 +1,95 @@
 # Ferdy Processes – Documentation Index
 
-This folder contains the core architectural documents that explain how Ferdy automates social media posting:
-
-- how users define content (Categories)
-- how schedules are defined (Schedule Rules)
-- how the system generates posting slots (Framework Targets)
-- how those slots become drafts (Push to Drafts)
-- how drafts are turned into real social posts (post_jobs + Publishing Engine)
-
-If you are onboarding a developer or giving context to an AI coding assistant, **start here**.
+This folder contains the core architectural documents that explain how Ferdy automates social media posting, manages user accounts, and handles billing. If you are onboarding a developer or giving context to an AI coding assistant, **start here**.
 
 ---
 
 ## 📘 Reading Order (Recommended)
 
-### **1. Category Creation**
-`categories.md`  
-Explains how a user defines content inputs for automation.  
-Covers the 4-step wizard, what gets saved to the `subcategories` table, and how assets & copy settings work.
+### **1. User Onboarding & Initial Setup**
+`onboarding.md`
+Details the 2-step wizard for new user registration, including account creation, brand setup, and Stripe subscription.
 
-### **2. Schedule Rules**
-`schedule_rules.md`  
-Defines how each category should post (frequency, days, times, timezone, channels).  
-Created in the wizard and editable via the Schedule UI.
+### **2. Sign-In and Authentication**
+`sign-in.md`
+Explains the sign-in process, including email/password authentication, social logins, and session management.
 
-### **3. Framework Targets (Posting Slots)**
-`framework_targets.md`  
-Documents the `rpc_framework_targets` SQL function.  
-Explains how Ferdy generates future posting timestamps for each schedule rule (daily/weekly/monthly/specific).
+### **3. Password Reset**
+`password-reset.md`
+Outlines the secure process for resetting a user's password, including email verification and link generation.
 
-### **4. Push to Drafts (Automated & Manual)**
-`push_to_drafts.md`  
-Explains how posting slots become draft posts.  
-Includes:
-- manual Push to Drafts button  
-- automated monthly pg_cron job  
-- the `rpc_push_to_drafts_now` function  
-- how assets and URLs are selected  
-- saving drafts + generating copy
+### **4. Team Member Invitation**
+`add-team-member.md`
+Documents how to invite new and existing users to a brand, including the UI flow, authentication, and brand membership creation.
 
-### **5. Draft Lifecycle**
-`draft_lifecycle.md`  
-Describes the full journey of a draft:
-- created (framework/manual)
-- edited
-- approved
-- scheduled
-- eventually published or partially published  
-Also covers how draft status is updated based on `post_jobs`.
+### **5. Brand Management**
+`brand-management.md`
+Covers the processes for adding and deleting brands, including the backend logic and security considerations.
 
-### **6. post_jobs & Publishing Engine**
-`post_jobs_publishing.md`  
-Defines the per-channel publishing mechanism:
-- how post_jobs are created
-- how the publishing cron selects due jobs
-- provider publishing flows
-- success/failure handling
-- how drafts get updated based on job results  
+### **6. Email Notifications**
+`email-notifications.md`
+Describes the triggers and implementation details for all email notifications sent by the application.
 
-This is the document that controls how Ferdy actually **publishes** content.
+### **7. Category Creation**
+`category_creation_flow.md`
+Explains how a user defines content inputs for automation, including the 4-step wizard and asset/copy settings.
+
+### **8. Schedule Rules**
+`schedule_rules.md`
+Defines how each category should post, including frequency, days, times, and channels.
+
+### **9. Framework Targets (Posting Slots)**
+`rpc_framework_targets.md`
+Documents the SQL function that generates future posting timestamps for each schedule rule.
+
+### **10. Push to Drafts (Automated & Manual)**
+`push_to_drafts.md`
+Explains how posting slots are converted into drafts, including the automated cron job and manual process.
+
+### **11. Draft Lifecycle**
+`draft_lifecycle.md`
+Describes the journey of a draft from creation to publication, including status updates and post-job integration.
+
+### **12. post_jobs & Publishing Engine**
+`post_jobs_and_publishing_engine.md`
+Defines the per-channel publishing mechanism, including job creation, processing, and success/failure handling.
 
 ---
 
 ## 📂 Process Overview (Quick Reference)
 
-### **Category Setup**
-- User creates categories via wizard.
-- Saved to `subcategories` table.
-- Includes copy length, URLs, details, default hashtags, assets, etc.
+### **Account Management**
+- **Onboarding**: New users are guided through a 2-step wizard to create an account, a brand, and a subscription.
+- **Authentication**: Users can sign in with email/password or social logins. Sessions are managed by Supabase Auth.
+- **Team Invitations**: Existing users can invite new or existing users to join a brand. Brand membership is granted upon acceptance.
+- **Password Reset**: A secure process allows users to reset their password via an email link.
 
-### **Scheduling**
-- Every category has 1–N schedule rules.
-- Schedule rules define *when* posts occur.
-- Stored in `schedule_rules` table.
-
-### **Framework Generation**
-- `rpc_framework_targets` generates future posting timestamps.
-- Handles daily/weekly/monthly/specific logic across timezones.
-
-### **Push to Drafts**
-- Runs monthly (pg_cron) and manually.
-- Converts framework targets into real drafts.
-- Generates copy, attaches assets, creates `post_jobs`.
-
-### **Publishing**
-- A 3rd-party cron hits `/api/publishing/run`.
-- Publishing engine processes due `post_jobs`.
-- Calls Meta/LinkedIn APIs per channel.
-- Updates drafts accordingly.
-
----
+### **Content Automation**
+- **Category Setup**: Users create categories to define content inputs for automation.
+- **Scheduling**: Schedule rules determine when posts for each category are published.
+- **Framework Generation**: A SQL function generates future posting timestamps based on the schedule rules.
+- **Push to Drafts**: A cron job and manual process convert posting slots into drafts, generating copy and attaching assets.
+- **Publishing**: A separate cron job processes due post jobs, publishing them to the appropriate social media channels.
 
 ---
 
 ## 💳 Billing & Account Management
 
-### **Onboarding Process**
-`onboarding.md`  
-Complete technical documentation of the 2-step onboarding wizard:
-- Account and brand creation flow
-- Stripe subscription setup with PaymentIntent
-- Webhook chain for payment handling
-- Database schema and state management
-- Troubleshooting common issues
-
 ### **Groups and Billing**
-`groups-and-billing.md`  
-Documents the multi-tenant billing system:
-- Group-based account structure
-- Per-brand Stripe pricing ($86/month per brand)
-- Subscription management and proration
-- User roles (owner, admin, billing, member)
-- Email notifications via Resend
+`groups-and-billing.md`
+Documents the multi-tenant billing system, including group-based accounts, per-brand pricing, and subscription management.
 
 ### **Roles and Permissions**
-`roles-and-permissions.md`  
-Comprehensive guide to access control:
-- Group-level roles (Super Admin, Admin, Owner, Member)
-- Brand-level roles (Admin, Editor)
-- Complete permissions matrix
-- Role assignment workflows
-- Implementation guidelines and code examples
-- Database schema and RLS policies
+`roles-and-permissions.md`
+Provides a comprehensive guide to access control, including group-level and brand-level roles, a permissions matrix, and implementation guidelines.
 
 ---
 
 ## 🏗 Future Additions (Reserved)
 
-These will be added as the system expands:
-
-- `copy_generation.md`  
-  (Deep dive into how the AI generates copy, variation hints, and subcategory context.)
-
-- `asset_selection.md`  
-  (Image rotation strategies, asset tagging logic, round-robin behaviour.)
-
-- `brand_settings.md`  
-  (Timezone, copy defaults, brand personality extraction.)
+- `copy_generation.md` (Deep dive into AI copy generation)
+- `asset_selection.md` (Image rotation and asset tagging logic)
+- `brand_settings.md` (Timezone, copy defaults, and brand personality)
 
 ---
 
@@ -144,18 +97,13 @@ These will be added as the system expands:
 
 If you're a developer or AI agent working on Ferdy:
 
-1. Read the **Reading Order** top to bottom.
-2. When touching a feature, update its corresponding doc.
-3. Add new process docs as new automation paths are introduced.
-4. Treat this folder as a **source of truth** for backend behaviour.
+1.  Read the **Reading Order** section from top to bottom.
+2.  When modifying a feature, update its corresponding documentation.
+3.  Add new process documents as new automation paths are introduced.
+4.  Treat this folder as a **source of truth** for backend behavior.
 
 ---
 
 ## 💡 Tip for AI Tools
-When modifying or adding functionality:
 
-> **Always check how the change affects downstream processes**  
-> (e.g., modifying schedule_rules → affects framework targets → affects push to drafts → affects publishing).
-
-This dependency chain is the backbone of Ferdy's automation system.
-
+When modifying or adding functionality, **always check how the change affects downstream processes**. For example, modifying `schedule_rules` will affect `framework_targets`, which in turn affects `push_to_drafts` and `publishing`. This dependency chain is the backbone of Ferdy's automation system.

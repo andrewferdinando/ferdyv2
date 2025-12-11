@@ -1,14 +1,10 @@
-# Onboarding Process
+# User Onboarding & Initial Setup
 
-## Overview
+This document outlines the complete user onboarding process, from initial sign-up to an active, billable account. The process is designed as a two-step wizard that guides the user through creating their account, their first brand, and setting up their subscription.
 
-The onboarding process is a 2-step wizard that:
-1. Creates a new user account, group, and brand
-2. Sets up a Stripe subscription for per-brand billing
+## Onboarding Flow Architecture
 
-This document details the complete technical flow from user input to active subscription.
-
-## Architecture
+The onboarding process involves a coordinated sequence of events between the user, the frontend application, the backend API, Stripe for payments, and Supabase for data persistence. The following diagram illustrates the high-level flow:
 
 ```mermaid
 sequenceDiagram
@@ -41,108 +37,71 @@ sequenceDiagram
     Frontend->>User: Redirect to /brands
 ```
 
-## Step 1: Account & Brand Creation
+## Step 1: Account and Brand Creation
 
-**Route:** `/onboarding/start`  
-**Component:** `OnboardingWizard.tsx`
+The first step of the onboarding process is to collect the user's information and create the necessary records in the database. This is handled by the `/onboarding/start` route and the `OnboardingWizard.tsx` component.
 
 ### User Input
-- Company/Agency Name
-- First Brand Name
-- Full Name
-- Email
-- Password
 
-### API Call
-When the user submits the form, the frontend calls:
+The user is prompted to provide the following information:
+- **Company/Agency Name**: The name of the group that will own the brands.
+- **First Brand Name**: The name of the user's first brand.
+- **Full Name**: The user's full name.
+- **Email**: The user's email address, which will be used for login and communication.
+- **Password**: A password for the new account.
 
-`POST /api/onboarding/signup`
+### API Request and Backend Logic
 
-**Request Body:**
-```json
-{
-  "groupName": "Chris Agency",
-  "brandName": "Bryant Co",
-  "fullName": "Chris Bryant",
-  "email": "chris@bryant.co",
-  "password": "..."
-}
-```
+Upon form submission, the frontend sends a `POST` request to the `/api/onboarding/signup` endpoint. The backend then performs the following actions:
 
-### Backend Logic (`/api/onboarding/signup/route.ts`)
+1.  **Create User**: A new user is created in the `auth.users` table using the Supabase Admin client.
+2.  **Create Profile**: A corresponding user profile is created in the `user_profiles` view, which includes the user's full name.
+3.  **Create Group**: A new group is created in the `groups` table to represent the user's organization or agency.
+4.  **Create Group Membership**: The user is linked to the newly created group as an `owner` in the `group_memberships` table.
+5.  **Create Brand**: The user's first brand is created in the `brands` table and associated with the group.
+6.  **Create Brand Membership**: The user is also linked to the new brand as an `owner` in the `brand_memberships` table.
 
-1. **Create User:** Creates a new user in `auth.users` with Supabase Admin client.
-2. **Create Profile:** Creates a user profile in `user_profiles` table.
-3. **Create Group:** Creates a new `groups` record.
-4. **Create Group Membership:** Links the user to the group as `owner` in `group_memberships`.
-5. **Create Brand:** Creates the first `brands` record, linked to the group.
-6. **Create Brand Membership:** Links the user to the brand as `owner` in `brand_memberships`.
+After these database operations are complete, the backend initiates the Stripe subscription process by calling the `createStripeSubscription` helper function.
 
-After creating the database records, the API calls the Stripe helper function:
+## Step 2: Stripe Subscription and Payment
 
-`createStripeSubscription(groupId, groupName, email, 1)`
+The second step of the onboarding process is to set up the user's subscription and handle the initial payment. This is managed by the `stripe-helpers.ts` library and the Stripe API.
 
-## Step 2: Stripe Subscription & Payment
+### Subscription Creation
 
-### Stripe Subscription Logic (`/lib/stripe-helpers.ts`)
+The `createStripeSubscription` function performs the following steps:
 
-1. **Create Stripe Customer:** Creates a new Stripe customer with the user's email and group name.
-2. **Create Stripe Subscription:** Creates a subscription with `payment_behavior: 'default_incomplete'`.
-   - This creates the subscription and an initial invoice, but does not charge the user yet.
-3. **Create PaymentIntent:** Manually creates a separate `PaymentIntent` for the invoice amount.
-   - This is the key step that generates a `client_secret` for the payment form.
-4. **Return Client Secret:** The `client_secret` from the PaymentIntent is returned to the frontend.
+1.  **Create Stripe Customer**: A new customer is created in Stripe using the user's email and group name.
+2.  **Create Stripe Subscription**: A new subscription is created with the `payment_behavior` set to `default_incomplete`. This creates the subscription and an initial invoice but does not charge the user immediately.
+3.  **Create PaymentIntent**: A `PaymentIntent` is created manually for the invoice amount. This is a crucial step that generates a `client_secret` for the payment form.
+4.  **Return Client Secret**: The `client_secret` is returned to the frontend to be used in the payment form.
 
 ### Frontend Payment Form
 
-- The `OnboardingWizard` receives the `client_secret`.
-- It mounts the Stripe `PaymentElement` using the `client_secret`.
-- The user enters their card details and submits the form directly to Stripe.
+The `OnboardingWizard` component receives the `client_secret` and uses it to mount the Stripe `PaymentElement`. The user then enters their payment details and submits the form directly to Stripe for processing.
 
-## Step 3: Webhook Payment Handling
+## Step 3: Webhook-Driven Payment Handling
 
-When the user pays, Stripe sends a series of webhooks to `/api/stripe/webhook` to automate the post-payment process.
+Once the user submits their payment, Stripe sends a series of webhooks to the `/api/stripe/webhook` endpoint to automate the post-payment workflow.
 
-### Webhook Flow
+### Webhook Sequence
 
-1. **`payment_intent.succeeded`**
-   - This is the first webhook to fire after a successful payment.
-   - The handler (`handlePaymentIntentSucceeded`) uses the `invoice_id` from the PaymentIntent metadata to pay the subscription's invoice.
-   - It calls `stripe.invoices.pay(invoiceId, { paid_out_of_band: true })` to mark the invoice as paid.
+The following webhooks are processed in sequence:
 
-2. **`invoice.paid`**
-   - Marking the invoice as paid triggers this webhook.
-   - The handler (`handleInvoicePaid`) sends a receipt email to the user.
+1.  **`payment_intent.succeeded`**: This is the first webhook to be sent after a successful payment. The `handlePaymentIntentSucceeded` handler uses the `invoice_id` from the PaymentIntent metadata to pay the subscription's invoice.
+2.  **`invoice.paid`**: This webhook is triggered after the invoice is marked as paid. The `handleInvoicePaid` handler sends a receipt email to the user.
+3.  **`customer.subscription.updated`**: This webhook is sent when the subscription becomes active. The `handleSubscriptionUpdate` handler updates the `subscription_status` in the `groups` table to `active`.
 
-3. **`customer.subscription.updated`**
-   - Paying the invoice automatically activates the subscription.
-   - This webhook fires with `status: 'active'`.
-   - The handler (`handleSubscriptionUpdate`) updates the `subscription_status` column in the `groups` table to **`active`**.
+## Final State and Key Considerations
 
-### Final State
-- The user is redirected to `/brands`.
-- The subscription is active in Stripe.
-- The `groups` table shows `subscription_status: 'active'`.
-- The user can now use the app with a fully active subscription.
+Upon successful completion of the onboarding process, the user is redirected to the `/brands` page, their subscription is active in Stripe, and the `groups` table reflects the `active` subscription status. The user can now fully utilize the application.
 
-## Database Schema Additions
+### Database Schema
 
-To support this flow, the following column was added:
+The onboarding flow required the addition of a `subscription_status` column to the `groups` table to cache the Stripe subscription status. The possible values are `incomplete`, `active`, `past_due`, and `canceled`.
 
-### `groups` Table
-- `subscription_status` (TEXT, default: 'incomplete')
-  - Caches the Stripe subscription status.
-  - Values: `incomplete`, `active`, `past_due`, `canceled`
+### Important Notes
 
-## Troubleshooting & Key Learnings
-
-- **`payment_behavior: 'default_incomplete'` is tricky:** It creates a subscription and invoice, but does NOT create a PaymentIntent. A PaymentIntent must be created manually to get a `client_secret` for the payment form.
-
-- **Webhooks are critical:** The entire post-payment flow is asynchronous and relies on a chain of webhooks. Ensure the webhook endpoint is configured to receive:
-  - `payment_intent.succeeded`
-  - `invoice.paid`
-  - `customer.subscription.created`
-  - `customer.subscription.updated`
-  - `customer.subscription.deleted`
-
-- **Orphaned Records:** Failed onboarding attempts can create orphaned records in Supabase (users, groups, brands). A cleanup process should be implemented to remove these.
+-   The use of `payment_behavior: 'default_incomplete'` is a key aspect of this flow, as it allows for the creation of a subscription and invoice without immediate payment. A `PaymentIntent` must be created manually to obtain a `client_secret`.
+-   The entire post-payment process is asynchronous and relies on a chain of webhooks. It is crucial to ensure that the webhook endpoint is correctly configured to receive all necessary events.
+-   Failed onboarding attempts can result in orphaned records in the database. A cleanup process should be implemented to identify and remove these records.
