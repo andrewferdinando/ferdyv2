@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
           
           if (invoice.status === 'draft') {
             const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoiceId)
-            const finalizedPaymentIntentId = typeof finalizedInvoice.payment_intent === 'string'
-              ? finalizedInvoice.payment_intent
-              : (finalizedInvoice.payment_intent as any)?.id
+            const finalizedPaymentIntentId = typeof (finalizedInvoice as any).payment_intent === 'string'
+              ? (finalizedInvoice as any).payment_intent
+              : (finalizedInvoice as any).payment_intent?.id
             
             if (!finalizedPaymentIntentId) {
               throw new Error('Failed to create PaymentIntent via invoice finalization')
