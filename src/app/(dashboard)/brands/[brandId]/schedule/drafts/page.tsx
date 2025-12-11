@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation';
 
 interface DraftsPageProps {
-  params: {
+  params: Promise<{
     brandId: string;
-  };
+  }>;
 }
 
-export default function DraftsPage({ params }: DraftsPageProps) {
+export default async function DraftsPage({ params }: DraftsPageProps) {
+  const { brandId } = await params;
   // Redirect to main schedule page with drafts tab
-  redirect(`/brands/${params.brandId}/schedule?tab=drafts`);
+  redirect(`/brands/${brandId}/schedule?tab=drafts`);
 }
