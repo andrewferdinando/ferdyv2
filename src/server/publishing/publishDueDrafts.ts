@@ -83,7 +83,7 @@ export async function getPublishableJobs(
     .from('post_jobs')
     .select(`
       *,
-      drafts!inner(id, status)
+      drafts!post_jobs_draft_id_fkey!inner(id, status)
     `)
     .in('status', statusArray)
     .in('drafts.status', ['scheduled', 'partially_published'])
@@ -534,7 +534,7 @@ async function processDraft(
     .from('post_jobs')
     .select(`
       *,
-      drafts!inner(id, status)
+      drafts!post_jobs_draft_id_fkey!inner(id, status)
     `)
     .eq('draft_id', draft.id)
     .in('drafts.status', ['scheduled', 'partially_published'])
