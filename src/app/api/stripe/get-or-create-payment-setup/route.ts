@@ -81,10 +81,12 @@ export async function POST(request: NextRequest) {
           })
 
           // Attach the PaymentIntent to the invoice
+          // This ensures that when the payment succeeds, the invoice is marked as paid
+          // and the subscription becomes active
           await stripe.invoices.update(invoiceId, {
-            default_payment_method: undefined // Clear any default to allow new payment
-          })
-          console.log('PaymentIntent ready for invoice')
+            payment_intent: paymentIntent.id
+          } as any)
+          console.log('PaymentIntent attached to invoice')
         } else {
           // Retrieve the existing payment intent
           paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
