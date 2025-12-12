@@ -68,38 +68,14 @@ export default function AccountTeamPage() {
       }
 
       try {
-        // Get all group memberships
-        const { data: memberships, error: membershipsError } = await supabase
-          .from('group_memberships')
-          .select('user_id, role')
-          .eq('group_id', group.id)
-
-        if (membershipsError) throw membershipsError
-
-        // Get user details for each membership
-        const members: TeamMember[] = []
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        
-        for (const membership of memberships || []) {
-          // Query auth.users table for name/full_name with COALESCE
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('user_id, name, full_name')
-            .eq('user_id', membership.user_id)
-            .single()
-          
-          if (userError) {
-            console.error('[team page] Error fetching user profile:', membership.user_id, userError)
-          }
-          
-          members.push({
-            id: membership.user_id,
-            name: userData?.name || userData?.full_name || 'Unknown',
-            role: membership.role || 'member'
-          })
+        // Fetch team members from API (uses auth.users for names)
+        const response = await fetch('/api/team/members')
+        if (!response.ok) {
+          throw new Error('Failed to fetch team members')
         }
-
-        setTeamMembers(members)
+        
+        const { members } = await response.json()
+        setTeamMembers(members || [])
 
         // Load brands for assignment (only active brands)
         const { data: brandsData, error: brandsError } = await supabase

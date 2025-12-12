@@ -12,6 +12,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Ferdy - Social Media Marketing Automation",
   description: "Create, schedule, and publish social media posts automatically with Ferdy",
+  icons: {
+    icon: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
