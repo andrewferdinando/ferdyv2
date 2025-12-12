@@ -133,6 +133,89 @@ export default function EngineRoomPostTimePage() {
                 </div>
               </form>
 
+              {/* Best Times to Post Guide */}
+              <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Best Times to Post on Social Media (by Industry)</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  All times shown are local time. These are averages based on large datasets, not guarantees.
+                </p>
+                
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Industry</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Best Days</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Best Time Windows</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Retail & Ecommerce</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Tue–Thu</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">9am–11am, 1pm–3pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Strong engagement during browsing & lunch breaks</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Hospitality (Cafes, Restaurants, Bars)</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Wed–Sun</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">11am–1pm, 5pm–7pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Meal decision windows perform best</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Health & Fitness</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Mon–Fri</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">6am–8am, 6pm–8pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Before & after work workouts</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Professional Services (B2B)</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Tue–Thu</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">8am–10am, 12pm–1pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Avoid late afternoons</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Education & Training</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Tue–Thu</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">9am–12pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Parents & professionals browsing mid-morning</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Technology & SaaS</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Tue–Wed</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">9am–11am</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Early-week intent is strongest</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Entertainment & Events</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Thu–Sun</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">6pm–9pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Planning leisure time</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Real Estate</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Tue–Thu</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">8am–10am, 6pm–8pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Commute & evening browsing</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Non-Profit & Community</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Tue–Thu</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">9am–12pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Story-led content performs best</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">Travel & Tourism</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Wed–Fri</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">12pm–2pm, 7pm–9pm</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Dreaming & planning windows</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900">How It Works</h2>
                 <p className="mt-3 text-sm leading-relaxed text-gray-600">
@@ -142,6 +225,14 @@ export default function EngineRoomPostTimePage() {
                 <p className="mt-3 text-sm leading-relaxed text-gray-600">
                   Leave the field blank to remove the default. New subcategories created afterwards will inherit whatever time
                   you set here.
+                </p>
+              </div>
+
+              {/* Attribution Box */}
+              <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">Data Sources</h3>
+                <p className="text-xs leading-relaxed text-blue-800">
+                  Based on aggregated insights from Sprout Social, Hootsuite, HubSpot, Buffer, and Later, summarised by AI to highlight typical high-engagement posting windows by industry.
                 </p>
               </div>
             </div>
