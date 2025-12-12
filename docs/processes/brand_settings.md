@@ -25,7 +25,7 @@ These settings are used to:
 |-------------------------------|-------------------------|-----------------------------|---------|
 | `id`                          | uuid                    | `gen_random_uuid()`         | Primary key. |
 | `name`                        | text                    |                             | Brand name (used in UI). |
-| `timezone`                    | text                    | `'Pacific/Auckland'`        | Brand’s canonical timezone. Used when computing local schedule times, framework targets, etc. |
+| `timezone`                    | text                    | `'Pacific/Auckland'`        | Brand's canonical timezone. Used when computing local schedule times, framework targets, etc. **⚠️ IMMUTABLE after creation** - cannot be changed via UI to prevent scheduling conflicts. |
 | `country_code`                | text                    | `NULL`                      | Optional country (e.g. `NZ`). Can guide localisation and scheduling in future. |
 | `website_url`                 | text                    | `NULL`                      | Main website URL. Used by copy generation and other AI features. |
 | `default_post_time`           | time without time zone  | `NULL`                      | Legacy/global default post time. Current Engine Room UI may prefer `brand_post_information.default_post_time` instead (see below). |
@@ -187,6 +187,22 @@ to generate prompts for OpenAI.
 ---
 
 ## 5. Notes & future extensions
+
+### Timezone Immutability
+
+**Important:** The `timezone` field is **immutable after brand creation**. This is enforced in the UI:
+
+- **Brand Settings page** (`/brands/[brandId]/account/brand`): Timezone field is read-only and disabled with a warning message.
+- **Add Brand onboarding** (`/account/add-brand`): Shows a warning that timezone cannot be changed after creation.
+
+**Rationale:** Changing timezone after brand creation would cause scheduling conflicts:
+- Existing scheduled posts would be at the wrong time (e.g., a post scheduled for 2pm NZT would become 2pm UTC if timezone changed).
+- Historical data would be confusing (posts published at "wrong" times).
+- Matches behavior of other platforms (e.g., Meta doesn't allow timezone changes).
+
+If a brand genuinely needs to change timezone (e.g., relocation), it must be done manually by support with proper migration of all scheduled posts.
+
+### Possible Future Settings
 
 Possible future settings that should live here:
 

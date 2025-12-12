@@ -485,8 +485,9 @@ export default function AddBrandPage() {
                 ]}
                 error={touched.timezone ? fieldErrors.timezone : undefined}
               />
-              <p className="mt-1 text-xs text-gray-500">
-                This time zone is used for scheduling across the brand.
+              <p className="mt-1 text-xs text-amber-600 flex items-start gap-1">
+                <span className="text-amber-600">⚠️</span>
+                <span><strong>Important:</strong> Timezone cannot be changed after brand creation. All scheduled posts will use this timezone.</span>
               </p>
             </FormField>
 

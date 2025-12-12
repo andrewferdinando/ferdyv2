@@ -228,13 +228,14 @@ export default function BrandSettingsPage() {
                     <input
                       type="text"
                       value={formData.timezone}
-                      onChange={(e) => handleInputChange('timezone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                       placeholder="Pacific/Auckland"
-                      required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      This timezone will be used for scheduling posts and displaying times
+                    <p className="text-xs text-amber-600 mt-1 flex items-start gap-1">
+                      <span className="text-amber-600">⚠️</span>
+                      <span>Timezone cannot be changed after brand creation. All scheduled posts use this timezone.</span>
                     </p>
                   </div>
                 </div>
