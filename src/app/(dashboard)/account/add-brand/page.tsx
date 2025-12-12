@@ -201,16 +201,9 @@ export default function AddBrandPage() {
   }, [authState, router])
 
   const handleChange = (field: keyof BrandFormValues, value: string) => {
-    let processedValue = value
-    
-    // Auto-add https:// to website URL if user enters a value without protocol
-    if (field === 'websiteUrl' && value && !value.match(/^https?:\/\//i)) {
-      processedValue = `https://${value}`
-    }
-    
     setFormValues((prev) => ({
       ...prev,
-      [field]: processedValue,
+      [field]: value,
     }))
   }
 
@@ -219,6 +212,17 @@ export default function AddBrandPage() {
       ...prev,
       [field]: true,
     }))
+    
+    // Auto-add https:// to website URL on blur if user enters a value without protocol
+    if (field === 'websiteUrl') {
+      const currentValue = formValues.websiteUrl?.trim()
+      if (currentValue && !currentValue.match(/^https?:\/\//i)) {
+        setFormValues((prev) => ({
+          ...prev,
+          websiteUrl: `https://${currentValue}`,
+        }))
+      }
+    }
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -304,15 +308,15 @@ export default function AddBrandPage() {
       const members = []
       for (const m of memberships) {
         const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('name, email')
-          .eq('id', m.user_id)
+          .from('profiles')
+          .select('user_id, name, full_name')
+          .eq('user_id', m.user_id)
           .single()
 
         members.push({
           id: m.user_id,
-          name: profile?.name || 'Unknown',
-          email: profile?.email || 'No email'
+          name: profile?.name || profile?.full_name || 'Unknown',
+          email: m.user_id === user.id ? user.email || '' : 'Email hidden'
         })
       }
 

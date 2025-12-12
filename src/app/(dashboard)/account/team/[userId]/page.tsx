@@ -72,9 +72,9 @@ export default function TeamMemberDetailPage() {
       try {
         // Load team member info
         const { data: userProfile } = await supabase
-          .from('user_profiles')
-          .select('name, email')
-          .eq('id', userId)
+          .from('profiles')
+          .select('user_id, name, full_name')
+          .eq('user_id', userId)
           .single()
 
         const { data: groupMembership } = await supabase
@@ -89,11 +89,14 @@ export default function TeamMemberDetailPage() {
           setLoading(false)
           return
         }
+
+        // Get email (simplified - in production use server-side)
+        const { data: { user: authUser } } = await supabase.auth.getUser()
         
         setMember({
           id: userId,
-          name: userProfile?.name || 'Unknown',
-          email: userProfile?.email || 'No email',
+          name: userProfile?.name || userProfile?.full_name || 'Unknown',
+          email: userId === authUser?.id ? authUser.email || 'No email' : 'Email hidden',
           groupRole: groupMembership.role || 'member',
         })
 
