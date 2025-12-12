@@ -642,8 +642,7 @@ export default function EditPostPage() {
       const { error: postJobError } = await supabase
         .from('post_jobs')
         .update({
-          scheduled_at: scheduledAt.toISOString(),
-          updated_at: new Date().toISOString()
+          scheduled_at: scheduledAt.toISOString()
         })
         .eq('draft_id', draftId);
 
@@ -838,8 +837,7 @@ export default function EditPostPage() {
         .from('post_jobs')
         .update({
           scheduled_at: scheduledAt.toISOString(),
-          status: 'pending', // Update status to pending (valid post_job status)
-          updated_at: new Date().toISOString()
+          status: 'pending' // Update status to pending (valid post_job status)
         })
         .eq('draft_id', draftId);
 
