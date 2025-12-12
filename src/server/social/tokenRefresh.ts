@@ -183,7 +183,14 @@ export async function refreshSocialAccountToken(socialAccountId: string): Promis
     console.log(`[refreshSocialAccountToken] Token for ${socialAccount.provider} account ${socialAccountId} expires soon, refreshing...`)
     
     // Refresh based on provider
-    let refreshResult
+    let refreshResult: {
+      success: boolean
+      accessToken?: string
+      refreshToken?: string
+      expiresIn?: number
+      error?: string
+    }
+    
     if (socialAccount.provider === 'facebook' || socialAccount.provider === 'instagram') {
       refreshResult = await refreshMetaToken(socialAccount)
     } else if (socialAccount.provider === 'linkedin') {
