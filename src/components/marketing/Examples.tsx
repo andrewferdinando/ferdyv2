@@ -18,7 +18,7 @@ const examples = [
   {
     name: "Jen",
     company: "Game Over",
-    image: "/images/portrait_jen.png",
+    image: "/images/jen-goa.jpg",
     automates: ["Everyday products", "Weekly deals", "Seasonal events", "Testimonials"],
     testimonial: "I can finally focus on running the business instead of posting.",
     borderColor: "border-t-orange-500"

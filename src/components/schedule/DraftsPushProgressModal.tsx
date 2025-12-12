@@ -74,7 +74,7 @@ export default function DraftsPushProgressModal({ estimatedMs = 60000, onClose }
           </div>
           {showReassure && (
             <div className="mt-2 text-xs text-gray-500">
-              Still generating… this usually takes about a minute.
+              Still generating… this normally takes 1-2 mins.
             </div>
           )}
         </div>

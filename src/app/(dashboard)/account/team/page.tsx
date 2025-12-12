@@ -85,7 +85,7 @@ export default function AccountTeamPage() {
           // Query auth.users table for name/full_name with COALESCE
           const { data: userData, error: userError } = await supabase
             .from('user_profiles')
-            .select('id, name')
+            .select('id, name, email')
             .eq('id', membership.user_id)
             .single()
           
@@ -96,7 +96,7 @@ export default function AccountTeamPage() {
           members.push({
             id: membership.user_id,
             name: userData?.name || 'Unknown',
-            email: membership.user_id === authUser?.id ? authUser.email || 'No email' : 'Email hidden',
+            email: userData?.email || 'No email',
             role: membership.role || 'member'
           })
         }
