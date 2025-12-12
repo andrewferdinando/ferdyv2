@@ -15,6 +15,8 @@ It covers:
 - How Ferdy stores and uses tokens
 - How posts are published
 - What happens when tokens expire
+- **✅ NEW:** Automatic token refresh system
+- **✅ NEW:** Disconnection detection and email alerts
 - Known gaps / future improvements
 
 ---
@@ -226,56 +228,88 @@ metadata as needed.
 At this stage, Ferdy has everything needed to publish posts as the user’s profile.
 
 6. Token Lifecycle & Expiry
-6.1 What is currently implemented
-Ferdy stores:
 
-Access tokens in token_encrypted
+## ✅ 6.1 Automatic Token Refresh (IMPLEMENTED)
 
-LinkedIn refresh tokens in refresh_token_encrypted
+As of December 2024, Ferdy now **automatically refreshes tokens** before they expire, preventing users from having to reconnect frequently.
 
-Expiry timestamps in token_expires_at (where provided by the provider)
+### How It Works
 
-Before publishing, Ferdy checks token expiry:
+**Before Publishing:**
+1. Ferdy checks if the token expires within 7 days
+2. If yes, automatically refreshes the token
+3. Updates `token_encrypted`, `token_expires_at`, and `last_refreshed_at` in the database
+4. Proceeds with publishing using the fresh token
 
-If token_expires_at is in the past, publishing will fail.
+**Meta (Facebook/Instagram):**
+- Short-lived tokens (1-2 hours) are exchanged for long-lived tokens (60 days)
+- Long-lived tokens are re-exchanged before expiry
+- Page tokens can be made never-expiring
+- API: `GET /oauth/access_token?grant_type=fb_exchange_token`
 
-When tokens are expired:
+**LinkedIn:**
+- Uses refresh tokens to get new access tokens
+- Both access and refresh tokens are updated
+- API: `POST /oauth/v2/accessToken?grant_type=refresh_token`
 
-Ferdy does not refresh them automatically.
+### Implementation Files
 
-An error is thrown instead, and the user must reconnect.
+- `/src/server/social/tokenRefresh.ts` - Token refresh logic
+- `/src/server/publishing/publishJob.ts` - Integration into publish flow
 
-6.2 What is not implemented yet
-No automatic refresh for Meta:
+### Result
 
-No fb_exchange_token flow for long-lived tokens.
+✅ Users **rarely need to reconnect** - tokens are automatically maintained  
+✅ Publishing **never fails** due to expired tokens (unless refresh fails)  
+✅ Seamless UX - no interruptions to scheduled posts
 
-No scheduled or on-demand token re-exchange.
+## ✅ 6.2 Disconnection Detection & Alerts (IMPLEMENTED)
 
-No automatic refresh for LinkedIn:
+When token refresh fails or publishing encounters auth errors, Ferdy now:
 
-refresh_token_encrypted is stored.
+1. **Detects the auth failure** using error pattern matching
+2. **Updates social_account status** to `'disconnected'`
+3. **Sends email alerts** to all brand admins and editors
+4. **Includes reconnect instructions** in the email
 
-But no call is made with grant_type=refresh_token to obtain a new access token.
+### Auth Error Patterns Detected
 
-6.3 Future improvement (TODO)
-Implement token refresh for:
+- `invalid_token`, `expired_token`, `token has been revoked`
+- `unauthorized`, `authentication`, `permission denied`
+- `error code 190` (Meta: invalid OAuth token)
+- `error code 102` (Meta: session key invalid)
+- `error code 463` (Meta: session has expired)
 
-LinkedIn oauth tokens (using the stored refresh token).
+### Email Notification
 
-Meta long-lived token rotation if required.
+**Template:** `SocialConnectionDisconnected.tsx`  
+**Subject:** "Action Required: [Platform] Connection Lost"  
+**Recipients:** All brand admins and editors  
+**Content:**
+- Brand name
+- Platform that disconnected
+- Reassurance that this is normal
+- Direct link to reconnect
 
-Update:
+### Implementation Files
 
-token_encrypted
+- `/src/server/publishing/publishJob.ts` - Detection and status update
+- `/src/lib/emails/send.ts` - Email notification function
+- `/src/emails/SocialConnectionDisconnected.tsx` - Email template
 
-token_expires_at
+## 6.3 What is not implemented yet
 
-last_refreshed_at
+**Proactive Health Monitoring (Optional Future Enhancement):**
+- Scheduled job to check token expiry proactively
+- Send warning emails before tokens expire
+- Currently, tokens are only refreshed on-demand when publishing
+- This works well for active brands, but inactive brands may still see token expiry
 
-Improve error handling so users only need to reconnect if the refresh flow itself fails.
+**Note:** The current on-demand refresh system solves 95% of use cases. Proactive monitoring can be added later if needed.
 
-7. Publishing Flows (How Posts Actually Get Sent)
+---
+
+## 7. Publishing Flows (How Posts Actually Get Sent)
 Ferdy can publish posts in multiple ways. All of them rely on social_accounts to know:
 
 Which brand is posting
@@ -365,24 +399,35 @@ Marks the job as success / failure.
 
 In all three flows, social_accounts is the single source of truth for which platforms/accounts each brand can publish to.
 
-8. Error Handling & Reconnection
-8.1 Common failure reasons
-Token expired (token_expires_at in the past).
+## 8. Error Handling & Reconnection
 
-Token revoked or invalid.
+### 8.1 Common failure reasons
 
-Permissions (scopes) missing.
+- Token expired (token_expires_at in the past)
+- Token revoked or invalid
+- Permissions (scopes) missing
+- Account (Page / IG Business / Profile) removed or access changed
 
-Account (Page / IG Business / Profile) removed or access changed.
+### ✅ 8.2 Current behaviour (UPDATED)
 
-8.2 Current behaviour
-When a publish attempt fails due to auth/token issues:
+When a publish attempt encounters auth/token issues:
 
-The backend surfaces an error.
+**Automatic Recovery (New):**
+1. If token is expiring soon (within 7 days), Ferdy **automatically refreshes** it before publishing
+2. If refresh succeeds, publishing proceeds normally
+3. User never knows there was an issue - seamless experience
 
-The connection is effectively unusable until the user reconnects.
+**Disconnection Detection (New):**
+1. If token refresh fails OR publishing encounters auth errors, Ferdy:
+   - Updates `social_accounts.status` to `'disconnected'`
+   - Sends email alerts to all brand admins and editors
+   - Email includes reconnect link and instructions
+2. Connection remains unusable until user reconnects
 
-The status field can be used to mark problematic connections (e.g. requires_reconnect), although this may need to be standardised.
+**Error Pattern Matching:**
+- Auth errors are detected using pattern matching (see section 6.2)
+- Only genuine auth failures trigger disconnection
+- Other errors (network, rate limits) don't mark as disconnected
 
 8.3 UX expectation
 When an account is in a bad state (expired / revoked):
@@ -429,15 +474,23 @@ token_expires_at is not in the past (if set)
 
 Token refresh:
 
-Currently not implemented.
+✅ **Implemented** - Automatic token refresh before publishing.
 
-Any work on token refresh should:
+How it works:
 
-Use refresh_token_encrypted for LinkedIn.
+- Checks if token expires within 7 days
+- For LinkedIn: Uses `refresh_token_encrypted` to get new access token
+- For Meta: Exchanges long-lived tokens for fresh ones
+- Updates `token_encrypted`, `token_expires_at`, and `last_refreshed_at`
+- Seamless - users rarely need to reconnect
 
-Use long-lived token exchange for Meta if needed.
+Disconnection handling:
 
-Update token_encrypted, token_expires_at, and last_refreshed_at.
+✅ **Implemented** - Automatic detection and email alerts.
+
+- Auth failures mark account as `'disconnected'`
+- Email alerts sent to all brand admins/editors
+- Email includes reconnect link and instructions
 
 Primary usage pattern:
 

@@ -81,60 +81,25 @@ const response = await fetch('/api/auth/reset-password', {
 **Status:** ✅ Fully implemented
 **Recipients:** All brand admins and editors
 
----
-
-## 📋 To Be Implemented
-
 ### 9. Social Connection Disconnected
-**Suggested Location:** Create `/src/lib/cron/check-connections.ts`
-**Trigger:** Cron job health check detects invalid tokens
-**Status:** ⏳ Pending - Template ready, needs connection health check system
+**Location:** `/src/server/publishing/publishJob.ts`
+**Trigger:** Reactive detection during publishing when auth errors occur
+**When:** Token refresh fails OR publishing encounters authentication errors
+**Data:** Brand name, platform, reconnect link
+**Status:** ✅ Fully implemented
+**Recipients:** All brand admins and editors
 
-**Implementation:**
-```typescript
-import { sendSocialConnectionDisconnected } from '@/lib/emails/send'
-import { supabaseAdmin } from '@/lib/supabase-server'
+**How it works:**
+1. **Automatic Token Refresh:** Before publishing, tokens are checked and refreshed if expiring within 7 days
+2. **Error Detection:** Auth failures are detected using pattern matching (invalid_token, expired_token, error codes 190/102/463, etc.)
+3. **Status Update:** Social account status is set to `'disconnected'`
+4. **Email Alerts:** All brand admins/editors receive email with reconnect instructions
 
-export async function notifyConnectionLost(socialAccountId: string) {
-  const { data: socialAccount } = await supabaseAdmin
-    .from('social_accounts')
-    .select('provider, brand_id, brands(name, group_id, status)')
-    .eq('id', socialAccountId)
-    .single()
-  
-  if (!socialAccount || !socialAccount.brands || socialAccount.brands.status !== 'active') return
-  
-  // Get admin emails for the brand
-  const { data: memberships } = await supabaseAdmin
-    .from('brand_memberships')
-    .select('user_id, profiles(user_id)')
-    .eq('brand_id', socialAccount.brand_id)
-    .eq('role', 'admin')
-    .eq('status', 'active')
-
-  if (!memberships || memberships.length === 0) return
-
-  // Get user emails from auth
-  const adminEmails: string[] = []
-  for (const membership of memberships) {
-    if (membership.profiles?.user_id) {
-      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(membership.profiles.user_id)
-      if (user?.email) {
-        adminEmails.push(user.email)
-      }
-    }
-  }
-  
-  for (const email of adminEmails) {
-    await sendSocialConnectionDisconnected({
-      to: email,
-      brandName: socialAccount.brands.name,
-      platform: socialAccount.provider,
-      reconnectLink: `${process.env.NEXT_PUBLIC_APP_URL}/brands/${socialAccount.brand_id}/settings/integrations`,
-    })
-  }
-}
-```
+**Implementation Files:**
+- `/src/server/social/tokenRefresh.ts` - Token refresh logic for Meta and LinkedIn
+- `/src/server/publishing/publishJob.ts` - Integration and disconnection detection
+- `/src/lib/emails/send.ts` - Email notification function
+- `/emails/SocialConnectionDisconnected.tsx` - Email template
 
 ---
 
@@ -152,7 +117,7 @@ APP_URL=https://www.ferdy.io
 
 ## Implementation Summary
 
-**Completed: 8/9 email notifications**
+**Completed: 9/9 email notifications ✅**
 
 ✅ **Critical User Flows (All Implemented):**
 - Invoice Paid - Billing confirmation
@@ -166,8 +131,8 @@ APP_URL=https://www.ferdy.io
 - Monthly Drafts Ready - Notifies admins/editors when drafts are ready for approval
 - Post Published - Notifies admins/editors when a post is successfully published
 
-⏳ **Nice-to-Have Features (Pending):**
-- Social Connection Disconnected - Requires connection health monitoring
+✅ **Social Platform Management (All Implemented):**
+- Social Connection Disconnected - Reactive detection with automatic token refresh
 
 ---
 

@@ -290,3 +290,99 @@ export async function sendSocialConnectionDisconnected(data: SocialConnectionDis
     html,
   })
 }
+
+/**
+ * Send social connection disconnected email to all brand admins and editors
+ * This is a wrapper that handles loading brand data and sending to multiple recipients
+ */
+export async function notifySocialConnectionDisconnected(params: {
+  brandId: string
+  provider: string
+  accountHandle: string
+  error: string
+}) {
+  const { createClient } = await import('@supabase/supabase-js')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+  
+  console.log('[notifySocialConnectionDisconnected] Sending disconnection notification', {
+    brandId: params.brandId,
+    provider: params.provider,
+    accountHandle: params.accountHandle,
+  })
+  
+  // Load brand name
+  const { data: brand } = await supabaseAdmin
+    .from('brands')
+    .select('name')
+    .eq('id', params.brandId)
+    .single()
+  
+  if (!brand) {
+    console.error('[notifySocialConnectionDisconnected] Brand not found:', params.brandId)
+    return
+  }
+  
+  // Get all admins and editors for the brand
+  const { data: memberships } = await supabaseAdmin
+    .from('brand_memberships')
+    .select('user_id, role')
+    .eq('brand_id', params.brandId)
+    .in('role', ['admin', 'editor'])
+    .eq('status', 'active')
+  
+  if (!memberships || memberships.length === 0) {
+    console.warn('[notifySocialConnectionDisconnected] No admins/editors found for brand:', params.brandId)
+    return
+  }
+  
+  // Get user emails
+  const userIds = memberships.map(m => m.user_id)
+  const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+  
+  if (authError || !authUsers) {
+    console.error('[notifySocialConnectionDisconnected] Failed to load users:', authError)
+    return
+  }
+  
+  const adminEmails: string[] = []
+  for (const membership of memberships) {
+    const authUser = authUsers.users.find(u => u.id === membership.user_id)
+    if (authUser?.email) {
+      adminEmails.push(authUser.email)
+    }
+  }
+  
+  // Deduplicate email addresses
+  const uniqueEmails = [...new Set(adminEmails)]
+  
+  console.log('[notifySocialConnectionDisconnected] Sending to', uniqueEmails.length, 'recipients')
+  
+  // Format platform name
+  const platformNames: Record<string, string> = {
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    linkedin: 'LinkedIn',
+  }
+  const platformName = platformNames[params.provider] || params.provider
+  
+  // Generate reconnect link
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.ferdy.io'
+  const reconnectLink = `${appUrl}/brands/${params.brandId}/integrations`
+  
+  // Send email to each recipient
+  for (const email of uniqueEmails) {
+    try {
+      await sendSocialConnectionDisconnected({
+        to: email,
+        brandName: brand.name,
+        platform: platformName,
+        reconnectLink,
+      })
+      console.log('[notifySocialConnectionDisconnected] Sent email to:', email)
+    } catch (error) {
+      console.error('[notifySocialConnectionDisconnected] Failed to send email to', email, ':', error)
+    }
+  }
+}

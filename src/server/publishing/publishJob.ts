@@ -7,6 +7,7 @@ import {
 import { publishFacebookPost } from './providers/facebook'
 import { publishInstagramFeedPost, publishInstagramStory } from './providers/instagram'
 import { sendPostPublished } from '@/lib/emails/send'
+import { refreshSocialAccountToken } from '../social/tokenRefresh'
 
 type DraftRow = {
   id: string
@@ -79,6 +80,30 @@ export async function publishJob(
     hasSocialAccount: !!socialAccount,
     brandId: draft.brand_id,
   })
+
+  // Refresh token if needed before publishing
+  if (socialAccount) {
+    console.log(`[publishJob] Checking if token refresh needed for ${provider} account ${socialAccount.id}`)
+    const refreshResult = await refreshSocialAccountToken(socialAccount.id)
+    
+    if (refreshResult.refreshed) {
+      console.log(`[publishJob] Token refreshed for ${provider} account ${socialAccount.id}`)
+      
+      // Reload social account with fresh token
+      const { data: freshAccount } = await supabaseAdmin
+        .from('social_accounts')
+        .select('*')
+        .eq('id', socialAccount.id)
+        .single()
+      
+      if (freshAccount) {
+        socialAccounts[provider] = freshAccount
+      }
+    } else if (!refreshResult.success) {
+      console.error(`[publishJob] Token refresh failed for ${provider} account ${socialAccount.id}:`, refreshResult.error)
+      // Continue with publishing - it will fail with auth error and trigger disconnection email
+    }
+  }
 
   const publishResult = await publishToChannel(jobChannel, draft, job, socialAccount)
 
@@ -185,6 +210,33 @@ export async function publishJob(
       error: publishResult.error,
     })
 
+    // Detect if this is an auth/token error and mark account as disconnected
+    if (socialAccount && isAuthError(publishResult.error)) {
+      console.warn(`[publishJob] Auth error detected, marking ${provider} account ${socialAccount.id} as disconnected`)
+      
+      await supabaseAdmin
+        .from('social_accounts')
+        .update({ 
+          status: 'disconnected',
+          last_error: publishResult.error,
+          disconnected_at: new Date().toISOString()
+        })
+        .eq('id', socialAccount.id)
+      
+      // Send disconnection email notification
+      try {
+        const { notifySocialConnectionDisconnected } = await import('@/lib/emails/send')
+        await notifySocialConnectionDisconnected({
+          brandId: draft.brand_id,
+          provider: socialAccount.provider,
+          accountHandle: socialAccount.handle || socialAccount.account_id,
+          error: publishResult.error
+        })
+      } catch (emailError) {
+        console.error('[publishJob] Failed to send disconnection email:', emailError)
+      }
+    }
+
     return {
       success: false,
       error: publishResult.error,
@@ -277,6 +329,34 @@ async function publishToChannel(
 /**
  * Send email notification to brand admins/editors when a post is published
  */
+/**
+ * Check if an error message indicates an authentication/token issue
+ */
+function isAuthError(error: string): boolean {
+  const authErrorPatterns = [
+    'invalid_token',
+    'expired_token',
+    'token expired',
+    'invalid access token',
+    'oauth',
+    'unauthorized',
+    'authentication',
+    'permission',
+    'access denied',
+    'invalid credentials',
+    'token has been revoked',
+    'user has not authorized',
+    'error validating access token',
+    'session has expired',
+    'error code 190', // Meta specific: invalid OAuth token
+    'error code 102', // Meta specific: session key invalid
+    'error code 463', // Meta specific: session has expired
+  ]
+  
+  const errorLower = error.toLowerCase()
+  return authErrorPatterns.some(pattern => errorLower.includes(pattern))
+}
+
 async function notifyPostPublished(
   draft: DraftRow,
   job: PostJobRow,
