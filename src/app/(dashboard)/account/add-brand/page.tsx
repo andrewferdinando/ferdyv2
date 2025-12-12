@@ -44,7 +44,7 @@ const BrandFormSchema = z.object({
     .optional()
     .refine(
       (value) => {
-        if (!value) return true
+        if (!value || value === 'https://' || value === 'http://') return true
         try {
           const url = new URL(value)
           return url.protocol === 'http:' || url.protocol === 'https:'
@@ -86,7 +86,7 @@ export default function AddBrandPage() {
   const [currency, setCurrency] = useState<string>('USD')
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
-    websiteUrl: '',
+    websiteUrl: 'https://',
     countryCode: '',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   })
@@ -212,17 +212,6 @@ export default function AddBrandPage() {
       ...prev,
       [field]: true,
     }))
-    
-    // Auto-add https:// to website URL on blur if user enters a value without protocol
-    if (field === 'websiteUrl') {
-      const currentValue = formValues.websiteUrl?.trim()
-      if (currentValue && !currentValue.match(/^https?:\/\//i)) {
-        setFormValues((prev) => ({
-          ...prev,
-          websiteUrl: `https://${currentValue}`,
-        }))
-      }
-    }
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -257,7 +246,7 @@ export default function AddBrandPage() {
       const brandId = await createBrandAction({
         userId: currentUserId!,
         name: formValues.name.trim(),
-        websiteUrl: formValues.websiteUrl?.trim() || '',
+        websiteUrl: formValues.websiteUrl?.trim() === 'https://' || formValues.websiteUrl?.trim() === 'http://' ? '' : formValues.websiteUrl?.trim() || '',
         countryCode: formValues.countryCode?.trim().toUpperCase(),
         timezone: formValues.timezone.trim(),
       })

@@ -10,7 +10,6 @@ import { useUserGroup } from '@/hooks/useUserGroup'
 interface TeamMember {
   id: string
   name: string
-  email: string
   role: string
 }
 
@@ -96,7 +95,6 @@ export default function AccountTeamPage() {
           members.push({
             id: membership.user_id,
             name: userData?.name || userData?.full_name || 'Unknown',
-            email: membership.user_id === authUser?.id ? authUser.email || 'No email' : 'Email hidden',
             role: membership.role || 'member'
           })
         }
@@ -433,7 +431,6 @@ export default function AccountTeamPage() {
                           >
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                              <p className="text-sm text-gray-500">{member.email}</p>
                             </div>
                             <div className="flex items-center space-x-3">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>

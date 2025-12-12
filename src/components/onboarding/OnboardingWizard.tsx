@@ -28,7 +28,7 @@ export function OnboardingWizard() {
     isMultipleBrands: null,
     groupName: '',
     brandName: '',
-    websiteUrl: '',
+    websiteUrl: 'https://',
     countryCode: 'US',
   })
   const [clientSecret, setClientSecret] = useState<string | null>(null)

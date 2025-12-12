@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       .insert({
         name: brandName,
         group_id: group.id,
-        website_url: websiteUrl || null,
+        website_url: (websiteUrl && websiteUrl !== 'https://' && websiteUrl !== 'http://') ? websiteUrl : null,
         country_code: countryCode || null,
       })
       .select()
