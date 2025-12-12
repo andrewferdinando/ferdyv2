@@ -73,6 +73,7 @@ For automated runs:
   - `command`: `SELECT public.run_framework_push_monthly();`
 
 - That function internally calls the same Push-to-Drafts logic as the UI.
+- **After drafts are created**, an email notification is sent to all brand admins and editors informing them that drafts are ready for approval (see `email-notifications.md`).
 
 ### 2.2 New Post from Schedule page
 
@@ -246,6 +247,7 @@ Publishing is handled by an API endpoint (e.g. `/api/publishing/run`) invoked by
      - `drafts.publish_status = 'published'`
      - `drafts.status = 'published'`
      - `drafts.published_at = now()`
+     - **Email notification sent** to all brand admins and editors (see `email-notifications.md`)
    - If **some jobs** failed:
      - `drafts.publish_status = 'partially_published'`
    - If **all jobs** failed:
@@ -292,6 +294,11 @@ Publishing logic should ignore deleted/cancelled jobs.
   - pg_cron job for monthly automation
   - Publishing engine design and 3rd-party cron usage
   - Copy generation pipeline
+
+- **2025-12-12** — Updated with email notification integration:
+  - Monthly Drafts Ready email sent after Push to Drafts
+  - Post Published email sent after successful publishing
+  - See `email-notifications.md` for complete details
 
 If you change:
 

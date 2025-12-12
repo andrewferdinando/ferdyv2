@@ -128,13 +128,22 @@ Group them by draft_id, so the system can treat each draft across its channels c
 3.3 Per-job publishing flow
 For each post_jobs row:
 
-Load:
+**1. Load required data:**
 
-The parent draft.
+- The parent draft
+- The brand's social auth credentials for the specified channel
 
-The brand's social auth credentials for the specified channel.
+**2. Automatic Token Refresh (NEW - Dec 2024):**
 
-Build a provider-specific payload:
+Before publishing, the system checks if social platform tokens need refreshing:
+
+- If token expires within 7 days, automatically refresh it
+- For Meta (Facebook/Instagram): Exchange long-lived token for fresh one
+- For LinkedIn: Use refresh_token to get new access token
+- Update `social_accounts` table with new token and expiry
+- See `social_api_connections.md` for full token refresh details
+
+**3. Build provider-specific payload:**
 
 Copy text (from draft.copy, formatted per channel rules).
 
@@ -152,27 +161,27 @@ publishToFacebookPage(...)
 
 publishToLinkedInProfile(...)
 
-Handle result:
+**4. Handle publishing result:**
 
-On success:
+**On success:**
+- `post_jobs.status = 'success'`
+- `post_jobs.external_post_id` set to provider's ID
+- `post_jobs.external_url` set to post URL (if available)
+- `post_jobs.published_at = now()`
+- **Email notification sent** to all brand admins and editors (see `email-notifications.md`)
 
-post_jobs.status = 'success'
+**On failure:**
+- `post_jobs.status = 'failed'`
+- `post_jobs.error` set to error message
+- **Auth Error Detection (NEW - Dec 2024):**
+  - If error indicates authentication failure (invalid_token, expired_token, error codes 190/102/463, etc.)
+  - Mark `social_accounts.status = 'disconnected'`
+  - **Send disconnection email** to all brand admins and editors
+  - Email includes reconnect link and reassuring message
+  - See `email-notifications.md` and `social_api_connections.md` for details
 
-post_jobs.external_post_id set to provider's ID
-
-post_jobs.external_url set to post URL (if available)
-
-post_jobs.published_at = now()
-
-On failure:
-
-post_jobs.status = 'failed'
-
-post_jobs.error set to error message
-
-In all cases:
-
-post_jobs.last_attempt_at = now()
+**In all cases:**
+- `post_jobs.last_attempt_at = now()`
 
 Repeat for all jobs in the batch.
 
@@ -304,6 +313,31 @@ The `post_jobs` table has a check constraint that only allows these status value
 
 **NOT** `scheduled` - that is a draft status, not a post_job status. Attempting to set `post_jobs.status = 'scheduled'` will violate the check constraint and fail.
 
+**Important: Token Refresh & Email Notifications (Dec 2024)**
+
+The publishing engine now includes:
+
+1. **Automatic Token Refresh:**
+   - Before publishing, checks if social platform tokens expire within 7 days
+   - Automatically refreshes Meta (Facebook/Instagram) and LinkedIn tokens
+   - Updates `social_accounts` table with fresh tokens
+   - Prevents most disconnections - users rarely need to reconnect
+   - Implementation: `/src/server/social/tokenRefresh.ts`
+
+2. **Email Notifications:**
+   - **Post Published:** Sent to all brand admins/editors after successful publishing
+   - **Social Connection Disconnected:** Sent when auth errors are detected
+   - Auth error detection uses pattern matching (invalid_token, error codes, etc.)
+   - Disconnection email includes reconnect link and reassuring message
+   - Implementation: `/src/lib/emails/send.ts` and `/emails/` templates
+
+3. **Disconnection Detection:**
+   - Auth failures automatically mark `social_accounts.status = 'disconnected'`
+   - Stores error details for debugging
+   - Triggers email notification to brand team
+
+See `email-notifications.md` and `social_api_connections.md` for complete details.
+
 Any change to:
 
 provider APIs
@@ -311,6 +345,11 @@ provider APIs
 retry behaviour
 
 supported channels
+
+token refresh logic
+
+email notifications
+
 should be reflected in this file and in related docs:
 
 draft_lifecycle.md
