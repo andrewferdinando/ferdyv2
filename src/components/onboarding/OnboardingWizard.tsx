@@ -15,6 +15,7 @@ interface OnboardingData {
   isMultipleBrands: boolean | null
   groupName: string
   brandName: string
+  websiteUrl: string
   countryCode: string
 }
 
@@ -27,6 +28,7 @@ export function OnboardingWizard() {
     isMultipleBrands: null,
     groupName: '',
     brandName: '',
+    websiteUrl: '',
     countryCode: 'US',
   })
   const [clientSecret, setClientSecret] = useState<string | null>(null)
@@ -62,6 +64,7 @@ export function OnboardingWizard() {
           isMultipleBrands: data.isMultipleBrands,
           groupName: data.groupName,
           brandName: data.brandName,
+          websiteUrl: data.websiteUrl,
           countryCode: data.countryCode,
         }),
       })
@@ -256,6 +259,24 @@ export function OnboardingWizard() {
                       className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                       placeholder={data.isMultipleBrands ? "Client Brand A" : "My Business"}
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700">
+                      Brand Website (Optional)
+                    </label>
+                    <input
+                      id="websiteUrl"
+                      name="websiteUrl"
+                      type="url"
+                      value={data.websiteUrl}
+                      onChange={(e) => setData({ ...data, websiteUrl: e.target.value })}
+                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="https://www.example.com"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      We'll use this to generate AI-powered content suggestions
+                    </p>
                   </div>
 
                   <div>

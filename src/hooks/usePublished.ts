@@ -145,7 +145,15 @@ export function usePublished(brandId: string) {
         return { ...normalizedDraft, assets: [] as Asset[] };
       }));
 
-      setPublished(publishedWithAssets as PublishedPost[]);
+      // Sort by published_at descending (most recent first)
+      // Use publishes.published_at if available, otherwise fall back to draft.published_at
+      const sorted = publishedWithAssets.sort((a, b) => {
+        const aTime = a.publishes?.published_at || a.published_at || a.scheduled_for || '1970-01-01';
+        const bTime = b.publishes?.published_at || b.published_at || b.scheduled_for || '1970-01-01';
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+      });
+
+      setPublished(sorted as PublishedPost[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch published posts');
     } finally {

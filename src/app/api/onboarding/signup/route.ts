@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       isMultipleBrands,
       groupName,
       brandName,
+      websiteUrl,
       countryCode,
     } = body
 
@@ -137,6 +138,8 @@ export async function POST(request: NextRequest) {
       .insert({
         name: brandName,
         group_id: group.id,
+        website_url: websiteUrl || null,
+        country_code: countryCode || null,
       })
       .select()
       .single()
