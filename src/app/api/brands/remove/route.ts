@@ -3,8 +3,6 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { getStripe } from '@/lib/stripe'
 import { sendBrandDeleted } from '@/lib/emails/send'
 
-const stripe = getStripe()
-
 function extractToken(request: Request) {
   const header = request.headers.get('Authorization')
   if (!header) return null
@@ -15,6 +13,9 @@ function extractToken(request: Request) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Stripe lazily (not at module load time)
+    const stripe = getStripe()
+    
     const { brandId, groupId } = await request.json()
 
     if (!brandId || !groupId) {

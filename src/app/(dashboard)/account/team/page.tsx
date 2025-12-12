@@ -68,8 +68,18 @@ export default function AccountTeamPage() {
       }
 
       try {
+        // Get current session token
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          throw new Error('No session')
+        }
+
         // Fetch team members from API (uses auth.users for names)
-        const response = await fetch('/api/team/members')
+        const response = await fetch('/api/team/members', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
         if (!response.ok) {
           throw new Error('Failed to fetch team members')
         }

@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get current user from session using server-side client
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-        },
-      }
-    )
+    // Get user ID from Authorization header or cookie
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Extract token from "Bearer <token>" format
+    const token = authHeader.replace('Bearer ', '')
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Verify the token and get user
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

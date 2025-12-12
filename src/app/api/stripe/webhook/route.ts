@@ -9,9 +9,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!.trim()
-
 export async function POST(request: NextRequest) {
+  // Initialize webhook secret lazily (not at module load time)
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || ''
+  
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')!
 
