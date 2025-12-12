@@ -637,21 +637,19 @@ export default function EditPostPage() {
         return;
       }
 
-      // Update the post_job if it exists
-      if (draft?.post_job_id) {
-        const { error: postJobError } = await supabase
-          .from('post_jobs')
-          .update({
-            scheduled_at: scheduledAt.toISOString(),
-            channel: selectedChannels[0], // Use first channel for post_job constraint
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', draft.post_job_id);
+      // Update ALL post_jobs for this draft (not just the one referenced by post_job_id)
+      // This ensures all channels get the updated scheduled time
+      const { error: postJobError } = await supabase
+        .from('post_jobs')
+        .update({
+          scheduled_at: scheduledAt.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('draft_id', draftId);
 
-        if (postJobError) {
-          console.error('Error updating post_job:', postJobError);
-          // Don't fail the whole operation for this
-        }
+      if (postJobError) {
+        console.error('Error updating post_jobs:', postJobError);
+        // Don't fail the whole operation for this
       }
 
       console.log('Post updated successfully:', data);
@@ -834,21 +832,20 @@ export default function EditPostPage() {
         approved: data.approved,
       })
 
-      // Update the post_job if it exists
-      if (draft?.post_job_id) {
-        const { error: postJobError } = await supabase
-          .from('post_jobs')
-          .update({
-            scheduled_at: scheduledAt.toISOString(),
-            channel: selectedChannels[0], // Use first channel for post_job constraint
-            status: 'pending' // Update status to pending (valid post_job status)
-          })
-          .eq('id', draft.post_job_id);
+      // Update ALL post_jobs for this draft (not just the one referenced by post_job_id)
+      // This ensures all channels get the updated scheduled time
+      const { error: postJobError } = await supabase
+        .from('post_jobs')
+        .update({
+          scheduled_at: scheduledAt.toISOString(),
+          status: 'pending', // Update status to pending (valid post_job status)
+          updated_at: new Date().toISOString()
+        })
+        .eq('draft_id', draftId);
 
-        if (postJobError) {
-          console.error('Error updating post_job:', postJobError);
-          // Don't fail the whole operation for this
-        }
+      if (postJobError) {
+        console.error('Error updating post_jobs:', postJobError);
+        // Don't fail the whole operation for this
       }
 
       console.log('Post approved successfully:', data);
