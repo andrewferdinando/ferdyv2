@@ -77,7 +77,7 @@ export default function BottomCTA() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">Book training / onboarding</h3>
+                    <h3 className="text-xl font-bold mb-2 text-gray-900">Book training / implementation (approx. 60-90 mins)</h3>
                     <p className="text-gray-600 mb-3">Schedule a live session where we set up your account together and show your team how to get the most from Ferdy.</p>
                     <p className="text-sm text-blue-600 font-medium mb-3">Free, launch offer</p>
                     <button 
