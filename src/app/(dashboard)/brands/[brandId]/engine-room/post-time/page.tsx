@@ -114,11 +114,12 @@ export default function EngineRoomPostTimePage() {
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm transition focus:border-transparent focus:ring-2 focus:ring-[#6366F1]"
                       placeholder="10:00"
                     />
-                    {defaultPostTimeFromHook === '10:00' && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Currently using default: 10:00 AM
-                      </p>
-                    )}
+                    <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                      Automatically sets a default time for posts within new Categories. You can override the time for individual Categories by editing the category.
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                      Leave this blank to remove the default. Any new Categories will inherit the time set here.
+                    </p>
                   </div>
                 </div>
 
@@ -214,18 +215,6 @@ export default function EngineRoomPostTimePage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-
-              <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-900">How It Works</h2>
-                <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                  This time auto-populates new subcategories so your automation stays consistent. You can still override the
-                  time for individual subcategories when needed.
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                  Leave the field blank to remove the default. New subcategories created afterwards will inherit whatever time
-                  you set here.
-                </p>
               </div>
 
               {/* Attribution Box */}
