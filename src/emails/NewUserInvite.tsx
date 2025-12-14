@@ -24,13 +24,7 @@ export function NewUserInvite({
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        <strong>{inviterName}</strong> has invited you to join <strong>{brandName}</strong> on Ferdy,
-        the AI-powered social media automation platform.
-      </Text>
-
-      <Text style={emailStyles.paragraph}>
-        Ferdy helps teams automate their social media content creation and scheduling,
-        saving hours of work every week.
+        <strong>{inviterName}</strong> has invited you to join <strong>{brandName}</strong> on Ferdy.
       </Text>
 
       <Section style={{ textAlign: 'center' }}>
@@ -41,7 +35,7 @@ export function NewUserInvite({
 
       <Text style={emailStyles.paragraph}>
         This invitation link will expire in 7 days. If you have any questions,
-        feel free to reach out to {inviterName} or our support team.
+        feel free to reach out to our support team.
       </Text>
 
       <Text style={emailStyles.paragraph}>
@@ -49,8 +43,6 @@ export function NewUserInvite({
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        Best regards,
-        <br />
         The Ferdy Team
       </Text>
     </EmailLayout>

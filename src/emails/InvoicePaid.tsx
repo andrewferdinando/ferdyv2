@@ -73,16 +73,10 @@ export function InvoicePaid({
       </Section>
 
       <Text style={emailStyles.paragraph}>
-        Your subscription is active and all your brands are ready to go.
-      </Text>
-
-      <Text style={emailStyles.paragraph}>
         Thank you for choosing Ferdy!
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        Best regards,
-        <br />
         The Ferdy Team
       </Text>
     </EmailLayout>

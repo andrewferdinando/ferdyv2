@@ -61,12 +61,10 @@ export function PostPublished({
       </Section>
 
       <Text style={emailStyles.paragraph}>
-        Keep up the great work! Your content is reaching your audience right on schedule.
+        Keep up the great work!
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        Best regards,
-        <br />
         The Ferdy Team
       </Text>
     </EmailLayout>

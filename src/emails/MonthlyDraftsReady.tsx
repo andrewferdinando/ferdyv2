@@ -33,26 +33,13 @@ export function MonthlyDraftsReady({
         <Text style={statsLabel}>Posts Ready for Review</Text>
       </Section>
 
-      <Text style={emailStyles.paragraph}>
-        These posts are now waiting for your review and approval. Take a few minutes to:
-      </Text>
 
-      <ul style={emailStyles.list}>
-        <li style={emailStyles.listItem}>Review the content and make any edits</li>
-        <li style={emailStyles.listItem}>Approve posts you're happy with</li>
-        <li style={emailStyles.listItem}>Schedule them for publishing</li>
-      </ul>
 
       <Section style={{ textAlign: 'center' }}>
         <Link href={approvalLink} style={emailStyles.button}>
           Review & Approve Drafts
         </Link>
       </Section>
-
-      <Text style={emailStyles.paragraph}>
-        The sooner you approve them, the sooner they'll be scheduled and published to your
-        social media accounts.
-      </Text>
 
       <Text style={emailStyles.paragraph}>
         Best regards,
