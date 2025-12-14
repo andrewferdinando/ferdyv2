@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
+// Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
+/**
+ * GET /api/team/members
+ * Fetches all members of the current user's group
+ */
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from Authorization header or cookie
+    // Get user ID from Authorization header
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
+      console.error('[team/members API] No authorization header')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,8 +25,11 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
+      console.error('[team/members API] Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('[team/members API] Fetching members for user:', user.id)
 
     // Get user's group membership
     const { data: membership, error: membershipError } = await supabaseAdmin
@@ -29,8 +39,11 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (membershipError || !membership) {
+      console.error('[team/members API] No group membership found:', membershipError)
       return NextResponse.json({ error: 'No group membership found' }, { status: 404 })
     }
+
+    console.log('[team/members API] Found group:', membership.group_id)
 
     // Get all group members
     const { data: memberships, error: membershipsError } = await supabaseAdmin
@@ -42,6 +55,8 @@ export async function GET(request: NextRequest) {
       console.error('[team/members API] Error fetching memberships:', membershipsError)
       return NextResponse.json({ error: 'Failed to fetch team members' }, { status: 500 })
     }
+
+    console.log('[team/members API] Found', memberships?.length || 0, 'members')
 
     // Fetch user details from auth.users for each member
     const members = []
@@ -80,6 +95,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    console.log('[team/members API] Returning', members.length, 'members')
     return NextResponse.json({ members })
   } catch (error) {
     console.error('[team/members API] Unexpected error:', error)
