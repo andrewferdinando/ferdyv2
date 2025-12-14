@@ -1,22 +1,22 @@
 const steps = [
   {
     number: "01",
-    title: "Define your repeatable posts",
-    description: "You tell us the categories you want automated: offers, reminders, FAQs, products, etc.",
+    title: "Define your structure and assets",
+    description: "Tell Ferdy what to post (offers, FAQs, products, reminders) and upload the images and videos you're happy to use.",
     bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
     numberColor: "text-blue-300"
   },
   {
     number: "02",
-    title: "Ferdy generates and publishes them",
-    description: "Posts repeat based on your chosen frequency (daily, weekly, monthly).",
+    title: "Ferdy creates and schedules content",
+    description: "Posts are generated using your structure and approved assets, then scheduled on a daily, weekly or monthly rhythm.",
     bgColor: "bg-gradient-to-br from-purple-50 to-pink-100",
     numberColor: "text-purple-300"
   },
   {
     number: "03",
-    title: "You stay in control",
-    description: "Approve, edit or skip. Copy and content stays fully in your hands.",
+    title: "You approve what goes live",
+    description: "Review, edit or skip posts anytime. Nothing publishes without your sign-off.",
     bgColor: "bg-gradient-to-br from-orange-50 to-pink-50",
     numberColor: "text-orange-300",
     hasLock: true
