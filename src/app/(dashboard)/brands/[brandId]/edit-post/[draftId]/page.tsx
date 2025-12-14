@@ -62,8 +62,8 @@ export default function EditPostPage() {
   
   console.log('Edit Post page rendered with params:', { brandId, draftId });
   
-  // Fetch brand assets
-  const { assets, loading: assetsLoading } = useAssets(brandId, { onlyReady: true });
+  // Fetch brand assets (include all assets, even those needing tags, so attached assets show)
+  const { assets, loading: assetsLoading } = useAssets(brandId, { onlyReady: false });
   
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loading, setLoading] = useState(true);

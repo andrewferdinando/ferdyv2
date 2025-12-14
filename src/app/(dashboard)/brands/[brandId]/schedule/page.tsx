@@ -29,6 +29,7 @@ interface Draft {
   created_by: string;
   created_at: string;
   approved: boolean;
+  scheduled_for?: string; // UTC timestamp from drafts table
   status: DraftStatus;
   post_jobs: {
     id: string;
@@ -311,11 +312,12 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
 
   // Sort drafts by scheduled date (earliest first), fallback to created_at if no scheduled_at
   const sortedDrafts = [...drafts].sort((a, b) => {
-    const dateA = a.post_jobs?.scheduled_at 
-      ? new Date(a.post_jobs.scheduled_at).getTime() 
+    // Use scheduled_for from draft (which comes from drafts table), not post_jobs
+    const dateA = a.scheduled_for 
+      ? new Date(a.scheduled_for).getTime() 
       : new Date(a.created_at).getTime();
-    const dateB = b.post_jobs?.scheduled_at 
-      ? new Date(b.post_jobs.scheduled_at).getTime() 
+    const dateB = b.scheduled_for 
+      ? new Date(b.scheduled_for).getTime() 
       : new Date(b.created_at).getTime();
     return dateA - dateB; // Ascending order (earliest first)
   });
