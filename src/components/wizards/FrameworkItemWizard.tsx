@@ -2680,13 +2680,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               }}
                               error={scheduleErrors.timeOfDay}
                             />
-                          </FormField>
-                          <FormField label="Timezone">
-                            <TimezoneSelect
-                              value={schedule.timezone}
-                              onChange={(timezone) => setSchedule(prev => ({ ...prev, timezone }))}
-                              placeholder="Select a timezone"
-                            />
+                            <p className="mt-2 text-sm text-gray-600">
+                              Timezone: {brand?.timezone || 'Not set'}
+                            </p>
                           </FormField>
                         </div>
                       )}
@@ -2738,13 +2734,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               }}
                               error={scheduleErrors.timeOfDay}
                             />
-                          </FormField>
-                          <FormField label="Timezone">
-                            <TimezoneSelect
-                              value={schedule.timezone}
-                              onChange={(timezone) => setSchedule(prev => ({ ...prev, timezone }))}
-                              placeholder="Select a timezone"
-                            />
+                            <p className="mt-2 text-sm text-gray-600">
+                              Timezone: {brand?.timezone || 'Not set'}
+                            </p>
                           </FormField>
                         </div>
                       )}
@@ -2871,13 +2863,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               }}
                               error={scheduleErrors.timeOfDay}
                             />
-                          </FormField>
-                          <FormField label="Timezone">
-                            <TimezoneSelect
-                              value={schedule.timezone}
-                              onChange={(timezone) => setSchedule(prev => ({ ...prev, timezone }))}
-                              placeholder="Select a timezone"
-                            />
+                            <p className="mt-2 text-sm text-gray-600">
+                              Timezone: {brand?.timezone || 'Not set'}
+                            </p>
                           </FormField>
                         </div>
                       )}
