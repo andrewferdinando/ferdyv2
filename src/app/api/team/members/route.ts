@@ -31,17 +31,21 @@ export async function GET(request: NextRequest) {
 
     console.log('[team/members API] Fetching members for user:', user.id)
 
-    // Get user's group membership
-    const { data: membership, error: membershipError } = await supabaseAdmin
+    // Get user's group memberships (user may belong to multiple groups)
+    const { data: memberships, error: membershipError } = await supabaseAdmin
       .from('group_memberships')
       .select('group_id')
       .eq('user_id', user.id)
-      .single()
+      .order('created_at', { ascending: true })
 
-    if (membershipError || !membership) {
+    if (membershipError || !memberships || memberships.length === 0) {
       console.error('[team/members API] No group membership found:', membershipError)
       return NextResponse.json({ error: 'No group membership found' }, { status: 404 })
     }
+
+    // Use the first (oldest) group membership for now
+    // TODO: In the future, allow users to switch between groups
+    const membership = memberships[0]
 
     console.log('[team/members API] Found group:', membership.group_id)
 
