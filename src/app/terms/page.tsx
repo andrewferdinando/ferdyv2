@@ -77,7 +77,6 @@ const sections = [
       <div className="mt-4 space-y-4 text-base leading-7 text-gray-700">
         <p>Ferdy AI may offer free and paid subscription plans.</p>
         <p>Paid subscriptions are billed on a recurring basis unless canceled before the next billing cycle.</p>
-        <p>No refunds are provided for partial subscription periods.</p>
       </div>
     ),
   },
