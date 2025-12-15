@@ -38,6 +38,22 @@ export default function Hero() {
             </div>
           </div>
 
+          {/* Divider */}
+          <div className="max-w-4xl mx-auto mt-20 mb-16">
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+          </div>
+
+          {/* Section Title & Description */}
+          <div className="max-w-3xl mx-auto text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Automate your repeatable social posts
+            </h2>
+            <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
+              Define your posts categories. Give Ferdy context. We'll create and publish your posts every month.
+            </p>
+          </div>
+
+          {/* Illustration */}
           <div className="relative mx-auto max-w-6xl">
             <div className="relative z-20 transform hover:scale-[1.02] transition-transform duration-500">
               <img 
