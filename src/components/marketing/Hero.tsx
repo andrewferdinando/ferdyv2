@@ -52,9 +52,9 @@ export default function Hero() {
               </div>
               <div className="aspect-[16/9] bg-white relative p-1">
                 <img 
-                  src="/images/hero_visualization.png" 
-                  alt="Ferdy calendar dashboard" 
-                  className="w-full h-full object-cover rounded-lg"
+                  src="/images/hero_illustration.png" 
+                  alt="Ferdy automation workflow - from categories and content to scheduled social posts" 
+                  className="w-full h-full object-contain rounded-lg"
                 />
               </div>
             </div>
