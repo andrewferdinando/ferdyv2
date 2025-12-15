@@ -39,24 +39,12 @@ export default function Hero() {
           </div>
 
           <div className="relative mx-auto max-w-6xl">
-            <div className="rounded-2xl border-4 border-white bg-white shadow-2xl overflow-hidden relative z-20 transform hover:scale-[1.02] transition-transform duration-500">
-              <div className="bg-white border-b px-4 py-3 flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                </div>
-                <div className="mx-auto text-xs font-medium text-gray-500 bg-gray-100 px-4 py-1.5 rounded-full">
-                  ferdy.app/calendar
-                </div>
-              </div>
-              <div className="aspect-[16/9] bg-white relative p-1">
-                <img 
-                  src="/images/hero_illustration.png" 
-                  alt="Ferdy automation workflow - from categories and content to scheduled social posts" 
-                  className="w-full h-full object-contain rounded-lg"
-                />
-              </div>
+            <div className="relative z-20 transform hover:scale-[1.02] transition-transform duration-500">
+              <img 
+                src="/images/hero_illustration.png" 
+                alt="Ferdy automation workflow - from categories and content to scheduled social posts" 
+                className="w-full h-auto rounded-2xl shadow-2xl"
+              />
             </div>
           </div>
         </div>
