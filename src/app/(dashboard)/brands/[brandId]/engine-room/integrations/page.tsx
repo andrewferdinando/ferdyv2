@@ -56,13 +56,14 @@ const socialProviders: SocialProvider[] = [
     color: '#E4405F',
     description: 'Connect the Instagram Business Account linked to your Facebook Page.',
   },
-  {
-    id: 'linkedin',
-    name: 'LinkedIn Profile',
-    icon: 'linkedin',
-    color: '#0A66C2',
-    description: 'Connect to your personal LinkedIn profile.',
-  },
+  // LinkedIn temporarily hidden
+  // {
+  //   id: 'linkedin',
+  //   name: 'LinkedIn Profile',
+  //   icon: 'linkedin',
+  //   color: '#0A66C2',
+  //   description: 'Connect to your personal LinkedIn profile.',
+  // },
 ]
 
 // Social Icon Component with image fallback to SVG
@@ -400,15 +401,6 @@ export default function IntegrationsPage() {
                     <li>
                       <span className="font-semibold text-gray-900">Instagram:</span> Only Instagram Business or Creator
                       accounts linked to the connected Facebook Page can be used.
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="text-base font-semibold text-gray-950">LinkedIn</h4>
-                  <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                    <li>
-                      <span className="font-semibold text-gray-900">LinkedIn:</span> Connect a personal LinkedIn profile
-                      that can publish to your own feed.
                     </li>
                   </ul>
                 </div>
