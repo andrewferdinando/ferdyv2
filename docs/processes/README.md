@@ -103,6 +103,14 @@ Directory containing logo files and other brand assets:
 
 ---
 
+## 📊 Internal Tools & Monitoring
+
+### **Super Admin Analytics**
+`analytics.md`
+Documents the internal analytics dashboard for super admins, including the Posts Report, Users Last Login, New User Invites, and Notifications Sent tabs.
+
+---
+
 ## 🏗 Future Additions (Reserved)
 
 - `copy_generation.md` (Deep dive into AI copy generation)
