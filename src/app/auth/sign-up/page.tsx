@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { Input } from '@/components/ui/Input'
 import { Form } from '@/components/ui/Form'
 import { getTimezonesByCountry, getAllTimezones } from '@/lib/utils/timezone'
+import { countries, getDefaultTimezone } from '@/lib/utils/countries'
 
 interface BrandData {
   name: string
@@ -45,24 +46,7 @@ export default function SignUpPage() {
     ? timezonesByCountry[brandData.country_code]
     : allTimezones
 
-  // Common country codes (ISO 3166-1 alpha-2)
-  const countries = [
-    { code: 'NZ', name: 'New Zealand' },
-    { code: 'AU', name: 'Australia' },
-    { code: 'US', name: 'United States' },
-    { code: 'GB', name: 'United Kingdom' },
-    { code: 'CA', name: 'Canada' },
-    { code: 'JP', name: 'Japan' },
-    { code: 'CN', name: 'China' },
-    { code: 'IN', name: 'India' },
-    { code: 'DE', name: 'Germany' },
-    { code: 'FR', name: 'France' },
-    { code: 'BR', name: 'Brazil' },
-    { code: 'MX', name: 'Mexico' },
-    { code: 'ZA', name: 'South Africa' },
-    { code: 'SG', name: 'Singapore' },
-    { code: 'HK', name: 'Hong Kong' },
-  ]
+  // Countries are imported from @/lib/utils/countries
   
   const [userData, setUserData] = useState<UserData>({
     name: '',

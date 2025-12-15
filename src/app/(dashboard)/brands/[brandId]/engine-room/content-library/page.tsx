@@ -211,6 +211,12 @@ export default function ContentLibraryPage() {
         const newAsset = assets.find(asset => asset.id === assetIds[0])
         if (newAsset) {
           setEditingAssetData(newAsset)
+          // Set media filter based on uploaded asset type so user sees the correct tab
+          if (newAsset.asset_type === 'video') {
+            setMediaFilter('videos')
+          } else {
+            setMediaFilter('images')
+          }
         }
       }, 500)
     }

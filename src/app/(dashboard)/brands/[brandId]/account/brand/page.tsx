@@ -6,20 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
 import { Brand } from '@/hooks/useBrands';
-
-// Country options for dropdown
-const countries = [
-  { code: 'NZ', name: 'New Zealand', timezone: 'Pacific/Auckland' },
-  { code: 'AU', name: 'Australia', timezone: 'Australia/Sydney' },
-  { code: 'US', name: 'United States', timezone: 'America/New_York' },
-  { code: 'CA', name: 'Canada', timezone: 'America/Toronto' },
-  { code: 'GB', name: 'United Kingdom', timezone: 'Europe/London' },
-  { code: 'DE', name: 'Germany', timezone: 'Europe/Berlin' },
-  { code: 'FR', name: 'France', timezone: 'Europe/Paris' },
-  { code: 'JP', name: 'Japan', timezone: 'Asia/Tokyo' },
-  { code: 'SG', name: 'Singapore', timezone: 'Asia/Singapore' },
-  { code: 'IN', name: 'India', timezone: 'Asia/Kolkata' },
-];
+import { countries, getCountryByCode } from '@/lib/utils/countries';
 
 export default function BrandSettingsPage() {
   const params = useParams();

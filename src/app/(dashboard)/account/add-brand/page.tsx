@@ -10,27 +10,15 @@ import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/ToastProvider'
 import { supabase } from '@/lib/supabase-browser'
 import { getTimezonesByCountry, getAllTimezones } from '@/lib/utils/timezone'
+import { countries } from '@/lib/utils/countries'
 import { createBrandAction } from './actions'
 import { z } from 'zod'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
+// Build country options from the countries utility
 const CountryOptions = [
   { code: '', name: 'Select a country (optional)' },
-  { code: 'NZ', name: 'New Zealand' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'CN', name: 'China' },
-  { code: 'IN', name: 'India' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'MX', name: 'Mexico' },
-  { code: 'ZA', name: 'South Africa' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'HK', name: 'Hong Kong' },
+  ...countries.map(c => ({ code: c.code, name: c.name }))
 ]
 
 const BrandFormSchema = z.object({

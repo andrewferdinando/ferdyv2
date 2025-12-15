@@ -39,7 +39,7 @@ export default function ChannelSelector({
     { id: 'instagram_feed', label: 'Instagram Feed' },
     { id: 'instagram_story', label: 'Instagram Story' },
     { id: 'facebook', label: 'Facebook' },
-    { id: 'linkedin_profile', label: 'LinkedIn Profile' },
+    // LinkedIn Profile removed - not currently supported
   ]
 
   const toggleChannel = (channelId: string) => {

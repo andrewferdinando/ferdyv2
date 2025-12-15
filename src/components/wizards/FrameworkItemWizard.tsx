@@ -139,7 +139,7 @@ const CHANNELS = [
   { value: 'instagram', label: 'Instagram Feed' },
   { value: 'instagram_story', label: 'Instagram Story' },
   { value: 'facebook', label: 'Facebook' },
-  { value: 'linkedin', label: 'LinkedIn Profile' },
+  // LinkedIn Profile removed - not currently supported
 ]
 
 type ScheduleFrequency = 'daily' | 'weekly' | 'monthly' | 'specific'

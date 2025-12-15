@@ -77,7 +77,7 @@ export function EventOccurrencesManager({
     { value: 'instagram', label: 'Instagram Feed' },
     { value: 'instagram_story', label: 'Instagram Story' },
     { value: 'facebook', label: 'Facebook' },
-    { value: 'linkedin', label: 'LinkedIn Profile' },
+    // LinkedIn Profile removed - not currently supported
   ]
 
 const formatTimeDisplay = (time: string) => {
