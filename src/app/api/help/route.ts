@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Render email template
-    const emailHtml = render(
+    const emailHtml = await render(
       HelpRequest({
         userName: body.userName,
         userEmail: body.userEmail,
