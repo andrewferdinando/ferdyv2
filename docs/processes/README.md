@@ -85,6 +85,24 @@ Provides a comprehensive guide to access control, including group-level and bran
 
 ---
 
+## 🎨 Design & Brand Assets
+
+### **Website Design Guide**
+`website_design_guide.md`
+Comprehensive design system documentation including brand identity, logo usage, typography, color palette, UI components, and illustration guidelines.
+
+### **Hero Illustration Design**
+`hero_illustration_design.md`
+Process documentation for creating and maintaining hero illustrations, including design philosophy, visual structure, specifications, and version history.
+
+### **Brand Assets**
+`assets/`
+Directory containing logo files and other brand assets:
+- `ferdy_logo_transparent.png` - Full wordmark logo
+- `ferdy_favicon_white.png` - Icon/favicon
+
+---
+
 ## 🏗 Future Additions (Reserved)
 
 - `copy_generation.md` (Deep dive into AI copy generation)
