@@ -46,10 +46,10 @@ export default function Hero() {
           {/* Section Title & Description */}
           <div className="max-w-3xl mx-auto text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Automate your repeatable social posts
+              Turn recurring posts into a system
             </h2>
             <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-              Define your posts categories. Give Ferdy context. We'll create and publish your posts every month.
+              Define your post categories, frequency, and assets once. Ferdy turns that into a reliable monthly publishing system.
             </p>
           </div>
 
