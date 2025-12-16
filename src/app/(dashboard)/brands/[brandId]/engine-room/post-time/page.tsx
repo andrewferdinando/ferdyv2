@@ -115,10 +115,7 @@ export default function EngineRoomPostTimePage() {
                       placeholder="10:00"
                     />
                     <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                      Automatically sets a default time for posts within new Categories. You can override the time for individual Categories by editing the category.
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                      Leave this blank to remove the default. Any new Categories will inherit the time set here.
+                      Automatically sets a default time for posts within new Categories. You can override the time for individual Categories by editing the category. Leave this blank to remove the default. Any new Categories will inherit the time set here.
                     </p>
                   </div>
                 </div>

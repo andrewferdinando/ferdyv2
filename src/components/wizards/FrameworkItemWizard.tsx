@@ -2317,6 +2317,32 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           })}
                         </div>
                       </FormField>
+
+                      {/* Post Time Override */}
+                      <FormField label="Post time (optional override)">
+                        <Input
+                          type="time"
+                          value={details.post_time || ''}
+                          onChange={(e) => {
+                            const newTime = e.target.value || null
+                            setDetails(prev => ({ 
+                              ...prev, 
+                              post_time: newTime
+                            }))
+                            // Also update schedule timeOfDay to keep them in sync
+                            // Use newTime if set, otherwise fall back to brand default
+                            const timeToUse = newTime || defaultPostTime || ''
+                            setSchedule(prev => ({ ...prev, timeOfDay: timeToUse }))
+                          }}
+                          placeholder={defaultPostTime || '10:00'}
+                        />
+                        <p className="mt-2 text-sm text-gray-600">
+                          {details.post_time 
+                            ? `This category will post at ${details.post_time}. Leave blank to use brand default (${defaultPostTime || '10:00'}).`
+                            : `Uses brand default time: ${defaultPostTime || '10:00'}. Set a time to override for this category.`
+                          }
+                        </p>
+                      </FormField>
                     </div>
                   </div>
                 )}
