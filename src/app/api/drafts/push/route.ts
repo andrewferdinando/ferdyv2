@@ -139,12 +139,12 @@ export async function POST(req: NextRequest) {
       .eq('brand_id', brandId)
       .eq('is_active', true);
 
-    // Fetch subcategories for name/url/description/url_page_summary/default_copy_length
+    // Fetch subcategories for name/url/description/url_page_summary/default_copy_length/default_hashtags
     // Note: frequency_type is NOT in subcategories table - we derive it from rule.frequency
     const subcategoryIds = scheduleRules?.map(r => r.subcategory_id).filter(Boolean) as string[] || [];
     const { data: subcategories, error: subcategoryError } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, url, detail, url_page_summary, subcategory_type, settings, default_copy_length')
+      .select('id, name, url, detail, url_page_summary, subcategory_type, settings, default_copy_length, default_hashtags')
       .in('id', subcategoryIds);
 
     if (subcategoryError) {

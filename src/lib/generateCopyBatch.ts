@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import OpenAI from "openai";
 import { generatePostCopyFromContext, type PostCopyPayload } from "@/lib/postCopy";
+import { normalizeHashtags } from "@/lib/utils/hashtags";
 
 // Helper to sleep between iterations
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -191,6 +192,14 @@ async function selectAssetsForDraft(
   }
 }
 
+// Helper to extract hashtags from a block of text
+function extractHashtagsFromText(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(/#[\p{L}\p{N}_]+/gu) || [];
+  // Strip leading # for normalization via normalizeHashtags
+  return matches.map(tag => tag.replace(/#/g, "").trim()).filter(Boolean);
+}
+
 // Shared batch processing function
 export async function processBatchCopyGeneration(
   brandId: string,
@@ -203,6 +212,38 @@ export async function processBatchCopyGeneration(
   let processed = 0;
   let skipped = 0;
   let failed = 0;
+
+  // Preload subcategory default hashtags for all drafts in this batch
+  const subcategoryIdsForBatch = Array.from(
+    new Set(
+      drafts
+        .map((d) => d.subcategoryId)
+        .filter((id): id is string => !!id)
+    )
+  );
+
+  const subcategoryHashtagsMap = new Map<string, string[]>();
+
+  if (subcategoryIdsForBatch.length > 0) {
+    try {
+      const { data: subcategoryRows, error: subcategoryError } = await supabaseAdmin
+        .from("subcategories")
+        .select("id, default_hashtags")
+        .in("id", subcategoryIdsForBatch);
+
+      if (subcategoryError) {
+        console.error("[generateCopyBatch] Error loading subcategory default_hashtags:", subcategoryError);
+      } else if (subcategoryRows) {
+        for (const row of subcategoryRows as { id: string; default_hashtags: string[] | null }[]) {
+          const raw = row.default_hashtags || [];
+          const normalized = normalizeHashtags(raw, true);
+          subcategoryHashtagsMap.set(row.id, normalized);
+        }
+      }
+    } catch (err) {
+      console.error("[generateCopyBatch] Exception loading subcategory default_hashtags:", err);
+    }
+  }
 
   // Group drafts by subcategory for variation tracking
   // Use subcategory ID if available, otherwise fall back to name
@@ -227,10 +268,10 @@ export async function processBatchCopyGeneration(
       
       try {
       // Check if copy_status is already "complete" - skip if so
-      // Also fetch subcategory_id and channel for asset selection
+      // Also fetch subcategory_id, hashtags and channel for asset selection
       const { data: existingDraft, error: fetchDraftError } = await supabaseAdmin
         .from("drafts")
-        .select("copy_status, copy, subcategory_id, channel, brand_id")
+        .select("copy_status, copy, subcategory_id, channel, brand_id, hashtags")
         .eq("id", draft.draftId)
         .single();
 
@@ -339,12 +380,56 @@ export async function processBatchCopyGeneration(
 
       // Save result to drafts (including asset_ids if selected)
       try {
+        // Compute final hashtags for this draft by combining:
+        // - existing draft.hashtags (if any)
+        // - subcategory default_hashtags (if any)
+        // while avoiding duplicates and any hashtags already present in the copy text.
+        const baseCopy = variants[0];
+
+        // Existing structured hashtags from the draft row
+        const existingHashtagsRaw = Array.isArray((existingDraft as any)?.hashtags)
+          ? ((existingDraft as any).hashtags as string[])
+          : [];
+
+        // Default hashtags from subcategory (normalized and preloaded)
+        const defaultFromSubcategory =
+          (draftSubcategoryId && subcategoryHashtagsMap.get(draftSubcategoryId)) || [];
+
+        // Hashtags that might already appear in the generated copy text
+        const hashtagsInCopyRaw = extractHashtagsFromText(baseCopy);
+
+        // Normalize everything (case-insensitive) and merge
+        const normalizedExisting = normalizeHashtags(existingHashtagsRaw, true);
+        const normalizedDefaults = normalizeHashtags(defaultFromSubcategory, true);
+        const normalizedInCopy = normalizeHashtags(hashtagsInCopyRaw, true);
+
+        const seen = new Set<string>(normalizedInCopy.map((h) => h.toLowerCase()));
+        const finalHashtags: string[] = [];
+
+        const addIfNew = (tag: string) => {
+          const key = tag.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            finalHashtags.push(tag);
+          }
+        };
+
+        // Preserve order: existing draft hashtags first, then defaults
+        normalizedExisting.forEach(addIfNew);
+        normalizedDefaults.forEach(addIfNew);
+
+        // Build final copy text with hashtags appended at the end (if any)
+        const hashtagsText = finalHashtags.length > 0 ? finalHashtags.join(" ") : "";
+        const finalCopy =
+          hashtagsText.length > 0 ? `${baseCopy.trim()}\n\n${hashtagsText}` : baseCopy.trim();
+
         const { error: updateError } = await supabaseAdmin
           .from("drafts")
           .update({
-            copy: variants[0],
+            copy: finalCopy,
             copy_status: "complete",
             copy_model: "gpt-4o-mini",
+            ...(finalHashtags.length > 0 && { hashtags: finalHashtags }),
             ...(assetIds.length > 0 && { asset_ids: assetIds }),
             copy_meta: {
               job_run_id: jobRunId,
