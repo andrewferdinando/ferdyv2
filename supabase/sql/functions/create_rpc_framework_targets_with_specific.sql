@@ -73,46 +73,37 @@ BEGIN
 
             IF v_rule_frequency = 'daily' THEN
                 -- Every day of the month
-                -- Handle time_of_day as array (it's now time[] type)
-                IF v_rule.time_of_day IS NOT NULL THEN
-                    -- Convert time_of_day to array format
-                    IF pg_typeof(v_rule.time_of_day) = 'time[]'::regtype THEN
-                        v_time_array := v_rule.time_of_day;
-                    ELSIF pg_typeof(v_rule.time_of_day) = 'time'::regtype THEN
-                        v_time_array := ARRAY[v_rule.time_of_day::time];
-                    ELSE
-                        v_time_array := ARRAY[]::time[];
-                    END IF;
-                    
-                    v_target_date := v_month_start;
-                    WHILE v_target_date <= v_month_end LOOP
-                        -- Process each time of day
-                        FOREACH v_time_of_day IN ARRAY v_time_array
-                        LOOP
-                            -- Construct timestamp in effective timezone, then convert to UTC
-                            v_scheduled_time := (
-                                (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
-                                AT TIME ZONE v_effective_timezone
-                            ) AT TIME ZONE 'UTC';
-                            
-                            IF v_scheduled_time > v_current_time THEN
-                                RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
-                            END IF;
-                        END LOOP;
-                        v_target_date := v_target_date + INTERVAL '1 day';
-                    END LOOP;
+                -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
+                v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
+                IF v_time_array IS NULL OR array_length(v_time_array, 1) = 0 THEN
+                    CONTINUE;
                 END IF;
+                
+                v_target_date := v_month_start;
+                WHILE v_target_date <= v_month_end LOOP
+                    -- Process each time of day
+                    FOREACH v_time_of_day IN ARRAY v_time_array
+                    LOOP
+                        -- Construct timestamp in effective timezone, then convert to UTC
+                        v_scheduled_time := (
+                            (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
+                            AT TIME ZONE v_effective_timezone
+                        ) AT TIME ZONE 'UTC';
+                        
+                        IF v_scheduled_time > v_current_time THEN
+                            RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
+                        END IF;
+                    END LOOP;
+                    v_target_date := v_target_date + INTERVAL '1 day';
+                END LOOP;
 
             ELSIF v_rule_frequency = 'weekly' THEN
                 -- Specific days of week
-                IF v_rule.days_of_week IS NOT NULL AND array_length(v_rule.days_of_week, 1) > 0 AND v_rule.time_of_day IS NOT NULL THEN
-                    -- Handle time_of_day as array (it's now time[] type)
-                    IF pg_typeof(v_rule.time_of_day) = 'time[]'::regtype THEN
-                        v_time_array := v_rule.time_of_day;
-                    ELSIF pg_typeof(v_rule.time_of_day) = 'time'::regtype THEN
-                        v_time_array := ARRAY[v_rule.time_of_day::time];
-                    ELSE
-                        v_time_array := ARRAY[]::time[];
+                IF v_rule.days_of_week IS NOT NULL AND array_length(v_rule.days_of_week, 1) > 0 THEN
+                    -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
+                    v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
+                    IF v_time_array IS NULL OR array_length(v_time_array, 1) = 0 THEN
+                        CONTINUE;
                     END IF;
                     
                     v_target_date := v_month_start;
@@ -145,31 +136,26 @@ BEGIN
                         v_day_of_month := v_rule.day_of_month::int;
                         IF v_day_of_month > 0 AND v_day_of_month <= EXTRACT(day FROM v_month_end) THEN
                             v_target_date := v_month_start + (v_day_of_month - 1) * INTERVAL '1 day';
-                            IF v_rule.time_of_day IS NOT NULL THEN
-                                -- Handle time_of_day as array (it's now time[] type)
-                                IF pg_typeof(v_rule.time_of_day) = 'time[]'::regtype THEN
-                                    v_time_array := v_rule.time_of_day;
-                                ELSIF pg_typeof(v_rule.time_of_day) = 'time'::regtype THEN
-                                    v_time_array := ARRAY[v_rule.time_of_day::time];
-                                ELSE
-                                    v_time_array := ARRAY[]::time[];
-                                END IF;
-                                
-                                -- Process each time of day
-                                FOREACH v_time_of_day IN ARRAY v_time_array
-                                LOOP
-                                    -- Construct timestamp in effective timezone, then convert to UTC
-                                    -- The date + time represents a local time in the effective timezone
-                                    v_scheduled_time := (
-                                        (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
-                                        AT TIME ZONE v_effective_timezone
-                                    ) AT TIME ZONE 'UTC';
-                                    
-                                    IF v_scheduled_time > v_current_time THEN
-                                        RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
-                                    END IF;
-                                END LOOP;
+                            -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
+                            v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
+                            IF v_time_array IS NULL OR array_length(v_time_array, 1) = 0 THEN
+                                CONTINUE;
                             END IF;
+                            
+                            -- Process each time of day
+                            FOREACH v_time_of_day IN ARRAY v_time_array
+                            LOOP
+                                -- Construct timestamp in effective timezone, then convert to UTC
+                                -- The date + time represents a local time in the effective timezone
+                                v_scheduled_time := (
+                                    (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
+                                    AT TIME ZONE v_effective_timezone
+                                ) AT TIME ZONE 'UTC';
+                                
+                                IF v_scheduled_time > v_current_time THEN
+                                    RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
+                                END IF;
+                            END LOOP;
                         END IF;
                     EXCEPTION WHEN OTHERS THEN
                         -- If casting to int failed, try as array
@@ -180,16 +166,12 @@ BEGIN
                             LOOP
                                 IF v_day_of_month > 0 AND v_day_of_month <= EXTRACT(day FROM v_month_end) THEN
                                     v_target_date := v_month_start + (v_day_of_month - 1) * INTERVAL '1 day';
-                                    IF v_rule.time_of_day IS NOT NULL THEN
-                                        -- Handle time_of_day as array (it's now time[] type)
-                                        IF pg_typeof(v_rule.time_of_day) = 'time[]'::regtype THEN
-                                            v_time_array := v_rule.time_of_day;
-                                        ELSIF pg_typeof(v_rule.time_of_day) = 'time'::regtype THEN
-                                            v_time_array := ARRAY[v_rule.time_of_day::time];
-                                        ELSE
-                                            v_time_array := ARRAY[]::time[];
-                                        END IF;
-                                        
+                                    -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
+                                    v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
+                                    IF v_time_array IS NULL OR array_length(v_time_array, 1) = 0 THEN
+                                        CONTINUE;
+                                    END IF;
+                                    
                                     -- Process each time of day
                                     FOREACH v_time_of_day IN ARRAY v_time_array
                                     LOOP
@@ -203,7 +185,6 @@ BEGIN
                                             RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
                                         END IF;
                                     END LOOP;
-                                    END IF;
                                 END IF;
                             END LOOP;
                         EXCEPTION WHEN OTHERS THEN
@@ -221,30 +202,25 @@ BEGIN
                         IF EXTRACT(dow FROM v_target_date)::int = v_target_weekday THEN
                             v_week_count := v_week_count + 1;
                             IF v_week_count = v_rule.nth_week THEN
-                                IF v_rule.time_of_day IS NOT NULL THEN
-                                    -- Handle time_of_day as array (it's now time[] type)
-                                    IF pg_typeof(v_rule.time_of_day) = 'time[]'::regtype THEN
-                                        v_time_array := v_rule.time_of_day;
-                                    ELSIF pg_typeof(v_rule.time_of_day) = 'time'::regtype THEN
-                                        v_time_array := ARRAY[v_rule.time_of_day::time];
-                                    ELSE
-                                        v_time_array := ARRAY[]::time[];
-                                    END IF;
-                                    
-                                    -- Process each time of day
-                                    FOREACH v_time_of_day IN ARRAY v_time_array
-                                    LOOP
-                                        -- Construct timestamp in effective timezone, then convert to UTC
-                                        v_scheduled_time := (
-                                            (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
-                                            AT TIME ZONE v_effective_timezone
-                                        ) AT TIME ZONE 'UTC';
-                                        
-                                        IF v_scheduled_time > v_current_time THEN
-                                            RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
-                                        END IF;
-                                    END LOOP;
+                                -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
+                                v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
+                                IF v_time_array IS NULL OR array_length(v_time_array, 1) = 0 THEN
+                                    EXIT;
                                 END IF;
+                                
+                                -- Process each time of day
+                                FOREACH v_time_of_day IN ARRAY v_time_array
+                                LOOP
+                                    -- Construct timestamp in effective timezone, then convert to UTC
+                                    v_scheduled_time := (
+                                        (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
+                                        AT TIME ZONE v_effective_timezone
+                                    ) AT TIME ZONE 'UTC';
+                                    
+                                    IF v_scheduled_time > v_current_time THEN
+                                        RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
+                                    END IF;
+                                END LOOP;
                                 EXIT;
                             END IF;
                         END IF;
@@ -265,7 +241,7 @@ BEGIN
           AND sr.frequency = 'specific'
           AND sr.subcategory_id IS NOT NULL
           AND sr.start_date IS NOT NULL
-          AND sr.time_of_day IS NOT NULL  -- Must have at least one time
+          AND (sr.times_of_day IS NOT NULL OR sr.time_of_day IS NOT NULL)  -- Must have at least one time
     LOOP
         v_rule_frequency := v_rule.frequency;  -- Store frequency to avoid ambiguity
         -- Determine effective timezone: use rule's timezone if set, otherwise brand's timezone
@@ -273,13 +249,10 @@ BEGIN
         v_start_date := v_rule.start_date;
         v_end_date := COALESCE(v_rule.end_date, v_start_date);
         
-        -- Handle time_of_day as array (for specific frequency)
-        IF pg_typeof(v_rule.time_of_day) = 'time[]'::regtype THEN
-            v_time_array := v_rule.time_of_day;
-        ELSIF pg_typeof(v_rule.time_of_day) = 'time'::regtype THEN
-            v_time_array := ARRAY[v_rule.time_of_day::time];
-        ELSE
-            v_time_array := ARRAY[]::time[];
+        -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
+        v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
+        IF v_time_array IS NULL OR array_length(v_time_array, 1) = 0 THEN
+            CONTINUE;
         END IF;
 
         -- Process days_before: schedule posts X days before start_date
