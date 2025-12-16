@@ -331,29 +331,6 @@ BEGIN
             END LOOP;
         END IF;
         
-        -- Also generate targets for the start_date itself if no days_before or days_during specified
-        -- (This handles the case where someone wants a post on the exact start_date)
-        IF (v_rule.days_before IS NULL OR array_length(v_rule.days_before, 1) = 0)
-          AND (v_rule.days_during IS NULL OR array_length(v_rule.days_during, 1) = 0)
-        THEN
-            -- Get the date part of start_date in the effective timezone
-            v_effective_timezone := COALESCE(v_rule.timezone, v_brand_timezone);
-            v_target_date := (date_trunc('day', v_start_date) AT TIME ZONE v_effective_timezone)::date;
-            
-            FOREACH v_time_of_day IN ARRAY v_time_array
-            LOOP
-                -- Construct timestamp in effective timezone, then convert to UTC
-                v_scheduled_time := (
-                    (v_target_date::text || ' ' || v_time_of_day::text)::timestamp
-                    AT TIME ZONE v_effective_timezone
-                ) AT TIME ZONE 'UTC';
-                
-                -- Skip if the converted time is in the past
-                IF v_scheduled_time > v_current_time THEN
-                    RETURN QUERY SELECT v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
-                END IF;
-            END LOOP;
-        END IF;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

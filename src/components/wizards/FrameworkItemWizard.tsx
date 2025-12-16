@@ -700,25 +700,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       
       // Validate based on occurrence type
       if (eventOccurrenceType === 'single') {
-        // Single mode: date + time required
-        const hasValidOccurrences = eventScheduling.occurrences.every(
+        // Single mode: date + time required (no days_before fallback)
+        return eventScheduling.occurrences.every(
           occ => occ.date && occ.date.trim().length > 0 && occ.time && occ.time.trim().length > 0
         )
-        // Also check if days_before is set (alternative constraint satisfaction)
-        const hasDaysBefore = eventScheduling.daysBefore.length > 0
-        // Constraint requires: (start_date + times_of_day) OR (days_before OR days_during)
-        // If we have valid occurrences with date+time, that satisfies start_date + times_of_day
-        // Otherwise, we need days_before
-        return hasValidOccurrences || hasDaysBefore
       } else {
-        // Range mode: start_date + end_date required
-        const hasValidOccurrences = eventScheduling.occurrences.every(
+        // Range mode: start_date + end_date required, plus a time (from schedule.timeOfDay)
+        const hasValidDates = eventScheduling.occurrences.every(
           occ => occ.start_date && occ.start_date.trim().length > 0 && occ.end_date && occ.end_date.trim().length > 0
         )
-        // Also check if days_before or days_during is set
-        const hasDaysBefore = eventScheduling.daysBefore.length > 0
-        // For range mode, we might not have times_of_day, so days_before/days_during is important
-        return hasValidOccurrences || hasDaysBefore
+        const hasTime = schedule.timeOfDay && schedule.timeOfDay.trim().length > 0
+        return hasValidDates && !!hasTime
       }
     }
     
@@ -863,10 +855,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               // Range mode
               const missingStartDates = eventScheduling.occurrences.filter(occ => !occ.start_date || !occ.start_date.trim())
               const missingEndDates = eventScheduling.occurrences.filter(occ => !occ.end_date || !occ.end_date.trim())
+              const missingTime = !schedule.timeOfDay || !schedule.timeOfDay.trim()
               if (missingStartDates.length > 0) {
                 newErrors.occurrences = 'All date ranges must have a start date.'
               } else if (missingEndDates.length > 0) {
                 newErrors.occurrences = 'All date ranges must have an end date.'
+              } else if (missingTime) {
+                newErrors.timeOfDay = 'Please select a time for the range.'
               }
             }
           }
@@ -978,7 +973,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // Handle Events: Create schedule rule with frequency='specific' and days_before
       if (subcategoryType === 'event_series') {
-        // Create schedule rule for Events - ALWAYS create, even if occurrences are empty
+        // Upsert schedule rule for Events - ALWAYS ensure exactly one rule per subcategory
         const eventRuleData: Record<string, unknown> = {
           brand_id: brandId,
           subcategory_id: subcategoryId,
@@ -1053,18 +1048,40 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           fullPayload: eventRuleData
         })
 
-        console.info('[Wizard] Creating schedule rule for Events:', eventRuleData)
+        console.info('[Wizard] Creating schedule rule for Events (upsert):', eventRuleData)
 
-        const { error: eventRuleError } = await supabase
+        // Check for existing rule to avoid duplicates
+        const { data: existingEventRule } = await supabase
           .from('schedule_rules')
-          .insert(eventRuleData)
+          .select('id')
+          .eq('subcategory_id', subcategoryId)
+          .eq('brand_id', brandId)
+          .maybeSingle()
 
-        if (eventRuleError) {
-          console.error('[Wizard] Schedule rule insert error for Events:', eventRuleError)
-          throw new Error(`Failed to create schedule rule: ${eventRuleError.message}`)
+        if (existingEventRule) {
+          const { error: eventRuleUpdateError } = await supabase
+            .from('schedule_rules')
+            .update(eventRuleData)
+            .eq('id', existingEventRule.id)
+
+          if (eventRuleUpdateError) {
+            console.error('[Wizard] Schedule rule update error for Events:', eventRuleUpdateError)
+            throw new Error(`Failed to update schedule rule: ${eventRuleUpdateError.message}`)
+          }
+
+          console.info('[Wizard] Successfully updated schedule rule for Events')
+        } else {
+          const { error: eventRuleInsertError } = await supabase
+            .from('schedule_rules')
+            .insert(eventRuleData)
+
+          if (eventRuleInsertError) {
+            console.error('[Wizard] Schedule rule insert error for Events:', eventRuleInsertError)
+            throw new Error(`Failed to create schedule rule: ${eventRuleInsertError.message}`)
+          }
+
+          console.info('[Wizard] Successfully created schedule rule for Events')
         }
-
-        console.info('[Wizard] Successfully created schedule rule for Events')
 
         // Verify the created schedule_rule has start_date and times_of_day populated
         if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
@@ -1302,18 +1319,39 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           })
         }
 
-        console.info('[Wizard] Creating schedule rule:', cleanRuleData)
+        console.info('[Wizard] Creating schedule rule (upsert):', cleanRuleData)
 
-        const { error: ruleError } = await supabase
+        // Upsert by subcategory to avoid duplicates
+        const { data: existingRule } = await supabase
           .from('schedule_rules')
-          .insert(cleanRuleData)
+          .select('id')
+          .eq('subcategory_id', subcategoryId)
+          .eq('brand_id', brandId)
+          .maybeSingle()
 
-        if (ruleError) {
-          console.error('[Wizard] Schedule rule insert error:', ruleError)
-          throw new Error(`Failed to create schedule rule: ${ruleError.message}`)
+        if (existingRule) {
+          const { error: ruleUpdateError } = await supabase
+            .from('schedule_rules')
+            .update(cleanRuleData)
+            .eq('id', existingRule.id)
+
+          if (ruleUpdateError) {
+            console.error('[Wizard] Schedule rule update error:', ruleUpdateError)
+            throw new Error(`Failed to update schedule rule: ${ruleUpdateError.message}`)
+          }
+          console.info('[Wizard] Successfully updated schedule rule')
+        } else {
+          const { error: ruleInsertError } = await supabase
+            .from('schedule_rules')
+            .insert(cleanRuleData)
+
+          if (ruleInsertError) {
+            console.error('[Wizard] Schedule rule insert error:', ruleInsertError)
+            throw new Error(`Failed to create schedule rule: ${ruleInsertError.message}`)
+          }
+
+          console.info('[Wizard] Successfully created schedule rule')
         }
-
-        console.info('[Wizard] Successfully created schedule rule')
       }
 
       // DEFENSIVE CHECK: Verify that at least one active schedule_rule exists
