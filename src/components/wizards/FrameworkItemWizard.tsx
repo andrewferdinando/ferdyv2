@@ -636,7 +636,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     // Reset event scheduling
     setEventScheduling({
       occurrences: [],
-      daysBefore: []
+      daysBefore: [],
+      daysDuring: []
     })
     setEventOccurrenceType('single')
     setEventErrors({})
