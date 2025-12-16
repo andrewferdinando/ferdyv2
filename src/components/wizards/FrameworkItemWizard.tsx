@@ -970,7 +970,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // Handle Events: Create schedule rule with frequency='specific' and days_before
       if (subcategoryType === 'event_series') {
-        // Create schedule rule for Events
+        // Create schedule rule for Events - ALWAYS create, even if occurrences are empty
         const eventRuleData: Record<string, unknown> = {
           brand_id: brandId,
           subcategory_id: subcategoryId,
@@ -983,10 +983,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           is_active: true,
           tone: null,
           hashtag_rule: null,
-          image_tag_rule: null
+          image_tag_rule: null,
+          // Set default timezone (will be overridden if occurrences exist)
+          timezone: brand?.timezone || 'Pacific/Auckland'
         }
 
         // Extract date and time from first occurrence for event_series with frequency='specific'
+        // Note: occurrences should always exist due to validation, but we handle empty case defensively
         if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
           
@@ -1126,17 +1129,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
 
       // Create schedule rule if needed (based on type + frequency rules) - for non-Events
-      const shouldCreateRule = (() => {
-        if (!schedule.frequency) return false
-        
-        // Promos: only create rule if NOT specific
-        if (subcategoryType === 'promo_or_offer') {
-          return schedule.frequency !== 'specific'
-        }
-        
-        // Products/Services, Schedules, Other: always create rule if frequency is set
-        return true
-      })()
+      // ALWAYS create a schedule_rule for all subcategory types if frequency is set
+      const shouldCreateRule = !!schedule.frequency
 
       if (shouldCreateRule && schedule.frequency) {
         // Build schedule rule payload
@@ -1204,6 +1198,28 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         console.info('[Wizard] Successfully created schedule rule')
       }
+
+      // DEFENSIVE CHECK: Verify that at least one active schedule_rule exists
+      const { data: verifyRules, error: verifyError } = await supabase
+        .from('schedule_rules')
+        .select('id, is_active, frequency')
+        .eq('subcategory_id', subcategoryId)
+        .eq('is_active', true)
+
+      if (verifyError) {
+        console.error('[Wizard] Error verifying schedule rules:', verifyError)
+        throw new Error(`Failed to verify schedule rule creation: ${verifyError.message}`)
+      }
+
+      if (!verifyRules || verifyRules.length === 0) {
+        console.error('[Wizard] ⚠️ CRITICAL: No active schedule_rule found after save!')
+        throw new Error('Failed to create schedule rule: No active schedule rule exists for this category. This should never happen.')
+      }
+
+      console.info('[Wizard] Verified schedule rule exists:', {
+        ruleCount: verifyRules.length,
+        frequencies: verifyRules.map((r: { frequency: string }) => r.frequency)
+      })
 
       // Note: Auto-push is now deferred until after images are saved (in handleFinish)
       // This ensures assets exist when asset-selection runs
@@ -1414,6 +1430,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         // Extract date and time from first occurrence for event_series with frequency='specific'
+        // Note: occurrences should always exist due to validation, but we handle empty case defensively
+        // Set default timezone first
+        eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
+        
         if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
           
@@ -1433,9 +1453,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               : timeStr
             eventRuleData.times_of_day = [timeFormatted]
           }
-          
-          // Set timezone (use brand timezone or default to Pacific/Auckland)
-          eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
         }
 
         // Check if schedule rule exists
@@ -1641,13 +1658,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.info('[Wizard] Successfully upserted event_occurrences')
       } else {
         // Non-Events: upsert schedule rule
-        const shouldHaveRule = (() => {
-          if (!schedule.frequency) return false
-          if (subcategoryType === 'promo_or_offer') {
-            return schedule.frequency !== 'specific'
-          }
-          return true
-        })()
+        // ALWAYS create/update a schedule_rule for all subcategory types if frequency is set
+        const shouldHaveRule = !!schedule.frequency
 
         if (shouldHaveRule && schedule.frequency) {
           const baseRuleData: Record<string, unknown> = {
@@ -1731,27 +1743,34 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.info('[Wizard] Successfully created schedule rule')
           }
         } else {
-          // If we shouldn't have a rule but one exists, delete it
-          const { data: existingRule } = await supabase
-            .from('schedule_rules')
-            .select('id')
-            .eq('subcategory_id', subcategoryId)
-            .eq('is_active', true)
-            .maybeSingle()
-
-          if (existingRule) {
-            const { error: deleteError } = await supabase
-              .from('schedule_rules')
-              .delete()
-              .eq('id', existingRule.id)
-
-            if (deleteError) {
-              console.warn('[Wizard] Failed to delete obsolete schedule rule:', deleteError)
-              // Don't throw - this is not critical
-            }
-          }
+          // This should never happen due to validation, but if frequency is not set,
+          // we should NOT delete existing rules - we should throw an error instead
+          console.error('[Wizard] ⚠️ CRITICAL: schedule.frequency is not set, but validation should have prevented this!')
+          throw new Error('Schedule frequency is required. This should have been caught by validation.')
         }
       }
+
+      // DEFENSIVE CHECK: Verify that at least one active schedule_rule exists
+      const { data: verifyRules, error: verifyError } = await supabase
+        .from('schedule_rules')
+        .select('id, is_active, frequency')
+        .eq('subcategory_id', subcategoryId)
+        .eq('is_active', true)
+
+      if (verifyError) {
+        console.error('[Wizard] Error verifying schedule rules:', verifyError)
+        throw new Error(`Failed to verify schedule rule: ${verifyError.message}`)
+      }
+
+      if (!verifyRules || verifyRules.length === 0) {
+        console.error('[Wizard] ⚠️ CRITICAL: No active schedule_rule found after update!')
+        throw new Error('Failed to ensure schedule rule exists: No active schedule rule exists for this category. This should never happen.')
+      }
+
+      console.info('[Wizard] Verified schedule rule exists after update:', {
+        ruleCount: verifyRules.length,
+        frequencies: verifyRules.map((r: { frequency: string }) => r.frequency)
+      })
 
       // 4. Update asset associations
       // Find the subcategory's tag
