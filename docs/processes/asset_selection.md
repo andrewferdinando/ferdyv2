@@ -7,7 +7,7 @@
   - Upload new assets.
   - Choose existing assets.
 - Those assets are automatically **tagged** with the subcategory’s name (and/or ID).
-- When generating drafts via Push to Drafts, Ferdy calls:
+- When generating drafts via the draft generator, Ferdy calls:
 
   ```sql
   rpc_pick_asset_for_rule(schedule_rule_id)
@@ -26,11 +26,11 @@ drafts.asset_ids (usually as a single-element array).
 post_jobs inherit the same assets via the draft.
 
 1. Where asset selection happens
-Asset selection is tightly coupled to Push to Drafts:
+Asset selection is tightly coupled to draft generation:
 
 rpc_framework_targets(p_brand_id) generates future posting slots.
 
-rpc_push_to_drafts_now(p_brand_id) loops through those slots.
+The draft generator (generateDraftsForBrand) loops through those slots.
 
 For each slot (per schedule_rule_id), it calls:
 

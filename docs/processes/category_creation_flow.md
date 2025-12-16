@@ -9,7 +9,7 @@ The **Create Category** wizard (4 steps: Type → Details → Schedule → Image
 - Creates one or more `schedule_rules` rows (and `event_occurrences` for events).
 - Links selected assets to the category via `tags` and `asset_tags`.
 - Optionally refreshes the URL summary for the category URL.
-- After images are linked, it triggers `/api/drafts/push` to generate drafts.
+- After images are linked, it triggers `/api/drafts/generate` to generate drafts for the brand.
 
 Saving happens **when moving from Step 3 → Step 4** (subcategory + schedule), and assets are linked + drafts pushed on **Finish**.
 
@@ -30,12 +30,12 @@ In the database, Categories are stored in the **`subcategories`** table.
 
 Once a Category is set up:
 
-- It becomes part of the brand’s **framework**.
-- Push to Drafts uses these settings (via `schedule_rules` and `rpc_framework_targets`) to generate scheduled drafts.
+- It becomes part of the brand's **framework**.
+- The draft generator uses these settings (via `schedule_rules` and `rpc_framework_targets`) to generate scheduled drafts on a rolling 30-day window.
 - Assets chosen in Step 4 become the **asset pool** for that Category.
 - The ongoing automation loop is:
   1. User sets up Categories.
-  2. Ferdy automatically pushes drafts (manual or monthly).
+  2. Ferdy automatically generates drafts (nightly generator).
   3. User approves drafts.
   4. Ferdy publishes them at the right time.
 
@@ -253,10 +253,10 @@ When the user clicks **Finish**:
      });
      ```
 
-   - This invokes the Push to Drafts flow documented separately:
-     - `rpc_push_to_drafts_now`
-     - `drafts`, `post_jobs`, `runs`
-     - AI copy generation
+   - This invokes the draft generation flow documented separately:
+     - `generateDraftsForBrand` (shared utility)
+     - `drafts`, `post_jobs` creation
+     - Automatic AI copy generation
 
 4. **Redirect**
    - Navigates the user back to the **Categories** page.
@@ -272,7 +272,7 @@ Net effect: after finishing the wizard, the brand immediately gets a fresh set o
     - `subcategories` row created/updated.
     - `schedule_rules` and `event_occurrences` created/updated.
 
-- **When do we link assets and push drafts?**
+- **When do we link assets and generate drafts?**
   - On **Finish (Step 4)**:
     - Assets are tagged and linked.
     - `/api/drafts/push` is called for this brand.
@@ -295,9 +295,10 @@ Category Creation interacts with several other documented processes:
 - **Event Occurrences**
   - Used for event-type categories to represent multiple dates for the same event series.
 
-- **Push to Drafts**
-  - Triggered after Finish via `/api/drafts/push`.
+- **Draft Generation**
+  - Triggered after Finish via `/api/drafts/generate`.
   - Uses `schedule_rules`, `subcategories`, assets, etc.
+  - Generates drafts for the next 30 days automatically.
 
 - **Copy Generation**
   - Uses `subcategory_type`, `detail`, `url`, `url_page_summary`, `default_copy_length`, and the schedule info to build prompts.

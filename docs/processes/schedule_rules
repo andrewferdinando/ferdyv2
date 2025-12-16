@@ -265,7 +265,7 @@ The app:
 Changes to Schedule Rules will affect:
 
 - **Future frameworks** (via `rpc_framework_targets`).
-- **Future draft generations** (via Push to Drafts).
+- **Future draft generations** (via the draft generator).
 - They will **not automatically change drafts that have already been generated** unless explicitly coded (e.g. via a re-run).
 
 ---
@@ -290,7 +290,7 @@ It:
 
 These rows are later consumed by:
 
-- `rpc_push_to_drafts_now` (to create drafts + post_jobs).
+- Draft generator (`generateDraftsForBrand`) (to create drafts + post_jobs).
 - Copy generation code (to distinguish event vs evergreen posts).
 
 ---
@@ -350,7 +350,7 @@ Fallback to subcategories.url.
 6. Lifecycle: activation, archiving & runs
 is_active = true:
 
-Only these rules are used by framework generation and Push to Drafts.
+Only these rules are used by framework generation and the draft generator.
 
 archived_at:
 
@@ -361,7 +361,7 @@ first_run_month / last_run_month:
 Used by helper functions (like rpc_next_framework_window) to decide what future windows still need content.
 
 7. History / notes
-2025-12-05 — Schedule Rules documented from actual schedule_rules schema, FrameworkItemWizard.tsx behaviour, and Push to Drafts integration.
+2025-12-05 — Schedule Rules documented from actual schedule_rules schema, FrameworkItemWizard.tsx behaviour, and draft generator integration.
 
 If you change:
 
@@ -370,7 +370,7 @@ frequency value conventions,
 event scheduling logic,
 
 or image strategies,
-you should update this doc and any dependent RPCs (rpc_framework_targets, rpc_push_to_drafts_now, rpc_next_framework_window, rpc_pick_asset_for_rule).
+you should update this doc and any dependent RPCs (rpc_framework_targets, rpc_next_framework_window, rpc_pick_asset_for_rule) and the draft generator.
 
 Mermaid:
 flowchart TD

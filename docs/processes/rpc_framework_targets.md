@@ -441,7 +441,7 @@ Event dates (event_date, start_date, end_date)
 Schedule metadata used to shape urgency and angle.
 
 8. History / notes
-2025-12-05 — rpc_framework_targets documented in detail from the function source, schedule_rules schema, and Push to Drafts integration.
+2025-12-05 — rpc_framework_targets documented in detail from the function source, schedule_rules schema, and draft generator integration.
 
 Potential future changes:
 

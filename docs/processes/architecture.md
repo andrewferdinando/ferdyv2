@@ -21,8 +21,8 @@ flowchart LR
         SUPA --> PJ[(post_jobs)]
         SUPA --> RUNS[(runs)]
         SUPA --> ASSETS[(assets,\nasset_tags,\ntags)]
-        SUPA --> FUNCS[[SQL Functions\nrpc_framework_targets,\nrpc_push_to_drafts_now,\nrpc_pick_asset_for_rule]]
-        SUPA --> CRON[[pg_cron\nrun_framework_push_monthly]]
+        SUPA --> FUNCS[[SQL Functions\nrpc_framework_targets,\nrpc_pick_asset_for_rule]]
+        SUPA --> GEN[[Draft Generator\n(generateDraftsForBrand)]]
     end
 
     CRON --> FUNCS

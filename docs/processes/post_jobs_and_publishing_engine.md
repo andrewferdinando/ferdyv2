@@ -269,18 +269,18 @@ Drafts drive job creation and are updated by job outcomes. See draft_lifecycle.m
 Schedule Rules & Framework:
 schedule_rule_id connects jobs back to the schedule rule that created them. The full timestamp is derived from rpc_framework_targets(p_brand_id).
 
-Push to Drafts:
-All framework-based post_jobs are created by rpc_push_to_drafts_now, which is called by:
+Draft Generation:
+All framework-based post_jobs are created by the draft generator (`generateDraftsForBrand`), which is called by:
 
-Manual Push to Drafts from the Engine Room / Categories page.
+Nightly Vercel Cron job (`/api/drafts/generate-all`) for all active brands.
 
-Supabase pg_cron job framework_push_monthly → run_framework_push_monthly().
+Manual API call (`/api/drafts/generate`) for a specific brand.
 
-Monthly Automation vs Publishing Cron:
+Draft Generation vs Publishing Cron:
 
-Monthly Push to Drafts: Supabase pg_cron job on cron.job runs SELECT public.run_framework_push_monthly(); at 0 2 15 * *.
+Draft Generation: Vercel Cron runs `/api/drafts/generate-all` nightly (Pacific/Auckland time) to keep the next 30 days of drafts generated.
 
-Publishing: 3rd-party cron calls /api/publishing/run to process post_jobs.
+Publishing: 3rd-party cron calls `/api/publishing/run` to process post_jobs.
 
 8. History / notes
 post_jobs replaced older "single-channel on draft" logic and allows multi-channel publishing from one draft.
