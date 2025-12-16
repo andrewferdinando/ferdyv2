@@ -977,7 +977,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           category_id: null,
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
-          days_before: eventScheduling.daysBefore.length > 0 ? eventScheduling.daysBefore : null,
           days_during: eventOccurrenceType === 'range' ? null : null, // Can be set in future, but null for now
           channels: details.channels.length > 0 ? details.channels : null,
           is_active: true,
@@ -1013,6 +1012,38 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           // Set timezone (use brand timezone or default to Pacific/Auckland)
           eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
         }
+
+        // Ensure constraint satisfaction: Either (start_date + times_of_day) OR (days_before OR days_during)
+        // If we have start_date and times_of_day, constraint is satisfied
+        // Otherwise, ensure days_before is set to satisfy the constraint
+        const hasStartDateAndTime = eventRuleData.start_date && 
+          eventRuleData.times_of_day && 
+          Array.isArray(eventRuleData.times_of_day) && 
+          eventRuleData.times_of_day.length > 0
+        
+        if (!hasStartDateAndTime) {
+          // Constraint not satisfied by start_date + times_of_day, so use days_before
+          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
+            ? eventScheduling.daysBefore 
+            : [0] // Fallback to [0] to satisfy constraint
+        } else {
+          // Constraint satisfied by start_date + times_of_day, but still set days_before if available
+          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
+            ? eventScheduling.daysBefore 
+            : null
+        }
+
+        // Log payload for frequency='specific' to verify constraint satisfaction
+        console.info('[Wizard] Schedule rule payload for frequency=specific (event_series CREATE):', {
+          frequency: eventRuleData.frequency,
+          start_date: eventRuleData.start_date,
+          end_date: eventRuleData.end_date,
+          times_of_day: eventRuleData.times_of_day,
+          days_before: eventRuleData.days_before,
+          days_during: eventRuleData.days_during,
+          timezone: eventRuleData.timezone,
+          fullPayload: eventRuleData
+        })
 
         console.info('[Wizard] Creating schedule rule for Events:', eventRuleData)
 
@@ -1175,6 +1206,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
           baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
           baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
+        } else if (schedule.frequency === 'specific') {
+          // For frequency='specific', we must satisfy the constraint:
+          // Either: start_date IS NOT NULL AND time_of_day IS NOT NULL AND cardinality(time_of_day) > 0
+          // Or: days_before has at least 1 value OR days_during has at least 1 value
+          
+          // Set default timezone
+          baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone) || 'Pacific/Auckland'
+          
+          // If we have timeOfDay, try to use it with a start_date if available
+          // For now, since promo_or_offer doesn't collect start_date in the schedule state,
+          // we'll satisfy the constraint by setting days_before
+          // This ensures the constraint is always satisfied
+          if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
+            // Convert HH:mm to HH:MM:SS format
+            const timeStr = schedule.timeOfDay.trim()
+            const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+              ? `${timeStr}:00`
+              : timeStr
+            baseRuleData.times_of_day = [timeFormatted]
+          }
+          
+          // Always set days_before to satisfy the constraint (even if empty, we'll set [0] as fallback)
+          // This ensures the constraint is satisfied even if start_date + time_of_day are not both present
+          baseRuleData.days_before = [0] // Default to [0] to satisfy constraint
+          
+          // Note: If the UI later collects start_date/end_date for promo_or_offer specific,
+          // we can set those here and remove the days_before fallback
         }
 
         // Clean up undefined fields
@@ -1183,6 +1241,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (value !== undefined) {
             cleanRuleData[key] = value
           }
+        }
+
+        // Log payload for frequency='specific' to verify constraint satisfaction
+        if (schedule.frequency === 'specific') {
+          console.info('[Wizard] Schedule rule payload for frequency=specific:', {
+            frequency: cleanRuleData.frequency,
+            start_date: cleanRuleData.start_date,
+            end_date: cleanRuleData.end_date,
+            times_of_day: cleanRuleData.times_of_day,
+            time_of_day: cleanRuleData.time_of_day,
+            days_before: cleanRuleData.days_before,
+            days_during: cleanRuleData.days_during,
+            timezone: cleanRuleData.timezone,
+            fullPayload: cleanRuleData
+          })
         }
 
         console.info('[Wizard] Creating schedule rule:', cleanRuleData)
@@ -1420,20 +1493,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           category_id: null,
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
-          days_before: eventScheduling.daysBefore.length > 0 ? eventScheduling.daysBefore : null,
           days_during: null,
           channels: details.channels.length > 0 ? details.channels : null,
           is_active: true,
           tone: null,
           hashtag_rule: null,
-          image_tag_rule: null
+          image_tag_rule: null,
+          // Set default timezone first
+          timezone: brand?.timezone || 'Pacific/Auckland'
         }
 
         // Extract date and time from first occurrence for event_series with frequency='specific'
         // Note: occurrences should always exist due to validation, but we handle empty case defensively
-        // Set default timezone first
-        eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
-        
         if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
           
@@ -1454,6 +1525,38 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             eventRuleData.times_of_day = [timeFormatted]
           }
         }
+
+        // Ensure constraint satisfaction: Either (start_date + times_of_day) OR (days_before OR days_during)
+        // If we have start_date and times_of_day, constraint is satisfied
+        // Otherwise, ensure days_before is set to satisfy the constraint
+        const hasStartDateAndTime = eventRuleData.start_date && 
+          eventRuleData.times_of_day && 
+          Array.isArray(eventRuleData.times_of_day) && 
+          eventRuleData.times_of_day.length > 0
+        
+        if (!hasStartDateAndTime) {
+          // Constraint not satisfied by start_date + times_of_day, so use days_before
+          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
+            ? eventScheduling.daysBefore 
+            : [0] // Fallback to [0] to satisfy constraint
+        } else {
+          // Constraint satisfied by start_date + times_of_day, but still set days_before if available
+          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
+            ? eventScheduling.daysBefore 
+            : null
+        }
+
+        // Log payload for frequency='specific' to verify constraint satisfaction
+        console.info('[Wizard] Schedule rule payload for frequency=specific (event_series UPDATE):', {
+          frequency: eventRuleData.frequency,
+          start_date: eventRuleData.start_date,
+          end_date: eventRuleData.end_date,
+          times_of_day: eventRuleData.times_of_day,
+          days_before: eventRuleData.days_before,
+          days_during: eventRuleData.days_during,
+          timezone: eventRuleData.timezone,
+          fullPayload: eventRuleData
+        })
 
         // Check if schedule rule exists
         const { data: existingRule } = await supabase
@@ -1701,6 +1804,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             }
             baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
             baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
+          } else if (schedule.frequency === 'specific') {
+            // For frequency='specific', we must satisfy the constraint:
+            // Either: start_date IS NOT NULL AND time_of_day IS NOT NULL AND cardinality(time_of_day) > 0
+            // Or: days_before has at least 1 value OR days_during has at least 1 value
+            
+            // Set default timezone
+            baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone) || 'Pacific/Auckland'
+            
+            // If we have timeOfDay, try to use it with a start_date if available
+            // For now, since promo_or_offer doesn't collect start_date in the schedule state,
+            // we'll satisfy the constraint by setting days_before
+            // This ensures the constraint is always satisfied
+            if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
+              // Convert HH:mm to HH:MM:SS format
+              const timeStr = schedule.timeOfDay.trim()
+              const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                ? `${timeStr}:00`
+                : timeStr
+              baseRuleData.times_of_day = [timeFormatted]
+            }
+            
+            // Always set days_before to satisfy the constraint (even if empty, we'll set [0] as fallback)
+            // This ensures the constraint is satisfied even if start_date + time_of_day are not both present
+            baseRuleData.days_before = [0] // Default to [0] to satisfy constraint
+            
+            // Note: If the UI later collects start_date/end_date for promo_or_offer specific,
+            // we can set those here and remove the days_before fallback
           }
 
           const cleanRuleData: Record<string, unknown> = {}
@@ -1708,6 +1838,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             if (value !== undefined) {
               cleanRuleData[key] = value
             }
+          }
+
+          // Log payload for frequency='specific' to verify constraint satisfaction
+          if (schedule.frequency === 'specific') {
+            console.info('[Wizard] Schedule rule payload for frequency=specific (UPDATE):', {
+              frequency: cleanRuleData.frequency,
+              start_date: cleanRuleData.start_date,
+              end_date: cleanRuleData.end_date,
+              times_of_day: cleanRuleData.times_of_day,
+              time_of_day: cleanRuleData.time_of_day,
+              days_before: cleanRuleData.days_before,
+              days_during: cleanRuleData.days_during,
+              timezone: cleanRuleData.timezone,
+              fullPayload: cleanRuleData
+            })
           }
 
           // Check if schedule rule exists
