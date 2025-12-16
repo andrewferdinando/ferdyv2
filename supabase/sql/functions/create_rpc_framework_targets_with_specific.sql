@@ -263,11 +263,9 @@ BEGIN
                     CONTINUE;  -- Skip invalid days
                 END IF;
                 
-                -- Calculate the scheduled date (date part of start_date - days_before)
-                -- Use date_trunc to get just the date, then subtract days
-                -- Get effective timezone for this rule
+                -- Calculate target_date = start_date::date - v_days_before (in effective timezone)
                 v_effective_timezone := COALESCE(v_rule.timezone, v_brand_timezone);
-                v_target_date := (date_trunc('day', v_start_date) AT TIME ZONE v_effective_timezone)::date;
+                v_target_date := (v_start_date AT TIME ZONE v_effective_timezone)::date;
                 v_target_date := v_target_date - (v_days_before || ' days')::interval;
                 
                 -- For each time of day, generate a target
