@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useCallback, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -9,7 +9,6 @@ import { useScheduleRules } from '@/hooks/useScheduleRules'
 import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleForm'
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
-import { usePushProgress } from '@/contexts/PushProgressContext'
 import { SubcategoryType } from '@/types/subcategories'
 
 const SUBCATEGORY_TYPE_LABELS: Record<SubcategoryType, string> = {
@@ -99,15 +98,6 @@ export default function CategoriesPage() {
   }>>([])
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(true)
 
-  const [pushing, setPushing] = useState(false)
-  const { startPushProgress, completePushProgress, failPushProgress } = usePushProgress()
-  const [pushStatus, setPushStatus] = useState<{
-    targetMonthName: string | null
-    pushDate: string | null
-    hasRun: boolean
-    lastRunAt: string | null
-  } | null>(null)
-
   // Fetch all subcategories to include those without schedule rules
   useEffect(() => {
     const fetchAllSubcategories = async () => {
@@ -165,87 +155,6 @@ export default function CategoriesPage() {
       fetchAllSubcategories()
     }
   }, [brandId, rulesLoading])
-
-  // Fetch push to drafts status
-  const fetchPushStatus = useCallback(async () => {
-    if (!brandId) return
-
-    try {
-      const response = await fetch(`/api/drafts/push/status?brandId=${brandId}`)
-      if (!response.ok) {
-        console.error('Error fetching push status:', response.statusText)
-        return
-      }
-
-      const data = await response.json()
-      setPushStatus({
-        targetMonthName: data.targetMonthName || null,
-        pushDate: data.pushDate || null,
-        hasRun: data.hasRun || false,
-        lastRunAt: data.lastRunAt || null,
-      })
-    } catch (err) {
-      console.error('Error fetching push status:', err)
-    }
-  }, [brandId])
-
-  useEffect(() => {
-    fetchPushStatus()
-  }, [fetchPushStatus])
-
-  // Helper functions to format dates
-  const formattedLastRun = useMemo(() => {
-    return pushStatus?.lastRunAt
-      ? new Date(pushStatus.lastRunAt).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : null
-  }, [pushStatus?.lastRunAt])
-
-  const formattedNextPush = useMemo(() => {
-    return pushStatus?.pushDate
-      ? new Date(pushStatus.pushDate).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : null
-  }, [pushStatus?.pushDate])
-
-  const bannerCopy = useMemo(() => {
-    if (!pushStatus) {
-      return null
-    }
-
-    const { targetMonthName, pushDate, hasRun } = pushStatus
-
-    if (!targetMonthName || !pushDate) {
-      return null
-    }
-
-    // If already pushed, show "have been pushed" message
-    if (hasRun) {
-      return `${targetMonthName} posts have been pushed to Drafts. You can push again if you've made changes.`
-    }
-
-    // Format push date (15th of previous month)
-    try {
-      const date = new Date(pushDate)
-      const day = date.getDate()
-      const monthName = new Intl.DateTimeFormat('en-NZ', { month: 'long' }).format(date)
-      
-      // Format as "January 15th" or similar
-      const ordinal = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'
-      const formattedDate = `${monthName} ${day}${ordinal}`
-
-      return `${targetMonthName} posts will be pushed to Drafts on ${formattedDate}.`
-    } catch (e) {
-      // Fallback to simple format
-      return `${targetMonthName} posts will be pushed to Drafts on ${pushDate}.`
-    }
-  }, [pushStatus])
 
   const selectImageForSubcategory = async (brandId: string, subcategoryId: string): Promise<string | null> => {
     try {
@@ -314,199 +223,6 @@ export default function CategoriesPage() {
     }
   }
 
-  const handlePushToDrafts = async () => {
-    if (pushing) return
-    setPushing(true)
-    
-    // Start the progress modal
-    startPushProgress()
-    
-    try {
-      // Call API route that creates drafts and triggers copy generation
-      const res = await fetch('/api/drafts/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandId })
-      })
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to push drafts')
-      }
-      
-      const result = await res.json()
-      const data = result.draftCount || 0
-      
-      // Log copy generation result if available
-      if (result.copyGenerationTriggered) {
-        console.log('Copy generation triggered:', result.copyJobResult)
-      }
-
-      // If RPC returns a number (row count), fetch the newly created drafts and backfill
-      if (typeof data === 'number' && data > 0) {
-        // Fetch all framework targets to map scheduled_for -> subcategory_id
-        const { data: targets, error: targetsError } = await supabase
-          .rpc('rpc_framework_targets', { p_brand_id: brandId })
-
-        // Fetch schedule rules to get subcategory defaults
-        const { data: rules, error: rulesError } = await supabase
-          .from('schedule_rules')
-          .select('subcategory_id')
-          .eq('brand_id', brandId)
-          .eq('is_active', true)
-
-        // Fetch subcategories for hashtags
-        const { data: subcategories, error: subcatsError } = await supabase
-          .from('subcategories')
-          .select('id, default_hashtags')
-          .in('id', (rules || []).map((r: { subcategory_id: string }) => r.subcategory_id))
-
-        // Fetch framework drafts created in the last 2 minutes (for this brand) to backfill images and copy
-        // We need to fetch ALL drafts (not filter by copy/images) so we can assign images even if copy already exists
-        const { data: newDrafts, error: fetchError } = await supabase
-          .from('drafts')
-          .select('id, scheduled_for, copy, asset_ids')
-          .eq('brand_id', brandId)
-          .eq('schedule_source', 'framework')
-          .gte('created_at', new Date(Date.now() - 120000).toISOString()) // Last 2 minutes
-          .order('created_at', { ascending: false })
-          .limit(data)
-
-        if (!fetchError && !targetsError && !rulesError && !subcatsError && newDrafts && newDrafts.length > 0 && targets) {
-          interface FrameworkTarget {
-            subcategory_id: string
-            scheduled_at: string
-            frequency: string
-          }
-          interface Subcategory {
-            id: string
-            default_hashtags: string[] | null
-          }
-          const subcatsMap = new Map<string, Subcategory>()
-          ;(subcategories as Subcategory[] || []).forEach(sc => subcatsMap.set(sc.id, sc))
-
-          // Match drafts to subcategories via scheduled_for (with 5-second tolerance)
-          for (const draft of newDrafts) {
-            const draftTime = new Date(draft.scheduled_for).getTime()
-            const target = (targets as FrameworkTarget[]).find((t) => {
-              const targetTime = new Date(t.scheduled_at).getTime()
-              return Math.abs(targetTime - draftTime) < 5000 // 5 second tolerance
-            })
-
-            if (target?.subcategory_id) {
-              const subcat = subcatsMap.get(target.subcategory_id)
-              const imageId = await selectImageForSubcategory(brandId, target.subcategory_id)
-              const updates: Partial<{ copy: string; asset_ids: string[]; hashtags: string[] }> = {}
-              
-              // Only set placeholder copy if copy is missing or still placeholder
-              // Don't overwrite AI-generated copy
-              const needsCopy = !draft.copy || draft.copy.trim() === '' || draft.copy === 'Post copy coming soon…'
-              if (needsCopy) {
-                updates.copy = 'Post copy coming soon…'
-              }
-              
-              // Assign image if missing
-              if (imageId && (!draft.asset_ids || draft.asset_ids.length === 0)) {
-                updates.asset_ids = [imageId]
-                console.log(`Assigned image ${imageId} to draft ${draft.id} for subcategory ${target.subcategory_id}`)
-              } else if (!imageId) {
-                console.warn(`No image found for draft ${draft.id} (subcategory ${target.subcategory_id})`)
-              }
-              
-              // Assign hashtags if missing
-              if (subcat?.default_hashtags && subcat.default_hashtags.length > 0) {
-                updates.hashtags = subcat.default_hashtags
-              }
-              
-              // Update if there are updates to make
-              if (Object.keys(updates).length > 0) {
-                const { error: updateError, data: updateData } = await supabase
-                  .from('drafts')
-                  .update(updates)
-                  .eq('id', draft.id)
-                  .select('id, asset_ids, hashtags, copy')
-                
-                if (updateError) {
-                  console.error(`Failed to update draft ${draft.id}:`, updateError)
-                } else {
-                  console.log(`Updated draft ${draft.id}:`, updateData?.[0])
-                }
-              }
-            } else {
-              // Fallback: just set placeholder copy if needed
-              const needsCopy = !draft.copy || draft.copy.trim() === '' || draft.copy === 'Post copy coming soon…'
-              if (needsCopy) {
-                const { error: updateError } = await supabase
-                  .from('drafts')
-                  .update({ copy: 'Post copy coming soon…' })
-                  .eq('id', draft.id)
-                
-                if (updateError) {
-                  console.error(`Failed to update draft ${draft.id}:`, updateError)
-                }
-              }
-            }
-          }
-        } else {
-          console.error('Backfill skipped:', { fetchError, targetsError, rulesError, subcatsError, newDraftsCount: newDrafts?.length, targetsCount: targets?.length })
-        }
-      } else if (Array.isArray(data)) {
-        // Legacy: RPC returned array of drafts
-        const createdDrafts: Array<{ id: string, subcategory_id: string }> = data
-        for (const draft of createdDrafts) {
-          const imageId = await selectImageForSubcategory(brandId, draft.subcategory_id)
-          if (imageId) {
-            await supabase
-              .from('drafts')
-              .update({ asset_ids: [imageId], copy: 'Post copy coming soon…' })
-              .eq('id', draft.id)
-          } else {
-            await supabase
-              .from('drafts')
-              .update({ copy: 'Post copy coming soon…' })
-              .eq('id', draft.id)
-          }
-        }
-      }
-
-      // Refresh data
-      await refetchRules()
-      
-      // Refetch push status to update banner and button
-      await fetchPushStatus()
-      
-      // Complete the progress modal (will auto-close after minimum display time)
-      const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : undefined)
-      completePushProgress({
-        minVisibleMs: 1500, // 1.5 seconds minimum visibility
-      })
-      
-      // Show success toast after a brief delay to let modal close
-      setTimeout(() => {
-        showToast({
-          title: 'Drafts created from framework',
-          message: 'Your posts have been successfully pushed to Drafts.',
-          type: 'success',
-          duration: 4000,
-          actionLabel: 'View Drafts',
-          onAction: () => router.push(`/brands/${brandId}/schedule`)
-        })
-      }, 1600)
-      
-      setPushing(false)
-    } catch (err) {
-      console.error('Push to drafts failed', err)
-      failPushProgress(err instanceof Error ? err.message : 'Failed to push drafts')
-      setPushing(false)
-      
-      showToast({
-        title: 'Something went wrong',
-        message: "We couldn't push drafts right now. Please try again.",
-        type: 'error',
-        duration: 4000
-      })
-    }
-  }
 
   const handleDeleteSubcategory = async (subcategoryId: string, subcategoryName: string) => {
     try {
@@ -830,44 +546,12 @@ export default function CategoriesPage() {
           {/* Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
             <div className="space-y-6">
-              {/* Monthly Automation Section */}
+              {/* Automatic Draft Generation Info */}
               {isAdmin && (
                 <div className="rounded-2xl border border-gray-200 bg-[#6366F1]/5 px-6 py-5 md:py-6">
-                  <div className="flex flex-col gap-3">
-                    {bannerCopy && (
-                      <div className="flex items-start gap-2">
-                        <p className="text-sm md:text-base font-medium text-gray-900">
-                          {bannerCopy}
-                        </p>
-                        <button
-                          type="button"
-                          className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-[10px] text-gray-500 hover:bg-gray-100"
-                          aria-label="How pushes work"
-                          title="Ferdy creates drafts one month ahead. Manual push triggers the next scheduled month immediately. You can push again any time if you've changed your categories or schedule."
-                        >
-                          ?
-                        </button>
-                      </div>
-                    )}
-                    <div className="mt-2 space-y-1 text-sm text-gray-600">
-                      <p>
-                        Last push: {formattedLastRun ?? "Not yet run"}
-                      </p>
-                      <p>
-                        Next push: {formattedNextPush ?? "To be confirmed"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handlePushToDrafts}
-                      disabled={pushing}
-                      className={`text-sm font-medium transition-opacity self-start ${pushing ? 'text-gray-400 cursor-not-allowed' : 'text-[#6366F1] underline hover:opacity-70'}`}
-                    >
-                      {pushing && (
-                        <span className="inline-block h-3 w-3 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent align-middle" />
-                      )}
-                      {pushing ? 'Pushing…' : (pushStatus?.hasRun ? 'Push to Drafts Again →' : 'Push to Drafts Now →')}
-                    </button>
-                  </div>
+                  <p className="text-sm md:text-base text-gray-700">
+                    Categories automatically create draft posts. Ferdy continuously generates drafts for the next 30 days based on your active categories. Review and approve drafts in the Schedule when you're ready.
+                  </p>
                 </div>
               )}
 
