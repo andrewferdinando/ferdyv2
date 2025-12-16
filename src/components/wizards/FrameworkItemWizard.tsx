@@ -543,16 +543,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   
   // Reset occurrences when switching occurrence type (but not in edit mode on mount)
   useEffect(() => {
-    if (subcategoryType === 'event_series' && mode === 'create') {
+    // Initialize eventScheduling for specific frequency (all types)
+    if (schedule.frequency === 'specific' && mode === 'create') {
       setEventScheduling(prev => ({ ...prev, occurrences: [] }))
       setEventErrors({})
     }
-  }, [eventOccurrenceType, subcategoryType, mode])
+  }, [eventOccurrenceType, schedule.frequency, mode])
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
-  // Initialize daysBefore from leadTimesInput when component mounts or switching to Events type
+  // Initialize daysBefore from leadTimesInput when component mounts or switching to specific frequency
   useEffect(() => {
-    if (subcategoryType === 'event_series' && eventScheduling.daysBefore.length === 0) {
+    if (schedule.frequency === 'specific' && eventScheduling.daysBefore.length === 0) {
       const parsed = parseLeadTimes(leadTimesInput)
       if (parsed.length > 0) {
         setEventScheduling(prev => ({
@@ -561,7 +562,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }))
       }
     }
-  }, [subcategoryType, leadTimesInput])
+  }, [schedule.frequency, leadTimesInput])
   const [isSaving, setIsSaving] = useState(false)
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
     mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
@@ -673,7 +674,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Update daysBefore when leadTimesInput changes (only for Events)
   useEffect(() => {
-    if (subcategoryType === 'event_series') {
+    // Update daysBefore for specific frequency (all types)
+    if (schedule.frequency === 'specific') {
       const parsed = parseLeadTimes(leadTimesInput)
       setEventScheduling(prev => {
         // Only update if different to avoid unnecessary re-renders
@@ -686,12 +688,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         return prev
       })
     }
-  }, [leadTimesInput, subcategoryType])
+  }, [leadTimesInput, schedule.frequency])
 
   const isStep3Valid = (): boolean => {
-    // Events use a different validation flow
-    if (subcategoryType === 'event_series') {
-      // Must have at least one occurrence
+    // Specific frequency uses event-style validation (for all types)
+    if (schedule.frequency === 'specific') {
+      // Must have at least one occurrence with valid data
       if (eventScheduling.occurrences.length === 0) {
         return false
       }
@@ -699,23 +701,29 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Validate based on occurrence type
       if (eventOccurrenceType === 'single') {
         // Single mode: date + time required
-        return eventScheduling.occurrences.every(
+        const hasValidOccurrences = eventScheduling.occurrences.every(
           occ => occ.date && occ.date.trim().length > 0 && occ.time && occ.time.trim().length > 0
         )
+        // Also check if days_before is set (alternative constraint satisfaction)
+        const hasDaysBefore = eventScheduling.daysBefore.length > 0
+        // Constraint requires: (start_date + times_of_day) OR (days_before OR days_during)
+        // If we have valid occurrences with date+time, that satisfies start_date + times_of_day
+        // Otherwise, we need days_before
+        return hasValidOccurrences || hasDaysBefore
       } else {
         // Range mode: start_date + end_date required
-        return eventScheduling.occurrences.every(
+        const hasValidOccurrences = eventScheduling.occurrences.every(
           occ => occ.start_date && occ.start_date.trim().length > 0 && occ.end_date && occ.end_date.trim().length > 0
         )
+        // Also check if days_before or days_during is set
+        const hasDaysBefore = eventScheduling.daysBefore.length > 0
+        // For range mode, we might not have times_of_day, so days_before/days_during is important
+        return hasValidOccurrences || hasDaysBefore
       }
     }
     
     // Other types use the standard schedule validation
     if (!schedule.frequency) return false
-    
-    if (schedule.frequency === 'specific') {
-      return true // No extra validation needed for specific
-    }
     
     if (schedule.frequency === 'daily') {
       return schedule.timeOfDay.trim().length > 0
@@ -837,28 +845,28 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
       
       if (!isStep3Valid()) {
-        // Events validation
-        if (subcategoryType === 'event_series') {
+        // Specific frequency validation (for all types)
+        if (schedule.frequency === 'specific') {
           const newErrors: typeof eventErrors = {}
           if (eventScheduling.occurrences.length === 0) {
-            newErrors.occurrences = 'Please add at least one event occurrence.'
+            newErrors.occurrences = 'Please add at least one date.'
           } else {
             if (eventOccurrenceType === 'single') {
               const missingDates = eventScheduling.occurrences.filter(occ => !occ.date || !occ.date.trim())
               const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
               if (missingDates.length > 0) {
-                newErrors.occurrences = 'All occurrences must have a date.'
+                newErrors.occurrences = 'All dates must have a date.'
               } else if (missingTimes.length > 0) {
-                newErrors.occurrences = 'All occurrences must have a time.'
+                newErrors.occurrences = 'All dates must have a time.'
               }
             } else {
               // Range mode
               const missingStartDates = eventScheduling.occurrences.filter(occ => !occ.start_date || !occ.start_date.trim())
               const missingEndDates = eventScheduling.occurrences.filter(occ => !occ.end_date || !occ.end_date.trim())
               if (missingStartDates.length > 0) {
-                newErrors.occurrences = 'All occurrences must have a start date.'
+                newErrors.occurrences = 'All date ranges must have a start date.'
               } else if (missingEndDates.length > 0) {
-                newErrors.occurrences = 'All occurrences must have an end date.'
+                newErrors.occurrences = 'All date ranges must have an end date.'
               }
             }
           }
@@ -866,7 +874,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           return null
         }
         
-        // Other types validation
+        // Other frequency types validation
         const newErrors: typeof scheduleErrors = {}
         if (!schedule.frequency) {
           newErrors.frequency = 'Please select a frequency.'
@@ -2702,11 +2710,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 {currentStep === 3 && (
                   <div>
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
-                      Step 3: {subcategoryType === 'event_series' ? 'Event dates' : 'Schedule'}
+                      Step 3: {schedule.frequency === 'specific' ? 'Event dates' : 'Schedule'}
                     </h2>
 
-                    {/* Events: Show occurrences manager */}
-                    {subcategoryType === 'event_series' ? (
+                    {/* Specific frequency: Show occurrences manager (for all types) */}
+                    {schedule.frequency === 'specific' ? (
                       <div className="space-y-6">
                         {/* Occurrences List */}
                         <div>
