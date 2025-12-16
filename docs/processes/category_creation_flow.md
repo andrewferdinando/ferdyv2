@@ -332,6 +332,4 @@ flowchart TD
     S4 --> FINISH[handleFinish()]
     FINISH --> TAGS[(asset_tags\nlink assets to subcategory tag)]
     FINISH --> URLSUM[/api/subcategories/{id}/refresh-url-summary/]
-    FINISH -->|optionally| PUSHBTN[User clicks 'Push to Drafts']
-
-    PUSHBTN --> APIPUSH[/api/drafts/push/]
+    FINISH --> GEN[/api/drafts/generate\n(automatic draft generation)]
