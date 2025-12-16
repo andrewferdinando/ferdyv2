@@ -999,14 +999,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             eventRuleData.end_date = firstOccurrence.date.trim()
           }
           
-          // Always extract and set time_of_day if time is available
+          // Always extract and set times_of_day if time is available
           if (firstOccurrence.time && firstOccurrence.time.trim()) {
             const timeStr = firstOccurrence.time.trim()
             // Convert HH:mm to HH:MM:SS
             const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
               ? `${timeStr}:00`
               : timeStr
-            eventRuleData.time_of_day = [timeFormatted]
+            eventRuleData.times_of_day = [timeFormatted]
           }
           
           // Set timezone (use brand timezone or default to Pacific/Auckland)
@@ -1026,11 +1026,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         console.info('[Wizard] Successfully created schedule rule for Events')
 
-        // Verify the created schedule_rule has start_date and time_of_day populated
+        // Verify the created schedule_rule has start_date and times_of_day populated
         if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
           const { data: createdRule, error: verifyError } = await supabase
             .from('schedule_rules')
-            .select('start_date, end_date, time_of_day, timezone')
+            .select('start_date, end_date, times_of_day, timezone')
             .eq('subcategory_id', subcategoryId)
             .eq('is_active', true)
             .order('created_at', { ascending: false })
@@ -1040,17 +1040,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (verifyError) {
             console.warn('[Wizard] Could not verify schedule rule:', verifyError)
           } else if (createdRule) {
-            console.info('[Wizard] Schedule rule verification:', {
-              has_start_date: !!createdRule.start_date,
-              has_end_date: !!createdRule.end_date,
-              has_time_of_day: Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0,
-              timezone: createdRule.timezone,
-              start_date: createdRule.start_date,
-              time_of_day: createdRule.time_of_day
-            })
-            if (!createdRule.start_date || !createdRule.time_of_day || !Array.isArray(createdRule.time_of_day) || createdRule.time_of_day.length === 0) {
-              console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time_of_day is missing')
-            }
+              console.info('[Wizard] Schedule rule verification:', {
+                has_start_date: !!createdRule.start_date,
+                has_end_date: !!createdRule.end_date,
+                has_times_of_day: Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0,
+                timezone: createdRule.timezone,
+                start_date: createdRule.start_date,
+                times_of_day: createdRule.times_of_day
+              })
+              if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
+                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
+              }
           }
         }
 
@@ -1426,14 +1426,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             eventRuleData.end_date = firstOccurrence.date.trim()
           }
           
-          // Always extract and set time_of_day if time is available
+          // Always extract and set times_of_day if time is available
           if (firstOccurrence.time && firstOccurrence.time.trim()) {
             const timeStr = firstOccurrence.time.trim()
             // Convert HH:mm to HH:MM:SS
             const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
               ? `${timeStr}:00`
               : timeStr
-            eventRuleData.time_of_day = [timeFormatted]
+            eventRuleData.times_of_day = [timeFormatted]
           }
           
           // Set timezone (use brand timezone or default to Pacific/Auckland)
@@ -1461,11 +1461,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
           console.info('[Wizard] Successfully updated schedule rule for Events')
 
-          // Verify the updated schedule_rule has start_date and time_of_day populated
+          // Verify the updated schedule_rule has start_date and times_of_day populated
           if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
             const { data: updatedRule, error: verifyError } = await supabase
               .from('schedule_rules')
-              .select('start_date, end_date, time_of_day, timezone')
+              .select('start_date, end_date, times_of_day, timezone')
               .eq('id', existingRule.id)
               .single()
 
@@ -1475,13 +1475,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               console.info('[Wizard] Schedule rule verification (update):', {
                 has_start_date: !!updatedRule.start_date,
                 has_end_date: !!updatedRule.end_date,
-                has_time_of_day: Array.isArray(updatedRule.time_of_day) && updatedRule.time_of_day.length > 0,
+                has_times_of_day: Array.isArray(updatedRule.times_of_day) && updatedRule.times_of_day.length > 0,
                 timezone: updatedRule.timezone,
                 start_date: updatedRule.start_date,
-                time_of_day: updatedRule.time_of_day
+                times_of_day: updatedRule.times_of_day
               })
-              if (!updatedRule.start_date || !updatedRule.time_of_day || !Array.isArray(updatedRule.time_of_day) || updatedRule.time_of_day.length === 0) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time_of_day is missing')
+              if (!updatedRule.start_date || !updatedRule.times_of_day || !Array.isArray(updatedRule.times_of_day) || updatedRule.times_of_day.length === 0) {
+                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
               }
             }
           }
@@ -1497,11 +1497,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
           console.info('[Wizard] Successfully created schedule rule for Events')
 
-          // Verify the created schedule_rule has start_date and time_of_day populated
+          // Verify the created schedule_rule has start_date and times_of_day populated
           if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
             const { data: createdRule, error: verifyError } = await supabase
               .from('schedule_rules')
-              .select('start_date, end_date, time_of_day, timezone')
+              .select('start_date, end_date, times_of_day, timezone')
               .eq('subcategory_id', subcategoryId)
               .eq('is_active', true)
               .order('created_at', { ascending: false })
@@ -1514,13 +1514,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               console.info('[Wizard] Schedule rule verification (insert):', {
                 has_start_date: !!createdRule.start_date,
                 has_end_date: !!createdRule.end_date,
-                has_time_of_day: Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0,
+                has_times_of_day: Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0,
                 timezone: createdRule.timezone,
                 start_date: createdRule.start_date,
-                time_of_day: createdRule.time_of_day
+                times_of_day: createdRule.times_of_day
               })
-              if (!createdRule.start_date || !createdRule.time_of_day || !Array.isArray(createdRule.time_of_day) || createdRule.time_of_day.length === 0) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time_of_day is missing')
+              if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
+                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
               }
             }
           }
