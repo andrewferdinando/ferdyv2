@@ -242,8 +242,8 @@ When the user clicks **Finish**:
      - Links each selected asset to that tag via `asset_tags`.
      - Skips links that already exist.
 
-3. **Trigger auto Push to Drafts**
-   - After assets are linked, it calls the Push to Drafts API for this brand:
+3. **Trigger draft generation**
+   - After assets are linked, it calls the draft generator API for this brand:
 
      ```ts
      await fetch('/api/drafts/push', {
