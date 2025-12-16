@@ -1222,25 +1222,61 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           // Set default timezone
           baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone) || 'Pacific/Auckland'
           
-          // If we have timeOfDay, try to use it with a start_date if available
-          // For now, since promo_or_offer doesn't collect start_date in the schedule state,
-          // we'll satisfy the constraint by setting days_before
-          // This ensures the constraint is always satisfied
-          if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-            // Convert HH:mm to HH:MM:SS format
-            const timeStr = schedule.timeOfDay.trim()
-            const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-              ? `${timeStr}:00`
-              : timeStr
-            baseRuleData.times_of_day = [timeFormatted]
+          // Extract start_date, end_date, and times_of_day from eventScheduling.occurrences
+          // This works for both single date and date range modes
+          if (eventScheduling.occurrences.length > 0) {
+            const firstOccurrence = eventScheduling.occurrences[0]
+            
+            // Handle single date mode
+            if (eventOccurrenceType === 'single' && firstOccurrence.date) {
+              baseRuleData.start_date = firstOccurrence.date.trim()
+              baseRuleData.end_date = firstOccurrence.date.trim() // Same as start_date for single date
+              
+              // Extract and set times_of_day if time is available
+              if (firstOccurrence.time && firstOccurrence.time.trim()) {
+                const timeStr = firstOccurrence.time.trim()
+                // Convert HH:mm to HH:MM:SS format
+                const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                  ? `${timeStr}:00`
+                  : timeStr
+                baseRuleData.times_of_day = [timeFormatted]
+              }
+            }
+            
+            // Handle date range mode
+            if (eventOccurrenceType === 'range' && firstOccurrence.start_date && firstOccurrence.end_date) {
+              baseRuleData.start_date = firstOccurrence.start_date.trim()
+              baseRuleData.end_date = firstOccurrence.end_date.trim()
+              
+              // For range mode, we might not have a time, but if we do, extract it
+              // Note: range mode occurrences don't typically have a time field, but check schedule.timeOfDay as fallback
+              if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
+                const timeStr = schedule.timeOfDay.trim()
+                const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                  ? `${timeStr}:00`
+                  : timeStr
+                baseRuleData.times_of_day = [timeFormatted]
+              }
+            }
           }
           
-          // Always set days_before to satisfy the constraint (even if empty, we'll set [0] as fallback)
-          // This ensures the constraint is satisfied even if start_date + time_of_day are not both present
-          baseRuleData.days_before = [0] // Default to [0] to satisfy constraint
+          // Guard: if start_date is missing, we cannot save (validation should have caught this)
+          if (!baseRuleData.start_date) {
+            throw new Error('Cannot save schedule rule: start_date is required for frequency="specific". Please add at least one date.')
+          }
           
-          // Note: If the UI later collects start_date/end_date for promo_or_offer specific,
-          // we can set those here and remove the days_before fallback
+          // Guard: if times_of_day is missing or empty, we cannot save
+          if (!baseRuleData.times_of_day || !Array.isArray(baseRuleData.times_of_day) || baseRuleData.times_of_day.length === 0) {
+            throw new Error('Cannot save schedule rule: times_of_day is required for frequency="specific". Please add a time.')
+          }
+          
+          // Set days_before if available (from eventScheduling.daysBefore)
+          // Only set if we have a valid start_date (don't use as fallback for constraint)
+          if (eventScheduling.daysBefore.length > 0) {
+            baseRuleData.days_before = eventScheduling.daysBefore
+          } else {
+            baseRuleData.days_before = null
+          }
         }
 
         // Clean up undefined fields
@@ -1820,25 +1856,61 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Set default timezone
             baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone) || 'Pacific/Auckland'
             
-            // If we have timeOfDay, try to use it with a start_date if available
-            // For now, since promo_or_offer doesn't collect start_date in the schedule state,
-            // we'll satisfy the constraint by setting days_before
-            // This ensures the constraint is always satisfied
-            if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-              // Convert HH:mm to HH:MM:SS format
-              const timeStr = schedule.timeOfDay.trim()
-              const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                ? `${timeStr}:00`
-                : timeStr
-              baseRuleData.times_of_day = [timeFormatted]
+            // Extract start_date, end_date, and times_of_day from eventScheduling.occurrences
+            // This works for both single date and date range modes
+            if (eventScheduling.occurrences.length > 0) {
+              const firstOccurrence = eventScheduling.occurrences[0]
+              
+              // Handle single date mode
+              if (eventOccurrenceType === 'single' && firstOccurrence.date) {
+                baseRuleData.start_date = firstOccurrence.date.trim()
+                baseRuleData.end_date = firstOccurrence.date.trim() // Same as start_date for single date
+                
+                // Extract and set times_of_day if time is available
+                if (firstOccurrence.time && firstOccurrence.time.trim()) {
+                  const timeStr = firstOccurrence.time.trim()
+                  // Convert HH:mm to HH:MM:SS format
+                  const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                    ? `${timeStr}:00`
+                    : timeStr
+                  baseRuleData.times_of_day = [timeFormatted]
+                }
+              }
+              
+              // Handle date range mode
+              if (eventOccurrenceType === 'range' && firstOccurrence.start_date && firstOccurrence.end_date) {
+                baseRuleData.start_date = firstOccurrence.start_date.trim()
+                baseRuleData.end_date = firstOccurrence.end_date.trim()
+                
+                // For range mode, we might not have a time, but if we do, extract it
+                // Note: range mode occurrences don't typically have a time field, but check schedule.timeOfDay as fallback
+                if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
+                  const timeStr = schedule.timeOfDay.trim()
+                  const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                    ? `${timeStr}:00`
+                    : timeStr
+                  baseRuleData.times_of_day = [timeFormatted]
+                }
+              }
             }
             
-            // Always set days_before to satisfy the constraint (even if empty, we'll set [0] as fallback)
-            // This ensures the constraint is satisfied even if start_date + time_of_day are not both present
-            baseRuleData.days_before = [0] // Default to [0] to satisfy constraint
+            // Guard: if start_date is missing, we cannot save (validation should have caught this)
+            if (!baseRuleData.start_date) {
+              throw new Error('Cannot save schedule rule: start_date is required for frequency="specific". Please add at least one date.')
+            }
             
-            // Note: If the UI later collects start_date/end_date for promo_or_offer specific,
-            // we can set those here and remove the days_before fallback
+            // Guard: if times_of_day is missing or empty, we cannot save
+            if (!baseRuleData.times_of_day || !Array.isArray(baseRuleData.times_of_day) || baseRuleData.times_of_day.length === 0) {
+              throw new Error('Cannot save schedule rule: times_of_day is required for frequency="specific". Please add a time.')
+            }
+            
+            // Set days_before if available (from eventScheduling.daysBefore)
+            // Only set if we have a valid start_date (don't use as fallback for constraint)
+            if (eventScheduling.daysBefore.length > 0) {
+              baseRuleData.days_before = eventScheduling.daysBefore
+            } else {
+              baseRuleData.days_before = null
+            }
           }
 
           const cleanRuleData: Record<string, unknown> = {}
