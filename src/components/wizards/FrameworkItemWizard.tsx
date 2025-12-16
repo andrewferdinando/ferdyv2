@@ -532,6 +532,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [eventErrors, setEventErrors] = useState<{
     occurrences?: string
     leadTimes?: string
+    timeOfDay?: string
   }>({})
   // Initialize leadTimesInput from initialData in edit mode
   const [leadTimesInput, setLeadTimesInput] = useState<string>(() => {
