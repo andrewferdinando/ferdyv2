@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { countries } from '@/lib/utils/countries'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -289,12 +290,14 @@ export function OnboardingWizard() {
                       value={data.countryCode}
                       onChange={(e) => setData({ ...data, countryCode: e.target.value })}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
                     >
-                      <option value="US">United States</option>
-                      <option value="NZ">New Zealand</option>
-                      <option value="AU">Australia</option>
-                      <option value="GB">United Kingdom</option>
-                      <option value="CA">Canada</option>
+                      <option value="">Select a country</option>
+                      {countries.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </>

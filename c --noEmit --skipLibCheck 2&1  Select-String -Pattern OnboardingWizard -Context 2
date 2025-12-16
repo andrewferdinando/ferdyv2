@@ -1,0 +1,32 @@
+[1mdiff --git a/src/components/onboarding/OnboardingWizard.tsx b/src/components/onboarding/OnboardingWizard.tsx[m
+[1mindex 74b0e60..7225e98 100644[m
+[1m--- a/src/components/onboarding/OnboardingWizard.tsx[m
+[1m+++ b/src/components/onboarding/OnboardingWizard.tsx[m
+[36m@@ -5,6 +5,7 @@[m [mimport { useRouter } from 'next/navigation'[m
+ import { supabase } from '@/lib/supabase-browser'[m
+ import { loadStripe } from '@stripe/stripe-js'[m
+ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'[m
+[32m+[m[32mimport { countries } from '@/lib/utils/countries'[m
+ [m
+ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)[m
+ [m
+[36m@@ -289,12 +290,14 @@[m [mexport function OnboardingWizard() {[m
+                       value={data.countryCode}[m
+                       onChange={(e) => setData({ ...data, countryCode: e.target.value })}[m
+                       className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[m
+[32m+[m[32m                      required[m
+                     >[m
+[31m-                      <option value="US">United States</option>[m
+[31m-                      <option value="NZ">New Zealand</option>[m
+[31m-                      <option value="AU">Australia</option>[m
+[31m-                      <option value="GB">United Kingdom</option>[m
+[31m-                      <option value="CA">Canada</option>[m
+[32m+[m[32m                      <option value="">Select a country</option>[m
+[32m+[m[32m                      {countries.map((country) => ([m
+[32m+[m[32m                        <option key={country.code} value={country.code}>[m
+[32m+[m[32m                          {country.name}[m
+[32m+[m[32m                        </option>[m
+[32m+[m[32m                      ))}[m
+                     </select>[m
+                   </div>[m
+                 </>[m
