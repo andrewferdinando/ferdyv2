@@ -49,19 +49,21 @@ Two cron systems:
 
 ## 2. How `post_jobs` are created
 
-### 2.1 From Push to Drafts (`rpc_push_to_drafts_now`)
+### 2.1 From Draft Generator (`generateDraftsForBrand`)
 
-When `rpc_push_to_drafts_now(p_brand_id)` runs (manual Push to Drafts or via `run_framework_push_monthly()`):
+When the draft generator (`generateDraftsForBrand`) runs (nightly cron or manual trigger):
 
-1. It calls `rpc_framework_targets(p_brand_id)` to get **future posting slots** for each schedule rule.
+1. It calls `rpc_framework_targets(p_brand_id)` to get **future posting slots** within a 30-day window for each schedule rule.
 2. For each target:
-   - Picks an asset using `rpc_pick_asset_for_rule(schedule_rule_id)`.
+   - Checks if a draft already exists (deduplication).
+   - Picks an asset using `rpc_pick_asset_for_rule(schedule_rule_id)` (may be empty if no asset available).
    - Inserts a row into `drafts`:
      - `brand_id`, `subcategory_id`
      - `scheduled_for` (UTC) + `scheduled_for_nzt`
      - `schedule_source = 'framework'`
      - `publish_status = 'draft'` / `status = 'draft'`
-     - `asset_ids` pre-populated if an asset is found.
+     - `approved = false` (user must approve)
+     - `asset_ids` pre-populated if an asset is found (may be empty array).
    - Looks up `schedule_rules.channels` to determine which channels to post to.
 3. For each channel in the rule:
    - Inserts a `post_jobs` row with:
@@ -76,6 +78,8 @@ When `rpc_push_to_drafts_now(p_brand_id)` runs (manual Push to Drafts or via `ru
 
 4. For the first job created:
    - The draft is updated with `post_job_id = <first job id>` for quick linking.
+
+5. Copy generation is automatically triggered for all drafts needing copy (new and existing with placeholder).
 
 Result:  
 For each planned post time (`scheduled_at`), you get:
@@ -356,7 +360,7 @@ draft_lifecycle.md
 
 schedule_rules.md
 
-push_to_drafts.md
+rpc_framework_targets.md
 
 rpc_framework_targets.md
 
