@@ -988,25 +988,29 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           image_tag_rule: null
         }
 
-        // For single occurrence mode, extract date and time from first occurrence
-        if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
+        // Extract date and time from first occurrence for event_series with frequency='specific'
+        if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
-          if (firstOccurrence.date && firstOccurrence.time) {
+          
+          // For single occurrence mode, set start_date and end_date
+          if (eventOccurrenceType === 'single' && firstOccurrence.date) {
             // Set start_date and end_date to the same date (YYYY-MM-DD)
             eventRuleData.start_date = firstOccurrence.date.trim()
             eventRuleData.end_date = firstOccurrence.date.trim()
-            
-            // Format time as HH:MM:SS and set as array
+          }
+          
+          // Always extract and set time_of_day if time is available
+          if (firstOccurrence.time && firstOccurrence.time.trim()) {
             const timeStr = firstOccurrence.time.trim()
             // Convert HH:mm to HH:MM:SS
             const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
               ? `${timeStr}:00`
               : timeStr
             eventRuleData.time_of_day = [timeFormatted]
-            
-            // Set timezone (use brand timezone or default to Pacific/Auckland)
-            eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
           }
+          
+          // Set timezone (use brand timezone or default to Pacific/Auckland)
+          eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
         }
 
         console.info('[Wizard] Creating schedule rule for Events:', eventRuleData)
@@ -1411,25 +1415,29 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           image_tag_rule: null
         }
 
-        // For single occurrence mode, extract date and time from first occurrence
-        if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
+        // Extract date and time from first occurrence for event_series with frequency='specific'
+        if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
-          if (firstOccurrence.date && firstOccurrence.time) {
+          
+          // For single occurrence mode, set start_date and end_date
+          if (eventOccurrenceType === 'single' && firstOccurrence.date) {
             // Set start_date and end_date to the same date (YYYY-MM-DD)
             eventRuleData.start_date = firstOccurrence.date.trim()
             eventRuleData.end_date = firstOccurrence.date.trim()
-            
-            // Format time as HH:MM:SS and set as array
+          }
+          
+          // Always extract and set time_of_day if time is available
+          if (firstOccurrence.time && firstOccurrence.time.trim()) {
             const timeStr = firstOccurrence.time.trim()
             // Convert HH:mm to HH:MM:SS
             const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
               ? `${timeStr}:00`
               : timeStr
             eventRuleData.time_of_day = [timeFormatted]
-            
-            // Set timezone (use brand timezone or default to Pacific/Auckland)
-            eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
           }
+          
+          // Set timezone (use brand timezone or default to Pacific/Auckland)
+          eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
         }
 
         // Check if schedule rule exists
