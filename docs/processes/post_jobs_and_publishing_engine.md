@@ -12,7 +12,7 @@
 
 Two cron systems:
 
-- **Supabase pg_cron** → monthly automation calling `run_framework_push_monthly()` (Push to Drafts).  
+- **Vercel Cron** → nightly automatic draft generation (`/api/drafts/generate-all`).  
 - **3rd-party cron (e.g. cron-job.org)** → calls `/api/publishing/run` on Vercel frequently to process `post_jobs`.
 
 ---

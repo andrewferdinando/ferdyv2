@@ -148,7 +148,7 @@ The `notification_logs` table has not been created yet. The tab displays a place
 | Type | Description | Trigger |
 |------|-------------|---------|
 | `post_published` | Post successfully published | After publishing to social platform |
-| `drafts_ready` | Monthly drafts ready for approval | After Push to Drafts completes |
+| `drafts_ready` | Monthly drafts ready for approval | After draft generator creates new drafts |
 | `social_disconnected` | Social connection needs reconnection | Auth error during publishing |
 | `brand_added` | New brand created | After brand creation |
 | `brand_deleted` | Brand removed | After brand soft-delete |

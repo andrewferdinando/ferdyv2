@@ -42,15 +42,11 @@ Defines how each category should post, including frequency, days, times, and cha
 `rpc_framework_targets.md`
 Documents the SQL function that generates future posting timestamps for each schedule rule.
 
-### **10. Push to Drafts (Automated & Manual)**
-`push_to_drafts.md`
-Explains how posting slots are converted into drafts, including the automated cron job and manual process.
-
-### **11. Draft Lifecycle**
+### **10. Draft Lifecycle**
 `draft_lifecycle.md`
 Describes the journey of a draft from creation to publication, including status updates and post-job integration.
 
-### **12. post_jobs & Publishing Engine**
+### **11. post_jobs & Publishing Engine**
 `post_jobs_and_publishing_engine.md`
 Defines the per-channel publishing mechanism, including job creation, processing, and success/failure handling.
 
@@ -68,7 +64,7 @@ Defines the per-channel publishing mechanism, including job creation, processing
 - **Category Setup**: Users create categories to define content inputs for automation.
 - **Scheduling**: Schedule rules determine when posts for each category are published.
 - **Framework Generation**: A SQL function generates future posting timestamps based on the schedule rules.
-- **Push to Drafts**: A cron job and manual process convert posting slots into drafts, generating copy and attaching assets.
+- **Draft Generation**: A nightly generator automatically creates drafts on a rolling 30-day window, generating copy and attaching assets. Drafts appear automatically in the Drafts tab.
 - **Publishing**: A separate cron job processes due post jobs, publishing them to the appropriate social media channels.
 
 ---
@@ -132,4 +128,4 @@ If you're a developer or AI agent working on Ferdy:
 
 ## 💡 Tip for AI Tools
 
-When modifying or adding functionality, **always check how the change affects downstream processes**. For example, modifying `schedule_rules` will affect `framework_targets`, which in turn affects `push_to_drafts` and `publishing`. This dependency chain is the backbone of Ferdy's automation system.
+When modifying or adding functionality, **always check how the change affects downstream processes**. For example, modifying `schedule_rules` will affect `framework_targets`, which in turn affects the draft generator and `publishing`. This dependency chain is the backbone of Ferdy's automation system.

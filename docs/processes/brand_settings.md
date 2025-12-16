@@ -162,9 +162,9 @@ This makes copy feel **on-brand** even when it’s fully AI generated.
 
 - Uses `brands.timezone` as the **effective timezone fallback** when computing scheduled times and converting them to UTC.
 
-### 4.4 Push to Drafts (`push_to_drafts.md`)
+### 4.4 Draft Generation
 
-- When `rpc_push_to_drafts_now` runs:
+- When the draft generator (`generateDraftsForBrand`) runs:
   - It uses `brands.timezone` and schedule rule times to set `drafts.scheduled_for` and `scheduled_for_nzt` (or equivalent local time).
   - The **presence** of `default_post_time` on brand/brand_post_information influences how schedule rules are populated, and therefore which timestamps `rpc_framework_targets` generates.
 
@@ -215,7 +215,7 @@ When you add fields to `brands` or `brand_post_information`, update this doc and
 
 - `category_creation_flow.md`
 - `schedule_rules.md`
-- `push_to_drafts.md`
+- `draft_lifecycle.md`
 - `copy_generation.md`
 
 Mermaid:

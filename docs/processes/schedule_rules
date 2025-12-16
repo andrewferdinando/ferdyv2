@@ -18,7 +18,7 @@ Schedule Rules are:
 - Can be effectively edited via **Edit Post** in the Schedule page (Drafts/Scheduled tab) or when creating a **New Post** manually.
 - Used by:
   - `rpc_framework_targets` to expand rules into concrete future posting slots.
-  - `rpc_push_to_drafts_now` to turn those slots into `drafts` + `post_jobs`.
+  - Draft generator (`generateDraftsForBrand`) to turn those slots into `drafts` + `post_jobs` on a rolling 30-day window.
   - Copy generation (to understand if something is an event vs evergreen).
 
 ---
@@ -40,9 +40,9 @@ They sit between a Category and the actual Draft posts:
 
 Ferdy uses these rules during automation:
 
-1. **Framework expansion**: `rpc_framework_targets` expands schedule rules into calendar dates/times (“targets”).
-2. **Draft generation**: `rpc_push_to_drafts_now` converts targets into `drafts` and `post_jobs`.
-3. **Copy generation**: uses frequency + dates to adjust tone and urgency.
+1. **Framework expansion**: `rpc_framework_targets` expands schedule rules into calendar dates/times ("targets").
+2. **Draft generation**: Draft generator (`generateDraftsForBrand`) converts targets into `drafts` and `post_jobs` on a rolling 30-day window.
+3. **Copy generation**: uses frequency + dates to adjust tone and urgency (automatic and non-optional).
 4. **Publishing**: `post_jobs` are picked up and sent to channels at the scheduled times.
 
 ---
@@ -295,25 +295,27 @@ These rows are later consumed by:
 
 ---
 
-### 5.2 Draft generation — `rpc_push_to_drafts_now`
+### 5.2 Draft generation — `generateDraftsForBrand`
 
-As documented in the Push to Drafts doc:
+As documented in the draft lifecycle doc:
 
-- Reads `rpc_framework_targets(p_brand_id)` to get future targets.
+- Reads `rpc_framework_targets(p_brand_id)` to get future targets within a 30-day window.
 - For each target:
+  - Checks if a draft already exists (deduplication).
   - Uses `schedule_rule_id` to:
     - Determine channels (`schedule_rules.channels`).
     - Determine `frequency` and event metadata (via `start_date`, `end_date`, `url`).
   - Inserts a `draft` with:
     - `subcategory_id` from the target.
-    - `channel` + `post_jobs` based on the rule’s channels.
+    - `channel` + `post_jobs` based on the rule's channels.
   - Marks `schedule_source = 'framework'`.
+  - Automatically triggers copy generation for all drafts needing copy.
 
 ---
 
 ### 5.3 Copy generation & tone
 
-In the `/api/drafts/push` route:
+In the draft generator:
 
 - Schedule rules are fetched:
 
@@ -377,7 +379,7 @@ flowchart TD
     UI -->|Create / Update| SR[(schedule_rules)]
 
     SR -->|read by| FRAME[rpc_framework_targets()]
-    SR -->|read by| PUSH[rpc_push_to_drafts_now()]
+    SR -->|read by| GEN[Draft Generator\n(generateDraftsForBrand)]
     SR -->|read by| PUBLISH[Publishing Engine\n(post_jobs selection)]
 
     subgraph Brand & Defaults

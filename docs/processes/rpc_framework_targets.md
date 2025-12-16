@@ -21,9 +21,9 @@ It:
 - Respects rule-level timezone if set, otherwise brand timezone, otherwise UTC.
 - Returns **only future times** (`scheduled_at > now()`).
 
-These “framework targets” are then consumed by:
+These "framework targets" are then consumed by:
 
-- **`rpc_push_to_drafts_now`** — to create `drafts` + `post_jobs`.
+- **Draft generator** (`generateDraftsForBrand`) — to create `drafts` + `post_jobs` on a rolling 30-day window.
 - Copy generation — to determine event vs evergreen behaviour.
 - Future helpers like `rpc_next_framework_window` — to know which windows have coverage.
 
@@ -384,7 +384,7 @@ subcategory_id IS NOT NULL
 
 No duplication checks against drafts:
 This function does not check existing drafts.
-Deduplication against existing framework drafts is handled in rpc_push_to_drafts_now (which skips targets already used to create drafts).
+Deduplication against existing framework drafts is handled in the draft generator (`generateDraftsForBrand`), which skips targets already used to create drafts.
 
 Time fields used:
 It uses time_of_day, not times_of_day.
@@ -402,27 +402,31 @@ rpc_framework_targets turns those patterns into actual timestamps.
 
 Docs: see schedule-rules.md.
 
-7.2 Push to Drafts — rpc_push_to_drafts_now
-In Push to Drafts:
+7.2 Draft Generation — generateDraftsForBrand
+In the draft generator:
 
-rpc_push_to_drafts_now calls rpc_framework_targets(p_brand_id) inside a CTE to produce fi (framework instances).
+The generator calls rpc_framework_targets(p_brand_id) to get future targets within a 30-day window.
 
 It then:
 
-Joins each target with:
+For each target:
 
-schedule_rules
+Checks if a draft already exists (deduplication).
 
-rpc_pick_asset_for_rule(schedule_rule_id)
+Joins with schedule_rules to get channels.
+
+Calls rpc_pick_asset_for_rule(schedule_rule_id) to select assets.
 
 Inserts drafts + post_jobs.
 
 Skips any target that already has a draft for that brand_id + scheduled_for + schedule_source='framework'.
 
-Docs: see push-to-drafts.md.
+Automatically triggers copy generation for all drafts needing copy.
+
+Docs: see draft_lifecycle.md.
 
 7.3 Copy Generation
-The /api/drafts/push route calls rpc_framework_targets to:
+The draft generator calls rpc_framework_targets to:
 
 Align drafts’ scheduled_for with the corresponding framework targets.
 
@@ -468,5 +472,5 @@ flowchart TD
 
     RFT --> TGT[(Framework Targets\nbrand_id, schedule_rule_id,\nsubcategory_id, scheduled_at, frequency)]
 
-    TGT --> PUSH[rpc_push_to_drafts_now()]
+    TGT --> GEN[Draft Generator\n(generateDraftsForBrand)]
     TGT --> DEBUG[Debugging / Admin views\n(when needed)]

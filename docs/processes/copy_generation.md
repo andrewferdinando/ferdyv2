@@ -29,14 +29,15 @@ export async function processBatchCopyGeneration(
   brandId: string,
   drafts: DraftCopyInput[]
 ) { ... }
-This is called from the Push to Drafts API:
+This is called from the draft generator:
 
-ts
-Copy code
-// src/app/api/drafts/push/route.ts (simplified)
-const draftsInput: DraftCopyInput[] = payload.drafts.map(...)
+```ts
+// src/lib/server/draftGeneration.ts (simplified)
+const draftsInput: DraftCopyInput[] = ... // built from drafts needing copy
 const result = await processBatchCopyGeneration(brandId, draftsInput);
-So every time Push to Drafts runs and creates drafts that need copy, it immediately calls processBatchCopyGeneration() to populate their copy.
+```
+
+So every time the generator runs and creates drafts (or finds existing drafts needing copy), it automatically calls `processBatchCopyGeneration()` to populate their copy. Copy generation is automatic and non-optional.
 
 2. DraftCopyInput shape
 The DraftCopyInput type (from generateCopyBatch.ts) roughly looks like:
@@ -215,27 +216,21 @@ Error details may be stored in copy_meta.
 The draft remains editable; user can still type their own copy.
 
 6. When copy generation is triggered
-Copy is usually triggered during Push to Drafts:
+Copy generation is **automatic and non-optional** for all drafts created by the generator:
 
-rpc_push_to_drafts_now inserts drafts.
+The generator (`generateDraftsForBrand`) automatically triggers copy generation:
 
-The Push API (/api/drafts/push) selects newly-created drafts that:
-
-Belong to the brand.
-
-Were created within the last X minutes (e.g. 2 minutes).
-
-Have empty or placeholder copy.
-
-It builds the DraftCopyInput[] array from those drafts.
-
-It calls processBatchCopyGeneration(brandId, draftsInput).
+- It finds drafts needing copy within the 30-day window:
+  - Newly created drafts (with null or placeholder copy).
+  - Existing drafts with null or `"Post copy coming soon…"` copy.
+- It builds the `DraftCopyInput[]` array from those drafts.
+- It calls `processBatchCopyGeneration(brandId, draftsInput)`.
 
 This behaviour ensures:
 
-Framework-based drafts always attempt to get copy generated automatically.
-
-Manual drafts can optionally use the same pipeline if wired up.
+- Framework-based drafts always get copy generated automatically.
+- There is no "regenerate copy" concept — copy is generated once per draft.
+- Manual drafts can optionally use the same pipeline if wired up.
 
 7. Notes & future changes
 If you:
@@ -254,7 +249,7 @@ For AI tools: always treat generateCopyBatch.ts and the prompt helper as the sin
 
 Mermaid:
 flowchart TD
-    APIPUSH[/api/drafts/push/] --> BATCH[Build DraftCopyInput[]]
+    GEN[Draft Generator\n(generateDraftsForBrand)] --> BATCH[Build DraftCopyInput[]]
 
     subgraph Inputs
         SUBC[(subcategories\nname, description,\nurl, default_copy_length,\nurl_page_summary)]

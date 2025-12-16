@@ -25,7 +25,7 @@ This document describes the full flow from user clicking "Connect" through to su
 
 **Excludes**
 - Publishing pipeline (see publishing docs)
-- Draft generation (see push_to_drafts.md)
+- Draft generation (see draft_lifecycle.md)
 
 ---
 
