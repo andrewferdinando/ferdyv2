@@ -3,7 +3,6 @@
 import { createContext, useContext, useState } from 'react';
 import Sidebar from '@/components/navigation/Sidebar';
 import AppTopNav from '@/components/navigation/AppTopNav';
-import { PushProgressProvider } from '@/contexts/PushProgressContext';
 
 const AppLayoutContext = createContext(false);
 
@@ -32,8 +31,7 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   const handleCloseSidebar = () => setIsMobileMenuOpen(false);
 
   return (
-    <PushProgressProvider>
-      <div className="flex min-h-dvh bg-gray-50">
+    <div className="flex min-h-dvh bg-gray-50">
         <div
           className={`
             ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -59,6 +57,5 @@ function AppLayoutInner({ children }: AppLayoutProps) {
           </main>
         </div>
       </div>
-    </PushProgressProvider>
   );
 }

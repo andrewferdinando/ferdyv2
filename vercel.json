@@ -3,6 +3,10 @@
     {
       "path": "/api/publishing/run",
       "schedule": "*/3 * * * *"
+    },
+    {
+      "path": "/api/drafts/generate-all",
+      "schedule": "0 12 * * *"
     }
   ]
 }
