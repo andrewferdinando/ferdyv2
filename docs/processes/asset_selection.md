@@ -167,7 +167,7 @@ flowchart TD
     AT --> PICK
 
     PICK --> ASSET[Chosen asset_id or NULL]
-    ASSET --> RPCA[rpc_push_to_drafts_now()]
-    RPCA --> DRAFTS[(drafts.asset_ids)]
+    ASSET --> GEN[Draft Generator\n(generateDraftsForBrand)]
+    GEN --> DRAFTS[(drafts.asset_ids)]
 
     DRAFTS --> UI[Drafts/Schedule UI\nuser can override assets]
