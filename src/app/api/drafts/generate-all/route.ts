@@ -1,3 +1,15 @@
+/**
+ * API Route: Generate drafts for all active brands (Nightly Cron Job)
+ * 
+ * This route is called by Vercel Cron nightly to keep the next 30 days of drafts generated.
+ * It calls the shared draft generation utility (single source of truth) for each active brand.
+ * 
+ * Security: Requires CRON_SECRET header to prevent unauthorized access.
+ * Input: None (fetches all active brands automatically)
+ * Output: Summary of brands processed and total drafts created/skipped
+ * 
+ * This is the primary automatic draft generation mechanism - no manual steps required.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { generateDraftsForBrand } from "@/lib/server/draftGeneration";
@@ -8,6 +20,9 @@ export const dynamic = 'force-dynamic';
 /**
  * Generate drafts for all active brands
  * Secured with CRON_SECRET header check
+ * 
+ * NOTE: This is the primary automatic draft generation mechanism.
+ * No manual steps, monthly pushes, or user actions are required.
  */
 async function handleGenerateAll(req: NextRequest) {
   try {

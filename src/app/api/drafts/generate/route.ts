@@ -1,3 +1,14 @@
+/**
+ * API Route: Generate drafts for a specific brand
+ * 
+ * This route calls the shared draft generation utility (single source of truth).
+ * Input: brandId only (no date overrides, no user options)
+ * Output: Summary of drafts created/skipped and copy generated
+ * 
+ * Used for:
+ * - Manual generation for a specific brand (via API call)
+ * - Automatic generation via nightly cron (via /api/drafts/generate-all)
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateDraftsForBrand } from "@/lib/server/draftGeneration";
@@ -6,6 +17,7 @@ import { generateDraftsForBrand } from "@/lib/server/draftGeneration";
 export const dynamic = 'force-dynamic';
 
 // Request schema - accept brandId from query or body
+// NOTE: Only brandId is required - no date overrides or user options
 const generateDraftsSchema = z.object({
   brandId: z.string().uuid(),
 });

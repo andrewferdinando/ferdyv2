@@ -1,3 +1,44 @@
+/**
+ * DRAFT GENERATION - SINGLE SOURCE OF TRUTH
+ * 
+ * This is the single source of truth for draft creation in Ferdy.
+ * All draft generation flows through this utility function.
+ * 
+ * BEHAVIORAL ASSUMPTIONS (LOCKED):
+ * 
+ * 1. Rolling 30-day window: Drafts are generated on a rolling 30-day window from now (UTC).
+ *    The window is recalculated on each run, ensuring continuous coverage.
+ * 
+ * 2. Drafts may be created with:
+ *    - No images (asset_ids may be empty array)
+ *    - Placeholder copy ("Post copy coming soon…") until copy generation completes
+ * 
+ * 3. Copy generation is automatic and non-optional:
+ *    - Copy is generated automatically for all new drafts
+ *    - Existing drafts with null or placeholder copy are also processed
+ *    - There is no "regenerate copy" concept - copy is generated once per draft
+ * 
+ * 4. Draft state:
+ *    - Drafts are always created with approved=false (publish_status='draft')
+ *    - Approval is the ONLY user action required before scheduling
+ *    - No other manual steps are needed
+ * 
+ * 5. Inputs are minimal and final:
+ *    - Only brandId is required
+ *    - No date overrides or user options
+ *    - No feature flags or branching logic
+ * 
+ * 6. No legacy concepts:
+ *    - No monthly pushes
+ *    - No manual generation steps
+ *    - No regeneration flows
+ *    - No draft creation from UI actions
+ * 
+ * This generator runs automatically via:
+ * - Nightly cron job (/api/drafts/generate-all) for all active brands
+ * - Manual API call (/api/drafts/generate) for a specific brand
+ */
+
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
 import { sendMonthlyDraftsReady } from "@/lib/emails/send";
@@ -11,11 +52,12 @@ export interface DraftGenerationResult {
 
 /**
  * Generate drafts for a brand within a 30-day window
- * @param brandId - The brand ID to generate drafts for
+ * @param brandId - The brand ID to generate drafts for (only input required)
  * @returns Result summary with counts
  */
 export async function generateDraftsForBrand(brandId: string): Promise<DraftGenerationResult> {
-  // Calculate 30-day window from now (UTC)
+  // Calculate rolling 30-day window from now (UTC)
+  // This window is recalculated on each run - no date overrides or user options
   const now = new Date();
   const windowEnd = new Date(now);
   windowEnd.setDate(windowEnd.getDate() + 30);
@@ -183,6 +225,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       const firstChannel = channels[0];
 
       // Attempt to pick an asset for this schedule rule
+      // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
+      // Asset selection is best-effort; if it fails or no asset is available, draft is still created
       let assetId: string | null = null;
       try {
         const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
@@ -203,6 +247,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         }
       } catch (error) {
         // Catch any other errors and continue without asset
+        // Draft creation proceeds regardless of asset selection success
         console.warn(`[draftGeneration] Exception picking asset for brand ${brandId}:`, error);
       }
 
@@ -234,6 +279,12 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       const scheduledLocal = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 
       // Create draft
+      // NOTE: Drafts are ALWAYS created with:
+      // - approved=false (user must approve before scheduling)
+      // - publish_status='draft' (not pending)
+      // - copy may be null or "Post copy coming soon…" until copy generation completes
+      // - asset_ids may be empty array if no asset is available
+      // Approval is the ONLY user action required before scheduling
       const { data: newDraft, error: draftError } = await supabaseAdmin
         .from('drafts')
         .insert({
@@ -262,10 +313,10 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
             return `${nztYear}-${nztMonth}-${nztDay}T${nztHour}:${nztMinute}:${nztSecond}`;
           })(),
           schedule_source: 'framework',
-          publish_status: 'draft',
-          approved: false,
+          publish_status: 'draft', // Always 'draft', never 'pending'
+          approved: false, // User must approve before scheduling
           subcategory_id: target.subcategory_id,
-          asset_ids: assetId ? [assetId] : []
+          asset_ids: assetId ? [assetId] : [] // May be empty - this is acceptable
         })
         .select()
         .single();
@@ -332,6 +383,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   });
 
   // Fetch existing drafts that need copy generation within the same 30-day window
+  // NOTE: Copy generation is automatic and non-optional - all drafts get copy generated
+  // There is no "regenerate copy" concept - copy is generated once per draft
+  // Drafts with null or placeholder copy are included in copy generation batch
   const { data: existingDraftsNeedingCopy, error: existingDraftsError } = await supabaseAdmin
     .from('drafts')
     .select('id')
@@ -346,6 +400,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   }
 
   // Combine newly created draft IDs with existing drafts that need copy
+  // NOTE: Copy generation is automatic and non-optional - triggered for all drafts needing copy
+  // No user action or feature flags control this - it happens automatically
   const allDraftIdsForCopy = Array.from(new Set([
     ...createdDraftIds,
     ...(existingDraftsNeedingCopy || []).map(d => d.id)
@@ -354,6 +410,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   const copyGenerationCount = allDraftIdsForCopy.length;
 
   // Trigger copy generation for all drafts (newly created + existing)
+  // This is automatic and non-optional - no branching logic or user options
   if (allDraftIdsForCopy.length > 0) {
     await triggerCopyGeneration(brandId, allDraftIdsForCopy, windowStartStr, windowEndStr);
   }
@@ -378,6 +435,10 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
 /**
  * Trigger copy generation for a set of draft IDs
+ * 
+ * NOTE: Copy generation is automatic and non-optional.
+ * There is no "regenerate copy" concept - copy is generated once per draft.
+ * This function is called automatically for all drafts needing copy.
  */
 async function triggerCopyGeneration(
   brandId: string,
