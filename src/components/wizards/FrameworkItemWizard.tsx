@@ -564,6 +564,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       setEventErrors({})
     }
   }, [eventOccurrenceType, schedule.frequency, mode])
+
+  // Force specific frequency for Events (and keep it once set)
+  useEffect(() => {
+    if (currentStep === 3 && subcategoryType === 'event_series' && schedule.frequency !== 'specific') {
+      setSchedule(prev => ({ ...prev, frequency: 'specific' }))
+    }
+  }, [currentStep, subcategoryType, schedule.frequency])
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   // Initialize daysBefore from leadTimesInput when component mounts or switching to specific frequency
@@ -2940,6 +2947,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
                 {currentStep === 3 && (
                   <div>
+                    {console.log('Schedule frequency:', schedule.frequency)}
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
                       Step 3: {schedule.frequency === 'specific' ? 'Event dates' : 'Schedule'}
                     </h2>
