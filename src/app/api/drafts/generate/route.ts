@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
 
     let draftsCreated = 0;
     let draftsSkipped = 0;
+    const createdDraftIds: string[] = []; // Track created draft IDs for copy generation
 
     // Process each target
     for (const target of targetsInWindow) {
@@ -182,6 +184,30 @@ export async function POST(req: NextRequest) {
         // Get channels for this schedule rule
         const channels = ruleChannelsMap.get(target.schedule_rule_id) || ['instagram_feed'];
         const firstChannel = channels[0];
+
+        // Attempt to pick an asset for this schedule rule
+        let assetId: string | null = null;
+        try {
+          const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
+            'rpc_pick_asset_for_rule',
+            { p_schedule_rule_id: target.schedule_rule_id }
+          );
+          
+          if (assetError) {
+            // If function doesn't exist or other error, continue without asset
+            if (assetError.code === '42883' || assetError.message?.includes('does not exist')) {
+              console.log('[api/drafts/generate] rpc_pick_asset_for_rule not available, continuing without asset');
+            } else {
+              console.warn('[api/drafts/generate] Error picking asset:', assetError);
+            }
+          } else if (pickedAsset && typeof pickedAsset === 'string') {
+            assetId = pickedAsset;
+            console.log('[api/drafts/generate] Picked asset:', assetId);
+          }
+        } catch (error) {
+          // Catch any other errors and continue without asset
+          console.warn('[api/drafts/generate] Exception picking asset:', error);
+        }
 
         // Calculate target_month (first day of the month)
         const targetMonth = new Date(scheduledAt);
@@ -239,10 +265,10 @@ export async function POST(req: NextRequest) {
               return `${nztYear}-${nztMonth}-${nztDay}T${nztHour}:${nztMinute}:${nztSecond}`;
             })(),
             schedule_source: 'framework',
-            publish_status: 'pending',
+            publish_status: 'draft',
             approved: false,
             subcategory_id: target.subcategory_id,
-            asset_ids: [] // Empty array for now
+            asset_ids: assetId ? [assetId] : []
           })
           .select()
           .single();
@@ -253,6 +279,7 @@ export async function POST(req: NextRequest) {
         }
 
         console.log('[api/drafts/generate] Created draft:', newDraft.id);
+        createdDraftIds.push(newDraft.id);
 
         // Create post_jobs for each channel
         let firstPostJobId: string | null = null;
@@ -306,6 +333,143 @@ export async function POST(req: NextRequest) {
       draftsCreated,
       draftsSkipped
     });
+
+    // Trigger copy generation for newly-created drafts
+    if (createdDraftIds.length > 0) {
+      try {
+        console.log('[api/drafts/generate] Triggering copy generation for', createdDraftIds.length, 'drafts');
+
+        // Fetch the created drafts with their details
+        const { data: createdDrafts, error: fetchError } = await supabaseAdmin
+          .from('drafts')
+          .select('id, brand_id, scheduled_for, schedule_source, copy, subcategory_id, channel')
+          .in('id', createdDraftIds);
+
+        if (fetchError || !createdDrafts || createdDrafts.length === 0) {
+          console.warn('[api/drafts/generate] Could not fetch created drafts for copy generation');
+        } else {
+          // Fetch schedule rules with full details
+          const { data: fullScheduleRules } = await supabaseAdmin
+            .from('schedule_rules')
+            .select('id, frequency, subcategory_id, start_date, end_date, url')
+            .eq('brand_id', validatedBrandId)
+            .eq('is_active', true);
+
+          // Fetch subcategories
+          const subcategoryIds = Array.from(new Set(
+            createdDrafts.map(d => d.subcategory_id).filter(Boolean) as string[]
+          ));
+          
+          const { data: subcategories } = await supabaseAdmin
+            .from('subcategories')
+            .select('id, name, url, detail, url_page_summary, subcategory_type, settings, default_copy_length, default_hashtags')
+            .in('id', subcategoryIds);
+
+          const subcategoriesMap = new Map(
+            (subcategories || []).map(sc => [sc.id, sc])
+          );
+
+          // Build lookup maps
+          const scheduleRuleById = new Map(
+            (fullScheduleRules || []).map(r => [r.id, r])
+          );
+
+          // Build ruleByDraftId map via post_jobs
+          const { data: postJobs } = await supabaseAdmin
+            .from('post_jobs')
+            .select('draft_id, schedule_rule_id')
+            .in('draft_id', createdDraftIds);
+
+          const ruleByDraftId = new Map<string, any>();
+          for (const job of postJobs || []) {
+            if (job.schedule_rule_id) {
+              const rule = scheduleRuleById.get(job.schedule_rule_id);
+              if (rule) {
+                ruleByDraftId.set(job.draft_id, rule);
+              }
+            }
+          }
+
+          // Build DraftCopyInput[] array
+          const draftsInput: DraftCopyInput[] = createdDrafts
+            .filter(d => !d.copy || d.copy.trim().length === 0 || d.copy === 'Post copy coming soon…')
+            .map(d => {
+              const rule = ruleByDraftId.get(d.id);
+              const subcategory = d.subcategory_id ? subcategoriesMap.get(d.subcategory_id) : null;
+
+              // Normalize rule.frequency into frequencyType
+              let frequencyType: "daily" | "weekly" | "monthly" | "date" | "date_range";
+              if (!rule) {
+                frequencyType = "monthly";
+              } else if (rule.frequency === "specific") {
+                if (rule.start_date && rule.end_date) {
+                  const startDateStr = new Date(rule.start_date).toISOString().split('T')[0];
+                  const endDateStr = new Date(rule.end_date).toISOString().split('T')[0];
+                  frequencyType = startDateStr !== endDateStr ? "date_range" : "date";
+                } else {
+                  frequencyType = "date";
+                }
+              } else {
+                frequencyType = rule.frequency as "daily" | "weekly" | "monthly";
+              }
+
+              // Build schedule object
+              const isEvent = frequencyType === 'date' || frequencyType === 'date_range';
+              let schedule: { frequency: string; event_date?: string; start_date?: string; end_date?: string } = {
+                frequency: rule?.frequency ?? "weekly",
+              };
+
+              if (isEvent && rule) {
+                if (frequencyType === 'date_range' && rule.start_date && rule.end_date) {
+                  schedule.start_date = new Date(rule.start_date).toISOString().split('T')[0];
+                  schedule.end_date = new Date(rule.end_date).toISOString().split('T')[0];
+                } else if (rule.start_date) {
+                  schedule.event_date = new Date(rule.start_date).toISOString().split('T')[0];
+                }
+              }
+
+              // Prefer occurrence URL (from schedule_rule.url), then subcategory URL
+              const url =
+                (rule?.url && rule.url.trim().length > 0 ? rule.url : null) ??
+                (subcategory?.url && subcategory.url.trim().length > 0 ? subcategory.url : null) ??
+                '';
+
+              return {
+                draftId: d.id,
+                subcategoryId: d.subcategory_id ?? undefined,
+                subcategory: subcategory ? {
+                  name: subcategory.name ?? '',
+                  url,
+                  description: subcategory.detail ?? undefined,
+                  frequency_type: frequencyType,
+                  url_page_summary: subcategory.url_page_summary ?? null,
+                  default_copy_length: subcategory.default_copy_length ?? "medium",
+                } : undefined,
+                subcategory_type: subcategory?.subcategory_type ?? null,
+                subcategory_settings: subcategory?.settings ?? null,
+                schedule,
+                scheduledFor: d.scheduled_for ?? undefined,
+                prompt: `Write copy for this post`,
+                options: {
+                  hashtags: { mode: "auto" as const },
+                },
+              };
+            });
+
+          // Call copy generation if there are drafts needing copy
+          if (draftsInput.length > 0) {
+            console.log('[api/drafts/generate] Calling processBatchCopyGeneration for', draftsInput.length, 'drafts');
+            const copyResult = await processBatchCopyGeneration(validatedBrandId, draftsInput);
+            console.log('[api/drafts/generate] Copy generation completed:', copyResult);
+          } else {
+            console.log('[api/drafts/generate] No drafts need copy generation');
+          }
+        }
+      } catch (copyError) {
+        console.error('[api/drafts/generate] Error during copy generation:', copyError);
+        // Don't fail the request if copy generation fails - drafts were still created
+      }
+    }
 
     return NextResponse.json({
       targetsFound: targetsInWindow.length,
