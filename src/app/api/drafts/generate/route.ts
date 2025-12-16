@@ -72,10 +72,24 @@ export async function POST(req: NextRequest) {
 
     if (!scheduleRules || scheduleRules.length === 0) {
       console.log('[api/drafts/generate] No active schedule rules found');
+      
+      // Still check for existing drafts that need copy generation
+      const { data: existingDraftsNeedingCopy } = await supabaseAdmin
+        .from('drafts')
+        .select('id')
+        .eq('brand_id', validatedBrandId)
+        .eq('schedule_source', 'framework')
+        .gte('scheduled_for', windowStartStr)
+        .lte('scheduled_for', windowEndStr)
+        .or('copy.is.null,copy.eq.Post copy coming soon…');
+      
+      const copyGenerationCount = (existingDraftsNeedingCopy || []).length;
+      
       return NextResponse.json({
         targetsFound: 0,
         draftsCreated: 0,
-        draftsSkipped: 0
+        draftsSkipped: 0,
+        copyGenerationCount
       });
     }
 
@@ -97,10 +111,145 @@ export async function POST(req: NextRequest) {
 
     if (!targets || targets.length === 0) {
       console.log('[api/drafts/generate] No framework targets found');
+      
+      // Still check for existing drafts that need copy generation
+      const { data: existingDraftsNeedingCopy } = await supabaseAdmin
+        .from('drafts')
+        .select('id')
+        .eq('brand_id', validatedBrandId)
+        .eq('schedule_source', 'framework')
+        .gte('scheduled_for', windowStartStr)
+        .lte('scheduled_for', windowEndStr)
+        .or('copy.is.null,copy.eq.Post copy coming soon…');
+      
+      const copyGenerationCount = (existingDraftsNeedingCopy || []).length;
+      
+      // If there are existing drafts needing copy, trigger copy generation
+      if (copyGenerationCount > 0 && existingDraftsNeedingCopy) {
+        try {
+          console.log('[api/drafts/generate] Triggering copy generation for', copyGenerationCount, 'existing drafts');
+          
+          const { data: allDrafts } = await supabaseAdmin
+            .from('drafts')
+            .select('id, brand_id, scheduled_for, schedule_source, copy, subcategory_id, channel')
+            .in('id', existingDraftsNeedingCopy.map(d => d.id));
+          
+          if (allDrafts && allDrafts.length > 0) {
+            // Fetch schedule rules and subcategories (same logic as main flow)
+            const { data: fullScheduleRules } = await supabaseAdmin
+              .from('schedule_rules')
+              .select('id, frequency, subcategory_id, start_date, end_date, url')
+              .eq('brand_id', validatedBrandId)
+              .eq('is_active', true);
+            
+            const subcategoryIds = Array.from(new Set(
+              allDrafts.map(d => d.subcategory_id).filter(Boolean) as string[]
+            ));
+            
+            const { data: subcategories } = await supabaseAdmin
+              .from('subcategories')
+              .select('id, name, url, detail, url_page_summary, subcategory_type, settings, default_copy_length, default_hashtags')
+              .in('id', subcategoryIds);
+            
+            const subcategoriesMap = new Map(
+              (subcategories || []).map(sc => [sc.id, sc])
+            );
+            
+            const scheduleRuleById = new Map(
+              (fullScheduleRules || []).map(r => [r.id, r])
+            );
+            
+            const { data: postJobs } = await supabaseAdmin
+              .from('post_jobs')
+              .select('draft_id, schedule_rule_id')
+              .in('draft_id', existingDraftsNeedingCopy!.map(d => d.id));
+            
+            const ruleByDraftId = new Map<string, any>();
+            for (const job of postJobs || []) {
+              if (job.schedule_rule_id) {
+                const rule = scheduleRuleById.get(job.schedule_rule_id);
+                if (rule) {
+                  ruleByDraftId.set(job.draft_id, rule);
+                }
+              }
+            }
+            
+            const draftsInput: DraftCopyInput[] = allDrafts
+              .filter(d => !d.copy || d.copy.trim().length === 0 || d.copy === 'Post copy coming soon…')
+              .map(d => {
+                const rule = ruleByDraftId.get(d.id);
+                const subcategory = d.subcategory_id ? subcategoriesMap.get(d.subcategory_id) : null;
+                
+                let frequencyType: "daily" | "weekly" | "monthly" | "date" | "date_range";
+                if (!rule) {
+                  frequencyType = "monthly";
+                } else if (rule.frequency === "specific") {
+                  if (rule.start_date && rule.end_date) {
+                    const startDateStr = new Date(rule.start_date).toISOString().split('T')[0];
+                    const endDateStr = new Date(rule.end_date).toISOString().split('T')[0];
+                    frequencyType = startDateStr !== endDateStr ? "date_range" : "date";
+                  } else {
+                    frequencyType = "date";
+                  }
+                } else {
+                  frequencyType = rule.frequency as "daily" | "weekly" | "monthly";
+                }
+                
+                const isEvent = frequencyType === 'date' || frequencyType === 'date_range';
+                let schedule: { frequency: string; event_date?: string; start_date?: string; end_date?: string } = {
+                  frequency: rule?.frequency ?? "weekly",
+                };
+                
+                if (isEvent && rule) {
+                  if (frequencyType === 'date_range' && rule.start_date && rule.end_date) {
+                    schedule.start_date = new Date(rule.start_date).toISOString().split('T')[0];
+                    schedule.end_date = new Date(rule.end_date).toISOString().split('T')[0];
+                  } else if (rule.start_date) {
+                    schedule.event_date = new Date(rule.start_date).toISOString().split('T')[0];
+                  }
+                }
+                
+                const url =
+                  (rule?.url && rule.url.trim().length > 0 ? rule.url : null) ??
+                  (subcategory?.url && subcategory.url.trim().length > 0 ? subcategory.url : null) ??
+                  '';
+                
+                return {
+                  draftId: d.id,
+                  subcategoryId: d.subcategory_id ?? undefined,
+                  subcategory: subcategory ? {
+                    name: subcategory.name ?? '',
+                    url,
+                    description: subcategory.detail ?? undefined,
+                    frequency_type: frequencyType,
+                    url_page_summary: subcategory.url_page_summary ?? null,
+                    default_copy_length: subcategory.default_copy_length ?? "medium",
+                  } : undefined,
+                  subcategory_type: subcategory?.subcategory_type ?? null,
+                  subcategory_settings: subcategory?.settings ?? null,
+                  schedule,
+                  scheduledFor: d.scheduled_for ?? undefined,
+                  prompt: `Write copy for this post`,
+                  options: {
+                    hashtags: { mode: "auto" as const },
+                  },
+                };
+              });
+            
+            if (draftsInput.length > 0) {
+              await processBatchCopyGeneration(validatedBrandId, draftsInput);
+            }
+          }
+        } catch (copyError) {
+          console.error('[api/drafts/generate] Error during copy generation for existing drafts:', copyError);
+        }
+      }
+      
       return NextResponse.json({
         targetsFound: 0,
         draftsCreated: 0,
-        draftsSkipped: 0
+        draftsSkipped: 0,
+        copyGenerationCount
       });
     }
 
@@ -334,19 +483,41 @@ export async function POST(req: NextRequest) {
       draftsSkipped
     });
 
-    // Trigger copy generation for newly-created drafts
-    if (createdDraftIds.length > 0) {
-      try {
-        console.log('[api/drafts/generate] Triggering copy generation for', createdDraftIds.length, 'drafts');
+    // Fetch existing drafts that need copy generation within the same 30-day window
+    const { data: existingDraftsNeedingCopy, error: existingDraftsError } = await supabaseAdmin
+      .from('drafts')
+      .select('id')
+      .eq('brand_id', validatedBrandId)
+      .eq('schedule_source', 'framework')
+      .gte('scheduled_for', windowStartStr)
+      .lte('scheduled_for', windowEndStr)
+      .or('copy.is.null,copy.eq.Post copy coming soon…');
 
-        // Fetch the created drafts with their details
-        const { data: createdDrafts, error: fetchError } = await supabaseAdmin
+    if (existingDraftsError) {
+      console.warn('[api/drafts/generate] Error fetching existing drafts needing copy:', existingDraftsError);
+    }
+
+    // Combine newly created draft IDs with existing drafts that need copy
+    const allDraftIdsForCopy = Array.from(new Set([
+      ...createdDraftIds,
+      ...(existingDraftsNeedingCopy || []).map(d => d.id)
+    ]));
+
+    const copyGenerationCount = allDraftIdsForCopy.length;
+
+    // Trigger copy generation for all drafts (newly created + existing)
+    if (allDraftIdsForCopy.length > 0) {
+      try {
+        console.log('[api/drafts/generate] Triggering copy generation for', allDraftIdsForCopy.length, 'drafts');
+
+        // Fetch all drafts (newly created + existing) with their details
+        const { data: allDrafts, error: fetchError } = await supabaseAdmin
           .from('drafts')
           .select('id, brand_id, scheduled_for, schedule_source, copy, subcategory_id, channel')
-          .in('id', createdDraftIds);
+          .in('id', allDraftIdsForCopy);
 
-        if (fetchError || !createdDrafts || createdDrafts.length === 0) {
-          console.warn('[api/drafts/generate] Could not fetch created drafts for copy generation');
+        if (fetchError || !allDrafts || allDrafts.length === 0) {
+          console.warn('[api/drafts/generate] Could not fetch drafts for copy generation');
         } else {
           // Fetch schedule rules with full details
           const { data: fullScheduleRules } = await supabaseAdmin
@@ -357,7 +528,7 @@ export async function POST(req: NextRequest) {
 
           // Fetch subcategories
           const subcategoryIds = Array.from(new Set(
-            createdDrafts.map(d => d.subcategory_id).filter(Boolean) as string[]
+            allDrafts.map(d => d.subcategory_id).filter(Boolean) as string[]
           ));
           
           const { data: subcategories } = await supabaseAdmin
@@ -378,7 +549,7 @@ export async function POST(req: NextRequest) {
           const { data: postJobs } = await supabaseAdmin
             .from('post_jobs')
             .select('draft_id, schedule_rule_id')
-            .in('draft_id', createdDraftIds);
+            .in('draft_id', allDraftIdsForCopy);
 
           const ruleByDraftId = new Map<string, any>();
           for (const job of postJobs || []) {
@@ -391,7 +562,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Build DraftCopyInput[] array
-          const draftsInput: DraftCopyInput[] = createdDrafts
+          const draftsInput: DraftCopyInput[] = allDrafts
             .filter(d => !d.copy || d.copy.trim().length === 0 || d.copy === 'Post copy coming soon…')
             .map(d => {
               const rule = ruleByDraftId.get(d.id);
@@ -474,7 +645,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       targetsFound: targetsInWindow.length,
       draftsCreated,
-      draftsSkipped
+      draftsSkipped,
+      copyGenerationCount
     });
 
   } catch (error) {
