@@ -1111,6 +1111,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           ? eventScheduling.daysDuring
           : null
 
+        console.log('[Wizard] specific CREATE debug', {
+          start_date: eventRuleData.start_date,
+          end_date: eventRuleData.end_date,
+          days_before: eventRuleData.days_before,
+          days_during: eventRuleData.days_during,
+          times_of_day: eventRuleData.times_of_day
+        })
+
         // Log payload for frequency='specific' to verify constraint satisfaction
         console.info('[Wizard] Schedule rule payload for frequency=specific (event_series CREATE):', {
           frequency: eventRuleData.frequency,
@@ -1374,6 +1382,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           baseRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
             ? eventScheduling.daysDuring
             : null
+
+            console.log('[Wizard] specific UPDATE debug', {
+              start_date: baseRuleData.start_date,
+              end_date: baseRuleData.end_date,
+              days_before: baseRuleData.days_before,
+              days_during: baseRuleData.days_during,
+              times_of_day: baseRuleData.times_of_day
+            })
         }
 
         // Clean up undefined fields
@@ -3187,7 +3203,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           </FormField>
 
                           {hasDateRangeSelection && (
-                            <FormField label="Days during (0 = event start day)">
+                            <FormField label="Days During">
                               <Input
                                 type="text"
                                 value={daysDuringInput}
@@ -3208,7 +3224,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                 error={eventErrors.daysDuring}
                               />
                               <p className="mt-2 text-sm text-gray-600">
-                                Applies when start and end dates differ. Leave blank to skip during-event posts.
+                                Offsets from start date (0 = start day, 1 = next day…). Leave blank to skip during-event posts.
                               </p>
                             </FormField>
                           )}
