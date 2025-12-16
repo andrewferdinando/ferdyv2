@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
-import { sendMonthlyDraftsReady } from "@/lib/emails/send";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -419,14 +418,6 @@ export async function POST(req: NextRequest) {
         const result = await processBatchCopyGeneration(brandId, draftsInput);
         console.log("Copy generation completed:", result);
 
-        // Send email notification to brand admins
-        try {
-          await notifyDraftsReady(brandId, draftCount);
-        } catch (emailError) {
-          console.error("Failed to send draft notification emails:", emailError);
-          // Don't fail the request if email fails
-        }
-
         return NextResponse.json({
           ok: true,
           message: "Drafts created and copy generation completed",
@@ -460,93 +451,5 @@ export async function POST(req: NextRequest) {
       { error: errorMessage },
       { status: 500 }
     );
-  }
-}
-
-/**
- * Send email notification to brand admins when monthly drafts are ready
- */
-async function notifyDraftsReady(brandId: string, draftCount: number) {
-  console.log(`[notifyDraftsReady] Sending notifications for brand ${brandId}, ${draftCount} drafts`);
-  
-  // Get brand details
-  const { data: brand, error: brandError } = await supabaseAdmin
-    .from('brands')
-    .select('name, group_id, status')
-    .eq('id', brandId)
-    .single();
-  
-  if (brandError || !brand || brand.status !== 'active') {
-    console.error('[notifyDraftsReady] Brand not found or inactive:', brandError);
-    return;
-  }
-  
-  // Get admin and editor emails for the brand (both roles can approve drafts)
-  const { data: memberships, error: membershipsError } = await supabaseAdmin
-    .from('brand_memberships')
-    .select('user_id, role')
-    .eq('brand_id', brandId)
-    .in('role', ['admin', 'editor'])
-    .eq('status', 'active');
-  
-  if (membershipsError || !memberships || memberships.length === 0) {
-    console.error('[notifyDraftsReady] No active admins/editors found:', membershipsError);
-    return;
-  }
-  
-  console.log(`[notifyDraftsReady] Found ${memberships.length} admins/editors`);
-  
-  // Get user emails from auth
-  const adminEmails: string[] = [];
-  for (const membership of memberships) {
-    try {
-      const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(membership.user_id);
-      if (userError) {
-        console.error(`[notifyDraftsReady] Error fetching user ${membership.user_id}:`, userError);
-        continue;
-      }
-      if (user?.email) {
-        adminEmails.push(user.email);
-      }
-    } catch (err) {
-      console.error(`[notifyDraftsReady] Exception fetching user ${membership.user_id}:`, err);
-    }
-  }
-  
-  if (adminEmails.length === 0) {
-    console.error('[notifyDraftsReady] No valid email addresses found');
-    return;
-  }
-  
-  // Deduplicate email addresses (in case user has multiple roles)
-  const uniqueEmails = [...new Set(adminEmails)];
-  
-  console.log(`[notifyDraftsReady] Sending to ${uniqueEmails.length} unique recipients (${adminEmails.length} total memberships)`);
-  
-  // Get current month for email
-  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  
-  // Get app URL from environment
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io';
-  const approvalLink = `${appUrl}/brands/${brandId}/schedule?tab=drafts`;
-  
-  console.log(`[notifyDraftsReady] Brand ID: ${brandId}`);
-  console.log(`[notifyDraftsReady] Approval link: ${approvalLink}`);
-  
-  // Send email to each unique admin/editor
-  for (const email of uniqueEmails) {
-    try {
-      await sendMonthlyDraftsReady({
-        to: email,
-        brandName: brand.name,
-        draftCount,
-        approvalLink,
-        month,
-      });
-      console.log(`[notifyDraftsReady] Email sent to ${email}`);
-    } catch (err) {
-      console.error(`[notifyDraftsReady] Failed to send email to ${email}:`, err);
-      // Continue sending to other recipients even if one fails
-    }
   }
 }
