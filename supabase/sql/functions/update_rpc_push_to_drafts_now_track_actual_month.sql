@@ -1,7 +1,8 @@
--- Fix rpc_push_to_drafts_now to check subcategory_id when preventing duplicates
--- Bug: The function was only checking brand_id, scheduled_for, and schedule_source
--- This prevented multiple categories from having drafts at the same time
--- Fix: Add subcategory_id to the duplicate check
+-- Update rpc_push_to_drafts_now to track actual month of drafts created
+-- This updates the function to set runs.target_month based on the actual scheduled_at
+-- values of drafts created, rather than the precomputed window
+--
+-- Ready to run in Supabase SQL Editor
 
 DROP FUNCTION IF EXISTS rpc_push_to_drafts_now(uuid) CASCADE;
 
@@ -258,4 +259,5 @@ GRANT EXECUTE ON FUNCTION rpc_push_to_drafts_now(uuid) TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION rpc_push_to_drafts_now(uuid) IS 
-    'Ensures next-month framework exists, gets the framework window (from today to end of next month on first run, or next month window on subsequent runs), logs to runs table with target_month, and creates drafts from framework targets using rpc_framework_targets. Returns the count of drafts created. Fixed to check subcategory_id when preventing duplicate drafts.';
+    'Ensures next-month framework exists, gets the framework window (from today to end of next month on first run, or next month window on subsequent runs), logs to runs table with target_month, and creates drafts from framework targets using rpc_framework_targets. Returns the count of drafts created. Fixed to check subcategory_id when preventing duplicate drafts. Updated to track actual month of drafts created based on scheduled_at values.';
+

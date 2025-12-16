@@ -745,6 +745,54 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     currentStep === 4 ? true : // Step 4 has no required fields
     true
 
+  // Helper function to build subcategory settings based on type
+  const buildSubcategorySettings = (
+    details: WizardDetails,
+    subcategoryType: SubcategoryType | null,
+    eventScheduling?: EventSchedulingState,
+    eventOccurrenceType?: 'single' | 'range'
+  ): Record<string, any> => {
+    if (!subcategoryType) {
+      return {}
+    }
+
+    switch (subcategoryType) {
+      case 'promo_or_offer': {
+        // TODO: Add promo-specific fields to WizardDetails when UI is implemented
+        // Expected fields:
+        // - promo_length_days: number | null (duration of promo in days)
+        // - auto_expire: boolean (whether promo auto-expires)
+        // For now, return empty object to prevent breaking existing functionality
+        return {}
+      }
+
+      case 'event_series': {
+        const settings: Record<string, any> = {}
+        
+        // Persist occurrence_type
+        if (eventOccurrenceType) {
+          settings.occurrence_type = eventOccurrenceType
+        }
+        
+        // Persist occurrences array (contains either {date, time} or {start_date, end_date})
+        if (eventScheduling && eventScheduling.occurrences && eventScheduling.occurrences.length > 0) {
+          settings.occurrences = eventScheduling.occurrences
+        }
+        
+        // Persist default_lead_times from eventScheduling.daysBefore
+        if (eventScheduling && eventScheduling.daysBefore && eventScheduling.daysBefore.length > 0) {
+          settings.default_lead_times = eventScheduling.daysBefore
+        }
+        
+        return settings
+      }
+
+      default:
+        // Return empty object for other types (don't break existing functionality)
+        return {}
+    }
+  }
+
   // Helper function to ensure subcategory is saved (used before Step 4)
   const ensureSubcategorySaved = async (): Promise<{ subcategoryId: string } | null> => {
     // Prevent creating Schedules type (temporarily disabled)
@@ -884,7 +932,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               ? `${details.post_time}:00`
               : details.post_time)
           : null,
-        settings: {}
+        settings: buildSubcategorySettings(details, subcategoryType, eventScheduling, eventOccurrenceType)
       }
 
       const { data: subcategoryData, error: subcategoryError } = await supabase
@@ -1239,6 +1287,27 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       console.info('[Wizard] Updating subcategory:', subcategoryId)
 
+      // Fetch existing settings first to preserve them
+      const { data: existingSubcategory, error: fetchError } = await supabase
+        .from('subcategories')
+        .select('settings')
+        .eq('id', subcategoryId)
+        .single()
+
+      if (fetchError) {
+        console.error('[Wizard] Error fetching existing subcategory settings:', fetchError)
+        throw new Error(`Failed to fetch subcategory: ${fetchError.message}`)
+      }
+
+      // Build new settings
+      const newSettings = buildSubcategorySettings(details, subcategoryType, eventScheduling, eventOccurrenceType)
+      
+      // Merge settings: preserve existing, merge with new (only if newSettings is not empty)
+      const existingSettings = existingSubcategory?.settings || {}
+      const mergedSettings = Object.keys(newSettings).length > 0
+        ? { ...existingSettings, ...newSettings }
+        : existingSettings
+
       const { error: subcategoryError } = await supabase
         .from('subcategories')
         .update({
@@ -1255,7 +1324,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 ? `${details.post_time}:00`
                 : details.post_time)
             : null,
-          settings: {}
+          settings: mergedSettings
         })
         .eq('id', subcategoryId)
 
