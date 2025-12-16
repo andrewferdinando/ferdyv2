@@ -240,6 +240,7 @@ type EventOccurrenceInput = {
 type EventSchedulingState = {
   occurrences: EventOccurrenceInput[]
   daysBefore: number[] // e.g. [7, 3, 1]
+  daysDuring: number[] // e.g. [0, 1, 2] for multi-day events
 }
 
 export interface WizardInitialData {
@@ -471,10 +472,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     if (mode === 'edit' && initialData) {
       const occurrences: EventOccurrenceInput[] = []
       let daysBefore: number[] = []
+      let daysDuring: number[] = []
       
       // Extract daysBefore from scheduleRule
       if (initialData.scheduleRule?.days_before) {
         daysBefore = initialData.scheduleRule.days_before
+      }
+      if (initialData.scheduleRule?.days_during) {
+        daysDuring = initialData.scheduleRule.days_during
       }
       
       // Convert event_occurrences to EventOccurrenceInput format
@@ -521,17 +526,20 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       
       return {
         occurrences,
-        daysBefore
+        daysBefore,
+        daysDuring
       }
     }
     return {
       occurrences: [],
-      daysBefore: []
+      daysBefore: [],
+      daysDuring: []
     }
   })
   const [eventErrors, setEventErrors] = useState<{
     occurrences?: string
     leadTimes?: string
+    daysDuring?: string
     timeOfDay?: string
   }>({})
   // Initialize leadTimesInput from initialData in edit mode
@@ -540,6 +548,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return initialData.scheduleRule.days_before.join(', ')
     }
     return '7, 3, 1'
+  })
+  const [daysDuringInput, setDaysDuringInput] = useState<string>(() => {
+    if (mode === 'edit' && initialData?.scheduleRule?.days_during && initialData.scheduleRule.days_during.length > 0) {
+      return initialData.scheduleRule.days_during.join(', ')
+    }
+    return ''
   })
   
   // Reset occurrences when switching occurrence type (but not in edit mode on mount)
@@ -673,6 +687,25 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       .filter(n => !isNaN(n) && n > 0)
   }
 
+  const parseDaysDuring = (input: string): number[] => {
+    if (!input.trim()) return []
+    return input
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(s => parseInt(s, 10))
+      .filter(n => !isNaN(n) && n >= 0)
+  }
+
+  const hasDateRangeSelection = React.useMemo(() => {
+    if (eventOccurrenceType !== 'range') return false
+    return eventScheduling.occurrences.some(occ => {
+      const start = occ.start_date?.trim()
+      const end = occ.end_date?.trim()
+      return !!start && !!end && start !== end
+    })
+  }, [eventOccurrenceType, eventScheduling.occurrences])
+
   // Update daysBefore when leadTimesInput changes (only for Events)
   useEffect(() => {
     // Update daysBefore for specific frequency (all types)
@@ -690,6 +723,22 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       })
     }
   }, [leadTimesInput, schedule.frequency])
+
+  // Update daysDuring for date ranges (specific frequency only)
+  useEffect(() => {
+    if (schedule.frequency !== 'specific') return
+    const parsed = parseDaysDuring(daysDuringInput)
+    setEventScheduling(prev => {
+      const nextDaysDuring = hasDateRangeSelection ? parsed : []
+      if (JSON.stringify(prev.daysDuring.sort()) !== JSON.stringify(nextDaysDuring.sort())) {
+        return {
+          ...prev,
+          daysDuring: nextDaysDuring
+        }
+      }
+      return prev
+    })
+  }, [daysDuringInput, hasDateRangeSelection, schedule.frequency])
 
   const isStep3Valid = (): boolean => {
     // Specific frequency uses event-style validation (for all types)
@@ -781,6 +830,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         // Persist default_lead_times from eventScheduling.daysBefore
         if (eventScheduling && eventScheduling.daysBefore && eventScheduling.daysBefore.length > 0) {
           settings.default_lead_times = eventScheduling.daysBefore
+        }
+        // Persist days_during for ranges
+        if (eventScheduling && eventScheduling.daysDuring && eventScheduling.daysDuring.length > 0) {
+          settings.days_during = eventScheduling.daysDuring
         }
         
         return settings
@@ -1003,6 +1056,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             eventRuleData.end_date = firstOccurrence.date.trim()
           }
           
+          // Handle date range mode
+          if (eventOccurrenceType === 'range' && firstOccurrence.start_date && firstOccurrence.end_date) {
+            eventRuleData.start_date = firstOccurrence.start_date.trim()
+            eventRuleData.end_date = firstOccurrence.end_date.trim()
+            
+            // Use schedule.timeOfDay as the time source for ranges
+            if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
+              const timeStr = schedule.timeOfDay.trim()
+              const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                ? `${timeStr}:00`
+                : timeStr
+              eventRuleData.times_of_day = [timeFormatted]
+            }
+          }
+          
           // Always extract and set times_of_day if time is available
           if (firstOccurrence.time && firstOccurrence.time.trim()) {
             const timeStr = firstOccurrence.time.trim()
@@ -1036,6 +1104,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             ? eventScheduling.daysBefore 
             : null
         }
+
+        // Set days_during only for valid date ranges
+        eventRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
+          ? eventScheduling.daysDuring
+          : null
 
         // Log payload for frequency='specific' to verify constraint satisfaction
         console.info('[Wizard] Schedule rule payload for frequency=specific (event_series CREATE):', {
@@ -1295,6 +1368,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           } else {
             baseRuleData.days_before = null
           }
+
+          // Set days_during only for valid date ranges
+          baseRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
+            ? eventScheduling.daysDuring
+            : null
         }
 
         // Clean up undefined fields
@@ -1598,6 +1676,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             eventRuleData.end_date = firstOccurrence.date.trim()
           }
           
+          // Handle date range mode
+          if (eventOccurrenceType === 'range' && firstOccurrence.start_date && firstOccurrence.end_date) {
+            eventRuleData.start_date = firstOccurrence.start_date.trim()
+            eventRuleData.end_date = firstOccurrence.end_date.trim()
+            
+            // Use schedule.timeOfDay as the time source for ranges
+            if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
+              const timeStr = schedule.timeOfDay.trim()
+              const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
+                ? `${timeStr}:00`
+                : timeStr
+              eventRuleData.times_of_day = [timeFormatted]
+            }
+          }
+          
           // Always extract and set times_of_day if time is available
           if (firstOccurrence.time && firstOccurrence.time.trim()) {
             const timeStr = firstOccurrence.time.trim()
@@ -1628,6 +1721,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             ? eventScheduling.daysBefore 
             : null
         }
+
+        // Set days_during only for valid date ranges
+        eventRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
+          ? eventScheduling.daysDuring
+          : null
 
         // Log payload for frequency='specific' to verify constraint satisfaction
         console.info('[Wizard] Schedule rule payload for frequency=specific (event_series UPDATE):', {
@@ -1950,6 +2048,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             } else {
               baseRuleData.days_before = null
             }
+
+            // Set days_during only for valid date ranges
+            baseRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
+              ? eventScheduling.daysDuring
+              : null
           }
 
           const cleanRuleData: Record<string, unknown> = {}
@@ -3081,6 +3184,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               error={eventErrors.leadTimes}
                             />
                           </FormField>
+
+                          {hasDateRangeSelection && (
+                            <FormField label="Days during (0 = event start day)">
+                              <Input
+                                type="text"
+                                value={daysDuringInput}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  setDaysDuringInput(value)
+                                  const hasInvalidChars = value.split(',').some(s => {
+                                    const trimmed = s.trim()
+                                    return trimmed.length > 0 && isNaN(parseInt(trimmed, 10))
+                                  })
+                                  if (hasInvalidChars && value.trim() !== '') {
+                                    setEventErrors(prev => ({ ...prev, daysDuring: 'Use numbers separated by commas (0 for event start day)' }))
+                                  } else {
+                                    setEventErrors(prev => ({ ...prev, daysDuring: undefined }))
+                                  }
+                                }}
+                                placeholder="0, 1, 2"
+                                error={eventErrors.daysDuring}
+                              />
+                              <p className="mt-2 text-sm text-gray-600">
+                                Applies when start and end dates differ. Leave blank to skip during-event posts.
+                              </p>
+                            </FormField>
+                          )}
                         </div>
                       </div>
                     ) : (
