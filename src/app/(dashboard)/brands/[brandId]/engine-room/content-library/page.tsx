@@ -143,6 +143,7 @@ export default function ContentLibraryPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Asset | null>(null)
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
+  const pendingUploadIdsRef = useRef<string[]>([])
 
   // Filter assets based on tab and search
   const filteredAssets = assets.filter(asset => {
@@ -201,25 +202,40 @@ export default function ContentLibraryPage() {
     { key: 'videos', label: 'Videos' },
   ]
 
-  const handleUploadSuccess = (assetIds: string[]) => {
-    refetch()
-    // Switch to needs attention tab to show the new assets
-    setActiveTab('needs_attention')
-    // Store the first uploaded asset as editing data to prioritize it
-    if (assetIds.length > 0) {
-      setTimeout(() => {
-        const newAsset = assets.find(asset => asset.id === assetIds[0])
-        if (newAsset) {
-          setEditingAssetData(newAsset)
-          // Set media filter based on uploaded asset type so user sees the correct tab
-          if (newAsset.asset_type === 'video') {
-            setMediaFilter('videos')
-          } else {
-            setMediaFilter('images')
-          }
-        }
-      }, 500)
+  // Watch for pending uploads to appear in assets array
+  useEffect(() => {
+    if (pendingUploadIdsRef.current.length === 0) return
+    
+    const uploadedAssets = assets.filter(asset => pendingUploadIdsRef.current.includes(asset.id))
+    
+    if (uploadedAssets.length > 0) {
+      // Check if any uploaded asset is a video
+      const hasVideo = uploadedAssets.some(asset => asset.asset_type === 'video')
+      
+      // Set media filter: videos -> 'videos', images -> 'images'
+      if (hasVideo) {
+        setMediaFilter('videos')
+      } else {
+        setMediaFilter('images')
+      }
+      
+      // Store the first uploaded asset as editing data to prioritize it
+      setEditingAssetData(uploadedAssets[0])
+      
+      // Clear pending uploads
+      pendingUploadIdsRef.current = []
     }
+  }, [assets])
+
+  const handleUploadSuccess = (assetIds: string[]) => {
+    // Switch to needs attention tab immediately
+    setActiveTab('needs_attention')
+    
+    // Store asset IDs to watch for them in useEffect
+    pendingUploadIdsRef.current = assetIds
+    
+    // Refetch assets - the useEffect will handle setting the filter once assets are loaded
+    refetch()
   }
 
   const handleUploadError = (error: string) => {
