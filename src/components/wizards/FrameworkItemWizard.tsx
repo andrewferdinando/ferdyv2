@@ -309,11 +309,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const { defaultPostTime, defaultCopyLength } = useBrandPostSettings(brandId)
   
-  // Log brand defaults for debugging
-  React.useEffect(() => {
-    console.log("Brand defaults:", { default_post_time: defaultPostTime, default_copy_length: defaultCopyLength })
-  }, [defaultPostTime, defaultCopyLength])
-  
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
     if (mode === 'edit' && initialData?.subcategory?.subcategory_type) {
@@ -345,7 +340,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         default_copy_length: (initialData.subcategory.default_copy_length as 'short' | 'medium' | 'long') || 'medium',
         post_time: postTime,
       }
-      console.log("Initial form values for edit subcategory:", initialValues)
       return initialValues
     }
     // For new subcategories, use brand default (hook ensures this is always non-null)
@@ -358,7 +352,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
       post_time: defaultPostTime ?? null, // Hook provides HH:MM format, explicitly include even if null
     }
-    console.log("Initial form values for new subcategory:", initialValues)
     return initialValues
   })
   
@@ -572,12 +565,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   }, [mode, subcategoryType, schedule.frequency])
 
-  // Temporary debug log for schedule frequency on schedule step
-  useEffect(() => {
-    if (currentStep === 3) {
-      console.log('Schedule frequency:', schedule.frequency)
-    }
-  }, [currentStep, schedule.frequency])
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   // Initialize daysBefore from leadTimesInput when component mounts or switching to specific frequency
@@ -976,14 +963,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Normalize hashtags (already an array)
       const normalizedHashtags = normalizeHashtags(details.defaultHashtags)
 
-      // Create subcategory
-      console.info('[Wizard] Creating subcategory:', {
-        name: details.name,
-        hasDetail: !!details.detail,
-        hasUrl: !!details.url,
-        subcategoryType
-      })
-
       // Use form values for copy_length and post_time (mirroring copy_length pattern)
       // These values come from the form state which was initialized from brand defaults via useBrandPostSettings hook
       const insertData = {
@@ -1011,14 +990,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         .select()
         .single()
 
-      console.warn('[FrameworkItemWizard] Subcategory insert response:', { 
-        data: subcategoryData, 
-        error: subcategoryError,
-        inserted_post_time: subcategoryData?.post_time,
-        inserted_copy_length: subcategoryData?.default_copy_length,
-        '⚠️ CHECK THIS VALUE': subcategoryData?.post_time
-      })
-
       if (subcategoryError) {
         console.error('[Wizard] Subcategory insert error:', subcategoryError)
         if (subcategoryError.code === '23505') {
@@ -1029,7 +1000,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       const subcategoryId = subcategoryData.id
       setSavedSubcategoryId(subcategoryId)
-      console.info('[Wizard] Successfully created subcategory:', subcategoryId)
+      
 
       // Refresh URL summary if URL is present (fire-and-forget)
       if (details.url && details.url.trim()) {
@@ -1125,28 +1096,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           ? eventScheduling.daysDuring
           : null
 
-        console.log('[Wizard] specific CREATE debug', {
-          start_date: eventRuleData.start_date,
-          end_date: eventRuleData.end_date,
-          days_before: eventRuleData.days_before,
-          days_during: eventRuleData.days_during,
-          times_of_day: eventRuleData.times_of_day
-        })
-
-        // Log payload for frequency='specific' to verify constraint satisfaction
-        console.info('[Wizard] Schedule rule payload for frequency=specific (event_series CREATE):', {
-          frequency: eventRuleData.frequency,
-          start_date: eventRuleData.start_date,
-          end_date: eventRuleData.end_date,
-          times_of_day: eventRuleData.times_of_day,
-          days_before: eventRuleData.days_before,
-          days_during: eventRuleData.days_during,
-          timezone: eventRuleData.timezone,
-          fullPayload: eventRuleData
-        })
-
-        console.info('[Wizard] Creating schedule rule for Events (upsert):', eventRuleData)
-
         // Check for existing rule to avoid duplicates
         const { data: existingEventRule } = await supabase
           .from('schedule_rules')
@@ -1166,7 +1115,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             throw new Error(`Failed to update schedule rule: ${eventRuleUpdateError.message}`)
           }
 
-          console.info('[Wizard] Successfully updated schedule rule for Events')
         } else {
           const { error: eventRuleInsertError } = await supabase
             .from('schedule_rules')
@@ -1177,7 +1125,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             throw new Error(`Failed to create schedule rule: ${eventRuleInsertError.message}`)
           }
 
-          console.info('[Wizard] Successfully created schedule rule for Events')
         }
 
         // Verify the created schedule_rule has start_date and times_of_day populated
@@ -1191,20 +1138,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .limit(1)
             .single()
 
-          if (verifyError) {
-            console.warn('[Wizard] Could not verify schedule rule:', verifyError)
-          } else if (createdRule) {
-              console.info('[Wizard] Schedule rule verification:', {
-                has_start_date: !!createdRule.start_date,
-                has_end_date: !!createdRule.end_date,
-                has_times_of_day: Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0,
-                timezone: createdRule.timezone,
-                start_date: createdRule.start_date,
-                times_of_day: createdRule.times_of_day
-              })
-              if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
-              }
+          if (!verifyError && createdRule) {
+            if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
+              console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
+            }
           }
         }
 
@@ -1247,8 +1184,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 if (summaryResponse.ok) {
                   const summaryData = await summaryResponse.json()
                   summary = summaryData
-                } else {
-                  console.warn('[Wizard] URL summary extraction returned non-OK status:', summaryResponse.status)
                 }
               } catch (err) {
                 console.error('[Wizard] Error extracting URL summary for occurrence:', err)
@@ -1267,8 +1202,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           })
         )
 
-        console.info('[Wizard] Creating event_occurrences:', occurrencesToInsert.length)
-
         const { error: occurrencesError } = await supabase
           .from('event_occurrences')
           .insert(occurrencesToInsert)
@@ -1277,8 +1210,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           console.error('[Wizard] Event occurrences insert error:', occurrencesError)
           throw new Error(`Failed to create event occurrences: ${occurrencesError.message}`)
         }
-
-        console.info('[Wizard] Successfully created event_occurrences')
       }
 
       // Create schedule rule if needed (based on type + frequency rules) - for non-Events
@@ -1397,13 +1328,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             ? eventScheduling.daysDuring
             : null
 
-            console.log('[Wizard] specific UPDATE debug', {
-              start_date: baseRuleData.start_date,
-              end_date: baseRuleData.end_date,
-              days_before: baseRuleData.days_before,
-              days_during: baseRuleData.days_during,
-              times_of_day: baseRuleData.times_of_day
-            })
         }
 
         // Clean up undefined fields
@@ -1415,22 +1339,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         // Log payload for frequency='specific' to verify constraint satisfaction
-        if (schedule.frequency === 'specific') {
-          console.info('[Wizard] Schedule rule payload for frequency=specific:', {
-            frequency: cleanRuleData.frequency,
-            start_date: cleanRuleData.start_date,
-            end_date: cleanRuleData.end_date,
-            times_of_day: cleanRuleData.times_of_day,
-            time_of_day: cleanRuleData.time_of_day,
-            days_before: cleanRuleData.days_before,
-            days_during: cleanRuleData.days_during,
-            timezone: cleanRuleData.timezone,
-            fullPayload: cleanRuleData
-          })
-        }
-
-        console.info('[Wizard] Creating schedule rule (upsert):', cleanRuleData)
-
         // Upsert by subcategory to avoid duplicates
         const { data: existingRule } = await supabase
           .from('schedule_rules')
@@ -1449,7 +1357,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.error('[Wizard] Schedule rule update error:', ruleUpdateError)
             throw new Error(`Failed to update schedule rule: ${ruleUpdateError.message}`)
           }
-          console.info('[Wizard] Successfully updated schedule rule')
         } else {
           const { error: ruleInsertError } = await supabase
             .from('schedule_rules')
@@ -1460,7 +1367,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             throw new Error(`Failed to create schedule rule: ${ruleInsertError.message}`)
           }
 
-          console.info('[Wizard] Successfully created schedule rule')
         }
       }
 
@@ -1480,11 +1386,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.error('[Wizard] ⚠️ CRITICAL: No active schedule_rule found after save!')
         throw new Error('Failed to create schedule rule: No active schedule rule exists for this category. This should never happen.')
       }
-
-      console.info('[Wizard] Verified schedule rule exists:', {
-        ruleCount: verifyRules.length,
-        frequencies: verifyRules.map((r: { frequency: string }) => r.frequency)
-      })
 
       // Note: Auto-push is now deferred until after images are saved (in handleFinish)
       // This ensures assets exist when asset-selection runs
@@ -1617,8 +1518,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Normalize hashtags (already an array)
       const normalizedHashtags = normalizeHashtags(details.defaultHashtags)
 
-      console.info('[Wizard] Updating subcategory:', subcategoryId)
-
       // Fetch existing settings first to preserve them
       const { data: existingSubcategory, error: fetchError } = await supabase
         .from('subcategories')
@@ -1664,8 +1563,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.error('[Wizard] Subcategory update error:', subcategoryError)
         throw new Error(`Failed to update category: ${subcategoryError.message}`)
       }
-
-      console.info('[Wizard] Successfully updated subcategory')
 
       // Refresh URL summary if URL changed (fire-and-forget)
       if (details.url && details.url.trim()) {
@@ -1758,18 +1655,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           ? eventScheduling.daysDuring
           : null
 
-        // Log payload for frequency='specific' to verify constraint satisfaction
-        console.info('[Wizard] Schedule rule payload for frequency=specific (event_series UPDATE):', {
-          frequency: eventRuleData.frequency,
-          start_date: eventRuleData.start_date,
-          end_date: eventRuleData.end_date,
-          times_of_day: eventRuleData.times_of_day,
-          days_before: eventRuleData.days_before,
-          days_during: eventRuleData.days_during,
-          timezone: eventRuleData.timezone,
-          fullPayload: eventRuleData
-        })
-
         // Check if schedule rule exists
         const { data: existingRule } = await supabase
           .from('schedule_rules')
@@ -1789,8 +1674,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.error('[Wizard] Schedule rule update error for Events:', updateError)
             throw new Error(`Failed to update schedule rule: ${updateError.message}`)
           }
-          console.info('[Wizard] Successfully updated schedule rule for Events')
-
           // Verify the updated schedule_rule has start_date and times_of_day populated
           if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
             const { data: updatedRule, error: verifyError } = await supabase
@@ -1799,17 +1682,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .eq('id', existingRule.id)
               .single()
 
-            if (verifyError) {
-              console.warn('[Wizard] Could not verify updated schedule rule:', verifyError)
-            } else if (updatedRule) {
-              console.info('[Wizard] Schedule rule verification (update):', {
-                has_start_date: !!updatedRule.start_date,
-                has_end_date: !!updatedRule.end_date,
-                has_times_of_day: Array.isArray(updatedRule.times_of_day) && updatedRule.times_of_day.length > 0,
-                timezone: updatedRule.timezone,
-                start_date: updatedRule.start_date,
-                times_of_day: updatedRule.times_of_day
-              })
+            if (!verifyError && updatedRule) {
               if (!updatedRule.start_date || !updatedRule.times_of_day || !Array.isArray(updatedRule.times_of_day) || updatedRule.times_of_day.length === 0) {
                 console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
               }
@@ -1825,8 +1698,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.error('[Wizard] Schedule rule insert error for Events:', insertError)
             throw new Error(`Failed to create schedule rule: ${insertError.message}`)
           }
-          console.info('[Wizard] Successfully created schedule rule for Events')
-
           // Verify the created schedule_rule has start_date and times_of_day populated
           if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
             const { data: createdRule, error: verifyError } = await supabase
@@ -1838,17 +1709,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .limit(1)
               .single()
 
-            if (verifyError) {
-              console.warn('[Wizard] Could not verify schedule rule:', verifyError)
-            } else if (createdRule) {
-              console.info('[Wizard] Schedule rule verification (insert):', {
-                has_start_date: !!createdRule.start_date,
-                has_end_date: !!createdRule.end_date,
-                has_times_of_day: Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0,
-                timezone: createdRule.timezone,
-                start_date: createdRule.start_date,
-                times_of_day: createdRule.times_of_day
-              })
+            if (!verifyError && createdRule) {
               if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
                 console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
               }
@@ -1967,10 +1828,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.error('[Wizard] Error deleting event occurrences:', deleteError)
             throw new Error(`Failed to delete event occurrences: ${deleteError.message}`)
           }
-          console.info('[Wizard] Deleted', idsToDelete.length, 'removed event occurrences')
         }
-
-        console.info('[Wizard] Successfully upserted event_occurrences')
       } else {
         // Non-Events: upsert schedule rule
         // ALWAYS create/update a schedule_rule for all subcategory types if frequency is set
@@ -2093,21 +1951,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             }
           }
 
-          // Log payload for frequency='specific' to verify constraint satisfaction
-          if (schedule.frequency === 'specific') {
-            console.info('[Wizard] Schedule rule payload for frequency=specific (UPDATE):', {
-              frequency: cleanRuleData.frequency,
-              start_date: cleanRuleData.start_date,
-              end_date: cleanRuleData.end_date,
-              times_of_day: cleanRuleData.times_of_day,
-              time_of_day: cleanRuleData.time_of_day,
-              days_before: cleanRuleData.days_before,
-              days_during: cleanRuleData.days_during,
-              timezone: cleanRuleData.timezone,
-              fullPayload: cleanRuleData
-            })
-          }
-
           // Check if schedule rule exists
           const { data: existingRule } = await supabase
             .from('schedule_rules')
@@ -2127,7 +1970,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               console.error('[Wizard] Schedule rule update error:', updateError)
               throw new Error(`Failed to update schedule rule: ${updateError.message}`)
             }
-            console.info('[Wizard] Successfully updated schedule rule')
           } else {
             // Insert new rule
             const { error: insertError } = await supabase
@@ -2138,7 +1980,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               console.error('[Wizard] Schedule rule insert error:', insertError)
               throw new Error(`Failed to create schedule rule: ${insertError.message}`)
             }
-            console.info('[Wizard] Successfully created schedule rule')
           }
         } else {
           // This should never happen due to validation, but if frequency is not set,
@@ -2164,11 +2005,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.error('[Wizard] ⚠️ CRITICAL: No active schedule_rule found after update!')
         throw new Error('Failed to ensure schedule rule exists: No active schedule rule exists for this category. This should never happen.')
       }
-
-      console.info('[Wizard] Verified schedule rule exists after update:', {
-        ruleCount: verifyRules.length,
-        frequencies: verifyRules.map((r: { frequency: string }) => r.frequency)
-      })
 
       // 4. Update asset associations
       // Find the subcategory's tag
@@ -2229,7 +2065,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
         }
 
-        console.info('[Wizard] Successfully updated asset associations')
       } else {
         // Tag doesn't exist - create it and link assets
         const { data: newTag, error: createTagError } = await supabase
@@ -2243,10 +2078,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           .select()
           .single()
 
-        if (createTagError || !newTag) {
-          console.warn('[Wizard] Failed to create subcategory tag:', createTagError)
-          // Don't throw - asset associations are optional
-        } else if (selectedAssetIds.length > 0) {
+        if (!createTagError && newTag && selectedAssetIds.length > 0) {
           const assetTagInserts = selectedAssetIds.map(assetId => ({
             asset_id: assetId,
             tag_id: newTag.id
@@ -2257,7 +2089,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .insert(assetTagInserts)
 
           if (linkError) {
-            console.warn('[Wizard] Failed to link assets to new tag:', linkError)
             // Don't throw - asset associations are optional
           }
         }
@@ -2307,9 +2138,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return // Only auto-push for new subcategories
     }
 
-    console.log('[Wizard] Auto-push: Starting for brandId:', brandId, 'subcategoryId:', subcategoryId)
-    console.log('[Wizard] Auto-push: Images saved, triggering push now (assets will be available)')
-    
     // Delay to ensure asset_tags are fully committed and visible to queries
     // Using 1500ms to account for database replication/transaction isolation
     // This ensures asset-selection can find the images when it runs
@@ -2320,17 +2148,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         body: JSON.stringify({ brandId }),
       })
         .then(async (response) => {
-          console.log('[Wizard] Auto-generate: Response status:', response.status, response.statusText)
-          
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}))
             console.error('[Wizard] Auto-generate: Error response:', errorData)
             throw new Error(errorData.error || 'Failed to create drafts')
           }
           const result = await response.json()
-          console.log('[Wizard] Auto-generate: Drafts created successfully:', result)
           const draftCount = result.draftsCreated || 0
-          console.log('[Wizard] Auto-generate: Draft count:', draftCount)
           
           // Show success toast
           const message = draftCount === 1 
@@ -2423,8 +2247,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         if (subcategoryTag) {
           tagId = subcategoryTag.id
         } else {
-          // Tag doesn't exist yet (trigger might have failed or there's a delay) - create it
-          console.warn('[Wizard] Subcategory tag not found, creating it:', tagError)
           const { data: newTag, error: createTagError } = await supabase
             .from('tags')
             .insert({
@@ -2470,28 +2292,22 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               throw new Error(`Failed to link images: ${linkError.message}`)
             }
             
-            console.info('[Wizard] Successfully linked', newAssetIds.length, 'assets to subcategory tag', { tagId, assetIds: newAssetIds })
-            
             // Verify the assets are actually linked before proceeding (defensive check)
             if (newAssetIds.length > 0) {
-              const { data: verifyLinks, error: verifyError } = await supabase
+              const { error: verifyError } = await supabase
                 .from('asset_tags')
                 .select('asset_id')
                 .eq('tag_id', tagId)
                 .in('asset_id', newAssetIds)
               
               if (verifyError) {
-                console.warn('[Wizard] Could not verify asset_tags:', verifyError)
-              } else {
-                console.info('[Wizard] Verified', verifyLinks?.length || 0, 'asset_tags exist for tag', tagId)
+                console.error('[Wizard] Could not verify asset_tags:', verifyError)
               }
             }
           }
         } else {
           throw new Error('Failed to find or create subcategory tag')
         }
-      } else {
-        console.info('[Wizard] No images selected, skipping asset linking')
       }
 
       // Trigger auto-push AFTER images are saved (or even if no images)
