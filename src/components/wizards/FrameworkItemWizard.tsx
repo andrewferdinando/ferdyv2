@@ -699,6 +699,44 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       .filter(n => !isNaN(n) && n >= 0)
   }
 
+  // Normalize time array: convert empty arrays to null
+  const normalizeTimeArray = (arr?: string[] | null): string[] | null => {
+    return arr && arr.length > 0 ? arr : null
+  }
+
+  // Format time string to HH:MM:SS format
+  const formatTimeToHHMMSS = (timeStr: string): string => {
+    if (!timeStr || !timeStr.trim()) return timeStr
+    const trimmed = timeStr.trim()
+    // If already in HH:MM:SS format, return as-is
+    if (trimmed.includes(':') && trimmed.split(':').length === 3) {
+      return trimmed
+    }
+    // If in HH:MM format, add :00
+    if (trimmed.includes(':') && trimmed.split(':').length === 2) {
+      return `${trimmed}:00`
+    }
+    return trimmed
+  }
+
+  // Helper to set time fields correctly: single time uses time_of_day, multiple uses times_of_day
+  const setTimeFields = (ruleData: Record<string, unknown>, times: string[] | null) => {
+    const normalized = normalizeTimeArray(times)
+    if (!normalized) {
+      ruleData.time_of_day = null
+      ruleData.times_of_day = null
+      return
+    }
+    // For single time, use time_of_day; for multiple, use times_of_day
+    if (normalized.length === 1) {
+      ruleData.time_of_day = [formatTimeToHHMMSS(normalized[0])]
+      ruleData.times_of_day = null
+    } else {
+      ruleData.time_of_day = null
+      ruleData.times_of_day = normalized.map(formatTimeToHHMMSS)
+    }
+  }
+
   const hasDateRangeSelection = React.useMemo(() => {
     if (eventOccurrenceType !== 'range') return false
     return eventScheduling.occurrences.some(occ => {
@@ -1032,6 +1070,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         // Extract date and time from first occurrence for event_series with frequency='specific'
         // Note: occurrences should always exist due to validation, but we handle empty case defensively
+        const times: string[] = []
         if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
           
@@ -1040,6 +1079,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Set start_date and end_date to the same date (YYYY-MM-DD)
             eventRuleData.start_date = firstOccurrence.date.trim()
             eventRuleData.end_date = firstOccurrence.date.trim()
+            
+            // Extract time if available
+            if (firstOccurrence.time && firstOccurrence.time.trim()) {
+              times.push(firstOccurrence.time.trim())
+            }
           }
           
           // Handle date range mode
@@ -1049,35 +1093,23 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             
             // Use schedule.timeOfDay as the time source for ranges
             if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-              const timeStr = schedule.timeOfDay.trim()
-              const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                ? `${timeStr}:00`
-                : timeStr
-              eventRuleData.times_of_day = [timeFormatted]
+              times.push(schedule.timeOfDay.trim())
             }
-          }
-          
-          // Always extract and set times_of_day if time is available
-          if (firstOccurrence.time && firstOccurrence.time.trim()) {
-            const timeStr = firstOccurrence.time.trim()
-            // Convert HH:mm to HH:MM:SS
-            const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-              ? `${timeStr}:00`
-              : timeStr
-            eventRuleData.times_of_day = [timeFormatted]
           }
           
           // Set timezone (use brand timezone or default to Pacific/Auckland)
           eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
         }
 
-        // Ensure constraint satisfaction: Either (start_date + times_of_day) OR (days_before OR days_during)
-        // If we have start_date and times_of_day, constraint is satisfied
+        // Set time fields using helper (single time uses time_of_day, multiple uses times_of_day)
+        setTimeFields(eventRuleData, times.length > 0 ? times : null)
+
+        // Ensure constraint satisfaction: Either (start_date + time_of_day/times_of_day) OR (days_before OR days_during)
+        // If we have start_date and time, constraint is satisfied
         // Otherwise, ensure days_before is set to satisfy the constraint
         const hasStartDateAndTime = eventRuleData.start_date && 
-          eventRuleData.times_of_day && 
-          Array.isArray(eventRuleData.times_of_day) && 
-          eventRuleData.times_of_day.length > 0
+          ((eventRuleData.time_of_day && Array.isArray(eventRuleData.time_of_day) && eventRuleData.time_of_day.length > 0) ||
+           (eventRuleData.times_of_day && Array.isArray(eventRuleData.times_of_day) && eventRuleData.times_of_day.length > 0))
         
         if (!hasStartDateAndTime) {
           // Constraint not satisfied by start_date + times_of_day, so use days_before
@@ -1127,11 +1159,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         }
 
-        // Verify the created schedule_rule has start_date and times_of_day populated
+        // Verify the created schedule_rule has start_date and time populated
         if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
           const { data: createdRule, error: verifyError } = await supabase
             .from('schedule_rules')
-            .select('start_date, end_date, times_of_day, timezone')
+            .select('start_date, end_date, time_of_day, times_of_day, timezone')
             .eq('subcategory_id', subcategoryId)
             .eq('is_active', true)
             .order('created_at', { ascending: false })
@@ -1139,8 +1171,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .single()
 
           if (!verifyError && createdRule) {
-            if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
-              console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
+            const hasTime = (createdRule.time_of_day && Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0) ||
+                            (createdRule.times_of_day && Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0)
+            if (!createdRule.start_date || !hasTime) {
+              console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time is missing')
             }
           }
         }
@@ -1233,7 +1267,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         // Add fields based on frequency type
         if (schedule.frequency === 'daily') {
-          baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+          setTimeFields(baseRuleData, schedule.timeOfDay ? [schedule.timeOfDay] : null)
           baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
         } else if (schedule.frequency === 'weekly') {
           // Map string days to integers (mon -> 1, tue -> 2, etc.)
@@ -1242,7 +1276,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .map(d => dayMap[d] || 0)
             .filter(d => d > 0 && d <= 7)
           baseRuleData.days_of_week = mappedDays.length > 0 ? Array.from(new Set(mappedDays)).sort((a, b) => a - b) : null
-          baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+          setTimeFields(baseRuleData, schedule.timeOfDay ? [schedule.timeOfDay] : null)
           baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
         } else if (schedule.frequency === 'monthly') {
           // Handle monthly: either days of month OR nth weekday
@@ -1257,7 +1291,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             baseRuleData.weekday = schedule.weekday
             baseRuleData.day_of_month = null
           }
-          baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+          setTimeFields(baseRuleData, schedule.timeOfDay ? [schedule.timeOfDay] : null)
           baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
         } else if (schedule.frequency === 'specific') {
           // For frequency='specific', we must satisfy the constraint:
@@ -1267,8 +1301,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           // Set default timezone
           baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone) || 'Pacific/Auckland'
           
-          // Extract start_date, end_date, and times_of_day from eventScheduling.occurrences
+          // Extract start_date, end_date, and time from eventScheduling.occurrences
           // This works for both single date and date range modes
+          const times: string[] = []
           if (eventScheduling.occurrences.length > 0) {
             const firstOccurrence = eventScheduling.occurrences[0]
             
@@ -1277,14 +1312,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               baseRuleData.start_date = firstOccurrence.date.trim()
               baseRuleData.end_date = firstOccurrence.date.trim() // Same as start_date for single date
               
-              // Extract and set times_of_day if time is available
+              // Extract time if available
               if (firstOccurrence.time && firstOccurrence.time.trim()) {
-                const timeStr = firstOccurrence.time.trim()
-                // Convert HH:mm to HH:MM:SS format
-                const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                  ? `${timeStr}:00`
-                  : timeStr
-                baseRuleData.times_of_day = [timeFormatted]
+                times.push(firstOccurrence.time.trim())
               }
             }
             
@@ -1293,26 +1323,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               baseRuleData.start_date = firstOccurrence.start_date.trim()
               baseRuleData.end_date = firstOccurrence.end_date.trim()
               
-              // For range mode, we might not have a time, but if we do, extract it
-              // Note: range mode occurrences don't typically have a time field, but check schedule.timeOfDay as fallback
+              // For range mode, use schedule.timeOfDay as the time source
               if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-                const timeStr = schedule.timeOfDay.trim()
-                const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                  ? `${timeStr}:00`
-                  : timeStr
-                baseRuleData.times_of_day = [timeFormatted]
+                times.push(schedule.timeOfDay.trim())
               }
             }
           }
+          
+          // Set time fields using helper (single time uses time_of_day, multiple uses times_of_day)
+          setTimeFields(baseRuleData, times.length > 0 ? times : null)
           
           // Guard: if start_date is missing, we cannot save (validation should have caught this)
           if (!baseRuleData.start_date) {
             throw new Error('Cannot save schedule rule: start_date is required for frequency="specific". Please add at least one date.')
           }
           
-          // Guard: if times_of_day is missing or empty, we cannot save
-          if (!baseRuleData.times_of_day || !Array.isArray(baseRuleData.times_of_day) || baseRuleData.times_of_day.length === 0) {
-            throw new Error('Cannot save schedule rule: times_of_day is required for frequency="specific". Please add a time.')
+          // Guard: if time is missing or empty, we cannot save
+          const hasTime = (baseRuleData.time_of_day && Array.isArray(baseRuleData.time_of_day) && baseRuleData.time_of_day.length > 0) ||
+                          (baseRuleData.times_of_day && Array.isArray(baseRuleData.times_of_day) && baseRuleData.times_of_day.length > 0)
+          if (!hasTime) {
+            throw new Error('Cannot save schedule rule: time is required for frequency="specific". Please add a time.')
           }
           
           // Set days_before if available (from eventScheduling.daysBefore)
@@ -1594,6 +1624,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         // Extract date and time from first occurrence for event_series with frequency='specific'
         // Note: occurrences should always exist due to validation, but we handle empty case defensively
+        const times: string[] = []
         if (eventScheduling.occurrences.length > 0) {
           const firstOccurrence = eventScheduling.occurrences[0]
           
@@ -1602,6 +1633,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Set start_date and end_date to the same date (YYYY-MM-DD)
             eventRuleData.start_date = firstOccurrence.date.trim()
             eventRuleData.end_date = firstOccurrence.date.trim()
+            
+            // Extract time if available
+            if (firstOccurrence.time && firstOccurrence.time.trim()) {
+              times.push(firstOccurrence.time.trim())
+            }
           }
           
           // Handle date range mode
@@ -1611,32 +1647,20 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             
             // Use schedule.timeOfDay as the time source for ranges
             if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-              const timeStr = schedule.timeOfDay.trim()
-              const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                ? `${timeStr}:00`
-                : timeStr
-              eventRuleData.times_of_day = [timeFormatted]
+              times.push(schedule.timeOfDay.trim())
             }
-          }
-          
-          // Always extract and set times_of_day if time is available
-          if (firstOccurrence.time && firstOccurrence.time.trim()) {
-            const timeStr = firstOccurrence.time.trim()
-            // Convert HH:mm to HH:MM:SS
-            const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-              ? `${timeStr}:00`
-              : timeStr
-            eventRuleData.times_of_day = [timeFormatted]
           }
         }
 
-        // Ensure constraint satisfaction: Either (start_date + times_of_day) OR (days_before OR days_during)
-        // If we have start_date and times_of_day, constraint is satisfied
+        // Set time fields using helper (single time uses time_of_day, multiple uses times_of_day)
+        setTimeFields(eventRuleData, times.length > 0 ? times : null)
+
+        // Ensure constraint satisfaction: Either (start_date + time_of_day/times_of_day) OR (days_before OR days_during)
+        // If we have start_date and time, constraint is satisfied
         // Otherwise, ensure days_before is set to satisfy the constraint
         const hasStartDateAndTime = eventRuleData.start_date && 
-          eventRuleData.times_of_day && 
-          Array.isArray(eventRuleData.times_of_day) && 
-          eventRuleData.times_of_day.length > 0
+          ((eventRuleData.time_of_day && Array.isArray(eventRuleData.time_of_day) && eventRuleData.time_of_day.length > 0) ||
+           (eventRuleData.times_of_day && Array.isArray(eventRuleData.times_of_day) && eventRuleData.times_of_day.length > 0))
         
         if (!hasStartDateAndTime) {
           // Constraint not satisfied by start_date + times_of_day, so use days_before
@@ -1674,17 +1698,19 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.error('[Wizard] Schedule rule update error for Events:', updateError)
             throw new Error(`Failed to update schedule rule: ${updateError.message}`)
           }
-          // Verify the updated schedule_rule has start_date and times_of_day populated
+          // Verify the updated schedule_rule has start_date and time populated
           if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
             const { data: updatedRule, error: verifyError } = await supabase
               .from('schedule_rules')
-              .select('start_date, end_date, times_of_day, timezone')
+              .select('start_date, end_date, time_of_day, times_of_day, timezone')
               .eq('id', existingRule.id)
               .single()
 
             if (!verifyError && updatedRule) {
-              if (!updatedRule.start_date || !updatedRule.times_of_day || !Array.isArray(updatedRule.times_of_day) || updatedRule.times_of_day.length === 0) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
+              const hasTime = (updatedRule.time_of_day && Array.isArray(updatedRule.time_of_day) && updatedRule.time_of_day.length > 0) ||
+                              (updatedRule.times_of_day && Array.isArray(updatedRule.times_of_day) && updatedRule.times_of_day.length > 0)
+              if (!updatedRule.start_date || !hasTime) {
+                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time is missing')
               }
             }
           }
@@ -1698,11 +1724,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             console.error('[Wizard] Schedule rule insert error for Events:', insertError)
             throw new Error(`Failed to create schedule rule: ${insertError.message}`)
           }
-          // Verify the created schedule_rule has start_date and times_of_day populated
+          // Verify the created schedule_rule has start_date and time populated
           if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
             const { data: createdRule, error: verifyError } = await supabase
               .from('schedule_rules')
-              .select('start_date, end_date, times_of_day, timezone')
+              .select('start_date, end_date, time_of_day, times_of_day, timezone')
               .eq('subcategory_id', subcategoryId)
               .eq('is_active', true)
               .order('created_at', { ascending: false })
@@ -1710,8 +1736,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .single()
 
             if (!verifyError && createdRule) {
-              if (!createdRule.start_date || !createdRule.times_of_day || !Array.isArray(createdRule.times_of_day) || createdRule.times_of_day.length === 0) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or times_of_day is missing')
+              const hasTime = (createdRule.time_of_day && Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0) ||
+                              (createdRule.times_of_day && Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0)
+              if (!createdRule.start_date || !hasTime) {
+                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time is missing')
               }
             }
           }
@@ -1849,7 +1877,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
 
           if (schedule.frequency === 'daily') {
-            baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+            setTimeFields(baseRuleData, schedule.timeOfDay ? [schedule.timeOfDay] : null)
             baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
           } else if (schedule.frequency === 'weekly') {
             const dayMap: Record<string, number> = { 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6, 'sun': 7 }
@@ -1857,7 +1885,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .map(d => dayMap[d] || 0)
               .filter(d => d > 0 && d <= 7)
             baseRuleData.days_of_week = mappedDays.length > 0 ? Array.from(new Set(mappedDays)).sort((a, b) => a - b) : null
-            baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+            setTimeFields(baseRuleData, schedule.timeOfDay ? [schedule.timeOfDay] : null)
             baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
           } else if (schedule.frequency === 'monthly') {
             // Handle monthly: either days of month OR nth weekday
@@ -1872,7 +1900,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               baseRuleData.weekday = schedule.weekday
               baseRuleData.day_of_month = null
             }
-            baseRuleData.time_of_day = schedule.timeOfDay ? [schedule.timeOfDay] : null
+            setTimeFields(baseRuleData, schedule.timeOfDay ? [schedule.timeOfDay] : null)
             baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone)
           } else if (schedule.frequency === 'specific') {
             // For frequency='specific', we must satisfy the constraint:
@@ -1882,8 +1910,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Set default timezone
             baseRuleData.timezone = schedule.timezone || getDefaultTimezone(null, brand?.timezone) || 'Pacific/Auckland'
             
-            // Extract start_date, end_date, and times_of_day from eventScheduling.occurrences
+            // Extract start_date, end_date, and time from eventScheduling.occurrences
             // This works for both single date and date range modes
+            const times: string[] = []
             if (eventScheduling.occurrences.length > 0) {
               const firstOccurrence = eventScheduling.occurrences[0]
               
@@ -1892,14 +1921,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 baseRuleData.start_date = firstOccurrence.date.trim()
                 baseRuleData.end_date = firstOccurrence.date.trim() // Same as start_date for single date
                 
-                // Extract and set times_of_day if time is available
+                // Extract time if available
                 if (firstOccurrence.time && firstOccurrence.time.trim()) {
-                  const timeStr = firstOccurrence.time.trim()
-                  // Convert HH:mm to HH:MM:SS format
-                  const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                    ? `${timeStr}:00`
-                    : timeStr
-                  baseRuleData.times_of_day = [timeFormatted]
+                  times.push(firstOccurrence.time.trim())
                 }
               }
               
@@ -1908,26 +1932,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 baseRuleData.start_date = firstOccurrence.start_date.trim()
                 baseRuleData.end_date = firstOccurrence.end_date.trim()
                 
-                // For range mode, we might not have a time, but if we do, extract it
-                // Note: range mode occurrences don't typically have a time field, but check schedule.timeOfDay as fallback
+                // For range mode, use schedule.timeOfDay as the time source
                 if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-                  const timeStr = schedule.timeOfDay.trim()
-                  const timeFormatted = timeStr.includes(':') && timeStr.split(':').length === 2
-                    ? `${timeStr}:00`
-                    : timeStr
-                  baseRuleData.times_of_day = [timeFormatted]
+                  times.push(schedule.timeOfDay.trim())
                 }
               }
             }
+            
+            // Set time fields using helper (single time uses time_of_day, multiple uses times_of_day)
+            setTimeFields(baseRuleData, times.length > 0 ? times : null)
             
             // Guard: if start_date is missing, we cannot save (validation should have caught this)
             if (!baseRuleData.start_date) {
               throw new Error('Cannot save schedule rule: start_date is required for frequency="specific". Please add at least one date.')
             }
             
-            // Guard: if times_of_day is missing or empty, we cannot save
-            if (!baseRuleData.times_of_day || !Array.isArray(baseRuleData.times_of_day) || baseRuleData.times_of_day.length === 0) {
-              throw new Error('Cannot save schedule rule: times_of_day is required for frequency="specific". Please add a time.')
+            // Guard: if time is missing or empty, we cannot save
+            const hasTime = (baseRuleData.time_of_day && Array.isArray(baseRuleData.time_of_day) && baseRuleData.time_of_day.length > 0) ||
+                            (baseRuleData.times_of_day && Array.isArray(baseRuleData.times_of_day) && baseRuleData.times_of_day.length > 0)
+            if (!hasTime) {
+              throw new Error('Cannot save schedule rule: time is required for frequency="specific". Please add a time.')
             }
             
             // Set days_before if available (from eventScheduling.daysBefore)
