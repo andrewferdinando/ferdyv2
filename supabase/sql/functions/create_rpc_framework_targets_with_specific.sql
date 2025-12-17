@@ -248,6 +248,8 @@ BEGIN
         v_effective_timezone := COALESCE(v_rule.timezone, v_brand_timezone);
         v_start_date := v_rule.start_date;
         v_end_date := COALESCE(v_rule.end_date, v_start_date);
+        v_start_date_only := (date_trunc('day', v_start_date) AT TIME ZONE v_effective_timezone)::date;
+        v_end_date_only := (date_trunc('day', v_end_date) AT TIME ZONE v_effective_timezone)::date;
         
         -- Use COALESCE to support both times_of_day and time_of_day (both are time[])
         v_time_array := COALESCE(v_rule.times_of_day, v_rule.time_of_day);
@@ -265,8 +267,7 @@ BEGIN
                 
                 -- Calculate target_date = start_date::date - v_days_before (in effective timezone)
                 v_effective_timezone := COALESCE(v_rule.timezone, v_brand_timezone);
-                v_target_date := (v_start_date AT TIME ZONE v_effective_timezone)::date;
-                v_target_date := v_target_date - (v_days_before || ' days')::interval;
+                v_target_date := v_start_date_only - (v_days_before || ' days')::interval;
                 
                 -- For each time of day, generate a target
                 FOREACH v_time_of_day IN ARRAY v_time_array
@@ -298,15 +299,8 @@ BEGIN
                 END IF;
                 
                 -- Calculate the scheduled date (date part of start_date + days_during)
-                -- Get effective timezone for this rule
                 v_effective_timezone := COALESCE(v_rule.timezone, v_brand_timezone);
-                v_target_date := (date_trunc('day', v_start_date) AT TIME ZONE v_effective_timezone)::date;
-                v_target_date := v_target_date + (v_days_during || ' days')::interval;
-                
-                -- Make sure it's within the range [start_date, end_date]
-                -- Get date parts in the effective timezone for comparison
-                v_start_date_only := (date_trunc('day', v_start_date) AT TIME ZONE v_effective_timezone)::date;
-                v_end_date_only := (date_trunc('day', v_end_date) AT TIME ZONE v_effective_timezone)::date;
+                v_target_date := v_start_date_only + (v_days_during || ' days')::interval;
                 
                 IF v_target_date < v_start_date_only OR v_target_date > v_end_date_only THEN
                     CONTINUE;
