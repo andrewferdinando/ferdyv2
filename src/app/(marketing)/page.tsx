@@ -12,12 +12,14 @@ export const metadata = {
 }
 
 export default function Home() {
+  const showTestimonials = process.env.NEXT_PUBLIC_SHOW_TESTIMONIALS === 'true'
+
   return (
     <>
       <Hero />
       <Features />
       <HowItWorks />
-      <Examples />
+      {showTestimonials && <Examples />}
       <Comparison />
       <Pricing />
       <BottomCTA />

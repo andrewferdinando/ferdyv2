@@ -11,40 +11,8 @@ export default function BottomCTA() {
     <>
       <section id="take-action" className="py-24 bg-white border-t border-gray-200">
         <div className="container">
-          <div className="grid md:grid-cols-2 gap-16 max-w-6xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             
-            {/* Curious? */}
-            <div>
-              <h2 className="text-3xl font-bold mb-4 text-gray-900">Curious?</h2>
-              <p className="text-gray-600 mb-8">Learn more before you commit.</p>
-              
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">Watch the demo video</h3>
-                    <p className="text-gray-600 mb-3">See exactly how Ferdy works in under 3 minutes — from creating categories to automated publishing.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">View pricing</h3>
-                    <p className="text-gray-600 mb-3">Compare plans above and choose the option that best matches your business size and posting needs.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Take action */}
             <div>
               <h2 className="text-3xl font-bold mb-4 text-gray-900">Take action</h2>
@@ -90,8 +58,6 @@ export default function BottomCTA() {
                 </div>
               </div>
             </div>
-
-          </div>
         </div>
       </section>
 
