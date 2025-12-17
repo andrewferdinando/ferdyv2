@@ -3382,36 +3382,36 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       Choose images
                     </h3>
 
-                    {/* Mode Toggle */}
-                    <div className="mb-6">
-                      <div className="flex rounded-lg border border-gray-300 p-1 bg-white">
+                    {/* Mode Toggle - Tabs */}
+                    <div className="mb-6 border-b border-gray-200">
+                      <div className="flex space-x-8">
                         <button
                           type="button"
                           onClick={() => setImageMode('upload')}
                           className={`
-                            flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all
+                            px-1 py-4 text-sm font-medium border-b-2 transition-colors
                             ${
                               imageMode === 'upload'
-                                ? 'bg-[#6366F1] text-white shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 bg-transparent'
+                                ? 'border-[#6366F1] text-gray-900 font-semibold'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }
                           `}
                         >
-                          Upload new
+                          Upload
                         </button>
                         <button
                           type="button"
                           onClick={() => setImageMode('existing')}
                           className={`
-                            flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all
+                            px-1 py-4 text-sm font-medium border-b-2 transition-colors
                             ${
                               imageMode === 'existing'
-                                ? 'bg-[#6366F1] text-white shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 bg-transparent'
+                                ? 'border-[#6366F1] text-gray-900 font-semibold'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }
                           `}
                         >
-                          Use existing
+                          From library
                         </button>
                       </div>
                     </div>
@@ -3540,13 +3540,29 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           </div>
                         )}
 
-                        {selectedAssetIds.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600">
-                              Currently assigned images: <span className="font-semibold">{selectedAssetIds.length}</span>
-                            </p>
-                          </div>
-                        )}
+                        <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                          <p className="text-sm text-gray-600">
+                            {selectedAssetIds.length > 0 ? (
+                              <>Selected: <span className="font-semibold">{selectedAssetIds.length}</span> image{selectedAssetIds.length !== 1 ? 's' : ''}</>
+                            ) : (
+                              'No images selected'
+                            )}
+                          </p>
+                          <button
+                            type="button"
+                            disabled={selectedAssetIds.length === 0}
+                            className={`
+                              px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                              ${
+                                selectedAssetIds.length > 0
+                                  ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'
+                                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              }
+                            `}
+                          >
+                            Add selected
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
