@@ -58,6 +58,7 @@ export default function BottomCTA() {
                 </div>
               </div>
             </div>
+          </div>
         </div>
       </section>
 
