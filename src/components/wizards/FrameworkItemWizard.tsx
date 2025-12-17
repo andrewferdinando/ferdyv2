@@ -565,12 +565,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   }, [eventOccurrenceType, schedule.frequency, mode])
 
-  // Force specific frequency for Events (and keep it once set)
+  // Force specific frequency for Events as soon as the type is selected (create mode)
   useEffect(() => {
-    if (currentStep === 3 && subcategoryType === 'event_series' && schedule.frequency !== 'specific') {
+    if (mode === 'create' && subcategoryType === 'event_series' && schedule.frequency !== 'specific') {
       setSchedule(prev => ({ ...prev, frequency: 'specific' }))
     }
-  }, [currentStep, subcategoryType, schedule.frequency])
+  }, [mode, subcategoryType, schedule.frequency])
 
   // Temporary debug log for schedule frequency on schedule step
   useEffect(() => {
