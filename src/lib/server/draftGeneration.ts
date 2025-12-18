@@ -52,6 +52,15 @@ export interface DraftGenerationResult {
 
 /**
  * Generate drafts for a brand within a 30-day window
+ * 
+ * HARD GUARDS (prevent silent failures):
+ * - Schedule rule resolution is deterministic (prefer target.schedule_rule_id, then fetch by subcategory_id)
+ * - If no schedule rule found: log error and skip target (NO DEFAULTS to instagram_feed)
+ * - If schedule rule has no channels: log error and skip target (NO DEFAULTS)
+ * - Draft must have ≥1 post_job created
+ * - All post_jobs must have schedule_rule_id set (never null)
+ * - Regression check: N channels must result in exactly N post_jobs
+ * 
  * @param brandId - The brand ID to generate drafts for (only input required)
  * @returns Result summary with counts
  */
@@ -169,21 +178,22 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   const brandTimezone = brand.timezone || 'Pacific/Auckland';
   console.log(`[draftGeneration] Using brand timezone for ${brandId}:`, brandTimezone);
 
-  // Build a map of schedule_rule_id -> channels for quick lookup
-  const ruleChannelsMap = new Map<string, string[]>();
+  // Build a map of schedule_rule_id -> schedule_rule for quick lookup
+  const scheduleRuleMap = new Map<string, any>();
   for (const rule of scheduleRules) {
-    if (rule.channels && Array.isArray(rule.channels) && rule.channels.length > 0) {
-      // Normalize channels (instagram -> instagram_feed, linkedin -> linkedin_profile)
-      const normalizedChannels = rule.channels.map((ch: string) => {
-        if (ch === 'instagram') return 'instagram_feed';
-        if (ch === 'linkedin') return 'linkedin_profile';
-        return ch;
-      });
-      ruleChannelsMap.set(rule.id, normalizedChannels);
-    } else {
-      // Default to instagram_feed if no channels specified
-      ruleChannelsMap.set(rule.id, ['instagram_feed']);
+    scheduleRuleMap.set(rule.id, rule);
+  }
+
+  // Helper function to normalize channels (NO DEFAULTS - returns empty array if invalid)
+  function normalizeChannels(channels: string[] | null | undefined): string[] {
+    if (!channels || !Array.isArray(channels) || channels.length === 0) {
+      return []; // Return empty array - caller must handle this
     }
+    return channels.map((ch: string) => {
+      if (ch === 'instagram') return 'instagram_feed';
+      if (ch === 'linkedin') return 'linkedin_profile';
+      return ch;
+    });
   }
 
   let draftsCreated = 0;
@@ -220,35 +230,110 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         continue;
       }
 
-      // Get channels for this schedule rule
-      const channels = ruleChannelsMap.get(target.schedule_rule_id) || ['instagram_feed'];
+      // DETERMINISTIC SCHEDULE RULE RESOLUTION
+      // 1. Prefer target.schedule_rule_id if present
+      // 2. Otherwise fetch by brand_id + subcategory_id + is_active = true
+      // 3. If no schedule rule found: log error and skip (NO DEFAULTS)
+      let scheduleRule: any = null;
+      let scheduleRuleId: string | null = null;
+
+      if (target.schedule_rule_id) {
+        // Try to get from the pre-fetched map first
+        scheduleRule = scheduleRuleMap.get(target.schedule_rule_id);
+        if (scheduleRule) {
+          scheduleRuleId = target.schedule_rule_id;
+        } else {
+          // If not in map, fetch directly (might be a new rule)
+          const { data: fetchedRule, error: ruleError } = await supabaseAdmin
+            .from('schedule_rules')
+            .select('id, channels')
+            .eq('id', target.schedule_rule_id)
+            .eq('brand_id', brandId)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (ruleError) {
+            console.error(`[draftGeneration] Error fetching schedule_rule by id ${target.schedule_rule_id}:`, ruleError);
+          } else if (fetchedRule) {
+            scheduleRule = fetchedRule;
+            scheduleRuleId = fetchedRule.id;
+          }
+        }
+      }
+
+      // If not found by schedule_rule_id, fetch by subcategory_id
+      if (!scheduleRule && target.subcategory_id) {
+        const { data: fetchedRule, error: ruleError } = await supabaseAdmin
+          .from('schedule_rules')
+          .select('id, channels')
+          .eq('brand_id', brandId)
+          .eq('subcategory_id', target.subcategory_id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (ruleError) {
+          console.error(`[draftGeneration] Error fetching schedule_rule for subcategory ${target.subcategory_id}:`, ruleError);
+        } else if (fetchedRule) {
+          scheduleRule = fetchedRule;
+          scheduleRuleId = fetchedRule.id;
+        }
+      }
+
+      // HARD GUARD: If no schedule rule found, skip this target (NO DEFAULTS)
+      if (!scheduleRule || !scheduleRuleId) {
+        console.error(`[draftGeneration] SKIPPING target: No active schedule_rule found`, {
+          brand_id: brandId,
+          target_schedule_rule_id: target.schedule_rule_id,
+          subcategory_id: target.subcategory_id,
+          scheduled_at: scheduledAtISO
+        });
+        continue; // Skip this target - do not create draft
+      }
+
+      // Get channels from the schedule rule (normalized) - schedule_rule.channels is single source of truth
+      const channels = normalizeChannels(scheduleRule.channels);
+
+      // HARD GUARD: If no channels, skip this target (NO DEFAULTS)
+      if (!channels || channels.length === 0) {
+        console.error(`[draftGeneration] SKIPPING target: Schedule rule has no channels`, {
+          brand_id: brandId,
+          schedule_rule_id: scheduleRuleId,
+          subcategory_id: target.subcategory_id,
+          scheduled_at: scheduledAtISO
+        });
+        continue; // Skip this target - do not create draft
+      }
+
       const firstChannel = channels[0];
+      const finalScheduleRuleId = scheduleRuleId; // Use the resolved schedule_rule_id
 
       // Attempt to pick an asset for this schedule rule
       // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
       // Asset selection is best-effort; if it fails or no asset is available, draft is still created
       let assetId: string | null = null;
-      try {
-        const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
-          'rpc_pick_asset_for_rule',
-          { p_schedule_rule_id: target.schedule_rule_id }
-        );
+      if (finalScheduleRuleId) {
+        try {
+          const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
+            'rpc_pick_asset_for_rule',
+            { p_schedule_rule_id: finalScheduleRuleId }
+          );
         
-        if (assetError) {
-          // If function doesn't exist or other error, continue without asset
-          if (assetError.code === '42883' || assetError.message?.includes('does not exist')) {
-            console.log(`[draftGeneration] rpc_pick_asset_for_rule not available for brand ${brandId}, continuing without asset`);
-          } else {
-            console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
+          if (assetError) {
+            // If function doesn't exist or other error, continue without asset
+            if (assetError.code === '42883' || assetError.message?.includes('does not exist')) {
+              console.log(`[draftGeneration] rpc_pick_asset_for_rule not available for brand ${brandId}, continuing without asset`);
+            } else {
+              console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
+            }
+          } else if (pickedAsset && typeof pickedAsset === 'string') {
+            assetId = pickedAsset;
+            console.log(`[draftGeneration] Picked asset for brand ${brandId}:`, assetId);
           }
-        } else if (pickedAsset && typeof pickedAsset === 'string') {
-          assetId = pickedAsset;
-          console.log(`[draftGeneration] Picked asset for brand ${brandId}:`, assetId);
+        } catch (error) {
+          // Catch any other errors and continue without asset
+          // Draft creation proceeds regardless of asset selection success
+          console.warn(`[draftGeneration] Exception picking asset for brand ${brandId}:`, error);
         }
-      } catch (error) {
-        // Catch any other errors and continue without asset
-        // Draft creation proceeds regardless of asset selection success
-        console.warn(`[draftGeneration] Exception picking asset for brand ${brandId}:`, error);
       }
 
       // Calculate target_month (first day of the month)
@@ -313,6 +398,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
             return `${nztYear}-${nztMonth}-${nztDay}T${nztHour}:${nztMinute}:${nztSecond}`;
           })(),
           schedule_source: 'framework',
+          schedule_rule_id: finalScheduleRuleId, // Link to the schedule rule that generated this draft
           publish_status: 'draft', // Always 'draft', never 'pending'
           approved: false, // User must approve before scheduling
           subcategory_id: target.subcategory_id,
@@ -329,16 +415,33 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       console.log(`[draftGeneration] Created draft for brand ${brandId}:`, newDraft.id);
       createdDraftIds.push(newDraft.id);
 
-      // Create post_jobs for each channel
+      // Create post_jobs for each channel (one per channel from the schedule rule)
+      // REGRESSION CHECK: N channels must result in exactly N post_jobs
+      const expectedPostJobCount = channels.length;
+      const createdPostJobIds: string[] = [];
       let firstPostJobId: string | null = null;
+
       for (const channel of channels) {
+        // HARD GUARD: schedule_rule_id must never be null
+        if (!finalScheduleRuleId) {
+          console.error(`[draftGeneration] FATAL: finalScheduleRuleId is null for channel ${channel}`, {
+            brand_id: brandId,
+            draft_id: newDraft.id,
+            channel,
+            schedule_rule_id: finalScheduleRuleId
+          });
+          // Delete the draft if we can't create post_jobs correctly
+          await supabaseAdmin.from('drafts').delete().eq('id', newDraft.id);
+          throw new Error(`Cannot create post_job: schedule_rule_id is null for draft ${newDraft.id}`);
+        }
+
         const { data: postJob, error: jobError } = await supabaseAdmin
           .from('post_jobs')
           .insert({
             brand_id: brandId,
-            schedule_rule_id: target.schedule_rule_id,
+            schedule_rule_id: finalScheduleRuleId, // ALWAYS set - never null
             draft_id: newDraft.id,
-            channel: channel,
+            channel: channel, // One post_job per channel
             target_month: targetMonthStr,
             scheduled_at: scheduledAtISO,
             scheduled_local: scheduledLocal,
@@ -349,22 +452,86 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
           .single();
 
         if (jobError) {
-          console.error(`[draftGeneration] Error creating post_job for brand ${brandId}:`, jobError);
-          // Continue with other channels even if one fails
-          continue;
+          console.error(`[draftGeneration] Error creating post_job for brand ${brandId}, channel ${channel}:`, jobError);
+          // Delete the draft if we can't create all post_jobs
+          await supabaseAdmin.from('drafts').delete().eq('id', newDraft.id);
+          throw new Error(`Failed to create post_job for channel ${channel}: ${jobError.message}`);
         }
+
+        // Verify schedule_rule_id is set
+        if (!postJob.schedule_rule_id) {
+          console.error(`[draftGeneration] FATAL: post_job created with null schedule_rule_id`, {
+            post_job_id: postJob.id,
+            draft_id: newDraft.id,
+            channel
+          });
+          // Delete the problematic post_job and draft
+          await supabaseAdmin.from('post_jobs').delete().eq('id', postJob.id);
+          await supabaseAdmin.from('drafts').delete().eq('id', newDraft.id);
+          throw new Error(`Post job created with null schedule_rule_id: ${postJob.id}`);
+        }
+
+        console.log(`[draftGeneration] Created post_job for brand ${brandId}, channel ${channel}, schedule_rule_id ${postJob.schedule_rule_id}`);
+        createdPostJobIds.push(postJob.id);
 
         if (!firstPostJobId) {
           firstPostJobId = postJob.id;
         }
       }
 
-      // Update draft with first post_job_id
+      // HARD GUARD: Draft must have ≥1 post_job and none with null schedule_rule_id
+      if (createdPostJobIds.length === 0) {
+        console.error(`[draftGeneration] FATAL: Draft created but no post_jobs were created`, {
+          draft_id: newDraft.id,
+          expected_count: expectedPostJobCount,
+          channels
+        });
+        // Delete the draft if no post_jobs were created
+        await supabaseAdmin.from('drafts').delete().eq('id', newDraft.id);
+        throw new Error(`Draft ${newDraft.id} created but no post_jobs were created`);
+      }
+
+      // REGRESSION CHECK: Verify we created exactly N post_jobs for N channels
+      if (createdPostJobIds.length !== expectedPostJobCount) {
+        console.error(`[draftGeneration] REGRESSION DETECTED: Expected ${expectedPostJobCount} post_jobs but created ${createdPostJobIds.length}`, {
+          draft_id: newDraft.id,
+          expected_count: expectedPostJobCount,
+          actual_count: createdPostJobIds.length,
+          channels,
+          schedule_rule_id: finalScheduleRuleId
+        });
+        // This is a critical error - log it but don't fail (might be partial failure)
+        // The guard above ensures we have at least 1, so we can continue
+      }
+
+      // Update draft with first post_job_id (legacy support)
       if (firstPostJobId) {
         await supabaseAdmin
           .from('drafts')
           .update({ post_job_id: firstPostJobId })
           .eq('id', newDraft.id);
+      }
+
+      // Final verification: Check that all post_jobs have schedule_rule_id set
+      const { data: verifyJobs, error: verifyError } = await supabaseAdmin
+        .from('post_jobs')
+        .select('id, schedule_rule_id')
+        .eq('draft_id', newDraft.id);
+
+      if (verifyError) {
+        console.error(`[draftGeneration] Error verifying post_jobs for draft ${newDraft.id}:`, verifyError);
+      } else if (verifyJobs) {
+        const nullScheduleRuleIds = verifyJobs.filter(job => !job.schedule_rule_id);
+        if (nullScheduleRuleIds.length > 0) {
+          console.error(`[draftGeneration] FATAL: Found ${nullScheduleRuleIds.length} post_jobs with null schedule_rule_id`, {
+            draft_id: newDraft.id,
+            post_job_ids: nullScheduleRuleIds.map(j => j.id)
+          });
+          // Delete the draft and all post_jobs
+          await supabaseAdmin.from('post_jobs').delete().eq('draft_id', newDraft.id);
+          await supabaseAdmin.from('drafts').delete().eq('id', newDraft.id);
+          throw new Error(`Found post_jobs with null schedule_rule_id for draft ${newDraft.id}`);
+        }
       }
 
       draftsCreated++;
