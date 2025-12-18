@@ -1051,6 +1051,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // Handle Events: Create schedule rule with frequency='specific' and days_before
       if (subcategoryType === 'event_series') {
+        // Normalize channels before saving to schedule_rules
+        // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
+        const normalizeChannelForSave = (ch: string): string => {
+          if (ch === 'instagram') return 'instagram_feed';
+          if (ch === 'linkedin') return 'linkedin_profile';
+          return ch;
+        };
+        const normalizedEventChannels = details.channels.length > 0
+          ? details.channels.map(normalizeChannelForSave)
+          : null;
+
         // Upsert schedule rule for Events - ALWAYS ensure exactly one rule per subcategory
         const eventRuleData: Record<string, unknown> = {
           brand_id: brandId,
@@ -1059,7 +1070,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
           days_during: eventOccurrenceType === 'range' ? null : null, // Can be set in future, but null for now
-          channels: details.channels.length > 0 ? details.channels : null,
+          channels: normalizedEventChannels, // Use normalized channels - this is the single source of truth
           is_active: true,
           tone: null,
           hashtag_rule: null,
@@ -1251,6 +1262,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       const shouldCreateRule = !!schedule.frequency
 
       if (shouldCreateRule && schedule.frequency) {
+        // Normalize channels before saving to schedule_rules
+        // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
+        const normalizeChannelForSave = (ch: string): string => {
+          if (ch === 'instagram') return 'instagram_feed';
+          if (ch === 'linkedin') return 'linkedin_profile';
+          return ch;
+        };
+        const normalizedChannels = details.channels.length > 0
+          ? details.channels.map(normalizeChannelForSave)
+          : null;
+
         // Build schedule rule payload
         const baseRuleData: Record<string, unknown> = {
           brand_id: brandId,
@@ -1258,7 +1280,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           category_id: null,
           name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
           frequency: schedule.frequency,
-          channels: details.channels.length > 0 ? details.channels : null,
+          channels: normalizedChannels, // Use normalized channels - this is the single source of truth
           is_active: true,
           tone: null,
           hashtag_rule: null,

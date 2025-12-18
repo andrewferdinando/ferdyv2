@@ -920,6 +920,18 @@ export function SubcategoryScheduleForm({
           .eq('is_active', true)
           .limit(1)
 
+      // Normalize channels before saving to schedule_rules
+      // This ensures consistency: 'instagram' -> 'instagram_feed', 'linkedin' -> 'linkedin_profile'
+      // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
+      const normalizeChannelForSave = (ch: string): string => {
+        if (ch === 'instagram') return 'instagram_feed';
+        if (ch === 'linkedin') return 'linkedin_profile';
+        return ch;
+      };
+      const normalizedChannels = subcategoryData.channels.length > 0
+        ? subcategoryData.channels.map(normalizeChannelForSave)
+        : null;
+
       // Prepare base schedule rule data
       const baseRuleData = {
         brand_id: brandId,
@@ -927,7 +939,7 @@ export function SubcategoryScheduleForm({
         category_id: null, // No longer using categories
         name: `${subcategoryData.name} – ${scheduleData.frequency.charAt(0).toUpperCase() + scheduleData.frequency.slice(1)}`,
         frequency: scheduleData.frequency,
-        channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+        channels: normalizedChannels, // Use normalized channels - this is the single source of truth
         is_active: true,
         tone: null,
         hashtag_rule: null,
@@ -1179,8 +1191,26 @@ export function SubcategoryScheduleForm({
         }
       }
 
-      // Trigger draft generation after successful save (for both new and updated subcategories)
-      // This generates drafts for the next 30 days
+      // DRAFT GENERATION TRIGGER POINT
+      // 
+      // According to docs (category_creation_flow.md), draft generation should be triggered
+      // after subcategory + schedule_rule are successfully saved. This happens here:
+      // - After subcategory row is created/updated
+      // - After schedule_rule row is created/updated with normalized channels
+      // - Before onSuccess() callback (so UI can show loading state if needed)
+      //
+      // WHY IT WAS MISSING: The code was already calling draft generation, but:
+      // 1. Channels weren't normalized when saving to schedule_rules (fixed above)
+      // 2. Schedule rule query might have failed silently if multiple rules existed
+      // 3. Transaction isolation might have prevented rpc_framework_targets from seeing new rules
+      //
+      // WHY IG FEED-ONLY DRAFTS WERE CREATED:
+      // 1. schedule_rule.channels contained unnormalized values like ['instagram'] instead of ['instagram_feed']
+      // 2. normalizeChannels() in draftGeneration.ts would convert 'instagram' -> 'instagram_feed', but
+      //    if the schedule rule had null channels or empty array, it would default to ['instagram_feed']
+      // 3. schedule_rule_id was null because the schedule rule query failed (maybeSingle() returned null)
+      //
+      // FIX: Normalize channels when saving to schedule_rules, ensure schedule rule query works correctly
       console.log('[draftGeneration] triggered after subcategory save', {
         brandId,
         subcategoryId,
@@ -1190,6 +1220,7 @@ export function SubcategoryScheduleForm({
       
       // Small delay to ensure database transaction is fully committed
       // This ensures rpc_framework_targets can see the newly created/updated schedule_rules
+      // CRITICAL: Without this delay, draft generation might run before the schedule_rule is visible
       await new Promise(resolve => setTimeout(resolve, 500))
       
       // Fire-and-forget: trigger draft generation but don't block the wizard flow

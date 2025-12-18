@@ -240,12 +240,17 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       }
 
       // Explicitly fetch schedule rule for this target
+      // NOTE: Using .maybeSingle() assumes only one active schedule rule per subcategory
+      // For subcategories with multiple active rules (e.g., weekly + specific dates),
+      // we take the first one found. In practice, most subcategories have one active rule.
       const { data: scheduleRule, error: ruleError } = await supabaseAdmin
         .from('schedule_rules')
         .select('id, channels')
         .eq('brand_id', brandId)
         .eq('subcategory_id', target.subcategory_id)
         .eq('is_active', true)
+        .order('created_at', { ascending: false }) // Prefer most recently created rule
+        .limit(1)
         .maybeSingle();
 
       // HARD GUARD: If no schedule rule found, skip this target (NO DEFAULTS)
