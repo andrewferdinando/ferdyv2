@@ -872,60 +872,141 @@ export default function EditPostPage() {
   const approveAndPublishNow = async () => {
     setIsDropdownOpen(false);
 
+    // SAFETY ASSERTION FLAG: Track if we're in the approveAndPublishNow flow
+    // This prevents any accidental draft inserts
+    const SAFETY_FLAG = Symbol('approveAndPublishNowActive');
+    (globalThis as any)[SAFETY_FLAG] = true;
+
     try {
-      // First, ensure the draft is approved and scheduled (don't navigate)
-      const approveResult = await approveAndScheduleDraft(false);
+      const { supabase } = await import('@/lib/supabase-browser');
       
-      if (!approveResult || !approveResult.success) {
-        const errorMessage = approveResult?.error instanceof Error 
-          ? approveResult.error.message 
-          : 'Failed to approve and schedule draft';
-        showToast({
-          title: 'Failed to approve draft',
-          message: errorMessage,
-          type: 'error',
-        });
-        return;
-      }
-
-      // Use shared publish-now hook
-      await publishDraftNow(draftId, {
-        channels: selectedChannels,
-        onSuccess: async (result) => {
-          // Update local state with the response
-          if (result.draftStatus) {
-            setDraft((prev) => {
-              if (!prev) return prev;
-              return {
-                ...prev,
-                status: result.draftStatus as Draft['status'],
-                approved: true,
-              };
+      // SAFETY ASSERTION: Never insert into drafts in this flow
+      // This function should ONLY update the existing draft by draftId
+      // Wrap the supabase client to intercept any draft inserts
+      const originalFrom = supabase.from.bind(supabase);
+      supabase.from = function(table: string) {
+        const queryBuilder = originalFrom(table);
+        if (table === 'drafts') {
+          const originalInsert = queryBuilder.insert.bind(queryBuilder);
+          queryBuilder.insert = function(...args: any[]) {
+            console.error('[approveAndPublishNow] SAFETY ASSERTION: Attempted to INSERT into drafts! This should never happen in Approve & Publish Now flow.', {
+              draftId,
+              args,
+              stack: new Error().stack,
             });
-          }
+            throw new Error('SAFETY ASSERTION: Approve & Publish Now must never insert into drafts. Only UPDATE operations are allowed.');
+          };
+        }
+        return queryBuilder;
+      };
 
-          // Update post jobs if provided
-          if (result.jobs && result.jobs.length > 0) {
-            setPostJobs(result.jobs);
-          }
-
-          // Show success message
+      try {
+        // First, ensure the draft is approved and scheduled (don't navigate)
+        // This updates the existing draft, never inserts
+        const approveResult = await approveAndScheduleDraft(false);
+        
+        if (!approveResult || !approveResult.success) {
+          const errorMessage = approveResult?.error instanceof Error 
+            ? approveResult.error.message 
+            : 'Failed to approve and schedule draft';
           showToast({
-            title: 'Post published successfully',
-            message: 'Your post has been approved and published.',
-            type: 'success',
+            title: 'Failed to approve draft',
+            message: errorMessage,
+            type: 'error',
           });
+          return;
+        }
 
-          // Close the modal
-          closePublishModal();
+        // Ensure post_jobs exist for selected channels (upsert by draft_id + channel)
+        // This operates ONLY on post_jobs, never creates drafts
+        if (selectedChannels.length > 0) {
+          const { data: existingJobs } = await supabase
+            .from('post_jobs')
+            .select('id, channel, draft_id')
+            .eq('draft_id', draftId);
 
-          // Redirect to Schedule page on success
-          router.push(`/brands/${brandId}/schedule`);
-        },
-      });
+          const existingChannels = new Set(
+            (existingJobs || []).map(job => canonicalizeChannel(job.channel) || job.channel)
+          );
+
+          const normalizedChannels = selectedChannels.map(ch => canonicalizeChannel(ch) || ch);
+          const missingChannels = normalizedChannels.filter(ch => !existingChannels.has(ch));
+
+          if (missingChannels.length > 0 && brand?.timezone) {
+            const scheduledAt = localToUtc(scheduleDate || new Date(), scheduleTime || '12:00', brand.timezone);
+            
+            // Insert missing post_jobs (one per channel) - this does NOT create drafts
+            const jobsToInsert = missingChannels.map(channel => ({
+              brand_id: brandId,
+              draft_id: draftId, // Link to existing draft
+              channel: channel,
+              scheduled_at: scheduledAt.toISOString(),
+              scheduled_local: scheduledAt.toISOString(),
+              scheduled_tz: brand.timezone,
+              status: 'ready' as const, // Ready for immediate publishing
+              target_month: scheduledAt.toISOString().substring(0, 7) + '-01',
+            }));
+
+            const { error: insertJobsError } = await supabase
+              .from('post_jobs')
+              .insert(jobsToInsert);
+
+            if (insertJobsError) {
+              console.error('[approveAndPublishNow] Error creating missing post_jobs:', insertJobsError);
+              // Don't fail the whole operation, but log it
+            }
+          }
+        }
+
+        // Use shared publish-now hook
+        // This operates on the existing draft and post_jobs, never creates drafts
+        await publishDraftNow(draftId, {
+          channels: selectedChannels,
+          onSuccess: async (result) => {
+            // Update local state with the response
+            if (result.draftStatus) {
+              setDraft((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  status: result.draftStatus as Draft['status'],
+                  approved: true,
+                };
+              });
+            }
+
+            // Update post jobs if provided
+            if (result.jobs && result.jobs.length > 0) {
+              setPostJobs(result.jobs);
+            }
+
+            // Show success message
+            showToast({
+              title: 'Post published successfully',
+              message: 'Your post has been approved and published.',
+              type: 'success',
+            });
+
+            // Close the modal
+            closePublishModal();
+
+            // Redirect to Schedule page on success
+            router.push(`/brands/${brandId}/schedule`);
+          },
+        });
+      } finally {
+        // Restore original from function
+        supabase.from = originalFrom;
+        // Clear safety flag
+        delete (globalThis as any)[SAFETY_FLAG];
+      }
     } catch (error) {
       console.error('Error in approveAndPublishNow:', error);
-      // Error handling is done by the hook
+      showToast({
+        title: 'Publishing failed',
+        message: error instanceof Error ? error.message : 'Failed to publish. Please try again.',
+        type: 'error',
+      });
     }
   };
 
