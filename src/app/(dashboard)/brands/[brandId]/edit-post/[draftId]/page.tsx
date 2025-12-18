@@ -933,7 +933,18 @@ export default function EditPostPage() {
           const missingChannels = normalizedChannels.filter(ch => !existingChannels.has(ch));
 
           if (missingChannels.length > 0 && brand?.timezone) {
-            const scheduledAt = localToUtc(scheduleDate || new Date(), scheduleTime || '12:00', brand.timezone);
+            // Use scheduleDate if available, otherwise fall back to draft's scheduled_for
+            let dateStr = scheduleDate;
+            if (!dateStr && draft?.scheduled_for) {
+              // Extract date from draft's scheduled_for (UTC) and convert to local date string
+              const draftDate = new Date(draft.scheduled_for);
+              dateStr = draftDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+            }
+            if (!dateStr) {
+              // Last resort: use today's date
+              dateStr = new Date().toISOString().split('T')[0];
+            }
+            const scheduledAt = localToUtc(dateStr, scheduleTime || '12:00', brand.timezone);
             
             // Insert missing post_jobs (one per channel) - this does NOT create drafts
             const jobsToInsert = missingChannels.map(channel => ({
