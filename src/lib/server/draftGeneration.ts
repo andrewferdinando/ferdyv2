@@ -197,6 +197,10 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   let draftsSkipped = 0;
   const createdDraftIds: string[] = []; // Track created draft IDs for copy generation
 
+  // Track selected assets per schedule_rule_id to ensure rotation within a single generation run
+  // Map: schedule_rule_id -> Set of asset_ids already selected in this run
+  const selectedAssetsByRuleId = new Map<string, Set<string>>();
+
   // Process each target
   for (const target of targetsInWindow) {
     try {
@@ -307,34 +311,45 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
       // Asset selection is best-effort; if it fails or no asset is available, draft is still created
       // CRITICAL: Only use assets that are tagged with this subcategory's tag
+      // ROTATION: Track selected assets per schedule_rule_id to ensure variety within a single generation run
       let assetId: string | null = null;
       if (finalScheduleRuleId) {
         try {
-          const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
-            'rpc_pick_asset_for_rule',
-            { p_rule_id: finalScheduleRuleId }
-          );
-        
-          if (assetError) {
-            // If function doesn't exist or other error, continue without asset
-            if (assetError.code === '42883' || assetError.message?.includes('does not exist')) {
-              console.log(`[draftGeneration] rpc_pick_asset_for_rule not available for brand ${brandId}, continuing without asset`);
-            } else {
-              console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
-            }
-          } else if (pickedAsset && typeof pickedAsset === 'string') {
-            // CRITICAL: Verify the asset is tagged with this subcategory's tag
-            // The RPC function may fall back to other assets if no assets are tagged for this subcategory
-            // We must NOT use assets from other categories
-            const { data: tags } = await supabaseAdmin
-              .from('tags')
-              .select('id')
-              .eq('subcategory_id', target.subcategory_id)
-              .limit(1);
+          // Get the subcategory's tag first (needed for verification and rotation)
+          const { data: tags } = await supabaseAdmin
+            .from('tags')
+            .select('id')
+            .eq('subcategory_id', target.subcategory_id)
+            .limit(1);
+          
+          if (tags && tags.length > 0) {
+            const tagId = tags[0].id;
             
-            if (tags && tags.length > 0) {
-              const tagId = tags[0].id;
-              
+            // Get all available assets for this subcategory (for rotation fallback)
+            const { data: allAssetTags } = await supabaseAdmin
+              .from('asset_tags')
+              .select('asset_id')
+              .eq('tag_id', tagId);
+            
+            const availableAssetIds = allAssetTags?.map((at: any) => at.asset_id) || [];
+            
+            // Get previously selected assets for this schedule_rule_id in this run
+            const previouslySelected = selectedAssetsByRuleId.get(finalScheduleRuleId) || new Set<string>();
+            
+            // Try RPC first
+            const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
+              'rpc_pick_asset_for_rule',
+              { p_rule_id: finalScheduleRuleId }
+            );
+          
+            if (assetError) {
+              // If function doesn't exist or other error, continue without asset
+              if (assetError.code === '42883' || assetError.message?.includes('does not exist')) {
+                console.log(`[draftGeneration] rpc_pick_asset_for_rule not available for brand ${brandId}, continuing without asset`);
+              } else {
+                console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
+              }
+            } else if (pickedAsset && typeof pickedAsset === 'string') {
               // Verify the picked asset is tagged with this subcategory's tag
               const { data: assetTagCheck } = await supabaseAdmin
                 .from('asset_tags')
@@ -344,19 +359,41 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
                 .limit(1);
               
               if (assetTagCheck && assetTagCheck.length > 0) {
-                // Asset is correctly tagged for this subcategory - use it
-                assetId = pickedAsset;
+                // Asset is correctly tagged - check if it's already been used in this run
+                if (previouslySelected.has(pickedAsset) && availableAssetIds.length > previouslySelected.size) {
+                  // Asset was already used - find an alternative
+                  const unusedAssets = availableAssetIds.filter((id: string) => !previouslySelected.has(id));
+                  if (unusedAssets.length > 0) {
+                    // Pick the first unused asset (simple rotation)
+                    assetId = unusedAssets[0];
+                    console.log(`[draftGeneration] RPC returned duplicate asset ${pickedAsset}, rotating to ${assetId} for brand ${brandId}, subcategory ${target.subcategory_id}`);
+                  } else {
+                    // All assets have been used - reset tracking and use the RPC result
+                    selectedAssetsByRuleId.set(finalScheduleRuleId, new Set());
+                    assetId = pickedAsset;
+                    console.log(`[draftGeneration] All assets used, resetting rotation for brand ${brandId}, subcategory ${target.subcategory_id}`);
+                  }
+                } else {
+                  // Asset is new for this run - use it
+                  assetId = pickedAsset;
+                }
+                
+                // Track this selection
+                if (!selectedAssetsByRuleId.has(finalScheduleRuleId)) {
+                  selectedAssetsByRuleId.set(finalScheduleRuleId, new Set());
+                }
+                selectedAssetsByRuleId.get(finalScheduleRuleId)!.add(assetId);
+                
                 console.log(`[draftGeneration] Picked asset ${assetId} for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}`);
               } else {
                 // Asset is NOT tagged for this subcategory - reject it
                 console.warn(`[draftGeneration] REJECTED asset ${pickedAsset} - not tagged with subcategory ${target.subcategory_id} tag ${tagId}. Continuing without asset.`);
                 assetId = null;
               }
-            } else {
-              // No tag found for subcategory - can't verify, so don't use the asset
-              console.warn(`[draftGeneration] No tag found for subcategory ${target.subcategory_id}, rejecting asset ${pickedAsset}`);
-              assetId = null;
             }
+          } else {
+            // No tag found for subcategory - can't verify, so don't use any asset
+            console.warn(`[draftGeneration] No tag found for subcategory ${target.subcategory_id}, skipping asset selection`);
           }
         } catch (error) {
           // Catch any other errors and continue without asset
