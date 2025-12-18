@@ -82,6 +82,13 @@ Ongoing: daily / weekly / monthly
 
 variation_hint is used to rotate angles (benefits, urgency, atmosphere, etc.) when multiple drafts share the same subcategory.
 
+**For event_series with frequency='specific':** The URL and summary may come from the matching `event_occurrence`:
+- The system matches `draft.scheduled_for` to `event_occurrence.starts_at` (within 24 hours)
+- If a matching occurrence has its own URL, that URL is used instead of `subcategory.url`
+- If a matching occurrence has its own summary (stored as JSON in `event_occurrences.summary`), that summary is used instead of `subcategory.url_page_summary`
+- Falls back to subcategory URL/summary if no matching occurrence or occurrence doesn't have its own URL/summary
+- This ensures each occurrence's copy references the correct URL and context
+
 3. Data sources used in prompts
 For each batch run, processBatchCopyGeneration() gathers:
 
