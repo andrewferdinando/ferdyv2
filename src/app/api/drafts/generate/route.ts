@@ -23,7 +23,6 @@ const generateDraftsSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  console.log('[API] /api/drafts/generate HIT');
   try {
     console.log('[api/drafts/generate] Received request');
     
