@@ -166,58 +166,73 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
         setJobsByDraftId(jobsMap);
 
         // Backfill any drafts missing copy or assets (framework-created without client post-processing)
-        const needsBackfill = (data || []).filter((d: any) => (!d.copy || d.copy.trim() === '') || !d.asset_ids || d.asset_ids.length === 0);
+        // CRITICAL: Only backfill drafts that are truly missing assets - NEVER update asset_ids if they already exist
+        const needsBackfill = (data || []).filter((d: any) => {
+          const needsCopy = !d.copy || d.copy.trim() === '';
+          const needsAssets = !d.asset_ids || !Array.isArray(d.asset_ids) || d.asset_ids.length === 0;
+          return needsCopy || needsAssets;
+        });
+        
         if (needsBackfill.length > 0 && !backfillingRef.current) {
           backfillingRef.current = true;
           try {
             await Promise.all(needsBackfill.map(async (d: any) => {
-              // Select image by subcategory tag when available; else fallback to any random active asset
-              let chosenAssetId: string | null = null;
-              if (d.subcategory_id) {
-                const { data: tags } = await supabase
-                  .from('tags')
-                  .select('id')
-                  .eq('subcategory_id', d.subcategory_id);
-                const tagIds = (tags || []).map((t: any) => t.id);
-                if (tagIds.length > 0) {
-                  const { data: assetTagRows } = await supabase
-                    .from('asset_tags')
-                    .select('asset_id')
-                    .in('tag_id', tagIds);
-                  const assetIds = (assetTagRows || []).map((r: any) => r.asset_id);
-                  if (assetIds.length > 0) {
-                    const { data: match } = await supabase
-                      .from('assets')
-                      .select('id')
-                      .eq('brand_id', d.brand_id)
-                      .in('id', assetIds);
-                    if (match && match.length > 0) {
-                      // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
-                      chosenAssetId = match[Math.floor(Math.random() * match.length)].id;
-                    }
-                  }
-                }
-              }
-
-              if (!chosenAssetId) {
-                const { data: fallback } = await supabase
-                  .from('assets')
-                  .select('id')
-                  .eq('brand_id', d.brand_id);
-                if (fallback && fallback.length > 0) {
-                  // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
-                  chosenAssetId = fallback[Math.floor(Math.random() * fallback.length)].id;
-                }
-              }
-
               const updates: Partial<Pick<Draft, 'copy' | 'asset_ids'>> = {};
+              
+              // Only update copy if missing
               if (!d.copy || d.copy.trim() === '') {
                 updates.copy = 'Post copy coming soon…';
               }
-              if (chosenAssetId && (!d.asset_ids || d.asset_ids.length === 0)) {
-                updates.asset_ids = [chosenAssetId];
+              
+              // ONLY select and update asset_ids if they are truly missing
+              // NEVER update asset_ids if they already exist (even if empty array - that's intentional)
+              const hasAssets = d.asset_ids && Array.isArray(d.asset_ids) && d.asset_ids.length > 0;
+              if (!hasAssets) {
+                // Select image by subcategory tag when available; else fallback to any random active asset
+                let chosenAssetId: string | null = null;
+                if (d.subcategory_id) {
+                  const { data: tags } = await supabase
+                    .from('tags')
+                    .select('id')
+                    .eq('subcategory_id', d.subcategory_id);
+                  const tagIds = (tags || []).map((t: any) => t.id);
+                  if (tagIds.length > 0) {
+                    const { data: assetTagRows } = await supabase
+                      .from('asset_tags')
+                      .select('asset_id')
+                      .in('tag_id', tagIds);
+                    const assetIds = (assetTagRows || []).map((r: any) => r.asset_id);
+                    if (assetIds.length > 0) {
+                      const { data: match } = await supabase
+                        .from('assets')
+                        .select('id')
+                        .eq('brand_id', d.brand_id)
+                        .in('id', assetIds);
+                      if (match && match.length > 0) {
+                        // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
+                        chosenAssetId = match[Math.floor(Math.random() * match.length)].id;
+                      }
+                    }
+                  }
+                }
+
+                if (!chosenAssetId) {
+                  const { data: fallback } = await supabase
+                    .from('assets')
+                    .select('id')
+                    .eq('brand_id', d.brand_id);
+                  if (fallback && fallback.length > 0) {
+                    // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
+                    chosenAssetId = fallback[Math.floor(Math.random() * fallback.length)].id;
+                  }
+                }
+                
+                if (chosenAssetId) {
+                  updates.asset_ids = [chosenAssetId];
+                }
               }
 
+              // Only update if there are changes to make
               if (Object.keys(updates).length > 0) {
                 await supabase
                   .from('drafts')

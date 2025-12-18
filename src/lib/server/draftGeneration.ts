@@ -347,27 +347,42 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
               if (tags && tags.length > 0) {
                 const tagId = tags[0].id;
                 
-                // Get assets linked to this tag
+                // Get assets linked to this tag AND filtered by brand_id to ensure we only get assets for this brand
                 const { data: assetTags } = await supabaseAdmin
                   .from('asset_tags')
                   .select('asset_id')
                   .eq('tag_id', tagId);
                 
                 if (assetTags && assetTags.length > 0) {
-                  const availableAssetIds = assetTags.map((at: any) => at.asset_id);
+                  const assetTagIds = assetTags.map((at: any) => at.asset_id);
                   
-                  // Filter out previously selected assets
-                  const unselectedAssets = availableAssetIds.filter(
-                    (id: string) => !previouslySelected.includes(id)
-                  );
+                  // Verify these assets belong to the correct brand
+                  const { data: brandAssets } = await supabaseAdmin
+                    .from('assets')
+                    .select('id')
+                    .eq('brand_id', brandId)
+                    .in('id', assetTagIds);
                   
-                  if (unselectedAssets.length > 0) {
-                    // Pick the first unselected asset (simple round-robin within this run)
-                    assetId = unselectedAssets[0];
-                    console.log(`[draftGeneration] Selected alternative asset ${assetId} for rule ${finalScheduleRuleId}`);
+                  if (brandAssets && brandAssets.length > 0) {
+                    const availableAssetIds = brandAssets.map((a: any) => a.id);
+                    
+                    // Filter out previously selected assets
+                    const unselectedAssets = availableAssetIds.filter(
+                      (id: string) => !previouslySelected.includes(id)
+                    );
+                    
+                    if (unselectedAssets.length > 0) {
+                      // Pick the first unselected asset (simple round-robin within this run)
+                      assetId = unselectedAssets[0];
+                      console.log(`[draftGeneration] Selected alternative asset ${assetId} for rule ${finalScheduleRuleId} (brand ${brandId}, subcategory ${target.subcategory_id})`);
+                    } else {
+                      // All assets have been used - reset and start over, or use the RPC result
+                      console.log(`[draftGeneration] All assets used for rule ${finalScheduleRuleId}, using RPC result ${pickedAsset}`);
+                      assetId = pickedAsset;
+                    }
                   } else {
-                    // All assets have been used - reset and start over, or use the RPC result
-                    console.log(`[draftGeneration] All assets used for rule ${finalScheduleRuleId}, using RPC result ${pickedAsset}`);
+                    // No assets found for this brand via tags, use RPC result
+                    console.log(`[draftGeneration] No assets found for brand ${brandId} via tag ${tagId}, using RPC result ${pickedAsset}`);
                     assetId = pickedAsset;
                   }
                 } else {
