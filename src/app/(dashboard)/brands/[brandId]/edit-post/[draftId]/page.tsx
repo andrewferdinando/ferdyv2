@@ -926,7 +926,7 @@ export default function EditPostPage() {
             .eq('draft_id', draftId);
 
           const existingChannels = new Set(
-            (existingJobs || []).map(job => canonicalizeChannel(job.channel) || job.channel)
+            (existingJobs || []).map((job: { channel: string }) => canonicalizeChannel(job.channel) || job.channel)
           );
 
           const normalizedChannels = selectedChannels.map(ch => canonicalizeChannel(ch) || ch);
