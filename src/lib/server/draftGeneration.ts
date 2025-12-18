@@ -53,10 +53,14 @@ export interface DraftGenerationResult {
 /**
  * Generate drafts for a brand within a 30-day window
  * 
+ * EXPLICIT SCHEDULE RULE RESOLUTION:
+ * - For every target, explicitly fetch schedule rule using: brand_id + subcategory_id + is_active = true
+ * - NO reliance on target.schedule_rule_id
+ * - Draft is only created AFTER schedule rule is resolved
+ * 
  * HARD GUARDS (prevent silent failures):
- * - Schedule rule resolution is deterministic (prefer target.schedule_rule_id, then fetch by subcategory_id)
- * - If no schedule rule found: log error and skip target (NO DEFAULTS to instagram_feed)
- * - If schedule rule has no channels: log error and skip target (NO DEFAULTS)
+ * - If no schedule rule found: log error and skip target (NO DEFAULTS)
+ * - If schedule_rule.channels.length === 0: log error and skip target (NO DEFAULTS)
  * - Draft must have ≥1 post_job created
  * - All post_jobs must have schedule_rule_id set (never null)
  * - Regression check: N channels must result in exactly N post_jobs
@@ -178,12 +182,6 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   const brandTimezone = brand.timezone || 'Pacific/Auckland';
   console.log(`[draftGeneration] Using brand timezone for ${brandId}:`, brandTimezone);
 
-  // Build a map of schedule_rule_id -> schedule_rule for quick lookup
-  const scheduleRuleMap = new Map<string, any>();
-  for (const rule of scheduleRules) {
-    scheduleRuleMap.set(rule.id, rule);
-  }
-
   // Helper function to normalize channels (NO DEFAULTS - returns empty array if invalid)
   function normalizeChannels(channels: string[] | null | undefined): string[] {
     if (!channels || !Array.isArray(channels) || channels.length === 0) {
@@ -230,71 +228,50 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         continue;
       }
 
-      // DETERMINISTIC SCHEDULE RULE RESOLUTION
-      // 1. Prefer target.schedule_rule_id if present
-      // 2. Otherwise fetch by brand_id + subcategory_id + is_active = true
-      // 3. If no schedule rule found: log error and skip (NO DEFAULTS)
-      let scheduleRule: any = null;
-      let scheduleRuleId: string | null = null;
-
-      if (target.schedule_rule_id) {
-        // Try to get from the pre-fetched map first
-        scheduleRule = scheduleRuleMap.get(target.schedule_rule_id);
-        if (scheduleRule) {
-          scheduleRuleId = target.schedule_rule_id;
-        } else {
-          // If not in map, fetch directly (might be a new rule)
-          const { data: fetchedRule, error: ruleError } = await supabaseAdmin
-            .from('schedule_rules')
-            .select('id, channels')
-            .eq('id', target.schedule_rule_id)
-            .eq('brand_id', brandId)
-            .eq('is_active', true)
-            .maybeSingle();
-
-          if (ruleError) {
-            console.error(`[draftGeneration] Error fetching schedule_rule by id ${target.schedule_rule_id}:`, ruleError);
-          } else if (fetchedRule) {
-            scheduleRule = fetchedRule;
-            scheduleRuleId = fetchedRule.id;
-          }
-        }
+      // EXPLICIT SCHEDULE RULE RESOLUTION
+      // For every target, fetch schedule rule using: brand_id + subcategory_id + is_active = true
+      // REMOVED: Any reliance on target.schedule_rule_id
+      if (!target.subcategory_id) {
+        console.error(`[draftGeneration] SKIPPING target: No subcategory_id`, {
+          brand_id: brandId,
+          scheduled_at: scheduledAtISO
+        });
+        continue; // Skip this target - do not create draft
       }
 
-      // If not found by schedule_rule_id, fetch by subcategory_id
-      if (!scheduleRule && target.subcategory_id) {
-        const { data: fetchedRule, error: ruleError } = await supabaseAdmin
-          .from('schedule_rules')
-          .select('id, channels')
-          .eq('brand_id', brandId)
-          .eq('subcategory_id', target.subcategory_id)
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (ruleError) {
-          console.error(`[draftGeneration] Error fetching schedule_rule for subcategory ${target.subcategory_id}:`, ruleError);
-        } else if (fetchedRule) {
-          scheduleRule = fetchedRule;
-          scheduleRuleId = fetchedRule.id;
-        }
-      }
+      // Explicitly fetch schedule rule for this target
+      const { data: scheduleRule, error: ruleError } = await supabaseAdmin
+        .from('schedule_rules')
+        .select('id, channels')
+        .eq('brand_id', brandId)
+        .eq('subcategory_id', target.subcategory_id)
+        .eq('is_active', true)
+        .maybeSingle();
 
       // HARD GUARD: If no schedule rule found, skip this target (NO DEFAULTS)
-      if (!scheduleRule || !scheduleRuleId) {
+      if (ruleError) {
+        console.error(`[draftGeneration] SKIPPING target: Error fetching schedule_rule`, {
+          brand_id: brandId,
+          subcategory_id: target.subcategory_id,
+          scheduled_at: scheduledAtISO,
+          error: ruleError.message
+        });
+        continue; // Skip this target - do not create draft
+      }
+
+      if (!scheduleRule || !scheduleRule.id) {
         console.error(`[draftGeneration] SKIPPING target: No active schedule_rule found`, {
           brand_id: brandId,
-          target_schedule_rule_id: target.schedule_rule_id,
           subcategory_id: target.subcategory_id,
           scheduled_at: scheduledAtISO
         });
         continue; // Skip this target - do not create draft
       }
 
-      // Get channels from the schedule rule (normalized) - schedule_rule.channels is single source of truth
-      const channels = normalizeChannels(scheduleRule.channels);
+      const scheduleRuleId = scheduleRule.id;
 
-      // HARD GUARD: If no channels, skip this target (NO DEFAULTS)
-      if (!channels || channels.length === 0) {
+      // HARD GUARD: If schedule_rule.channels.length === 0, skip with error
+      if (!scheduleRule.channels || !Array.isArray(scheduleRule.channels) || scheduleRule.channels.length === 0) {
         console.error(`[draftGeneration] SKIPPING target: Schedule rule has no channels`, {
           brand_id: brandId,
           schedule_rule_id: scheduleRuleId,
@@ -304,8 +281,23 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         continue; // Skip this target - do not create draft
       }
 
+      // Get channels from the schedule rule (normalized) - schedule_rule.channels is single source of truth
+      const channels = normalizeChannels(scheduleRule.channels);
+
+      // HARD GUARD: If normalized channels are empty, skip this target (NO DEFAULTS)
+      if (!channels || channels.length === 0) {
+        console.error(`[draftGeneration] SKIPPING target: Normalized channels are empty`, {
+          brand_id: brandId,
+          schedule_rule_id: scheduleRuleId,
+          subcategory_id: target.subcategory_id,
+          scheduled_at: scheduledAtISO,
+          original_channels: scheduleRule.channels
+        });
+        continue; // Skip this target - do not create draft
+      }
+
       const firstChannel = channels[0];
-      const finalScheduleRuleId = scheduleRuleId; // Use the resolved schedule_rule_id
+      const finalScheduleRuleId = scheduleRuleId;
 
       // Attempt to pick an asset for this schedule rule
       // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
