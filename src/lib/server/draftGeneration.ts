@@ -306,6 +306,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // Attempt to pick an asset for this schedule rule
       // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
       // Asset selection is best-effort; if it fails or no asset is available, draft is still created
+      // CRITICAL: Only use assets that are tagged with this subcategory's tag
       let assetId: string | null = null;
       if (finalScheduleRuleId) {
         try {
@@ -322,8 +323,40 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
               console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
             }
           } else if (pickedAsset && typeof pickedAsset === 'string') {
-            assetId = pickedAsset;
-            console.log(`[draftGeneration] Picked asset for brand ${brandId}:`, assetId);
+            // CRITICAL: Verify the asset is tagged with this subcategory's tag
+            // The RPC function may fall back to other assets if no assets are tagged for this subcategory
+            // We must NOT use assets from other categories
+            const { data: tags } = await supabaseAdmin
+              .from('tags')
+              .select('id')
+              .eq('subcategory_id', target.subcategory_id)
+              .limit(1);
+            
+            if (tags && tags.length > 0) {
+              const tagId = tags[0].id;
+              
+              // Verify the picked asset is tagged with this subcategory's tag
+              const { data: assetTagCheck } = await supabaseAdmin
+                .from('asset_tags')
+                .select('asset_id')
+                .eq('asset_id', pickedAsset)
+                .eq('tag_id', tagId)
+                .limit(1);
+              
+              if (assetTagCheck && assetTagCheck.length > 0) {
+                // Asset is correctly tagged for this subcategory - use it
+                assetId = pickedAsset;
+                console.log(`[draftGeneration] Picked asset ${assetId} for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}`);
+              } else {
+                // Asset is NOT tagged for this subcategory - reject it
+                console.warn(`[draftGeneration] REJECTED asset ${pickedAsset} - not tagged with subcategory ${target.subcategory_id} tag ${tagId}. Continuing without asset.`);
+                assetId = null;
+              }
+            } else {
+              // No tag found for subcategory - can't verify, so don't use the asset
+              console.warn(`[draftGeneration] No tag found for subcategory ${target.subcategory_id}, rejecting asset ${pickedAsset}`);
+              assetId = null;
+            }
           }
         } catch (error) {
           // Catch any other errors and continue without asset
