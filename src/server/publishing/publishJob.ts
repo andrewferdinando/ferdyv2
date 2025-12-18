@@ -186,13 +186,8 @@ export async function publishJob(
       externalId: publishResult.externalId,
     })
 
-    // Send email notification to brand admins/editors
-    try {
-      await notifyPostPublished(draft, job, publishResult, jobChannel)
-    } catch (emailError) {
-      console.error('[publishJob] Failed to send post published email:', emailError)
-      // Don't fail the publish if email fails
-    }
+    // Email notification is now sent in batches after all jobs for a draft are processed
+    // See notifyPostPublishedBatched in publishDueDrafts.ts
 
     return { success: true }
   } else {
@@ -357,13 +352,19 @@ function isAuthError(error: string): boolean {
   return authErrorPatterns.some(pattern => errorLower.includes(pattern))
 }
 
-async function notifyPostPublished(
+/**
+ * Send batched email notification to brand admins/editors when a post is published to multiple channels
+ * This replaces the per-channel notification to reduce email overload
+ */
+export async function notifyPostPublishedBatched(
   draft: DraftRow,
-  job: PostJobRow,
-  publishResult: { externalId: string; externalUrl: string | null },
-  channel: string
+  successfulJobs: Array<{ job: PostJobRow; channel: string; externalUrl: string | null }>
 ) {
-  console.log(`[notifyPostPublished] Sending notifications for job ${job.id}, brand ${draft.brand_id}`)
+  if (successfulJobs.length === 0) {
+    return
+  }
+
+  console.log(`[notifyPostPublishedBatched] Sending batched notifications for draft ${draft.id}, ${successfulJobs.length} channels, brand ${draft.brand_id}`)
 
   // Get brand details
   const { data: brand, error: brandError } = await supabaseAdmin
@@ -373,7 +374,7 @@ async function notifyPostPublished(
     .single()
 
   if (brandError || !brand || brand.status !== 'active') {
-    console.error('[notifyPostPublished] Brand not found or inactive:', brandError)
+    console.error('[notifyPostPublishedBatched] Brand not found or inactive:', brandError)
     return
   }
 
@@ -386,11 +387,11 @@ async function notifyPostPublished(
     .eq('status', 'active')
 
   if (membershipsError || !memberships || memberships.length === 0) {
-    console.error('[notifyPostPublished] No active admins/editors found:', membershipsError)
+    console.error('[notifyPostPublishedBatched] No active admins/editors found:', membershipsError)
     return
   }
 
-  console.log(`[notifyPostPublished] Found ${memberships.length} admins/editors`)
+  console.log(`[notifyPostPublishedBatched] Found ${memberships.length} admins/editors`)
 
   // Get user emails from auth
   const adminEmails: string[] = []
@@ -398,26 +399,26 @@ async function notifyPostPublished(
     try {
       const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(membership.user_id)
       if (userError) {
-        console.error(`[notifyPostPublished] Error fetching user ${membership.user_id}:`, userError)
+        console.error(`[notifyPostPublishedBatched] Error fetching user ${membership.user_id}:`, userError)
         continue
       }
       if (user?.email) {
         adminEmails.push(user.email)
       }
     } catch (err) {
-      console.error(`[notifyPostPublished] Exception fetching user ${membership.user_id}:`, err)
+      console.error(`[notifyPostPublishedBatched] Exception fetching user ${membership.user_id}:`, err)
     }
   }
 
   if (adminEmails.length === 0) {
-    console.error('[notifyPostPublished] No valid email addresses found')
+    console.error('[notifyPostPublishedBatched] No valid email addresses found')
     return
   }
 
   // Deduplicate email addresses
   const uniqueEmails = [...new Set(adminEmails)]
 
-  console.log(`[notifyPostPublished] Sending to ${uniqueEmails.length} unique recipients`)
+  console.log(`[notifyPostPublishedBatched] Sending to ${uniqueEmails.length} unique recipients`)
 
   // Format the published time
   const publishedAt = new Date().toLocaleDateString('en-US', {
@@ -431,11 +432,26 @@ async function notifyPostPublished(
   // Get app URL from environment
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io'
   
-  // Use external URL if available, otherwise link to published page
-  const postLink = publishResult.externalUrl || `${appUrl}/brands/${draft.brand_id}/schedule?tab=published`
+  // Build channels array with formatted names and links
+  const channels = successfulJobs.map(({ channel, externalUrl }) => {
+    // Format channel name for display (e.g., "instagram_feed" -> "Instagram Feed")
+    const parts = channel.split('_')
+    const platformName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1)
+    const channelType = parts.length > 1 
+      ? parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+      : ''
+    const displayName = channelType ? `${platformName} ${channelType}` : platformName
+    
+    return {
+      name: displayName,
+      channel: channel,
+      url: externalUrl || null,
+    }
+  })
 
-  // Format channel name for display (e.g., "instagram_feed" -> "Instagram")
-  const platformName = channel.split('_')[0].charAt(0).toUpperCase() + channel.split('_')[0].slice(1)
+  // Use first external URL if available, otherwise link to published page
+  const primaryExternalUrl = successfulJobs.find(j => j.externalUrl)?.externalUrl || null
+  const postLink = primaryExternalUrl || `${appUrl}/brands/${draft.brand_id}/schedule?tab=published`
 
   // Send email to each unique admin/editor
   for (const email of uniqueEmails) {
@@ -444,13 +460,13 @@ async function notifyPostPublished(
         to: email,
         brandName: brand.name,
         publishedAt,
-        platform: platformName,
+        channels,
         postLink,
         postPreview: draft.copy?.substring(0, 200) || '',
       })
-      console.log(`[notifyPostPublished] Email sent to ${email}`)
+      console.log(`[notifyPostPublishedBatched] Email sent to ${email}`)
     } catch (err) {
-      console.error(`[notifyPostPublished] Failed to send email to ${email}:`, err)
+      console.error(`[notifyPostPublishedBatched] Failed to send email to ${email}:`, err)
       // Continue sending to other recipients even if one fails
     }
   }

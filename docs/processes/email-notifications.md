@@ -74,12 +74,17 @@ const response = await fetch('/api/auth/reset-password', {
 **Recipients:** All brand admins and editors (both roles can approve drafts)
 
 ### 8. Post Published
-**Location:** `/src/server/publishing/publishJob.ts`
-**Trigger:** After a post is successfully published to a social platform
+**Location:** `/src/server/publishing/publishJob.ts` (batched notification function)
+**Trigger:** After all jobs for a draft are successfully published
 **When:** Post is published either manually (via "Publish Now") or automatically (via scheduled cron)
-**Data:** Brand name, platform, published time, post link, post preview
+**Data:** Brand name, channels (array), published time, post link, post preview
 **Status:** ✅ Fully implemented
 **Recipients:** All brand admins and editors
+**Behavior:** 
+- Sends **one email per draft** (not per channel) to reduce email overload
+- Lists all channels the post was published to in a single email
+- If post was published to multiple channels (e.g., Instagram Feed, Instagram Story, Facebook), all channels are listed in one email
+- Each channel can have its own "View post" link if available
 
 ### 9. Social Connection Disconnected
 **Location:** `/src/server/publishing/publishJob.ts`

@@ -86,7 +86,8 @@ export interface PostPublishedData {
   to: string
   brandName: string
   publishedAt: string
-  platform: string
+  platform?: string // Deprecated: use channels array instead
+  channels?: Array<{ name: string; channel: string; url: string | null }> // New: array of channels
   postLink: string
   postPreview?: string
 }
@@ -254,11 +255,21 @@ export async function sendMonthlyDraftsReady(data: MonthlyDraftsReadyData) {
 export async function sendPostPublished(data: PostPublishedData) {
   const resend = getResend()
   
+  // Determine subject line based on channels or platform
+  const subject = data.channels && data.channels.length > 0
+    ? data.channels.length === 1
+      ? `Post Published to ${data.channels[0].name}`
+      : `Post Published to ${data.channels.length} Channels`
+    : data.platform
+      ? `Post Published to ${data.platform}`
+      : 'Post Published'
+  
   const html = await render(
     PostPublished({
       brandName: data.brandName,
       publishedAt: data.publishedAt,
-      platform: data.platform,
+      platform: data.platform, // For backward compatibility
+      channels: data.channels, // New: array of channels
       postLink: data.postLink,
       postPreview: data.postPreview,
     })
@@ -267,7 +278,7 @@ export async function sendPostPublished(data: PostPublishedData) {
   return resend.emails.send({
     from: FROM_EMAIL,
     to: data.to,
-    subject: `Post Published to ${data.platform}`,
+    subject,
     html,
   })
 }

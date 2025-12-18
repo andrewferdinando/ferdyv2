@@ -4,7 +4,7 @@ import {
   LEGACY_CHANNEL_ALIASES,
   SUPPORTED_CHANNELS,
 } from '@/lib/channels'
-import { publishJob } from './publishJob'
+import { publishJob, notifyPostPublishedBatched } from './publishJob'
 
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published'
 
@@ -623,6 +623,7 @@ async function processDraft(
   }
 
   let attempted = 0
+  const successfulJobs: Array<{ job: PostJobRow; channel: string; externalUrl: string | null }> = []
 
   for (const job of relevantJobs) {
     const jobChannel = canonicalizeChannel(job.channel)
@@ -653,6 +654,13 @@ async function processDraft(
         job.error = updatedJobs.error
         job.external_post_id = updatedJobs.external_post_id
         job.external_url = updatedJobs.external_url
+        
+        // Track successful job for batched email notification
+        successfulJobs.push({
+          job: updatedJobs as PostJobRow,
+          channel: jobChannel,
+          externalUrl: updatedJobs.external_url,
+        })
       }
     } else {
       summary.jobsFailed += 1
@@ -682,6 +690,16 @@ async function processDraft(
 
   // Update draft status from jobs after processing
   await updateDraftStatusFromJobs(draft.id)
+
+  // Send batched email notification if any jobs succeeded
+  if (successfulJobs.length > 0) {
+    try {
+      await notifyPostPublishedBatched(draft, successfulJobs)
+    } catch (emailError) {
+      console.error('[processDraft] Failed to send batched post published email:', emailError)
+      // Don't fail the publish if email fails
+    }
+  }
 
   return true
 }
