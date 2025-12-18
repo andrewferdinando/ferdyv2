@@ -7,6 +7,8 @@ import { BrandAdded } from '@/emails/BrandAdded'
 import { BrandDeleted } from '@/emails/BrandDeleted'
 import { ForgotPassword } from '@/emails/ForgotPassword'
 import { MonthlyDraftsReady } from '@/emails/MonthlyDraftsReady'
+import { WeeklyApprovalSummary } from '@/emails/WeeklyApprovalSummary'
+import { LowApprovedDraftsReminder } from '@/emails/LowApprovedDraftsReminder'
 import { PostPublished } from '@/emails/PostPublished'
 import { SocialConnectionDisconnected } from '@/emails/SocialConnectionDisconnected'
 
@@ -80,6 +82,21 @@ export interface MonthlyDraftsReadyData {
   draftCount: number
   approvalLink: string
   month: string
+}
+
+export interface WeeklyApprovalSummaryData {
+  to: string
+  brandName: string
+  approvedCount: number
+  needsApprovalCount: number
+  approvalLink: string
+}
+
+export interface LowApprovedDraftsReminderData {
+  to: string
+  brandName: string
+  approvedDaysCount: number
+  approvalLink: string
 }
 
 export interface PostPublishedData {
@@ -248,6 +265,49 @@ export async function sendMonthlyDraftsReady(data: MonthlyDraftsReadyData) {
     from: FROM_EMAIL,
     to: data.to,
     subject: `${data.draftCount} Drafts Ready for ${data.brandName}`,
+    html,
+  })
+}
+
+/**
+ * @deprecated Monthly drafts ready email is no longer used.
+ * Replaced by WeeklyApprovalSummary and LowApprovedDraftsReminder.
+ */
+export async function sendWeeklyApprovalSummary(data: WeeklyApprovalSummaryData) {
+  const resend = getResend()
+  
+  const html = await render(
+    WeeklyApprovalSummary({
+      brandName: data.brandName,
+      approvedCount: data.approvedCount,
+      needsApprovalCount: data.needsApprovalCount,
+      approvalLink: data.approvalLink,
+    })
+  )
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.to,
+    subject: `Weekly Approval Summary for ${data.brandName}`,
+    html,
+  })
+}
+
+export async function sendLowApprovedDraftsReminder(data: LowApprovedDraftsReminderData) {
+  const resend = getResend()
+  
+  const html = await render(
+    LowApprovedDraftsReminder({
+      brandName: data.brandName,
+      approvedDaysCount: data.approvedDaysCount,
+      approvalLink: data.approvalLink,
+    })
+  )
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.to,
+    subject: `Low Approved Drafts Reminder for ${data.brandName}`,
     html,
   })
 }

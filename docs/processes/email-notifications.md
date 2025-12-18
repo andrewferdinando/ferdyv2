@@ -65,15 +65,32 @@ const response = await fetch('/api/auth/reset-password', {
 
 ---
 
-### 7. Monthly Drafts Ready for Approval
-**Location:** `/src/app/api/drafts/push/route.ts`
-**Trigger:** After monthly drafts are created and copy generation completes
-**When:** Drafts are pushed either manually (via button) or automatically (on 15th of month)
-**Data:** Brand name, draft count, approval link, current month
+### 7. Weekly Approval Summary
+**Location:** `/src/app/api/emails/weekly-approval-summary/route.ts`
+**Trigger:** Every Monday at 11am local time (brand's timezone)
+**When:** Cron job runs hourly and checks if it's Monday 11am in each brand's timezone
+**Data:** Brand name, approved count, needs approval count, approval link
 **Status:** ✅ Fully implemented
-**Recipients:** All brand admins and editors (both roles can approve drafts)
+**Recipients:** All brand admins and editors
+**Behavior:**
+- Shows how many posts are approved within the 30-day window
+- Shows how many posts need approval
+- Includes approval progress percentage
+- Only sent on Mondays at 11am in the brand's local timezone
 
-### 8. Post Published
+### 8. Low Approved Drafts Reminder
+**Location:** `/src/app/api/emails/low-approved-reminder/route.ts`
+**Trigger:** Daily check for brands with less than 7 days of approved drafts
+**When:** Cron job runs daily at 9am UTC
+**Data:** Brand name, approved days count, approval link
+**Status:** ✅ Fully implemented
+**Recipients:** All brand admins and editors
+**Behavior:**
+- Checks if brand has less than 7 days of approved drafts in the schedule
+- Sends reminder email if threshold is not met
+- Calculates approved days by counting unique days with approved drafts
+
+### 9. Post Published
 **Location:** `/src/server/publishing/publishJob.ts` (batched notification function)
 **Trigger:** After all jobs for a draft are successfully published
 **When:** Post is published either manually (via "Publish Now") or automatically (via scheduled cron)
@@ -86,7 +103,7 @@ const response = await fetch('/api/auth/reset-password', {
 - If post was published to multiple channels (e.g., Instagram Feed, Instagram Story, Facebook), all channels are listed in one email
 - Each channel can have its own "View post" link if available
 
-### 9. Social Connection Disconnected
+### 10. Social Connection Disconnected
 **Location:** `/src/server/publishing/publishJob.ts`
 **Trigger:** Reactive detection during publishing when auth errors occur
 **When:** Token refresh fails OR publishing encounters authentication errors
@@ -122,7 +139,7 @@ APP_URL=https://www.ferdy.io
 
 ## Implementation Summary
 
-**Completed: 9/9 email notifications ✅**
+**Completed: 10/10 email notifications ✅**
 
 ✅ **Critical User Flows (All Implemented):**
 - Invoice Paid - Billing confirmation
@@ -133,7 +150,8 @@ APP_URL=https://www.ferdy.io
 - Forgot Password - Account recovery
 
 ✅ **Content Workflow (All Implemented):**
-- Monthly Drafts Ready - Notifies admins/editors when drafts are ready for approval
+- Weekly Approval Summary - Weekly Monday 11am summary of approved vs needs approval posts
+- Low Approved Drafts Reminder - Daily reminder if less than 7 days of approved drafts
 - Post Published - Notifies admins/editors when a post is successfully published
 
 ✅ **Social Platform Management (All Implemented):**
@@ -178,3 +196,4 @@ export async function GET() {
 - Invitation emails use Supabase's `auth.admin.generateLink()` for secure, time-limited links
 - Password reset endpoint includes anti-enumeration protection (always returns success)
 - All email sending is non-blocking and logged for debugging
+- **Monthly Drafts Ready email has been removed** (replaced by Weekly Approval Summary and Low Approved Drafts Reminder) to align with the rolling 30-day draft generation window

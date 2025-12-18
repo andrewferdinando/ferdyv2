@@ -7,6 +7,14 @@
     {
       "path": "/api/drafts/generate-all",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/emails/weekly-approval-summary",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/emails/low-approved-reminder",
+      "schedule": "0 9 * * *"
     }
   ]
 }

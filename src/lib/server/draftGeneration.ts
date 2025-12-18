@@ -41,7 +41,6 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
-import { sendMonthlyDraftsReady } from "@/lib/emails/send";
 
 export interface DraftGenerationResult {
   targetsFound: number;
@@ -578,15 +577,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
     await triggerCopyGeneration(brandId, allDraftIdsForCopy, windowStartStr, windowEndStr);
   }
 
-  // Send email notification if new drafts were created
-  if (draftsCreated > 0) {
-    try {
-      await notifyDraftsReady(brandId, draftsCreated);
-    } catch (emailError) {
-      console.error(`[draftGeneration] Failed to send draft notification emails for brand ${brandId}:`, emailError);
-      // Don't fail the function if email fails
-    }
-  }
+  // Email notifications are now handled by separate cron jobs:
+  // - Weekly approval summary (Monday 11am local)
+  // - Low approved drafts reminder (daily check)
 
   return {
     targetsFound: targetsInWindow.length,
@@ -819,91 +812,4 @@ async function triggerCopyGeneration(
   }
 }
 
-/**
- * Send email notification to brand admins and editors when drafts are ready
- */
-async function notifyDraftsReady(brandId: string, draftCount: number): Promise<void> {
-  console.log(`[draftGeneration] Sending notifications for brand ${brandId}, ${draftCount} drafts`);
-  
-  // Get brand details
-  const { data: brand, error: brandError } = await supabaseAdmin
-    .from('brands')
-    .select('name, group_id, status')
-    .eq('id', brandId)
-    .single();
-  
-  if (brandError || !brand || brand.status !== 'active') {
-    console.error(`[draftGeneration] Brand not found or inactive for brand ${brandId}:`, brandError);
-    return;
-  }
-  
-  // Get admin and editor emails for the brand (both roles can approve drafts)
-  const { data: memberships, error: membershipsError } = await supabaseAdmin
-    .from('brand_memberships')
-    .select('user_id, role')
-    .eq('brand_id', brandId)
-    .in('role', ['admin', 'editor'])
-    .eq('status', 'active');
-  
-  if (membershipsError || !memberships || memberships.length === 0) {
-    console.error(`[draftGeneration] No active admins/editors found for brand ${brandId}:`, membershipsError);
-    return;
-  }
-  
-  console.log(`[draftGeneration] Found ${memberships.length} admins/editors for brand ${brandId}`);
-  
-  // Get user emails from auth
-  const adminEmails: string[] = [];
-  for (const membership of memberships) {
-    try {
-      const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(membership.user_id);
-      if (userError) {
-        console.error(`[draftGeneration] Error fetching user ${membership.user_id}:`, userError);
-        continue;
-      }
-      if (user?.email) {
-        adminEmails.push(user.email);
-      }
-    } catch (err) {
-      console.error(`[draftGeneration] Exception fetching user ${membership.user_id}:`, err);
-    }
-  }
-  
-  if (adminEmails.length === 0) {
-    console.error(`[draftGeneration] No valid email addresses found for brand ${brandId}`);
-    return;
-  }
-  
-  // Deduplicate email addresses (in case user has multiple roles)
-  const uniqueEmails = [...new Set(adminEmails)];
-  
-  console.log(`[draftGeneration] Sending to ${uniqueEmails.length} unique recipients for brand ${brandId} (${adminEmails.length} total memberships)`);
-  
-  // Get current month for email
-  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  
-  // Get app URL from environment
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://www.ferdy.io';
-  const approvalLink = `${appUrl}/brands/${brandId}/schedule?tab=drafts`;
-  
-  console.log(`[draftGeneration] Brand ID: ${brandId}`);
-  console.log(`[draftGeneration] Approval link: ${approvalLink}`);
-  
-  // Send email to each unique admin/editor
-  for (const email of uniqueEmails) {
-    try {
-      await sendMonthlyDraftsReady({
-        to: email,
-        brandName: brand.name,
-        draftCount,
-        approvalLink,
-        month,
-      });
-      console.log(`[draftGeneration] Email sent to ${email} for brand ${brandId}`);
-    } catch (err) {
-      console.error(`[draftGeneration] Failed to send email to ${email} for brand ${brandId}:`, err);
-      // Continue sending to other recipients even if one fails
-    }
-  }
-}
 
