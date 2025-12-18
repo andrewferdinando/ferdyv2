@@ -333,62 +333,100 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
             
             const availableAssetIds = allAssetTags?.map((at: any) => at.asset_id) || [];
             
-            // Get previously selected assets for this schedule_rule_id in this run
-            const previouslySelected = selectedAssetsByRuleId.get(finalScheduleRuleId) || new Set<string>();
-            
-            // Try RPC first
-            const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
-              'rpc_pick_asset_for_rule',
-              { p_rule_id: finalScheduleRuleId }
-            );
-          
-            if (assetError) {
-              // If function doesn't exist or other error, continue without asset
-              if (assetError.code === '42883' || assetError.message?.includes('does not exist')) {
-                console.log(`[draftGeneration] rpc_pick_asset_for_rule not available for brand ${brandId}, continuing without asset`);
-              } else {
-                console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
-              }
-            } else if (pickedAsset && typeof pickedAsset === 'string') {
-              // Verify the picked asset is tagged with this subcategory's tag
-              const { data: assetTagCheck } = await supabaseAdmin
-                .from('asset_tags')
-                .select('asset_id')
-                .eq('asset_id', pickedAsset)
-                .eq('tag_id', tagId)
-                .limit(1);
+            if (availableAssetIds.length === 0) {
+              console.log(`[draftGeneration] No assets available for subcategory ${target.subcategory_id}, continuing without asset`);
+            } else {
+              // PERSISTENT ROTATION: Query historical drafts to find least recently used asset
+              // This ensures rotation persists across generation runs, not just within a single run
+              const { data: historicalDrafts } = await supabaseAdmin
+                .from('drafts')
+                .select('asset_ids, created_at')
+                .eq('brand_id', brandId)
+                .eq('subcategory_id', target.subcategory_id)
+                .eq('schedule_source', 'framework')
+                .not('asset_ids', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(100); // Look at last 100 drafts for usage history
               
-              if (assetTagCheck && assetTagCheck.length > 0) {
-                // Asset is correctly tagged - check if it's already been used in this run
-                if (previouslySelected.has(pickedAsset) && availableAssetIds.length > previouslySelected.size) {
-                  // Asset was already used - find an alternative
-                  const unusedAssets = availableAssetIds.filter((id: string) => !previouslySelected.has(id));
-                  if (unusedAssets.length > 0) {
-                    // Pick the first unused asset (simple rotation)
-                    assetId = unusedAssets[0];
-                    console.log(`[draftGeneration] RPC returned duplicate asset ${pickedAsset}, rotating to ${assetId} for brand ${brandId}, subcategory ${target.subcategory_id}`);
-                  } else {
-                    // All assets have been used - reset tracking and use the RPC result
-                    selectedAssetsByRuleId.set(finalScheduleRuleId, new Set());
-                    assetId = pickedAsset;
-                    console.log(`[draftGeneration] All assets used, resetting rotation for brand ${brandId}, subcategory ${target.subcategory_id}`);
+              // Build a map of asset_id -> last_used_at timestamp
+              const assetLastUsed = new Map<string, Date>();
+              
+              // Also track assets used in this current run
+              const previouslySelectedInRun = selectedAssetsByRuleId.get(finalScheduleRuleId) || new Set<string>();
+              
+              // Process historical drafts to find when each asset was last used
+              if (historicalDrafts) {
+                for (const draft of historicalDrafts) {
+                  if (draft.asset_ids && Array.isArray(draft.asset_ids) && draft.asset_ids.length > 0) {
+                    const draftAssetId = draft.asset_ids[0]; // Use first asset from draft
+                    const draftDate = new Date(draft.created_at);
+                    
+                    // Only track if this asset is in our available list
+                    if (availableAssetIds.includes(draftAssetId)) {
+                      // Update last_used_at if this is more recent
+                      const existing = assetLastUsed.get(draftAssetId);
+                      if (!existing || draftDate > existing) {
+                        assetLastUsed.set(draftAssetId, draftDate);
+                      }
+                    }
                   }
-                } else {
-                  // Asset is new for this run - use it
-                  assetId = pickedAsset;
                 }
+              }
+              
+              // Find the next asset to use based on rotation logic:
+              // 1. Prioritize assets NOT used in this run
+              // 2. Among those, pick the one used least recently (or never used)
+              // 3. If all assets were used in this run, pick the least recently used overall
+              
+              let candidateAssets: string[] = [];
+              
+              // First, try to find assets not used in this run
+              const unusedInRun = availableAssetIds.filter(id => !previouslySelectedInRun.has(id));
+              
+              if (unusedInRun.length > 0) {
+                // Among unused assets, find the least recently used (or never used)
+                candidateAssets = unusedInRun.sort((a, b) => {
+                  const aLastUsed = assetLastUsed.get(a);
+                  const bLastUsed = assetLastUsed.get(b);
+                  
+                  // Never used assets come first
+                  if (!aLastUsed && !bLastUsed) return 0;
+                  if (!aLastUsed) return -1;
+                  if (!bLastUsed) return 1;
+                  
+                  // Older last_used_at comes first (least recently used)
+                  return aLastUsed.getTime() - bLastUsed.getTime();
+                });
+              } else {
+                // All assets were used in this run - pick the least recently used overall
+                candidateAssets = availableAssetIds.sort((a, b) => {
+                  const aLastUsed = assetLastUsed.get(a);
+                  const bLastUsed = assetLastUsed.get(b);
+                  
+                  // Never used assets come first
+                  if (!aLastUsed && !bLastUsed) return 0;
+                  if (!aLastUsed) return -1;
+                  if (!bLastUsed) return 1;
+                  
+                  // Older last_used_at comes first (least recently used)
+                  return aLastUsed.getTime() - bLastUsed.getTime();
+                });
+              }
+              
+              // Use the first candidate (least recently used)
+              if (candidateAssets.length > 0) {
+                assetId = candidateAssets[0];
                 
-                // Track this selection
+                // Track this selection for this run
                 if (!selectedAssetsByRuleId.has(finalScheduleRuleId)) {
                   selectedAssetsByRuleId.set(finalScheduleRuleId, new Set());
                 }
                 selectedAssetsByRuleId.get(finalScheduleRuleId)!.add(assetId);
                 
-                console.log(`[draftGeneration] Picked asset ${assetId} for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}`);
+                const lastUsed = assetLastUsed.get(assetId);
+                console.log(`[draftGeneration] Picked asset ${assetId} for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}${lastUsed ? ` (last used: ${lastUsed.toISOString()})` : ' (never used before)'}`);
               } else {
-                // Asset is NOT tagged for this subcategory - reject it
-                console.warn(`[draftGeneration] REJECTED asset ${pickedAsset} - not tagged with subcategory ${target.subcategory_id} tag ${tagId}. Continuing without asset.`);
-                assetId = null;
+                console.warn(`[draftGeneration] No candidate assets found for subcategory ${target.subcategory_id}`);
               }
             }
           } else {
