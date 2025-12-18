@@ -11,10 +11,11 @@
   - options (length, hashtags mode, etc.)
 - The system uses **OpenAI** as the LLM provider.
 - Prompts include:
-  - subcategory title, description, URL, copy length
-  - subcategory type (event / service_or_programme / promo)
-  - schedule context (date / date range vs ongoing)
-  - brand examples: last ~10 posts from FB & IG via the social APIs
+- subcategory title, description, URL, copy length
+- subcategory type (event / service_or_programme / promo)
+- schedule context (date / date range vs ongoing)
+- brand examples: last ~10 posts from FB & IG via the social APIs
+- **For event_series with frequency='specific':** occurrence-specific URL and summary (if available), falling back to subcategory URL/summary
 - Generated copy is written back to the `drafts` table (`copy`, `copy_model`, `copy_meta`, `generated_by`, `copy_status`).
 
 ---
@@ -49,10 +50,10 @@ type DraftCopyInput = {
   subcategoryId?: string;
   subcategory: {
     name: string;
-    url: string;
+    url: string;                          // May be occurrence URL for event_series
     description?: string;
     frequency_type: "daily" | "weekly" | "monthly" | "date" | "date_range";
-    url_page_summary?: string | null;
+    url_page_summary?: string | null;     // May be occurrence summary for event_series
     default_copy_length: "short" | "medium" | "long";
   };
   subcategory_type: string | null;        // event / service_or_programme / promo_or_offer / unspecified
