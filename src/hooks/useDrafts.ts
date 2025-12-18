@@ -181,7 +181,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                 const tagIds = (tags || []).map((t: any) => t.id);
                 if (tagIds.length > 0) {
                   const { data: assetTagRows } = await supabase
-                    .from('assets_tags')
+                    .from('asset_tags')
                     .select('asset_id')
                     .in('tag_id', tagIds);
                   const assetIds = (assetTagRows || []).map((r: any) => r.asset_id);
@@ -190,7 +190,6 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                       .from('assets')
                       .select('id')
                       .eq('brand_id', d.brand_id)
-                      .eq('is_active', true)
                       .in('id', assetIds);
                     if (match && match.length > 0) {
                       // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
@@ -204,8 +203,7 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                 const { data: fallback } = await supabase
                   .from('assets')
                   .select('id')
-                  .eq('brand_id', d.brand_id)
-                  .eq('is_active', true);
+                  .eq('brand_id', d.brand_id);
                 if (fallback && fallback.length > 0) {
                   // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
                   chosenAssetId = fallback[Math.floor(Math.random() * fallback.length)].id;
