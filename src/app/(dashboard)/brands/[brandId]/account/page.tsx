@@ -5,46 +5,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
-import { supabase } from '@/lib/supabase-browser';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export default function AccountSettingsPage() {
   const params = useParams();
   const brandId = params.brandId as string;
-  const [profileRole, setProfileRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchProfileRole = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setProfileRole(null);
-          return;
-        }
-
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          console.error('AccountSettingsPage: failed to load profile role', error);
-          setProfileRole(null);
-          return;
-        }
-
-        setProfileRole(profile?.role ?? null);
-      } catch (error) {
-        console.error('AccountSettingsPage: unexpected error fetching profile role', error);
-        setProfileRole(null);
-      }
-    };
-
-    fetchProfileRole();
-  }, []);
-
-  const isPrivileged =
-    profileRole === 'admin' || profileRole === 'super_admin';
+  const { isAdmin, loading: roleLoading } = useUserRole(brandId);
 
   const accountSettings = useMemo(() => {
     const entries: Array<{
@@ -134,7 +100,7 @@ export default function AccountSettingsPage() {
               {/* Settings Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accountSettings.map((setting) => {
-                  const disabled = setting.requiresAdmin && !isPrivileged;
+                  const disabled = setting.requiresAdmin && !isAdmin;
                   const cardClasses = [
                     'rounded-xl border p-6 transition-all duration-200 h-full',
                     disabled
@@ -173,7 +139,7 @@ export default function AccountSettingsPage() {
                           </p>
                           {disabled && (
                             <span className="mt-3 inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200">
-                              Admins only
+                              Admin Only
                             </span>
                           )}
                         </div>

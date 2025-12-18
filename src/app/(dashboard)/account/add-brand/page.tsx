@@ -309,7 +309,7 @@ export default function AddBrandPage() {
       if (exists) {
         return prev.filter(m => m.userId !== userId)
       } else {
-        return [...prev, { userId, role: 'editor' }]
+        return [...prev, { userId, role: 'admin' }]
       }
     })
   }

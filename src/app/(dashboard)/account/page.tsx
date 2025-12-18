@@ -33,6 +33,7 @@ export default function AccountOverviewPage() {
           return
         }
 
+        // Account-level admin check: profile role must be admin or super_admin
         const canManageAccount = ['admin', 'super_admin'].includes(profile.role)
         setIsAccountAdmin(canManageAccount)
         setViewState('ready')
@@ -182,7 +183,7 @@ export default function AccountOverviewPage() {
                               <p className={descriptionClasses}>{card.description}</p>
                               {disabled && (
                                 <span className="mt-3 inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200">
-                                  Admins only
+                                  Admin Only
                                 </span>
                               )}
                             </div>

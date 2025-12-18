@@ -529,17 +529,15 @@ export default function CategoriesPage() {
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories</h1>
               </div>
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    router.push(`/brands/${brandId}/engine-room/framework/new`)
-                  }}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
-                >
-                  <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Category
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  router.push(`/brands/${brandId}/engine-room/framework/new`)
+                }}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+              >
+                <PlusIcon className="w-4 h-4 mr-2" />
+                Add Category
+              </button>
             </div>
           </div>
 
@@ -547,13 +545,11 @@ export default function CategoriesPage() {
           <div className="px-4 sm:px-6 lg:px-10 py-6">
             <div className="space-y-6">
               {/* Automatic Draft Generation Info */}
-              {isAdmin && (
-                <div className="rounded-2xl border border-gray-200 bg-[#6366F1]/5 px-6 py-5 md:py-6">
-                  <p className="text-sm md:text-base text-gray-700">
-                    Categories automatically create draft posts. Ferdy continuously generates drafts for the next 30 days based on your active categories. Review and approve drafts in the Schedule when you're ready.
-                  </p>
-                </div>
-              )}
+              <div className="rounded-2xl border border-gray-200 bg-[#6366F1]/5 px-6 py-5 md:py-6">
+                <p className="text-sm md:text-base text-gray-700">
+                  Categories automatically create draft posts. Ferdy continuously generates drafts for the next 30 days based on your active categories. Review and approve drafts in the Schedule when you're ready.
+                </p>
+              </div>
 
               <div className="bg-white rounded-lg border border-gray-200">
                 {(rulesLoading || subcategoriesLoading) ? (

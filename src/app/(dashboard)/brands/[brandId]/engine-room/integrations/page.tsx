@@ -191,7 +191,6 @@ export default function IntegrationsPage() {
   }, [accounts])
 
   const handleConnect = async (providerId: string) => {
-    if (!isAdmin) return
     setErrorMessage(null)
     setActionProvider(providerId)
     try {
@@ -231,7 +230,6 @@ export default function IntegrationsPage() {
   }
 
   const handleDisconnect = async (providerId: string) => {
-    if (!isAdmin) return
     setErrorMessage(null)
     setActionProvider(providerId)
     try {
@@ -284,11 +282,9 @@ export default function IntegrationsPage() {
                 const connectedAccount = accountsByProvider.get(provider.id)
                 const isConnected = connectedAccount?.status === 'connected'
                 const isProcessing = actionProvider === provider.id
-                const disabledReason = !isAdmin
-                  ? 'Only brand owners or admins can manage integrations.'
-                  : isProcessing
-                    ? 'Processing…'
-                    : null
+                const disabledReason = isProcessing
+                  ? 'Processing…'
+                  : null
 
                 const displayHandle =
                   connectedAccount?.handle
