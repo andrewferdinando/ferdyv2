@@ -312,7 +312,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         try {
           const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
             'rpc_pick_asset_for_rule',
-            { p_schedule_rule_id: finalScheduleRuleId }
+            { p_rule_id: finalScheduleRuleId }
           );
         
           if (assetError) {
