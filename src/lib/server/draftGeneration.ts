@@ -395,7 +395,6 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
             return `${nztYear}-${nztMonth}-${nztDay}T${nztHour}:${nztMinute}:${nztSecond}`;
           })(),
           schedule_source: 'framework',
-          schedule_rule_id: finalScheduleRuleId, // Link to the schedule rule that generated this draft
           publish_status: 'draft', // Always 'draft', never 'pending'
           approved: false, // User must approve before scheduling
           subcategory_id: target.subcategory_id,
