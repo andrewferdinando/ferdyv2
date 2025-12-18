@@ -1439,8 +1439,61 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         throw new Error('Failed to create schedule rule: No active schedule rule exists for this category. This should never happen.')
       }
 
-      // Note: Auto-push is now deferred until after images are saved (in handleFinish)
-      // This ensures assets exist when asset-selection runs
+      // DRAFT GENERATION TRIGGER POINT
+      // 
+      // According to docs (category_creation_flow.md, draft_lifecycle.md), draft generation
+      // should be triggered immediately after subcategory + schedule_rule are successfully saved.
+      // This happens here: after ensureSubcategorySaved() completes successfully.
+      //
+      // WHY THIS CALL EXISTS:
+      // - Drafts must be created immediately when a subcategory is created (not just via nightly cron)
+      // - This ensures users see drafts right away without waiting for the nightly generator
+      // - The generator is idempotent, so calling it multiple times is safe
+      //
+      // WHY IT WAS MISSING:
+      // - Previous implementation deferred draft generation to handleFinish (Step 4)
+      // - But handleFinish uses setTimeout + router.push, which can cancel the call on unmount
+      // - Moving it here ensures it runs immediately after save succeeds, before navigation
+      console.log('[draftGeneration] triggered after subcategory save', {
+        brandId,
+        subcategoryId,
+        mode
+      })
+
+      // Small delay to ensure database transaction is fully committed
+      // This ensures rpc_framework_targets can see the newly created/updated schedule_rules
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Fire-and-forget: trigger draft generation but don't block the wizard flow
+      // Only call once after successful save (not on re-render)
+      fetch('/api/drafts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId }),
+      })
+        .then(async (response) => {
+          console.log('[draftGeneration] Response status:', response.status, response.statusText)
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[draftGeneration] Error response:', errorData)
+            // Log error but don't throw - draft generation failure shouldn't block wizard
+            console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
+          } else {
+            const result = await response.json()
+            console.log('[draftGeneration] Drafts created successfully:', result)
+            console.log('[draftGeneration] Draft count:', result.draftsCreated)
+          }
+        })
+        .catch((err) => {
+          // Log error but don't throw - draft generation failure shouldn't block wizard
+          console.error('[draftGeneration] Failed to generate drafts:', err)
+          console.error('[draftGeneration] Error details:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name
+          })
+        })
 
       return { subcategoryId }
     } catch (error) {
@@ -2356,12 +2409,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
       }
 
-      // Trigger auto-push AFTER images are saved (or even if no images)
-      // This ensures assets exist when asset-selection runs
-      // Use longer delay (1500ms) to ensure DB commits are fully visible
-      triggerAutoPushDrafts(subcategoryId)
-
-      // Redirect immediately (auto-push runs in background)
+      // Note: Draft generation is now triggered in ensureSubcategorySaved() immediately after save
+      // This ensures drafts are created right away, before navigation happens
+      
+      // Redirect immediately
       router.push(`/brands/${brandId}/engine-room/categories`)
     } catch (error) {
       console.error('[Wizard] Error linking images:', error)
@@ -2371,8 +2422,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         type: 'error'
       })
       
-      // Still trigger auto-push even if image linking failed (drafts can be created without images)
-      triggerAutoPushDrafts(subcategoryId)
+      // Note: Draft generation already happened in ensureSubcategorySaved(), so no need to call it here
       
       router.push(`/brands/${brandId}/engine-room/categories`)
     } finally {
