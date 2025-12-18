@@ -17,6 +17,7 @@ import UploadAsset from '@/components/assets/UploadAsset'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 import { HashtagInput } from '@/components/ui/HashtagInput'
+import Modal from '@/components/ui/Modal'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -1464,36 +1465,36 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // This ensures rpc_framework_targets can see the newly created/updated schedule_rules
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // Fire-and-forget: trigger draft generation but don't block the wizard flow
-      // Only call once after successful save (not on re-render)
-      fetch('/api/drafts/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandId }),
-      })
-        .then(async (response) => {
-          console.log('[draftGeneration] Response status:', response.status, response.statusText)
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            console.error('[draftGeneration] Error response:', errorData)
-            // Log error but don't throw - draft generation failure shouldn't block wizard
-            console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
-          } else {
-            const result = await response.json()
-            console.log('[draftGeneration] Drafts created successfully:', result)
-            console.log('[draftGeneration] Draft count:', result.draftsCreated)
-          }
+      // Trigger draft generation and wait for it to complete (for loading modal)
+      // This ensures users see the loading state during draft generation
+      try {
+        const response = await fetch('/api/drafts/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brandId }),
         })
-        .catch((err) => {
+        
+        console.log('[draftGeneration] Response status:', response.status, response.statusText)
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('[draftGeneration] Error response:', errorData)
           // Log error but don't throw - draft generation failure shouldn't block wizard
-          console.error('[draftGeneration] Failed to generate drafts:', err)
-          console.error('[draftGeneration] Error details:', {
-            message: err.message,
-            stack: err.stack,
-            name: err.name
-          })
+          console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
+        } else {
+          const result = await response.json()
+          console.log('[draftGeneration] Drafts created successfully:', result)
+          console.log('[draftGeneration] Draft count:', result.draftsCreated)
+        }
+      } catch (err) {
+        // Log error but don't throw - draft generation failure shouldn't block wizard
+        console.error('[draftGeneration] Failed to generate drafts:', err)
+        console.error('[draftGeneration] Error details:', {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+          name: err instanceof Error ? err.name : undefined
         })
+      }
 
       return { subcategoryId }
     } catch (error) {
@@ -3718,6 +3719,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             </div>
           </div>
         </div>
+        
+        {/* Loading Modal */}
+        <Modal
+          isOpen={isSaving}
+          onClose={() => {}} // Prevent closing during save
+          title="Creating category…"
+          showCloseButton={false}
+        >
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#6366F1] border-t-transparent mb-4"></div>
+            <p className="text-gray-600 text-center">
+              Saving your category and generating drafts. This can take a few seconds.
+            </p>
+          </div>
+        </Modal>
         
       </AppLayout>
     </RequireAuth>
