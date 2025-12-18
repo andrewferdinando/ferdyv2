@@ -1,6 +1,6 @@
 # post_jobs & Publishing Engine
 
-> **Updated:** 2025-01-XX — Clarified channel normalization, post_jobs.schedule_rule_id always set, and draft ↔ post_jobs relationship.
+> **Updated:** 2025-01-XX — Clarified channel normalization, post_jobs.schedule_rule_id always set, draft ↔ post_jobs relationship, UI channel status rendering, and Approve & Publish Now flow.
 
 ## TL;DR (for AI tools)
 
@@ -227,19 +227,40 @@ drafts.status may remain scheduled to allow manual retry.
 The draft remains fully visible in the UI with the final state and any errors.
 
 5. Publish Now flow
-When a user clicks Publish Now on a draft:
 
-The UI sends a request (e.g. POST /api/publishing/publish-now) with the draft_id.
+**5.1 Standard Publish Now**
 
-Backend:
+When a user clicks **Publish Now** on a draft:
 
-Finds or creates post_jobs for that draft's channels if needed.
+- The UI sends a request (e.g. POST /api/publishing/publish-now) with the `draft_id`.
+- Backend:
+  - Finds or creates `post_jobs` for that draft's channels if needed.
+  - Overrides any future `scheduled_at` with `now()` for the selected jobs.
+  - Immediately calls the same publishing logic used by `/api/publishing/run` for those jobs only (no need to wait for cron).
+- The draft's `publish_status`, `status`, and `published_at` are updated exactly as in the scheduled flow.
 
-Overrides any future scheduled_at with now() for the selected jobs.
+**5.2 Approve & Publish Now (Edit Post page)**
 
-Immediately calls the same publishing logic used by /api/publishing/run for those jobs only (no need to wait for cron).
+When a user clicks **Approve & Publish Now** on the Edit Post page:
 
-The draft's publish_status, status, and published_at are updated exactly as in the scheduled flow.
+- **Critical constraint:** This flow **NEVER inserts a new draft**. It only updates the existing draft.
+- **Safety assertion:** The code includes a runtime check that throws an error if any `supabase.from('drafts').insert()` call is attempted during this flow.
+- **Flow:**
+  1. Updates the existing draft row by `draftId`:
+     - Sets `approved = true`
+     - Updates publish fields as needed
+     - Does NOT create a duplicate draft
+  2. Ensures `post_jobs` exist for selected channels:
+     - Checks for existing `post_jobs` linked to the same `draftId`
+     - For missing channels, inserts new `post_jobs` rows (one per channel)
+     - Links new jobs to the existing `draftId` (does NOT create new drafts)
+  3. Triggers publishing by operating on `post_jobs` for that same `draftId`
+  4. Does NOT:
+     - Call draft generation
+     - Duplicate the draft
+     - Insert into `drafts` table
+     - Call any RPC/function that inserts drafts
+- **Result:** The existing draft is approved and published immediately, with all selected channels processed via their respective `post_jobs`.
 
 6. Error handling & retries
 Failures are stored in:
@@ -323,6 +344,23 @@ The `post_jobs` table has a check constraint that only allows these status value
 
 **NOT** `scheduled` - that is a draft status, not a post_job status. Attempting to set `post_jobs.status = 'scheduled'` will violate the check constraint and fail.
 
+**Important: UI Channel Status Rendering (Jan 2025)**
+
+The UI displays channel status pills (e.g., "Published", "Pending", "Failed") based on `post_jobs` data:
+
+- **Source of truth:** Channel status pills are rendered **exclusively from `post_jobs`**, never from legacy fields like `drafts.channel` or `drafts.publish_status`.
+- **Grouping:** `post_jobs` are grouped by channel (normalized), ensuring only one pill per channel is displayed.
+- **Best status wins:** When multiple `post_jobs` exist for the same channel (shouldn't happen, but handled defensively), the UI applies a priority rule:
+  - `success`/`published` (highest priority) → Shows "Published"
+  - `pending`/`ready`/`generated`/`publishing` → Shows "Pending" or "Scheduled"
+  - `failed` → Shows "Failed"
+  - `queued`/`running` (lowest priority)
+- **Preference:** If multiple jobs have the same priority, the one with `external_url` (provider_post_url) is preferred for the "View post" link.
+- **Safeguard:** The UI logs a warning if both `post_jobs` and legacy `draft.channel` are present, confirming it uses `post_jobs` only.
+- **Implementation:** `src/components/schedule/DraftCard.tsx` - `normalizedJobs` useMemo groups and selects the best job per channel.
+
+This ensures users see accurate, per-channel status information that reflects the actual publishing state of each channel.
+
 **Important: Token Refresh & Email Notifications (Dec 2024)**
 
 The publishing engine now includes:
@@ -348,6 +386,18 @@ The publishing engine now includes:
 
 See `email-notifications.md` and `social_api_connections.md` for complete details.
 
+**Important: Approve & Publish Now Flow (Jan 2025)**
+
+The "Approve & Publish Now" button on the Edit Post page has specific constraints:
+
+- **Never inserts new drafts:** The flow only updates the existing draft, never creates a duplicate.
+- **Safety assertion:** Runtime check prevents any `supabase.from('drafts').insert()` calls during this flow.
+- **Post jobs handling:** Creates/updates `post_jobs` for selected channels, linking them to the existing `draftId`.
+- **No draft generation:** Does not trigger draft generation or call any RPC/function that inserts drafts.
+- **Implementation:** `src/app/(dashboard)/brands/[brandId]/edit-post/[draftId]/page.tsx` - `approveAndPublishNow` function.
+
+This ensures the flow never creates duplicate drafts and always operates on the existing draft.
+
 Any change to:
 
 provider APIs
@@ -359,6 +409,10 @@ supported channels
 token refresh logic
 
 email notifications
+
+UI channel status rendering
+
+Approve & Publish Now flow
 
 should be reflected in this file and in related docs:
 

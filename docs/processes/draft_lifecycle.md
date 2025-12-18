@@ -203,6 +203,22 @@ Generator logic:
 
 Publishing logic operates exclusively on `post_jobs` and updates drafts based on results.
 
+**UI Channel Status Display:**
+
+The UI renders channel status pills (e.g., "Published", "Pending", "Failed") based on `post_jobs` data:
+
+- **Source of truth:** Channel status pills are rendered **exclusively from `post_jobs`**, never from legacy fields like `drafts.channel` or `drafts.publish_status`.
+- **Grouping:** `post_jobs` are grouped by channel (normalized), ensuring only one pill per channel is displayed.
+- **Best status wins:** When multiple `post_jobs` exist for the same channel (shouldn't happen, but handled defensively), the UI applies a priority rule:
+  - `success`/`published` (highest priority) → Shows "Published"
+  - `pending`/`ready`/`generated`/`publishing` → Shows "Pending" or "Scheduled"
+  - `failed` → Shows "Failed"
+  - `queued`/`running` (lowest priority)
+- **Preference:** If multiple jobs have the same priority, the one with `external_url` (provider_post_url) is preferred for the "View post" link.
+- **Safeguard:** The UI logs a warning if both `post_jobs` and legacy `draft.channel` are present, confirming it uses `post_jobs` only.
+
+This ensures users see accurate, per-channel status information that reflects the actual publishing state of each channel.
+
 ---
 
 ## 5. Lifecycle Transitions (Technical)
@@ -375,6 +391,8 @@ Publishing logic should ignore deleted/cancelled jobs.
   - Channel normalization: instagram → instagram_feed, linkedin → linkedin_profile
   - Draft generation automatically triggered after subcategory + schedule_rule creation (via API route, not DB trigger)
   - Publishing operates exclusively on post_jobs
+  - UI channel status pills rendered exclusively from post_jobs (grouped by channel, best status wins)
+  - Approve & Publish Now flow never inserts new drafts, only updates existing ones
 
 ## Known legacy behaviour
 
