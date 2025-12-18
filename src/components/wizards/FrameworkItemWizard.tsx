@@ -1447,56 +1447,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // According to docs (category_creation_flow.md, draft_lifecycle.md), draft generation
       // should be triggered immediately after subcategory + schedule_rule are successfully saved.
       // This happens here: after ensureSubcategorySaved() completes successfully.
-      //
-      // WHY THIS CALL EXISTS:
-      // - Drafts must be created immediately when a subcategory is created (not just via nightly cron)
-      // - This ensures users see drafts right away without waiting for the nightly generator
-      // - The generator is idempotent, so calling it multiple times is safe
-      //
-      // WHY IT WAS MISSING:
-      // - Previous implementation deferred draft generation to handleFinish (Step 4)
-      // - But handleFinish uses setTimeout + router.push, which can cancel the call on unmount
-      // - Moving it here ensures it runs immediately after save succeeds, before navigation
-      console.log('[draftGeneration] triggered after subcategory save', {
-        brandId,
-        subcategoryId,
-        mode
-      })
-
-      // Small delay to ensure database transaction is fully committed
-      // This ensures rpc_framework_targets can see the newly created/updated schedule_rules
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Fire-and-forget: trigger draft generation (will be awaited in handleFinish with modal)
-      // Only call once after successful save (not on re-render)
-      fetch('/api/drafts/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandId }),
-      })
-        .then(async (response) => {
-          console.log('[draftGeneration] Response status:', response.status, response.statusText)
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            console.error('[draftGeneration] Error response:', errorData)
-            // Log error but don't throw - draft generation failure shouldn't block wizard
-            console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
-          } else {
-            const result = await response.json()
-            console.log('[draftGeneration] Drafts created successfully:', result)
-            console.log('[draftGeneration] Draft count:', result.draftsCreated)
-          }
-        })
-        .catch((err) => {
-          // Log error but don't throw - draft generation failure shouldn't block wizard
-          console.error('[draftGeneration] Failed to generate drafts:', err)
-          console.error('[draftGeneration] Error details:', {
-            message: err instanceof Error ? err.message : 'Unknown error',
-            stack: err instanceof Error ? err.stack : undefined,
-            name: err instanceof Error ? err.name : undefined
-          })
-        })
+      // NOTE: Draft generation is NOT triggered here because images are not yet linked.
+      // Draft generation happens in handleFinish() AFTER images are linked to the tag.
+      // This ensures the RPC function can find the correct assets for the subcategory.
 
       return { subcategoryId }
     } catch (error) {
@@ -2412,8 +2365,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
 
       // Trigger draft generation and wait for it to complete (shows in modal)
-      // Small delay to ensure database transaction is fully committed
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Delay to ensure asset_tags are fully committed and visible to RPC queries
+      // This ensures rpc_pick_asset_for_rule can find the correctly tagged assets
+      await new Promise(resolve => setTimeout(resolve, 1500))
 
       try {
         const response = await fetch('/api/drafts/generate', {
