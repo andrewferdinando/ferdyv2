@@ -996,7 +996,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return null
     }
 
-    setIsSaving(true)
+    // Don't set isSaving here - modal should only show in handleFinish() (Step 4)
+    // This allows Step 3 → Step 4 to happen without showing the modal
+    // Note: isSaving is managed in handleFinish() where the modal is shown
 
     try {
       // Normalize hashtags (already an array)
@@ -1465,36 +1467,36 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // This ensures rpc_framework_targets can see the newly created/updated schedule_rules
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // Trigger draft generation and wait for it to complete (for loading modal)
-      // This ensures users see the loading state during draft generation
-      try {
-        const response = await fetch('/api/drafts/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ brandId }),
+      // Fire-and-forget: trigger draft generation (will be awaited in handleFinish with modal)
+      // Only call once after successful save (not on re-render)
+      fetch('/api/drafts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId }),
+      })
+        .then(async (response) => {
+          console.log('[draftGeneration] Response status:', response.status, response.statusText)
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[draftGeneration] Error response:', errorData)
+            // Log error but don't throw - draft generation failure shouldn't block wizard
+            console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
+          } else {
+            const result = await response.json()
+            console.log('[draftGeneration] Drafts created successfully:', result)
+            console.log('[draftGeneration] Draft count:', result.draftsCreated)
+          }
         })
-        
-        console.log('[draftGeneration] Response status:', response.status, response.statusText)
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error('[draftGeneration] Error response:', errorData)
+        .catch((err) => {
           // Log error but don't throw - draft generation failure shouldn't block wizard
-          console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
-        } else {
-          const result = await response.json()
-          console.log('[draftGeneration] Drafts created successfully:', result)
-          console.log('[draftGeneration] Draft count:', result.draftsCreated)
-        }
-      } catch (err) {
-        // Log error but don't throw - draft generation failure shouldn't block wizard
-        console.error('[draftGeneration] Failed to generate drafts:', err)
-        console.error('[draftGeneration] Error details:', {
-          message: err instanceof Error ? err.message : 'Unknown error',
-          stack: err instanceof Error ? err.stack : undefined,
-          name: err instanceof Error ? err.name : undefined
+          console.error('[draftGeneration] Failed to generate drafts:', err)
+          console.error('[draftGeneration] Error details:', {
+            message: err instanceof Error ? err.message : 'Unknown error',
+            stack: err instanceof Error ? err.stack : undefined,
+            name: err instanceof Error ? err.name : undefined
+          })
         })
-      }
 
       return { subcategoryId }
     } catch (error) {
@@ -1505,9 +1507,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         type: 'error'
       })
       return null
-    } finally {
-      setIsSaving(false)
     }
+    // Note: No finally block here - isSaving is not set in this function
   }
 
   // Helper function to update subcategory in edit mode
@@ -2410,11 +2411,48 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
       }
 
-      // Note: Draft generation is now triggered in ensureSubcategorySaved() immediately after save
-      // This ensures drafts are created right away, before navigation happens
+      // Trigger draft generation and wait for it to complete (shows in modal)
+      // Small delay to ensure database transaction is fully committed
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      try {
+        const response = await fetch('/api/drafts/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brandId }),
+        })
+        
+        console.log('[draftGeneration] Response status:', response.status, response.statusText)
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('[draftGeneration] Error response:', errorData)
+          // Log error but don't throw - draft generation failure shouldn't block wizard
+          console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
+        } else {
+          const result = await response.json()
+          console.log('[draftGeneration] Drafts created successfully:', result)
+          console.log('[draftGeneration] Draft count:', result.draftsCreated)
+        }
+      } catch (err) {
+        // Log error but don't throw - draft generation failure shouldn't block wizard
+        console.error('[draftGeneration] Failed to generate drafts:', err)
+        console.error('[draftGeneration] Error details:', {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+          name: err instanceof Error ? err.name : undefined
+        })
+      }
+
+      // Show success message and redirect to Schedule page (Drafts tab)
+      showToast({
+        title: 'Category created successfully',
+        message: 'Drafts have been generated. Go to the Schedule page (Drafts tab) to view and approve them for publication.',
+        type: 'success'
+      })
       
-      // Redirect immediately
-      router.push(`/brands/${brandId}/engine-room/categories`)
+      // Redirect to Schedule page (Drafts tab)
+      router.push(`/brands/${brandId}/schedule?tab=drafts`)
     } catch (error) {
       console.error('[Wizard] Error linking images:', error)
       showToast({
@@ -2423,8 +2461,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         type: 'error'
       })
       
-      // Note: Draft generation already happened in ensureSubcategorySaved(), so no need to call it here
-      
+      // Still redirect even if image linking failed
       router.push(`/brands/${brandId}/engine-room/categories`)
     } finally {
       setIsSaving(false)
@@ -3720,9 +3757,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           </div>
         </div>
         
-        {/* Loading Modal */}
+        {/* Loading Modal - Only shows during handleFinish (Step 4) */}
         <Modal
-          isOpen={isSaving}
+          isOpen={isSaving && currentStep === 4}
           onClose={() => {}} // Prevent closing during save
           title="Creating category…"
           showCloseButton={false}
@@ -3730,7 +3767,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           <div className="flex flex-col items-center justify-center py-8">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#6366F1] border-t-transparent mb-4"></div>
             <p className="text-gray-600 text-center">
-              Saving your category and generating drafts. This can take a few seconds.
+              Linking images and creating drafts for your category. This can take a few seconds.
             </p>
           </div>
         </Modal>
