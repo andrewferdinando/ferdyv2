@@ -311,13 +311,14 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // Attempt to pick an asset for this schedule rule
       // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
       // Asset selection is best-effort; if it fails or no asset is available, draft is still created
+      // The RPC function handles all the logic for selecting assets based on the schedule rule and tags
       let assetId: string | null = null;
       if (finalScheduleRuleId) {
         try {
-          // Get previously selected assets for this rule in this run
+          // Get previously selected assets for this rule in this run (to prevent duplicates in same run)
           const previouslySelected = selectedAssetsByRuleId.get(finalScheduleRuleId) || [];
           
-          // Call RPC function to pick an asset
+          // Call RPC function to pick an asset - it handles all the tag filtering and rotation logic
           const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
             'rpc_pick_asset_for_rule',
             { p_rule_id: finalScheduleRuleId }
@@ -333,84 +334,22 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
           } else if (pickedAsset && typeof pickedAsset === 'string') {
             // Check if this asset was already selected for this rule in this run
             if (previouslySelected.includes(pickedAsset)) {
-              // Asset was already selected - need to pick a different one
-              // Fetch available assets for this rule's subcategory and pick a different one
-              console.log(`[draftGeneration] Asset ${pickedAsset} already selected for rule ${finalScheduleRuleId} in this run, selecting alternative`);
+              // Asset was already selected in this run - call RPC again to get a different one
+              // This handles the case where multiple drafts are created in the same run
+              console.log(`[draftGeneration] Asset ${pickedAsset} already selected for rule ${finalScheduleRuleId} in this run, calling RPC again`);
               
-              // Get the subcategory's tag to find available assets
-              const { data: tags } = await supabaseAdmin
-                .from('tags')
-                .select('id')
-                .eq('subcategory_id', target.subcategory_id)
-                .limit(1);
+              const { data: pickedAsset2, error: assetError2 } = await supabaseAdmin.rpc(
+                'rpc_pick_asset_for_rule',
+                { p_rule_id: finalScheduleRuleId }
+              );
               
-              if (tags && tags.length > 0) {
-                const tagId = tags[0].id;
-                
-                // Get assets linked to this specific subcategory's tag
-                // CRITICAL: Only get assets that are tagged with THIS subcategory's tag
-                const { data: assetTags } = await supabaseAdmin
-                  .from('asset_tags')
-                  .select('asset_id')
-                  .eq('tag_id', tagId);
-                
-                if (assetTags && assetTags.length > 0) {
-                  const assetTagIds = assetTags.map((at: any) => at.asset_id);
-                  
-                  // Verify these assets belong to the correct brand AND are tagged with this subcategory's tag
-                  // Double-check by verifying the asset_tags relationship is correct
-                  const { data: brandAssets } = await supabaseAdmin
-                    .from('assets')
-                    .select('id')
-                    .eq('brand_id', brandId)
-                    .in('id', assetTagIds);
-                  
-                  if (brandAssets && brandAssets.length > 0) {
-                    // CRITICAL: Verify all assets are actually tagged with this subcategory's tag
-                    // This prevents selecting assets that might be tagged for other categories
-                    const brandAssetIds = brandAssets.map((a: any) => a.id);
-                    const { data: verifiedAssetTags } = await supabaseAdmin
-                      .from('asset_tags')
-                      .select('asset_id')
-                      .in('asset_id', brandAssetIds)
-                      .eq('tag_id', tagId);
-                    
-                    const verifiedAssetIds = verifiedAssetTags 
-                      ? Array.from(new Set(verifiedAssetTags.map((at: any) => at.asset_id)))
-                      : [];
-                    
-                    if (verifiedAssetIds.length > 0) {
-                      // Filter out previously selected assets
-                      const unselectedAssets = verifiedAssetIds.filter(
-                        (id: string) => !previouslySelected.includes(id)
-                      );
-                      
-                      if (unselectedAssets.length > 0) {
-                        // Pick the first unselected asset (simple round-robin within this run)
-                        assetId = unselectedAssets[0];
-                        console.log(`[draftGeneration] Selected alternative asset ${assetId} for rule ${finalScheduleRuleId} (brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId})`);
-                      } else {
-                        // All assets have been used - reset and start over, or use the RPC result
-                        console.log(`[draftGeneration] All assets used for rule ${finalScheduleRuleId}, using RPC result ${pickedAsset}`);
-                        assetId = pickedAsset;
-                      }
-                    } else {
-                      // No verified assets found, use RPC result
-                      console.log(`[draftGeneration] No verified assets found for subcategory ${target.subcategory_id} tag ${tagId}, using RPC result ${pickedAsset}`);
-                      assetId = pickedAsset;
-                    }
-                  } else {
-                    // No assets found for this brand via tags, use RPC result
-                    console.log(`[draftGeneration] No assets found for brand ${brandId} via tag ${tagId}, using RPC result ${pickedAsset}`);
-                    assetId = pickedAsset;
-                  }
-                } else {
-                  // No assets found via tags, use RPC result
-                  assetId = pickedAsset;
-                }
+              if (!assetError2 && pickedAsset2 && typeof pickedAsset2 === 'string' && !previouslySelected.includes(pickedAsset2)) {
+                assetId = pickedAsset2;
+                console.log(`[draftGeneration] RPC returned alternative asset ${assetId} for rule ${finalScheduleRuleId}`);
               } else {
-                // No tags found, use RPC result
+                // RPC returned same asset or error - use the original result
                 assetId = pickedAsset;
+                console.log(`[draftGeneration] RPC returned same asset or error, using original ${pickedAsset}`);
               }
             } else {
               // Asset hasn't been selected yet in this run - use it

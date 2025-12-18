@@ -189,7 +189,6 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
               const hasAssets = d.asset_ids && Array.isArray(d.asset_ids) && d.asset_ids.length > 0;
               if (!hasAssets) {
                 // Select image by subcategory tag when available; else fallback to any random active asset
-                // CRITICAL: Only select assets that are tagged with THIS subcategory's tag
                 let chosenAssetId: string | null = null;
                 if (d.subcategory_id) {
                   const { data: tags } = await supabase
@@ -198,38 +197,20 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                     .eq('subcategory_id', d.subcategory_id);
                   const tagIds = (tags || []).map((t: any) => t.id);
                   if (tagIds.length > 0) {
-                    // Get assets linked to this specific subcategory's tags
                     const { data: assetTagRows } = await supabase
                       .from('asset_tags')
                       .select('asset_id')
                       .in('tag_id', tagIds);
                     const assetIds = (assetTagRows || []).map((r: any) => r.asset_id);
                     if (assetIds.length > 0) {
-                      // Verify assets belong to correct brand AND are tagged with this subcategory's tag
                       const { data: match } = await supabase
                         .from('assets')
                         .select('id')
                         .eq('brand_id', d.brand_id)
                         .in('id', assetIds);
-                      
                       if (match && match.length > 0) {
-                        // CRITICAL: Verify all assets are tagged with this subcategory's tag
-                        // This prevents selecting assets from other categories
-                        const matchAssetIds = match.map((a: any) => a.id);
-                        const { data: verifiedAssetTags } = await supabase
-                          .from('asset_tags')
-                          .select('asset_id')
-                          .in('asset_id', matchAssetIds)
-                          .in('tag_id', tagIds);
-                        
-                        const verifiedAssetIds: string[] = verifiedAssetTags
-                          ? (Array.from(new Set(verifiedAssetTags.map((at: any) => at.asset_id as string))) as string[])
-                          : [];
-                        
-                        if (verifiedAssetIds.length > 0) {
-                          // Pick a random asset from verified assets only
-                          chosenAssetId = verifiedAssetIds[Math.floor(Math.random() * verifiedAssetIds.length)];
-                        }
+                        // Pick a random asset in JavaScript since PostgREST doesn't support random() ordering
+                        chosenAssetId = match[Math.floor(Math.random() * match.length)].id;
                       }
                     }
                   }
