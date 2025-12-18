@@ -335,22 +335,83 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const normalizedJobs = useMemo(() => {
     // Always prefer jobs from post_jobs (source of truth)
     if (jobs && Array.isArray(jobs) && jobs.length > 0) {
+      // Normalize channels first
       const normalized = jobs
         .map((job) => ({
           ...job,
           channel: canonicalizeChannel(job.channel) ?? job.channel,
         }))
-        .filter((job) => Boolean(job.channel)) // Filter out invalid channels
-        .sort((a, b) => {
-          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
-          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
-          if (aIndex === bIndex) {
-            return a.channel.localeCompare(b.channel);
-          }
-          return aIndex - bIndex;
-        });
+        .filter((job) => Boolean(job.channel)); // Filter out invalid channels
+
+      // Group by channel and select the best job per channel
+      // Priority: success/published > pending > failed > queued/running
+      // If a job has external_url, prefer that one for "View post"
+      const statusPriority: Record<string, number> = {
+        'success': 1,
+        'published': 1,
+        'pending': 2,
+        'ready': 2,
+        'generated': 2,
+        'publishing': 2,
+        'failed': 3,
+        'queued': 4,
+        'running': 4,
+      };
+
+      const getStatusPriority = (status: string): number => {
+        const normalized = status.toLowerCase();
+        return statusPriority[normalized] ?? 99;
+      };
+
+      const jobsByChannel = new Map<string, PostJobSummary>();
       
-      return normalized;
+      for (const job of normalized) {
+        const channel = job.channel;
+        const existing = jobsByChannel.get(channel);
+        
+        if (!existing) {
+          jobsByChannel.set(channel, job);
+        } else {
+          // Compare priorities
+          const existingPriority = getStatusPriority(existing.status);
+          const jobPriority = getStatusPriority(job.status);
+          
+          // Lower priority number = higher priority
+          if (jobPriority < existingPriority) {
+            jobsByChannel.set(channel, job);
+          } else if (jobPriority === existingPriority) {
+            // Same priority: prefer the one with external_url for "View post"
+            if (job.external_url && !existing.external_url) {
+              jobsByChannel.set(channel, job);
+            }
+            // Otherwise keep existing (first one wins)
+          }
+        }
+      }
+
+      // Convert back to array and sort
+      const uniqueJobs = Array.from(jobsByChannel.values());
+      uniqueJobs.sort((a, b) => {
+        const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
+        if (aIndex === bIndex) {
+          return a.channel.localeCompare(b.channel);
+        }
+        return aIndex - bIndex;
+      });
+
+      // Assertion: ensure no duplicate channels
+      const channels = uniqueJobs.map(j => j.channel);
+      const uniqueChannels = new Set(channels);
+      if (channels.length !== uniqueChannels.size) {
+        console.error('[DraftCard] Duplicate channels detected after grouping:', {
+          channels,
+          uniqueChannels: Array.from(uniqueChannels),
+          draftId: draft.id,
+        });
+      }
+      
+      return uniqueJobs;
     }
 
     // Fallback: parse draft.channel (may be comma-separated) into multiple jobs
