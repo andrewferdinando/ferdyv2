@@ -26,6 +26,9 @@
 ## Targets and drafts
 - `rpc_framework_targets` returns only future `scheduled_at` values.
 - Draft generator runs on a rolling 30-day window (nightly cron) and can be triggered manually via `/api/drafts/generate` (single brand) or `/api/drafts/generate-all` (all active brands), both cron-secret protected.
+- Draft generator is automatically triggered after subcategory + schedule_rule creation (via `/api/drafts/generate` API route, not DB trigger).
 - Drafts are created with `approved = false`, `publish_status = 'draft'`; copy may be placeholder; images are optional.
+- For each draft, one `post_jobs` row is created per channel from `schedule_rules.channels` (normalized).
+- `post_jobs.schedule_rule_id` is always set (never null) for framework-generated drafts.
 
 

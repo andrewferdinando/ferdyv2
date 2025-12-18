@@ -1,5 +1,7 @@
 # Draft Lifecycle — Ferdy
 
+> **Updated:** 2025-01-XX — Clarified draft ↔ post_jobs relationship, channel handling, and draft generation triggers.
+
 ## TL;DR (for AI tools)
 
 Drafts live in the `drafts` table and represent **work-in-progress social posts** for a brand.
@@ -8,14 +10,18 @@ They are created by:
 
 - **Nightly generator** (`/api/drafts/generate-all`) — automatic draft creation on a rolling 30-day window
 - **Manual generation** (`/api/drafts/generate`) — on-demand generation for a specific brand
+- **Automatic trigger** — after subcategory + schedule_rule creation (via `/api/drafts/generate` API route, not DB trigger)
 - **New Post flow** from the Schedule page — manual post creation
 
 Key points:
 
-- A Draft holds: copy, hashtags, selected assets, channel, scheduled time, status, and metadata.
+- A Draft holds: copy, hashtags, selected assets, scheduled time, status, and metadata.
+- **One draft = one scheduled post time** (one `scheduled_for` timestamp).
+- **Channels are represented by `post_jobs`, not by `drafts.channel`**.
 - The **canonical schedule** is `scheduled_for` (UTC), with `scheduled_for_nzt` as a convenience for NZ local.
 - Drafts are tied to **Categories** via `subcategory_id`.
 - Publishing is handled via **`post_jobs`**; a draft has a primary `post_job_id`, but there can be multiple jobs per draft (one per channel).
+- `drafts.channel` is legacy/primary only and should not be relied on for publishing.
 - There are **two cron systems**:
   - Vercel Cron → nightly automatic draft generation (`/api/drafts/generate-all`).
   - 3rd-party cron → calls `/api/publishing/run` on Vercel to publish due drafts.
@@ -70,6 +76,15 @@ A Vercel Cron job runs nightly (Pacific/Auckland time) and calls `/api/drafts/ge
 - Automatically generates copy for all drafts (new and existing with placeholder copy).
 - Sends email notifications to brand admins/editors when new drafts are created.
 
+#### Automatic Trigger After Subcategory Creation
+
+When a subcategory + schedule_rule is successfully saved (via the Category Creation wizard):
+
+- The wizard calls `/api/drafts/generate` with `{ brandId }` immediately after save succeeds.
+- This ensures drafts are created right away, without waiting for the nightly cron.
+- The trigger happens via API route call (not via database trigger).
+- Draft generation is idempotent, so calling it multiple times is safe.
+
 #### Rolling 30-Day Window
 
 - The generator looks ahead **30 days from now** (UTC).
@@ -99,8 +114,10 @@ For each framework target (from `rpc_framework_targets`):
      - `copy` may be `null` or `"Post copy coming soon…"` until copy generation completes
 
 2. **Post jobs creation:**
-   - Creates one `post_jobs` row per channel from the schedule rule.
-   - Links the first job's ID to `drafts.post_job_id`.
+   - Creates one `post_jobs` row per channel from `schedule_rules.channels` (normalized).
+   - Each `post_jobs` row has `schedule_rule_id` set (never null for framework-generated drafts).
+   - Links the first job's ID to `drafts.post_job_id` (for backward compatibility).
+   - Channels are normalized: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`.
 
 3. **Copy generation:**
    - Automatically triggered for all drafts needing copy (new and existing with placeholder).
@@ -134,7 +151,7 @@ When a user clicks **New Post** on the Schedule page:
 | `id`                | uuid                    | `gen_random_uuid()` | Primary key for the draft. |
 | `brand_id`          | uuid                    |                 | Brand this draft belongs to. |
 | `post_job_id`       | uuid                    | `NULL`          | Primary/first `post_jobs.id` associated with this draft (for convenience). |
-| `channel`           | text                    | `NULL`          | Legacy/primary channel; in current design, channels are mainly handled via `post_jobs`. |
+| `channel`           | text                    | `NULL`          | Legacy/primary channel; **should not be relied on for publishing**. Channels are handled via `post_jobs` (one per channel). |
 | `copy`              | text                    | `NULL`          | Main body text of the post. |
 | `hashtags`          | text[]                  | `NULL`          | List of hashtags explicitly stored on the draft (may be merged with defaults at publishing). |
 | `asset_ids`         | uuid[]                  | `NULL`          | Ordered list of asset IDs (images/videos) selected for this draft. |
@@ -164,9 +181,12 @@ When a user clicks **New Post** on the Schedule page:
 
 Drafts are **not** sent directly to social APIs. Instead, Ferdy uses a `post_jobs` table.
 
-- One draft can have **multiple `post_jobs`**, one per channel.
+**Key relationship:**
+- **One draft = one scheduled post time** (one `scheduled_for` timestamp).
+- **One draft can have multiple `post_jobs`**, one per channel from `schedule_rules.channels`.
 - `post_jobs` tracks:
-  - Channel (instagram_feed, instagram_story, facebook_page, linkedin_profile, etc.)
+  - Channel (normalized: `instagram_feed`, `instagram_story`, `facebook`, `linkedin_profile`, etc.)
+  - `schedule_rule_id` (always set for framework-generated drafts, never null)
   - Scheduled time + timezone
   - Status (`pending`, `success`, `failed`)
   - Any provider-specific IDs and error messages.
@@ -174,11 +194,14 @@ Drafts are **not** sent directly to social APIs. Instead, Ferdy uses a `post_job
 Generator logic:
 
 - For each framework target:
-  - Inserts a `draft`.
-  - Creates one `post_jobs` record per channel from the schedule rule.
-  - Stores the first job's ID in `drafts.post_job_id` (for easy linking from UI).
+  - Explicitly fetches the active schedule rule using `brand_id + subcategory_id + is_active = true`.
+  - Inserts a `draft` (one per scheduled time).
+  - Creates one `post_jobs` record per channel from `schedule_rules.channels` (normalized).
+  - Each `post_jobs` row has `schedule_rule_id` set (never null).
+  - Stores the first job's ID in `drafts.post_job_id` (for backward compatibility).
+  - `drafts.channel` is set to the first channel (legacy/primary only).
 
-Publishing logic then acts on `post_jobs` and updates drafts based on results.
+Publishing logic operates exclusively on `post_jobs` and updates drafts based on results.
 
 ---
 
@@ -201,8 +224,10 @@ When the generator runs (`generateDraftsForBrand`):
   - `asset_ids` pre-populated via `rpc_pick_asset_for_rule` (if available, may be empty)
   - `copy` may be `null` or `"Post copy coming soon…"` until copy generation completes
 
-- Insert into `post_jobs` for each channel in the schedule rule, with:
+- Insert into `post_jobs` for each channel in `schedule_rules.channels` (normalized), with:
 
+  - `schedule_rule_id` (always set, never null)
+  - `channel` (normalized: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`)
   - `status = 'pending'`
   - `scheduled_at` and timezone
   - `draft_id` linked back to the draft.
@@ -315,7 +340,8 @@ Publishing logic should ignore deleted/cancelled jobs.
 - **Categories (subcategories):**
   - Drafts inherit meaning and metadata (URLs, descriptions, copy lengths, default hashtags, etc.) from `subcategories` via `subcategory_id`.
 - **Schedule Rules:**
-  - The schedule that produced the draft is tracked via `post_jobs.schedule_rule_id`.
+  - The schedule that produced the draft is tracked via `post_jobs.schedule_rule_id` (always set, never null).
+  - Channels come from `schedule_rules.channels` (normalized text array).
   - The combination `schedule_rules + rpc_framework_targets + generator` defines when drafts are created.
 - **Generator:**
   - The generator (`generateDraftsForBrand`) is the single source of truth for draft creation.
@@ -341,6 +367,23 @@ Publishing logic should ignore deleted/cancelled jobs.
   - Replaced with nightly generator on rolling 30-day window
   - Generator is idempotent and automatic
   - Copy generation is automatic and non-optional
+
+- **2025-01-XX** — Clarified draft ↔ post_jobs relationship and channel handling:
+  - One draft = one scheduled post time
+  - Channels are represented by post_jobs, not drafts.channel
+  - post_jobs.schedule_rule_id is always set (never null)
+  - Channel normalization: instagram → instagram_feed, linkedin → linkedin_profile
+  - Draft generation automatically triggered after subcategory + schedule_rule creation (via API route, not DB trigger)
+  - Publishing operates exclusively on post_jobs
+
+## Known legacy behaviour
+
+Some older drafts may only have `instagram_feed` post_jobs, even if the schedule rule specifies multiple channels. This occurred when:
+- Channel normalization was not applied at save time.
+- Schedule rule resolution failed silently.
+- Draft generation defaulted to a single channel.
+
+A backfill process exists to create missing `post_jobs` for legacy drafts. The current system ensures all channels from `schedule_rules.channels` result in corresponding `post_jobs` rows.
 
 If you change:
 

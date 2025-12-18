@@ -1,9 +1,13 @@
 # post_jobs & Publishing Engine
 
+> **Updated:** 2025-01-XX — Clarified channel normalization, post_jobs.schedule_rule_id always set, and draft ↔ post_jobs relationship.
+
 ## TL;DR (for AI tools)
 
 - `post_jobs` is the **per-channel publishing unit**.
-- A **Draft** can have multiple `post_jobs` (one per channel).
+- **One draft = one scheduled post time**; a **Draft** can have multiple `post_jobs` (one per channel).
+- Channels come from `schedule_rules.channels` (normalized text array).
+- `post_jobs.schedule_rule_id` is **always set** (never null) for framework-generated drafts.
 - The publishing engine:
   - Selects due `post_jobs` (`status = 'pending'` and `scheduled_at <= now()`).
   - Publishes them via the appropriate social API.
@@ -25,8 +29,8 @@ Two cron systems:
 |--------------------|-------------------------|-------------------|---------|
 | `id`               | uuid                    | `gen_random_uuid()` | Primary key for the job. |
 | `brand_id`         | uuid                    |                   | Brand that owns this job. |
-| `schedule_rule_id` | uuid                    | `NULL`            | The `schedule_rules.id` that generated this job (if from a Category schedule). `NULL` for one-off manual posts. |
-| `channel`          | text                    |                   | Target channel, e.g. `instagram_feed`, `instagram_story`, `facebook_page`, `linkedin_profile`. |
+| `schedule_rule_id` | uuid                    | `NULL`            | The `schedule_rules.id` that generated this job. **Always set (never null) for framework-generated drafts.** `NULL` for one-off manual posts. |
+| `channel`          | text                    |                   | Target channel (normalized), e.g. `instagram_feed`, `instagram_story`, `facebook`, `linkedin_profile`. Channels are normalized: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`. |
 | `target_month`     | date                    |                   | Month this job belongs to (used for reporting & grouping, usually derived from `scheduled_at`). |
 | `scheduled_at`     | timestamptz             |                   | UTC datetime when Ferdy should publish this job. |
 | `scheduled_local`  | timestamptz             | `NULL`            | Convenience local datetime (brand / rule timezone) used by the UI. |
@@ -42,8 +46,10 @@ Two cron systems:
 
 **Conceptual model:**
 
-- Draft = one logical Post ("this caption + these assets at this time")
-- post_jobs = one record **per channel** for that post.
+- Draft = one scheduled post time ("this caption + these assets at this time")
+- post_jobs = one record **per channel** for that draft.
+- Channels come from `schedule_rules.channels` (normalized text array).
+- Each `post_jobs` row has `schedule_rule_id` set (never null for framework-generated drafts).
 
 ---
 
@@ -65,12 +71,12 @@ When the draft generator (`generateDraftsForBrand`) runs (nightly cron or manual
      - `approved = false` (user must approve)
      - `asset_ids` pre-populated if an asset is found (may be empty array).
    - Looks up `schedule_rules.channels` to determine which channels to post to.
-3. For each channel in the rule:
+3. For each channel in `schedule_rules.channels` (normalized):
    - Inserts a `post_jobs` row with:
      - `brand_id`
-     - `schedule_rule_id`
+     - `schedule_rule_id` (always set, never null)
      - `draft_id` (just created)
-     - `channel` (normalized to canonical values like `instagram_feed`, `linkedin_profile`)
+     - `channel` (normalized: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`, etc.)
      - `target_month` (month of `scheduled_at`)
      - `scheduled_at` (UTC)
      - `scheduled_local` + `scheduled_tz` (for brand/rule timezone)
@@ -285,7 +291,7 @@ Publishing: 3rd-party cron calls `/api/publishing/run` to process post_jobs.
 8. History / notes
 post_jobs replaced older "single-channel on draft" logic and allows multi-channel publishing from one draft.
 
-Channel names were normalized (e.g. instagram → instagram_feed, linkedin → linkedin_profile) to ensure consistency.
+Channel names are normalized (e.g. `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`) to ensure consistency. Normalization happens at save time (UI) and during draft generation. `schedule_rules.channels` stores normalized values, which are used as the single source of truth for creating `post_jobs`.
 
 **Important: Ambiguous Relationship Fix (Dec 2024)**
 

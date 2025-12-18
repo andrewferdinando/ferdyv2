@@ -8,7 +8,7 @@ Schedule Rules live in the `schedule_rules` table and define **when** Ferdy shou
 - Pattern: days of week, days of month, or Nth weekday of the month
 - Time: one or more times of day
 - Timezone: which timezone the schedule is based on
-- Channels: which social channels to post to
+- Channels: which social channels to post to (normalized: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`)
 - Event-related offsets: `start_date`, `end_date`, `days_before`, `days_during`
 - Creative strategy: image selection & rotation rules
 
@@ -165,7 +165,7 @@ to decide which assets are attached to each generated draft.
 |----------------|---------------|-------|--------------------------------|---------|
 | `time_of_day`  | ARRAY         | YES   |                                | Older/legacy array-of-times field. |
 | `times_of_day` | time[]        | YES   | `'{}'::time without time zone[]` | Canonical list of times of day to post. |
-| `channels`     | text[]        | YES   |                                | Channels to post to (mirrors Category channels but can be more specific). |
+| `channels`     | text[]        | YES   |                                | Channels to post to (normalized: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`). This is the single source of truth for draft generation; one `post_jobs` row is created per channel. |
 | `timezone`     | text          | YES   |                                | Timezone identifier (e.g. `"Pacific/Auckland"`). |
 
 In practice:
@@ -301,13 +301,12 @@ As documented in the draft lifecycle doc:
 
 - Reads `rpc_framework_targets(p_brand_id)` to get future targets within a 30-day window.
 - For each target:
+  - Explicitly fetches the active schedule rule using `brand_id + subcategory_id + is_active = true`.
   - Checks if a draft already exists (deduplication).
-  - Uses `schedule_rule_id` to:
-    - Determine channels (`schedule_rules.channels`).
-    - Determine `frequency` and event metadata (via `start_date`, `end_date`, `url`).
-  - Inserts a `draft` with:
-    - `subcategory_id` from the target.
-    - `channel` + `post_jobs` based on the rule's channels.
+  - Uses the resolved `schedule_rule.channels` (normalized) as the single source of truth for channels.
+  - Inserts a `draft` (one per scheduled time).
+  - Creates one `post_jobs` row per channel from `schedule_rules.channels` (normalized).
+  - Each `post_jobs` row has `schedule_rule_id` set (always set, never null).
   - Marks `schedule_source = 'framework'`.
   - Automatically triggers copy generation for all drafts needing copy.
 

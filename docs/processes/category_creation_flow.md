@@ -1,17 +1,19 @@
 # Category / Subcategory Creation Flow — Ferdy
 
+> **Updated:** 2025-01-XX — Clarified draft generation trigger (API route, not DB trigger) and channel normalization.
+
 ## TL;DR (for AI tools)
 
-“Categories” in the UI are stored as **`subcategories`** in the database.  
+"Categories" in the UI are stored as **`subcategories`** in the database.  
 The **Create Category** wizard (4 steps: Type → Details → Schedule → Images) does the following:
 
 - Creates/updates a row in `subcategories` for the category itself.
 - Creates one or more `schedule_rules` rows (and `event_occurrences` for events).
 - Links selected assets to the category via `tags` and `asset_tags`.
 - Optionally refreshes the URL summary for the category URL.
-- After images are linked, it triggers `/api/drafts/generate` to generate drafts for the brand.
+- **After subcategory + schedule_rule are successfully saved**, it triggers `/api/drafts/generate` to generate drafts for the brand (via API route, not DB trigger).
 
-Saving happens **when moving from Step 3 → Step 4** (subcategory + schedule), and assets are linked + drafts pushed on **Finish**.
+Saving happens **when moving from Step 3 → Step 4** (subcategory + schedule), and assets are linked on **Finish**. Draft generation is triggered immediately after save succeeds.
 
 ---
 
@@ -117,7 +119,9 @@ Fields:
 - **Description*** → `subcategories.detail`
 - **URL (optional)** → `subcategories.url`
 - **Default hashtags (optional)** → `subcategories.default_hashtags` (text[])
-- **Channels*** → `subcategories.channels` (text[]: e.g. `instagram_feed`, `instagram_story`, `facebook`, `linkedin_profile`)
+- **Channels*** → `subcategories.channels` (text[]: e.g. `instagram`, `instagram_story`, `facebook`, `linkedin`)
+  - Channels are normalized when saved to `schedule_rules.channels`: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`
+  - Normalized channels are used by draft generation as the single source of truth
 - **Post length (default for this category)*** → `subcategories.default_copy_length` (`short` | `medium` | `long`)
 
 These fields are all part of the **subcategory** itself and are saved via Supabase client calls in the wizard.
@@ -242,26 +246,12 @@ When the user clicks **Finish**:
      - Links each selected asset to that tag via `asset_tags`.
      - Skips links that already exist.
 
-3. **Trigger draft generation**
-   - After assets are linked, it calls the draft generator API for this brand:
-
-     ```ts
-     await fetch('/api/drafts/push', {
-       method: 'POST',
-       body: JSON.stringify({ brandId }),
-       ...
-     });
-     ```
-
-   - This invokes the draft generation flow documented separately:
-     - `generateDraftsForBrand` (shared utility)
-     - `drafts`, `post_jobs` creation
-     - Automatic AI copy generation
-
-4. **Redirect**
+3. **Redirect**
    - Navigates the user back to the **Categories** page.
 
-Net effect: after finishing the wizard, the brand immediately gets a fresh set of drafts for this category, using the schedule and assets just configured.
+**Note:** Draft generation is triggered automatically after subcategory + schedule_rule are successfully saved (in `ensureSubcategorySaved()`, when moving from Step 3 → Step 4), not on Finish. This ensures drafts are created immediately, before the user completes the wizard.
+
+Net effect: after saving the subcategory and schedule, the brand immediately gets a fresh set of drafts for this category, using the schedule and assets just configured.
 
 ---
 
@@ -271,11 +261,11 @@ Net effect: after finishing the wizard, the brand immediately gets a fresh set o
   - On Step 3 completion (moving to Step 4), `ensureSubcategorySaved()` runs:
     - `subcategories` row created/updated.
     - `schedule_rules` and `event_occurrences` created/updated.
+    - **Draft generation is triggered immediately after save succeeds** via `/api/drafts/generate` (API route, not DB trigger).
 
-- **When do we link assets and generate drafts?**
+- **When do we link assets?**
   - On **Finish (Step 4)**:
     - Assets are tagged and linked.
-    - `/api/drafts/push` is called for this brand.
 
 - **Editing existing categories**
   - The same wizard is used; `ensureSubcategorySaved()` performs `update` rather than `insert` when there’s an existing `subcategoryId`.
@@ -296,8 +286,9 @@ Category Creation interacts with several other documented processes:
   - Used for event-type categories to represent multiple dates for the same event series.
 
 - **Draft Generation**
-  - Triggered after Finish via `/api/drafts/generate`.
-  - Uses `schedule_rules`, `subcategories`, assets, etc.
+  - Triggered automatically after subcategory + schedule_rule save succeeds (via `/api/drafts/generate` API route, not DB trigger).
+  - Uses `schedule_rules.channels` (normalized) as the single source of truth for channels.
+  - Creates one `post_jobs` row per channel, with `post_jobs.schedule_rule_id` always set.
   - Generates drafts for the next 30 days automatically.
 
 - **Copy Generation**
@@ -330,6 +321,6 @@ flowchart TD
     ENSURE --> EO[(event_occurrences\nonly for event types)]
 
     S4 --> FINISH[handleFinish()]
+    S3 -->|After save succeeds| GEN[/api/drafts/generate\n(automatic draft generation\nvia API route)]
     FINISH --> TAGS[(asset_tags\nlink assets to subcategory tag)]
     FINISH --> URLSUM[/api/subcategories/{id}/refresh-url-summary/]
-    FINISH --> GEN[/api/drafts/generate\n(automatic draft generation)]
