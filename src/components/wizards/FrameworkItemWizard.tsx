@@ -3612,7 +3612,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           </div>
                         )}
 
-                        <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                        <div className="mt-4 pt-4 border-t border-gray-200">
                           <p className="text-sm text-gray-600">
                             {selectedAssetIds.length > 0 ? (
                               <>Selected: <span className="font-semibold">{selectedAssetIds.length}</span> image{selectedAssetIds.length !== 1 ? 's' : ''}</>
@@ -3620,20 +3620,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               'No images selected'
                             )}
                           </p>
-                          <button
-                            type="button"
-                            disabled={selectedAssetIds.length === 0}
-                            className={`
-                              px-4 py-2 text-sm font-medium rounded-lg transition-colors
-                              ${
-                                selectedAssetIds.length > 0
-                                  ? 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'
-                                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              }
-                            `}
-                          >
-                            Add selected
-                          </button>
                         </div>
                       </div>
                     )}
