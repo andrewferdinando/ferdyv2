@@ -196,11 +196,6 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   let draftsCreated = 0;
   let draftsSkipped = 0;
   const createdDraftIds: string[] = []; // Track created draft IDs for copy generation
-  
-  // Track selected assets per schedule_rule_id during this run to ensure rotation
-  // This prevents the same asset from being selected multiple times when multiple drafts
-  // are created in the same run (e.g., weekly schedules creating 4 drafts at once)
-  const selectedAssetsByRuleId = new Map<string, string[]>();
 
   // Process each target
   for (const target of targetsInWindow) {
@@ -311,14 +306,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // Attempt to pick an asset for this schedule rule
       // NOTE: Drafts may be created with no images (asset_ids = []) - this is intentional and acceptable
       // Asset selection is best-effort; if it fails or no asset is available, draft is still created
-      // The RPC function handles all the logic for selecting assets based on the schedule rule and tags
       let assetId: string | null = null;
       if (finalScheduleRuleId) {
         try {
-          // Get previously selected assets for this rule in this run (to prevent duplicates in same run)
-          const previouslySelected = selectedAssetsByRuleId.get(finalScheduleRuleId) || [];
-          
-          // Call RPC function to pick an asset - it handles all the tag filtering and rotation logic
           const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
             'rpc_pick_asset_for_rule',
             { p_rule_id: finalScheduleRuleId }
@@ -332,36 +322,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
               console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
             }
           } else if (pickedAsset && typeof pickedAsset === 'string') {
-            // Check if this asset was already selected for this rule in this run
-            if (previouslySelected.includes(pickedAsset)) {
-              // Asset was already selected in this run - call RPC again to get a different one
-              // This handles the case where multiple drafts are created in the same run
-              console.log(`[draftGeneration] Asset ${pickedAsset} already selected for rule ${finalScheduleRuleId} in this run, calling RPC again`);
-              
-              const { data: pickedAsset2, error: assetError2 } = await supabaseAdmin.rpc(
-                'rpc_pick_asset_for_rule',
-                { p_rule_id: finalScheduleRuleId }
-              );
-              
-              if (!assetError2 && pickedAsset2 && typeof pickedAsset2 === 'string' && !previouslySelected.includes(pickedAsset2)) {
-                assetId = pickedAsset2;
-                console.log(`[draftGeneration] RPC returned alternative asset ${assetId} for rule ${finalScheduleRuleId}`);
-              } else {
-                // RPC returned same asset or error - use the original result
-                assetId = pickedAsset;
-                console.log(`[draftGeneration] RPC returned same asset or error, using original ${pickedAsset}`);
-              }
-            } else {
-              // Asset hasn't been selected yet in this run - use it
-              assetId = pickedAsset;
-            }
-            
-            // Track this selection for this rule
-            if (assetId) {
-              const updated = previouslySelected.concat([assetId]);
-              selectedAssetsByRuleId.set(finalScheduleRuleId, updated);
-              console.log(`[draftGeneration] Picked asset ${assetId} for brand ${brandId}, rule ${finalScheduleRuleId} (selected ${updated.length} assets for this rule in this run)`);
-            }
+            assetId = pickedAsset;
+            console.log(`[draftGeneration] Picked asset for brand ${brandId}:`, assetId);
           }
         } catch (error) {
           // Catch any other errors and continue without asset
