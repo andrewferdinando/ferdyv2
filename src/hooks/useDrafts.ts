@@ -222,8 +222,8 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
                           .in('asset_id', matchAssetIds)
                           .in('tag_id', tagIds);
                         
-                        const verifiedAssetIds = verifiedAssetTags
-                          ? Array.from(new Set(verifiedAssetTags.map((at: any) => at.asset_id)))
+                        const verifiedAssetIds: string[] = verifiedAssetTags
+                          ? (Array.from(new Set(verifiedAssetTags.map((at: any) => at.asset_id as string))) as string[])
                           : [];
                         
                         if (verifiedAssetIds.length > 0) {
