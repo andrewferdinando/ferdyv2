@@ -1179,70 +1179,62 @@ export function SubcategoryScheduleForm({
         }
       }
 
-      // Auto-push drafts for NEW subcategories (not edits)
-      // This generates drafts from today through end of next month
-      const isNewSubcategory = !editingSubcategory
-      console.log('[auto-push] Checking if auto-push needed:', { 
-        isNewSubcategory, 
-        editingSubcategory: editingSubcategory?.id, 
+      // Trigger draft generation after successful save (for both new and updated subcategories)
+      // This generates drafts for the next 30 days
+      console.log('[draftGeneration] triggered after subcategory save', {
         brandId,
-        subcategoryId 
+        subcategoryId,
+        isNewSubcategory: !editingSubcategory,
+        editingSubcategoryId: editingSubcategory?.id
       })
       
-      if (isNewSubcategory) {
-        console.log('[auto-push] Starting auto-push for brandId:', brandId, 'subcategoryId:', subcategoryId)
-        console.log('[auto-push] All schedule_rules and occurrences saved, triggering push now')
-        
-        // Small delay to ensure database transaction is fully committed
-        // This ensures rpc_framework_targets can see the newly created schedule_rules
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Fire-and-forget: trigger draft generation but don't block the wizard flow
-        fetch('/api/drafts/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ brandId }),
+      // Small delay to ensure database transaction is fully committed
+      // This ensures rpc_framework_targets can see the newly created/updated schedule_rules
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Fire-and-forget: trigger draft generation but don't block the wizard flow
+      // Only call once after successful save (not on re-render)
+      fetch('/api/drafts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId }),
+      })
+        .then(async (response) => {
+          console.log('[draftGeneration] Response status:', response.status, response.statusText)
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[draftGeneration] Error response:', errorData)
+            throw new Error(errorData.error || 'Failed to create drafts')
+          }
+          const result = await response.json()
+          console.log('[draftGeneration] Drafts created successfully:', result)
+          console.log('[draftGeneration] Draft count:', result.draftsCreated)
+          
+          // Show success message (non-blocking)
+          const message = result.draftsCreated > 0
+            ? `Drafts have been added to your Drafts tab.`
+            : 'Category saved. Drafts will be generated automatically.'
+          showToast({
+            title: editingSubcategory ? 'Category updated' : 'Category created',
+            message,
+            type: 'success',
+          })
         })
-          .then(async (response) => {
-            console.log('[auto-generate] Response status:', response.status, response.statusText)
-            console.log('[auto-generate] Response headers:', Object.fromEntries(response.headers.entries()))
-            
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}))
-              console.error('[auto-generate] Error response:', errorData)
-              throw new Error(errorData.error || 'Failed to create drafts')
-            }
-            const result = await response.json()
-            console.log('[auto-generate] Drafts created successfully:', result)
-            console.log('[auto-generate] Draft count:', result.draftsCreated)
-            // Note: SubcategoryScheduleForm doesn't have router access, so we can't add "View drafts" link
-            // But the message is clearer now
-            const message = result.draftsCreated > 0
-              ? `Drafts have been added to your Drafts tab.`
-              : 'Category created. Drafts will be generated automatically.'
-            showToast({
-              title: 'Category created',
-              message,
-              type: 'success',
-            })
+        .catch((err) => {
+          console.error('[draftGeneration] Failed to generate drafts:', err)
+          console.error('[draftGeneration] Error details:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name
           })
-          .catch((err) => {
-            console.error('[auto-generate] Failed to generate drafts:', err)
-            console.error('[auto-generate] Error details:', {
-              message: err.message,
-              stack: err.stack,
-              name: err.name
-            })
-            // Show warning but don't block - drafts will be generated by nightly cron
-            showToast({
-              title: 'Category created',
-              message: 'Drafts will be generated automatically within the next 30 days.',
-              type: 'warning',
-            })
+          // Show non-blocking warning - drafts will be generated by nightly cron
+          showToast({
+            title: editingSubcategory ? 'Category updated' : 'Category created',
+            message: 'Drafts will be generated shortly.',
+            type: 'warning',
           })
-      } else {
-        console.log('[auto-push] Skipping auto-push - editing existing subcategory:', editingSubcategory?.id)
-      }
+        })
 
       onSuccess()
       onClose()
