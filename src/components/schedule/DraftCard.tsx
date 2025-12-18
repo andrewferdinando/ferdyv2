@@ -330,11 +330,19 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
-  // Build jobs from props - post_jobs is the source of truth
-  // Fallback to draft.channel only if no post_jobs exist (legacy drafts)
+  // Build jobs from props - post_jobs is the ONLY source of truth
+  // NEVER use draft.channel, draft.publish_status, draft.status, or any legacy fields
   const normalizedJobs = useMemo(() => {
-    // Always prefer jobs from post_jobs (source of truth)
+    // SAFEGUARD: If both post_jobs and draft.channel exist, prefer post_jobs and log a warning
     if (jobs && Array.isArray(jobs) && jobs.length > 0) {
+      if (draft.channel) {
+        console.warn('[DraftCard] Both post_jobs and draft.channel present. Using post_jobs only (legacy draft.channel ignored).', {
+          draftId: draft.id,
+          postJobsCount: jobs.length,
+          draftChannel: draft.channel,
+        });
+      }
+
       // Normalize channels first
       const normalized = jobs
         .map((job) => ({
@@ -410,47 +418,46 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           draftId: draft.id,
         });
       }
+
+      // LOG: Show what array is being used to render pills
+      const pendingJobs = uniqueJobs.filter(j => {
+        const status = j.status.toLowerCase();
+        return status === 'pending' || status === 'ready' || status === 'generated' || status === 'publishing';
+      });
+      if (pendingJobs.length > 0) {
+        console.log('[DraftCard] Rendering Pending pills from post_jobs:', {
+          draftId: draft.id,
+          pendingJobs: pendingJobs.map(j => ({ channel: j.channel, status: j.status, id: j.id })),
+          source: 'post_jobs',
+        });
+      }
+
+      const publishedJobs = uniqueJobs.filter(j => {
+        const status = j.status.toLowerCase();
+        return status === 'success' || status === 'published';
+      });
+      if (publishedJobs.length > 0) {
+        console.log('[DraftCard] Rendering Published pills from post_jobs:', {
+          draftId: draft.id,
+          publishedJobs: publishedJobs.map(j => ({ channel: j.channel, status: j.status, id: j.id })),
+          source: 'post_jobs',
+        });
+      }
       
       return uniqueJobs;
     }
 
-    // Fallback: parse draft.channel (may be comma-separated) into multiple jobs
-    // This only happens for legacy drafts without post_jobs
+    // NO FALLBACK: If no post_jobs exist, return empty array
+    // Do NOT use draft.channel, draft.publish_status, draft.status, or any legacy fields
     if (draft.channel) {
-      // Handle both comma-separated (from Edit Post) and single channel (legacy)
-      const channels = draft.channel
-        .split(',')
-        .map((c) => c.trim())
-        .filter((c) => c);
-      
-      return channels
-        .map((channelStr): PostJobSummary | null => {
-          const canonicalChannel = canonicalizeChannel(channelStr);
-          if (!canonicalChannel) return null;
-          return {
-            id: draft.post_job_id || draft.id,
-            draft_id: draft.id || null,
-            channel: canonicalChannel,
-            status: 'pending',
-            error: null,
-            external_post_id: null,
-            external_url: null,
-            last_attempt_at: null,
-          } satisfies PostJobSummary;
-        })
-        .filter((job): job is PostJobSummary => job !== null)
-        .sort((a, b) => {
-          const aIndex = CHANNEL_ORDER_INDEX.get(a.channel) ?? Number.MAX_SAFE_INTEGER;
-          const bIndex = CHANNEL_ORDER_INDEX.get(b.channel) ?? Number.MAX_SAFE_INTEGER;
-          if (aIndex === bIndex) {
-            return a.channel.localeCompare(b.channel);
-          }
-          return aIndex - bIndex;
-        });
+      console.warn('[DraftCard] No post_jobs found, but draft.channel exists. Not rendering pills (post_jobs is required).', {
+        draftId: draft.id,
+        draftChannel: draft.channel,
+      });
     }
 
     return [] as PostJobSummary[];
-  }, [jobs, draft.channel, draft.post_job_id, draft.id]);
+  }, [jobs, draft.id]);
 
   // Fetch schedule rule data for frequency (category/subcategory comes from view)
   useEffect(() => {
