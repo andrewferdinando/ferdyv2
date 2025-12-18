@@ -644,6 +644,30 @@ async function triggerCopyGeneration(
       (subcategories || []).map(sc => [sc.id, sc])
     );
 
+    // Fetch event_occurrences for event_series subcategories
+    // These are needed to get occurrence-specific URLs and summaries
+    const eventSeriesSubcategoryIds = Array.from(subcategoriesMap.values())
+      .filter(sc => sc.subcategory_type === 'event_series')
+      .map(sc => sc.id);
+    
+    const eventOccurrencesBySubcategory = new Map<string, any[]>();
+    if (eventSeriesSubcategoryIds.length > 0) {
+      const { data: eventOccurrences } = await supabaseAdmin
+        .from('event_occurrences')
+        .select('id, subcategory_id, starts_at, url, summary')
+        .in('subcategory_id', eventSeriesSubcategoryIds);
+      
+      if (eventOccurrences) {
+        for (const occ of eventOccurrences) {
+          const subcatId = occ.subcategory_id;
+          if (!eventOccurrencesBySubcategory.has(subcatId)) {
+            eventOccurrencesBySubcategory.set(subcatId, []);
+          }
+          eventOccurrencesBySubcategory.get(subcatId)!.push(occ);
+        }
+      }
+    }
+
     // Build lookup maps
     const scheduleRuleById = new Map(
       (fullScheduleRules || []).map(r => [r.id, r])
@@ -703,11 +727,61 @@ async function triggerCopyGeneration(
           }
         }
 
-        // Prefer occurrence URL (from schedule_rule.url), then subcategory URL
+        // For event_series with frequency='specific', try to match draft to event_occurrence
+        // This allows us to use occurrence-specific URLs and summaries
+        let occurrenceUrl: string | null = null;
+        let occurrenceSummary: string | null = null;
+        
+        if (
+          subcategory?.subcategory_type === 'event_series' &&
+          rule?.frequency === 'specific' &&
+          d.subcategory_id &&
+          d.scheduled_for
+        ) {
+          const occurrences = eventOccurrencesBySubcategory.get(d.subcategory_id) || [];
+          if (occurrences.length > 0) {
+            // Match draft.scheduled_for to event_occurrence.starts_at
+            // Find the occurrence where starts_at is closest to scheduled_for
+            const draftScheduledAt = new Date(d.scheduled_for).getTime();
+            let bestMatch: any = null;
+            let smallestDiff = Infinity;
+            
+            for (const occ of occurrences) {
+              if (occ.starts_at) {
+                const occStartsAt = new Date(occ.starts_at).getTime();
+                const diff = Math.abs(draftScheduledAt - occStartsAt);
+                // Match if within 24 hours (to account for time-of-day differences)
+                if (diff < 24 * 60 * 60 * 1000 && diff < smallestDiff) {
+                  smallestDiff = diff;
+                  bestMatch = occ;
+                }
+              }
+            }
+            
+            if (bestMatch) {
+              // Use occurrence URL if available
+              if (bestMatch.url && bestMatch.url.trim().length > 0) {
+                occurrenceUrl = bestMatch.url.trim();
+              }
+              // Use occurrence summary if available (it's stored as JSON string)
+              if (bestMatch.summary && bestMatch.summary.trim().length > 0) {
+                occurrenceSummary = bestMatch.summary.trim();
+              }
+            }
+          }
+        }
+
+        // URL priority: occurrence URL > schedule_rule.url > subcategory URL
         const url =
+          (occurrenceUrl) ??
           (rule?.url && rule.url.trim().length > 0 ? rule.url : null) ??
           (subcategory?.url && subcategory.url.trim().length > 0 ? subcategory.url : null) ??
           '';
+
+        // Summary priority: occurrence summary > subcategory summary
+        const urlPageSummary =
+          (occurrenceSummary) ??
+          (subcategory?.url_page_summary ?? null);
 
         return {
           draftId: d.id,
@@ -717,7 +791,7 @@ async function triggerCopyGeneration(
             url,
             description: subcategory.detail ?? undefined,
             frequency_type: frequencyType,
-            url_page_summary: subcategory.url_page_summary ?? null,
+            url_page_summary: urlPageSummary,
             default_copy_length: subcategory.default_copy_length ?? "medium",
           } : undefined,
           subcategory_type: subcategory?.subcategory_type ?? null,
