@@ -196,6 +196,11 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   let draftsCreated = 0;
   let draftsSkipped = 0;
   const createdDraftIds: string[] = []; // Track created draft IDs for copy generation
+  
+  // Track selected assets per schedule_rule_id during this run to ensure rotation
+  // This prevents the same asset from being selected multiple times when multiple drafts
+  // are created in the same run (e.g., weekly schedules creating 4 drafts at once)
+  const selectedAssetsByRuleId = new Map<string, string[]>();
 
   // Process each target
   for (const target of targetsInWindow) {
@@ -309,6 +314,10 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       let assetId: string | null = null;
       if (finalScheduleRuleId) {
         try {
+          // Get previously selected assets for this rule in this run
+          const previouslySelected = selectedAssetsByRuleId.get(finalScheduleRuleId) || [];
+          
+          // Call RPC function to pick an asset
           const { data: pickedAsset, error: assetError } = await supabaseAdmin.rpc(
             'rpc_pick_asset_for_rule',
             { p_rule_id: finalScheduleRuleId }
@@ -322,8 +331,64 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
               console.warn(`[draftGeneration] Error picking asset for brand ${brandId}:`, assetError);
             }
           } else if (pickedAsset && typeof pickedAsset === 'string') {
-            assetId = pickedAsset;
-            console.log(`[draftGeneration] Picked asset for brand ${brandId}:`, assetId);
+            // Check if this asset was already selected for this rule in this run
+            if (previouslySelected.includes(pickedAsset)) {
+              // Asset was already selected - need to pick a different one
+              // Fetch available assets for this rule's subcategory and pick a different one
+              console.log(`[draftGeneration] Asset ${pickedAsset} already selected for rule ${finalScheduleRuleId} in this run, selecting alternative`);
+              
+              // Get the subcategory's tag to find available assets
+              const { data: tags } = await supabaseAdmin
+                .from('tags')
+                .select('id')
+                .eq('subcategory_id', target.subcategory_id)
+                .limit(1);
+              
+              if (tags && tags.length > 0) {
+                const tagId = tags[0].id;
+                
+                // Get assets linked to this tag
+                const { data: assetTags } = await supabaseAdmin
+                  .from('asset_tags')
+                  .select('asset_id')
+                  .eq('tag_id', tagId);
+                
+                if (assetTags && assetTags.length > 0) {
+                  const availableAssetIds = assetTags.map((at: any) => at.asset_id);
+                  
+                  // Filter out previously selected assets
+                  const unselectedAssets = availableAssetIds.filter(
+                    (id: string) => !previouslySelected.includes(id)
+                  );
+                  
+                  if (unselectedAssets.length > 0) {
+                    // Pick the first unselected asset (simple round-robin within this run)
+                    assetId = unselectedAssets[0];
+                    console.log(`[draftGeneration] Selected alternative asset ${assetId} for rule ${finalScheduleRuleId}`);
+                  } else {
+                    // All assets have been used - reset and start over, or use the RPC result
+                    console.log(`[draftGeneration] All assets used for rule ${finalScheduleRuleId}, using RPC result ${pickedAsset}`);
+                    assetId = pickedAsset;
+                  }
+                } else {
+                  // No assets found via tags, use RPC result
+                  assetId = pickedAsset;
+                }
+              } else {
+                // No tags found, use RPC result
+                assetId = pickedAsset;
+              }
+            } else {
+              // Asset hasn't been selected yet in this run - use it
+              assetId = pickedAsset;
+            }
+            
+            // Track this selection for this rule
+            if (assetId) {
+              const updated = previouslySelected.concat([assetId]);
+              selectedAssetsByRuleId.set(finalScheduleRuleId, updated);
+              console.log(`[draftGeneration] Picked asset ${assetId} for brand ${brandId}, rule ${finalScheduleRuleId} (selected ${updated.length} assets for this rule in this run)`);
+            }
           }
         } catch (error) {
           // Catch any other errors and continue without asset
