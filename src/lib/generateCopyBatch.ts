@@ -342,6 +342,11 @@ export async function processBatchCopyGeneration(
       let assetIds: string[] = [];
       const existingAssetIds = existingDraft?.asset_ids;
       
+      // Define draftSubcategoryId outside the if/else so it's available later for hashtags
+      const draftSubcategoryId = existingDraft?.subcategory_id || draft.subcategoryId;
+      const draftChannel = existingDraft?.channel || "instagram_feed"; // Default fallback
+      const draftBrandId = existingDraft?.brand_id || brandId;
+      
       if (existingAssetIds && Array.isArray(existingAssetIds) && existingAssetIds.length > 0) {
         // Draft already has assets selected (from draft creation with LRU rotation)
         // Preserve them - do NOT re-select
@@ -349,10 +354,6 @@ export async function processBatchCopyGeneration(
         console.log(`[generateCopyBatch] Preserving existing asset_ids for draft ${draft.draftId}: ${assetIds.join(', ')}`);
       } else {
         // No assets set yet - select them now (fallback case)
-        const draftSubcategoryId = existingDraft?.subcategory_id || draft.subcategoryId;
-        const draftChannel = existingDraft?.channel || "instagram_feed"; // Default fallback
-        const draftBrandId = existingDraft?.brand_id || brandId;
-
         if (draftSubcategoryId) {
           try {
             const selectedAssetIds = await selectAssetsForDraft(
