@@ -14,9 +14,7 @@ export default function Features() {
           <div className="relative bg-blue-50/50 p-12 rounded-3xl border border-blue-100">
             <div className="relative z-10">
               <p className="text-xl md:text-2xl text-gray-700 italic mb-10 leading-relaxed font-medium">
-                &ldquo;I&apos;ve spent years helping brands with marketing, and one thing kept standing out: not every post needs to be a masterpiece.
-                <br /><br />
-                Most SMBs rely on simple, repeatable posts - product highlights, promos, event reminders - and they make up about 80% of content. So I built Ferdy to automate this process.&rdquo;
+                &ldquo;After years in marketing, I observed that many social posts are repeatable and predictable. I built Ferdy to automate social content that follows a pattern and save marketers a heap of time.&rdquo;
               </p>
               <div className="flex items-center gap-4">
                 <img 
