@@ -54,7 +54,7 @@ export default function Features() {
           <div className="relative">
             <div className="relative bg-blue-50/50 p-12 rounded-3xl border border-blue-100">
               <p className="text-2xl md:text-3xl lg:text-4xl text-gray-700 italic leading-relaxed font-medium">
-                &ldquo;Ferdy doesn&apos;t replace your creativity — it frees you up to use it where it matters.&rdquo;
+                &ldquo;Ferdy doesn&apos;t replace your creativity - it frees you up to use it where it matters.&rdquo;
               </p>
             </div>
           </div>
