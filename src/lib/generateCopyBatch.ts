@@ -168,8 +168,49 @@ async function selectAssetsForDraft(
       return [];
     }
 
-    // Step 5: Select one asset (random selection for now - can be enhanced with LRU later)
-    const selectedAsset = eligibleAssets[Math.floor(Math.random() * eligibleAssets.length)];
+    // Step 5: Select one asset using LRU rotation (same logic as draftGeneration.ts)
+    // Query historical drafts to find least recently used asset
+    const { data: historicalDrafts } = await supabase
+      .from('drafts')
+      .select('asset_ids, created_at')
+      .eq('brand_id', brandId)
+      .eq('subcategory_id', subcategoryId)
+      .eq('schedule_source', 'framework')
+      .not('asset_ids', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(100); // Look at last 100 drafts for usage history
+    
+    // Build a map of asset_id -> last_used_at timestamp
+    const assetLastUsed = new Map<string, Date>();
+    
+    // Process historical drafts to find when each asset was last used
+    if (historicalDrafts) {
+      for (const draft of historicalDrafts) {
+        if (draft.asset_ids && Array.isArray(draft.asset_ids) && draft.asset_ids.length > 0) {
+          const draftAssetId = draft.asset_ids[0]; // Use first asset from draft
+          const draftDate = new Date(draft.created_at);
+          
+          // Only track if this asset is in our eligible list
+          if (eligibleAssets.some(a => a.id === draftAssetId)) {
+            // Update last_used_at if this is more recent
+            const existing = assetLastUsed.get(draftAssetId);
+            if (!existing || draftDate > existing) {
+              assetLastUsed.set(draftAssetId, draftDate);
+            }
+          }
+        }
+      }
+    }
+    
+    // Sort eligible assets by last used (oldest first, never-used assets first)
+    eligibleAssets.sort((a, b) => {
+      const dateA = assetLastUsed.get(a.id)?.getTime() || 0; // 0 for never used
+      const dateB = assetLastUsed.get(b.id)?.getTime() || 0; // 0 for never used
+      return dateA - dateB;
+    });
+    
+    // Select the least recently used asset
+    const selectedAsset = eligibleAssets[0];
     const finalAssetIds = [selectedAsset.id];
 
     // Log asset selection details
@@ -268,10 +309,10 @@ export async function processBatchCopyGeneration(
       
       try {
       // Check if copy_status is already "complete" - skip if so
-      // Also fetch subcategory_id, hashtags and channel for asset selection
+      // Also fetch subcategory_id, hashtags, channel, and asset_ids for asset selection
       const { data: existingDraft, error: fetchDraftError } = await supabaseAdmin
         .from("drafts")
-        .select("copy_status, copy, subcategory_id, channel, brand_id, hashtags")
+        .select("copy_status, copy, subcategory_id, channel, brand_id, hashtags, asset_ids")
         .eq("id", draft.draftId)
         .single();
 
@@ -296,28 +337,39 @@ export async function processBatchCopyGeneration(
 
       console.log(`Generating copy for draft ${draft.draftId}`);
 
-      // Select assets for this draft if subcategory_id is available
+      // Use existing asset_ids if already set (from draft creation with LRU rotation)
+      // Only re-select if asset_ids is empty/null
       let assetIds: string[] = [];
-      const draftSubcategoryId = existingDraft?.subcategory_id || draft.subcategoryId;
-      const draftChannel = existingDraft?.channel || "instagram_feed"; // Default fallback
-      const draftBrandId = existingDraft?.brand_id || brandId;
-
-      if (draftSubcategoryId) {
-        try {
-          const selectedAssetIds = await selectAssetsForDraft(
-            supabaseAdmin,
-            draftBrandId,
-            draftSubcategoryId,
-            draftChannel,
-            draft.draftId
-          );
-          assetIds = selectedAssetIds;
-        } catch (assetError) {
-          console.error(`[generateCopyBatch] Error selecting assets for draft ${draft.draftId}:`, assetError);
-          // Continue without assets if selection fails
-        }
+      const existingAssetIds = existingDraft?.asset_ids;
+      
+      if (existingAssetIds && Array.isArray(existingAssetIds) && existingAssetIds.length > 0) {
+        // Draft already has assets selected (from draft creation with LRU rotation)
+        // Preserve them - do NOT re-select
+        assetIds = existingAssetIds;
+        console.log(`[generateCopyBatch] Preserving existing asset_ids for draft ${draft.draftId}: ${assetIds.join(', ')}`);
       } else {
-        console.log(`[generateCopyBatch] No subcategory_id for draft ${draft.draftId}, skipping asset selection`);
+        // No assets set yet - select them now (fallback case)
+        const draftSubcategoryId = existingDraft?.subcategory_id || draft.subcategoryId;
+        const draftChannel = existingDraft?.channel || "instagram_feed"; // Default fallback
+        const draftBrandId = existingDraft?.brand_id || brandId;
+
+        if (draftSubcategoryId) {
+          try {
+            const selectedAssetIds = await selectAssetsForDraft(
+              supabaseAdmin,
+              draftBrandId,
+              draftSubcategoryId,
+              draftChannel,
+              draft.draftId
+            );
+            assetIds = selectedAssetIds;
+          } catch (assetError) {
+            console.error(`[generateCopyBatch] Error selecting assets for draft ${draft.draftId}:`, assetError);
+            // Continue without assets if selection fails
+          }
+        } else {
+          console.log(`[generateCopyBatch] No subcategory_id for draft ${draft.draftId}, skipping asset selection`);
+        }
       }
 
       // Set copy_status to "pending"
