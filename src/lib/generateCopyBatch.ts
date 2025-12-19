@@ -203,7 +203,7 @@ async function selectAssetsForDraft(
     }
     
     // Sort eligible assets by last used (oldest first, never-used assets first)
-    eligibleAssets.sort((a, b) => {
+    eligibleAssets.sort((a: any, b: any) => {
       const dateA = assetLastUsed.get(a.id)?.getTime() || 0; // 0 for never used
       const dateB = assetLastUsed.get(b.id)?.getTime() || 0; // 0 for never used
       return dateA - dateB;
