@@ -33,12 +33,12 @@ export default function Features() {
           </div>
         </div>
 
-        {/* Value Props & Mockup */}
+        {/* Value Props & Quote */}
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           
           {/* Left: Bullet Points */}
           <div className="flex flex-col justify-center">
-            <div className="space-y-8 mb-10">
+            <div className="space-y-8">
               {facts.map((fact, i) => (
                 <div key={i} className="flex items-start gap-5">
                   <div className="mt-1 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0 shadow-sm">
@@ -50,22 +50,14 @@ export default function Features() {
                 </div>
               ))}
             </div>
-            <div className="pl-4 border-l-4 border-blue-600/30 py-2">
-              <p className="text-xl md:text-2xl font-semibold text-blue-600">
-                Ferdy doesn&apos;t replace your creativity — it frees you up to use it where it matters.
-              </p>
-            </div>
           </div>
 
-          {/* Right: Product Mockup */}
+          {/* Right: Quote */}
           <div className="relative">
-            <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-3xl blur-2xl opacity-60"></div>
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-white">
-              <img 
-                src="/images/ferdy_clip.gif" 
-                alt="Ferdy dashboard demo" 
-                className="w-full h-full object-cover" 
-              />
+            <div className="relative bg-blue-50/50 p-12 rounded-3xl border border-blue-100">
+              <p className="text-2xl md:text-3xl lg:text-4xl text-gray-700 italic leading-relaxed font-medium">
+                &ldquo;Ferdy doesn&apos;t replace your creativity — it frees you up to use it where it matters.&rdquo;
+              </p>
             </div>
           </div>
 
