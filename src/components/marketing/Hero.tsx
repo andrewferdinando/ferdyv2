@@ -57,8 +57,8 @@ export default function Hero() {
           <div className="relative mx-auto max-w-6xl">
             <div className="relative z-20 transform hover:scale-[1.02] transition-transform duration-500">
               <img 
-                src="/images/hero_illustration.png" 
-                alt="Ferdy automation workflow - from categories and content to scheduled social posts" 
+                src="/images/scheduling_table_hero.png" 
+                alt="Ferdy scheduling interface showing categories, types, schedules and dates" 
                 className="w-full h-auto rounded-2xl shadow-2xl"
               />
             </div>

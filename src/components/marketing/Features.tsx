@@ -57,14 +57,14 @@ export default function Features() {
             </div>
           </div>
 
-          {/* Right: Product Mockup - Hero Image */}
-          <div className="relative lg:col-span-1">
+          {/* Right: Product Mockup */}
+          <div className="relative">
             <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-3xl blur-2xl opacity-60"></div>
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-white">
               <img 
-                src="/images/scheduling_table_hero.png" 
-                alt="Ferdy scheduling interface showing categories, types, schedules and dates" 
-                className="w-full h-auto max-w-full object-contain" 
+                src="/images/ferdy_clip.gif" 
+                alt="Ferdy dashboard demo" 
+                className="w-full h-full object-cover" 
               />
             </div>
           </div>
