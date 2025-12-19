@@ -191,7 +191,7 @@ async function selectAssetsForDraft(
           const draftDate = new Date(draft.created_at);
           
           // Only track if this asset is in our eligible list
-          if (eligibleAssets.some(a => a.id === draftAssetId)) {
+          if (eligibleAssets.some((a: any) => a.id === draftAssetId)) {
             // Update last_used_at if this is more recent
             const existing = assetLastUsed.get(draftAssetId);
             if (!existing || draftDate > existing) {
