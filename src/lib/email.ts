@@ -147,8 +147,8 @@ export async function sendSubscriptionConfirmationEmail(
     <h3>Subscription Details:</h3>
     <ul>
       <li><strong>Active Brands:</strong> ${brandCount}</li>
-      <li><strong>Price per Brand:</strong> $86.00 USD/month</li>
-      <li><strong>Monthly Total:</strong> $${monthlyTotal.toFixed(2)} USD</li>
+      <li><strong>Price per Brand:</strong> $147.00 NZD/month</li>
+      <li><strong>Monthly Total:</strong> $${monthlyTotal.toFixed(2)} NZD</li>
     </ul>
     <p>Your first invoice will be sent shortly. You can manage your subscription and billing details anytime from your account.</p>
     <a href="https://www.ferdy.io/account/billing" class="button">View Billing</a>

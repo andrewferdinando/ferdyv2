@@ -134,7 +134,7 @@ export default function PaymentSetupPage() {
             Complete Payment Setup
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            {group && `US$${(group.price_per_brand_cents / 100).toFixed(2)}/month per brand`}
+            {group && `$${(group.price_per_brand_cents / 100).toFixed(2)} NZD/month per brand`}
           </p>
         </div>
 

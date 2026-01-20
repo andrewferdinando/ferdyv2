@@ -406,7 +406,7 @@ export default function BillingPage() {
               <div>
                 <p className="font-semibold mb-1">1. Your First Brand</p>
                 <p>When you sign up, you're charged upfront for your first brand for the full month.</p>
-                <p className="mt-1 italic">Example: $86 covers your first brand for the next 30 days.</p>
+                <p className="mt-1 italic">Example: $147 NZD covers your first brand for the next 30 days.</p>
               </div>
               
               <div>

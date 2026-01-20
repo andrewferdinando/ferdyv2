@@ -518,7 +518,7 @@ export default function AddBrandPage() {
           onConfirm={handleConfirmAddBrand}
           title="Confirm Add Brand"
           message={pricePerBrand !== null
-            ? `Adding a new brand will cost ${currency === 'USD' ? '$' : currency + ' '}${(pricePerBrand / 100).toFixed(2)} per month. This will be prorated and added to your next invoice. Do you want to proceed?`
+            ? `Adding a new brand will cost $${(pricePerBrand / 100).toFixed(2)} ${currency.toUpperCase()}/month. This will be prorated and added to your next invoice. Do you want to proceed?`
             : 'Are you sure you want to add this brand? The cost will be added to your next invoice.'}
           confirmText="Add Brand"
           cancelText="Cancel"

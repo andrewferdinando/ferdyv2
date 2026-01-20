@@ -29,8 +29,8 @@ Group (Company/Agency)
 - `stripe_customer_id` (text, unique)
 - `stripe_subscription_id` (text, unique)
 - `stripe_price_id` (text)
-- `price_per_brand_cents` (integer, default 8600) - $86.00 USD
-- `currency` (text, default 'usd')
+- `price_per_brand_cents` (integer, default 14700) - $147.00 NZD
+- `currency` (text, default 'nzd')
 - `negotiated_rate_cents` (integer, nullable) - Custom pricing override
 - `country_code` (text, nullable)
 - `tax_rate` (decimal, nullable)
@@ -57,7 +57,7 @@ Group (Company/Agency)
 
 ### Product & Pricing
 - **Product**: "Ferdy Brand Automation"
-- **Price**: $86 USD/month per brand
+- **Price**: $147 NZD/month per brand
 - **Billing**: Usage-based (quantity = number of brands)
 - **Proration**: Automatic when brands added/removed
 

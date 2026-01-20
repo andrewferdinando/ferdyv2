@@ -336,7 +336,7 @@ export function OnboardingWizard() {
               Payment Details
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              US$86/month per brand
+              $147 NZD/month per brand
             </p>
           </div>
 

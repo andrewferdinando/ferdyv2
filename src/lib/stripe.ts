@@ -27,8 +27,8 @@ export const stripe = new Proxy({} as Stripe, {
 export const STRIPE_CONFIG = {
   mode: process.env.STRIPE_MODE || 'test',
   publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
-  pricePerBrand: 8600, // US$86.00 in cents
-  currency: 'usd',
+  pricePerBrand: 14700, // NZ$147.00 in cents
+  currency: 'nzd',
   productName: 'Ferdy Brand Automation',
   productDescription: 'Social media automation per brand',
 }

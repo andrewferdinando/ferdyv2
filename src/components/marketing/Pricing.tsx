@@ -51,10 +51,10 @@ export default function Pricing() {
                 <h3 className="text-3xl font-bold mb-2 text-gray-900">Solo</h3>
                 <p className="text-gray-600 mb-6 min-h-[48px] flex items-center justify-center">Perfect for single brands.</p>
                 <div className="mb-2">
-                  <span className="text-5xl font-bold text-gray-900">US$86</span>
-                  <span className="text-gray-600 text-lg">/month</span>
+                  <span className="text-5xl font-bold text-gray-900">$147</span>
+                  <span className="text-gray-600 text-lg"> NZD/month</span>
                 </div>
-                <p className="text-xs text-gray-500">*GST additional for NZ businesses</p>
+                <p className="text-xs text-gray-500">+GST</p>
               </div>
 
               <div className="p-8 flex-grow bg-gray-50">
