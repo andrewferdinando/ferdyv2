@@ -31,12 +31,12 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   const handleCloseSidebar = () => setIsMobileMenuOpen(false);
 
   return (
-    <div className="flex min-h-dvh bg-gray-50">
+    <div className="min-h-dvh bg-gray-50">
         <div
           className={`
             ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
             lg:translate-x-0
-            fixed lg:static inset-y-0 left-0 z-50 lg:z-auto
+            fixed inset-y-0 left-0 z-50
             transition-transform duration-300 ease-in-out
           `}
         >
@@ -50,7 +50,7 @@ function AppLayoutInner({ children }: AppLayoutProps) {
           />
         )}
 
-        <div className="flex-1 flex flex-col min-h-dvh">
+        <div className="flex flex-col min-h-dvh lg:ml-[280px]">
           <AppTopNav onMenuToggle={handleToggleSidebar} />
           <main className="flex-1 overflow-auto">
             {children}
