@@ -202,27 +202,24 @@ export default function ContentLibraryPage() {
     { key: 'videos', label: 'Videos' },
   ]
 
-  // Watch for pending uploads to appear in assets array
+  // Watch for pending uploads to appear in assets array and set appropriate media filter
   useEffect(() => {
     if (pendingUploadIdsRef.current.length === 0) return
-    
+
     const uploadedAssets = assets.filter(asset => pendingUploadIdsRef.current.includes(asset.id))
-    
+
     if (uploadedAssets.length > 0) {
       // Check if any uploaded asset is a video
       const hasVideo = uploadedAssets.some(asset => asset.asset_type === 'video')
-      
+
       // Set media filter: videos -> 'videos', images -> 'images'
       if (hasVideo) {
         setMediaFilter('videos')
       } else {
         setMediaFilter('images')
       }
-      
-      // Store the first uploaded asset as editing data to prioritize it
-      setEditingAssetData(uploadedAssets[0])
-      
-      // Clear pending uploads
+
+      // Clear pending uploads - grid will show all needs attention assets
       pendingUploadIdsRef.current = []
     }
   }, [assets])
@@ -252,13 +249,13 @@ export default function ContentLibraryPage() {
     try {
       // Store the original asset data for editing
       setEditingAssetData(asset)
-      
+
       // Move asset to "Needs Attention" by clearing its tags
       const { supabase } = await import('@/lib/supabase-browser')
-      
+
       const { error } = await supabase
         .from('assets')
-        .update({ 
+        .update({
           tags: [], // Clear tags to move to needs attention
         })
         .eq('id', asset.id)
@@ -275,6 +272,16 @@ export default function ContentLibraryPage() {
       console.error('Error moving asset to needs attention:', error)
       alert('Failed to move asset for editing. Please try again.')
     }
+  }
+
+  // Handler for editing assets already in "Needs Attention" tab (no need to clear tags)
+  const handleEditNeedsAttentionAsset = (asset: Asset) => {
+    setEditingAssetData(asset)
+  }
+
+  // Handler to go back from detail view to grid in "Needs Attention" tab
+  const handleBackToGrid = () => {
+    setEditingAssetData(null)
   }
 
   const handleDeleteAsset = (asset: Asset) => {
@@ -420,47 +427,55 @@ export default function ContentLibraryPage() {
             {/* Tab Content */}
             {activeTab === 'needs_attention' ? (
               (() => {
-                // When editingAssetData is set (user clicked edit), always use it as the asset to edit
-                // This handles the race condition where refetch hasn't completed yet
-                const assetFromNeedsAttention = needsAttentionAssets.find(
-                  (asset) => editingAssetData && asset.id === editingAssetData.id
-                )
-                const assetToEdit = editingAssetData ?? assetFromNeedsAttention ?? needsAttentionAssets[0] ?? null
-
-                if (assetToEdit) {
-                  // Use editingAssetData as originalData if it matches the asset being edited
-                  const originalData =
-                    editingAssetData && assetToEdit.id === editingAssetData.id ? editingAssetData : null
-
+                // If editingAssetData is set, show the detail view for that asset
+                if (editingAssetData) {
                   return (
-                <AssetDetailView
-                      key={assetToEdit.id}
-                      asset={assetToEdit}
-                      originalAssetData={originalData}
-                  onBack={() => {}}
-                  onUpdate={handleAssetUpdate}
-                  brandId={brandId}
-                  saveAssetTags={saveAssetTags}
+                    <AssetDetailView
+                      key={editingAssetData.id}
+                      asset={editingAssetData}
+                      originalAssetData={editingAssetData}
+                      onBack={handleBackToGrid}
+                      onUpdate={handleAssetUpdate}
+                      brandId={brandId}
+                      saveAssetTags={saveAssetTags}
                       onPreviewAsset={handlePreviewAsset}
-                />
+                    />
+                  )
+                }
+
+                // Otherwise show the grid of assets needing attention
+                if (needsAttentionAssets.length > 0) {
+                  return (
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                      {needsAttentionAssets.map((asset) => (
+                        <div key={asset.id}>
+                          <AssetCard
+                            asset={asset}
+                            onEdit={handleEditNeedsAttentionAsset}
+                            onDelete={handleDeleteAsset}
+                            onPreview={handlePreviewAsset}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   )
                 }
 
                 return (
-                <div className="flex flex-col items-center justify-center min-h-[400px]">
-                  <div className="text-center mb-8">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
-                    <p className="text-gray-600">No content needs attention right now</p>
+                  <div className="flex flex-col items-center justify-center min-h-[400px]">
+                    <div className="text-center mb-8">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
+                      <p className="text-gray-600">No content needs attention right now</p>
+                    </div>
+                    <div className="mt-auto">
+                      <UploadAsset
+                        brandId={brandId}
+                        onUploadSuccess={handleUploadSuccess}
+                        onUploadError={handleUploadError}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-auto">
-                    <UploadAsset
-                      brandId={brandId}
-                      onUploadSuccess={handleUploadSuccess}
-                      onUploadError={handleUploadError}
-                    />
-                  </div>
-                </div>
-              )
+                )
               })()
             ) : (
               // Ready to Use tab - show grid of ready assets
@@ -1150,9 +1165,16 @@ function AssetDetailView({
 
                 <div className="flex space-x-3">
                   <button
+                    onClick={onBack}
+                    disabled={saving}
+                    className="rounded-xl border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+                  <button
                     onClick={handleSave}
-                disabled={saving || selectedTagIds.length === 0}
-                className="flex-1 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-3 font-medium text-white transition-all hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={saving || selectedTagIds.length === 0}
+                    className="flex-1 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-3 font-medium text-white transition-all hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
