@@ -13,6 +13,7 @@ export interface CreateSubscriptionParams {
   email: string
   countryCode?: string
   brandCount?: number
+  couponCode?: string
 }
 
 export interface UpdateSubscriptionQuantityParams {
@@ -24,7 +25,7 @@ export interface UpdateSubscriptionQuantityParams {
  * Create a Stripe customer and subscription for a new group
  */
 export async function createStripeSubscription(params: CreateSubscriptionParams) {
-  const { groupId, groupName, email, countryCode, brandCount = 1 } = params
+  const { groupId, groupName, email, countryCode, brandCount = 1, couponCode } = params
 
   try {
     // Create Stripe customer
@@ -36,10 +37,8 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       },
     })
 
-    // Create subscription with payment_behavior: 'default_incomplete'
-    // This creates the subscription with status=incomplete and automatically creates a PaymentIntent
-    // The confirmation_secret is returned directly (no expand needed)
-    const subscription = await stripe.subscriptions.create({
+    // Build subscription params
+    const subscriptionParams: Stripe.SubscriptionCreateParams = {
       customer: customer.id,
       items: [
         {
@@ -48,14 +47,24 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
         },
       ],
       payment_behavior: 'default_incomplete',
-      payment_settings: { 
+      payment_settings: {
         save_default_payment_method: 'on_subscription',
         payment_method_types: ['card']
       },
       metadata: {
         group_id: groupId,
       },
-    })
+    }
+
+    // Add coupon if provided
+    if (couponCode) {
+      subscriptionParams.coupon = couponCode.trim()
+    }
+
+    // Create subscription with payment_behavior: 'default_incomplete'
+    // This creates the subscription with status=incomplete and automatically creates a PaymentIntent
+    // The confirmation_secret is returned directly (no expand needed)
+    const subscription = await stripe.subscriptions.create(subscriptionParams)
 
     console.log('Subscription created:', {
       id: subscription.id,

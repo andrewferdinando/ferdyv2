@@ -18,6 +18,7 @@ interface OnboardingData {
   brandName: string
   websiteUrl: string
   countryCode: string
+  couponCode: string
 }
 
 export function OnboardingWizard() {
@@ -31,6 +32,7 @@ export function OnboardingWizard() {
     brandName: '',
     websiteUrl: 'https://',
     countryCode: 'US',
+    couponCode: '',
   })
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [groupId, setGroupId] = useState<string | null>(null)
@@ -106,6 +108,7 @@ export function OnboardingWizard() {
           email: data.email,
           countryCode: data.countryCode,
           brandCount: 1,
+          couponCode: data.couponCode || undefined,
         }),
       })
 
@@ -299,6 +302,21 @@ export function OnboardingWizard() {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="couponCode" className="block text-sm font-medium text-gray-700">
+                      Coupon Code (Optional)
+                    </label>
+                    <input
+                      id="couponCode"
+                      name="couponCode"
+                      type="text"
+                      value={data.couponCode}
+                      onChange={(e) => setData({ ...data, couponCode: e.target.value.toUpperCase() })}
+                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="Enter coupon code"
+                    />
                   </div>
                 </>
               )}

@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { groupId, groupName, email, countryCode, brandCount } = body
+    const { groupId, groupName, email, countryCode, brandCount, couponCode } = body
 
     if (!groupId || !groupName || !email) {
       return NextResponse.json(
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       email,
       countryCode,
       brandCount: brandCount || 1,
+      couponCode,
     })
 
     return NextResponse.json(result)

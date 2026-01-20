@@ -12,8 +12,13 @@ export default function PaymentSetupPage() {
   const router = useRouter()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [setupLoading, setSetupLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [group, setGroup] = useState<any>(null)
+  const [user, setUser] = useState<any>(null)
+  const [brandCount, setBrandCount] = useState(1)
+  const [couponCode, setCouponCode] = useState('')
+  const [hasExistingSubscription, setHasExistingSubscription] = useState(false)
 
   useEffect(() => {
     async function initializePayment() {
@@ -23,6 +28,7 @@ export default function PaymentSetupPage() {
         if (userError || !user) {
           throw new Error('Please sign in to continue')
         }
+        setUser(user)
 
         // Get user's group
         const { data: membership, error: membershipError } = await supabase
@@ -53,28 +59,16 @@ export default function PaymentSetupPage() {
 
         if (brandsError) throw brandsError
 
-        const brandCount = brands?.length || 1
+        const count = brands?.length || 1
+        setBrandCount(count)
 
-        // Get or create Stripe subscription
-        const response = await fetch('/api/stripe/get-or-create-payment-setup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            groupId: userGroup.id,
-            groupName: userGroup.name,
-            email: user.email,
-            countryCode: 'US',
-            brandCount: brandCount,
-          }),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to create subscription')
+        // Check if there's already an incomplete subscription
+        if (userGroup.stripe_subscription_id && userGroup.subscription_status === 'incomplete') {
+          setHasExistingSubscription(true)
+          // For existing subscriptions, automatically fetch the payment setup
+          await fetchPaymentSetup(userGroup, user.email, count)
         }
 
-        const { clientSecret: secret } = await response.json()
-        setClientSecret(secret)
         setLoading(false)
       } catch (err: any) {
         console.error('Payment setup error:', err)
@@ -86,18 +80,56 @@ export default function PaymentSetupPage() {
     initializePayment()
   }, [router])
 
+  const fetchPaymentSetup = async (userGroup: any, email: string, count: number, coupon?: string) => {
+    setSetupLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/stripe/get-or-create-payment-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: userGroup.id,
+          groupName: userGroup.name,
+          email: email,
+          countryCode: 'US',
+          brandCount: count,
+          couponCode: coupon || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create subscription')
+      }
+
+      const { clientSecret: secret } = await response.json()
+      setClientSecret(secret)
+    } catch (err: any) {
+      console.error('Payment setup error:', err)
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
+  const handleContinueToPayment = async () => {
+    if (!group || !user) return
+    await fetchPaymentSetup(group, user.email, brandCount, couponCode)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Setting up payment...</p>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error && !clientSecret) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -116,11 +148,74 @@ export default function PaymentSetupPage() {
     )
   }
 
+  // Show coupon input if no subscription exists yet
+  if (!clientSecret && !hasExistingSubscription) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Complete Payment Setup
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              {group && `$${(group.price_per_brand_cents / 100).toFixed(2)} NZD/month per brand`}
+            </p>
+            <p className="mt-1 text-center text-sm text-gray-500">
+              {brandCount} {brandCount === 1 ? 'brand' : 'brands'}
+            </p>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow space-y-4">
+            <div>
+              <label htmlFor="couponCode" className="block text-sm font-medium text-gray-700">
+                Coupon Code (Optional)
+              </label>
+              <input
+                id="couponCode"
+                name="couponCode"
+                type="text"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Enter coupon code"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-md bg-red-50 p-4">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleContinueToPayment}
+              disabled={setupLoading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {setupLoading ? 'Setting up...' : 'Continue to Payment'}
+            </button>
+          </div>
+
+          <div className="text-center">
+            <button
+              onClick={() => router.push('/account/billing')}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              Back to Billing
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading while fetching payment setup for existing subscription
   if (!clientSecret) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-gray-600">Initializing...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Setting up payment...</p>
         </div>
       </div>
     )
