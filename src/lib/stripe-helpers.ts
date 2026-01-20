@@ -56,9 +56,9 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       },
     }
 
-    // Add coupon if provided
+    // Add coupon if provided (using discounts array for newer Stripe API)
     if (couponCode) {
-      subscriptionParams.coupon = couponCode.trim()
+      subscriptionParams.discounts = [{ coupon: couponCode.trim() }]
     }
 
     // Create subscription with payment_behavior: 'default_incomplete'
