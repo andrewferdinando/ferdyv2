@@ -420,17 +420,15 @@ export default function ContentLibraryPage() {
             {/* Tab Content */}
             {activeTab === 'needs_attention' ? (
               (() => {
-                const fallbackAsset = editingAssetData ?? null
-                const prioritizedAssets = needsAttentionAssets.length
-                  ? [
-                      ...needsAttentionAssets.filter((asset) => editingAssetData && asset.id === editingAssetData.id),
-                      ...needsAttentionAssets.filter((asset) => !editingAssetData || asset.id !== editingAssetData.id),
-                    ]
-                  : []
-
-                const assetToEdit = prioritizedAssets[0] ?? fallbackAsset
+                // When editingAssetData is set (user clicked edit), always use it as the asset to edit
+                // This handles the race condition where refetch hasn't completed yet
+                const assetFromNeedsAttention = needsAttentionAssets.find(
+                  (asset) => editingAssetData && asset.id === editingAssetData.id
+                )
+                const assetToEdit = editingAssetData ?? assetFromNeedsAttention ?? needsAttentionAssets[0] ?? null
 
                 if (assetToEdit) {
+                  // Use editingAssetData as originalData if it matches the asset being edited
                   const originalData =
                     editingAssetData && assetToEdit.id === editingAssetData.id ? editingAssetData : null
 
