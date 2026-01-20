@@ -526,19 +526,17 @@ export default function ContentLibraryPage() {
                     </div>
                   )
               ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px]">
-                  <div className="text-center mb-8">
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="text-center mb-6">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No ready content yet</h3>
                     <p className="text-gray-600">Tag your assets to make them ready to use</p>
                   </div>
-                  <div className="mt-auto">
-                    <UploadAsset
-                      brandId={brandId}
-                      onUploadSuccess={handleUploadSuccess}
-                      onUploadError={handleUploadError}
-                      label={mediaFilter === 'videos' ? 'Add videos' : 'Add images'}
-                    />
-                  </div>
+                  <UploadAsset
+                    brandId={brandId}
+                    onUploadSuccess={handleUploadSuccess}
+                    onUploadError={handleUploadError}
+                    label={mediaFilter === 'videos' ? 'Add videos' : 'Add images'}
+                  />
                 </div>
               )
             )}
