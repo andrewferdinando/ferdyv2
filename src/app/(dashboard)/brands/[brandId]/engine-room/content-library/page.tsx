@@ -435,10 +435,11 @@ export default function ContentLibraryPage() {
                     editingAssetData && assetToEdit.id === editingAssetData.id ? editingAssetData : null
 
                   return (
-                <AssetDetailView 
+                <AssetDetailView
+                      key={assetToEdit.id}
                       asset={assetToEdit}
                       originalAssetData={originalData}
-                  onBack={() => {}} 
+                  onBack={() => {}}
                   onUpdate={handleAssetUpdate}
                   brandId={brandId}
                   saveAssetTags={saveAssetTags}
