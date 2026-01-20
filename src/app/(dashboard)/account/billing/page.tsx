@@ -14,7 +14,15 @@ interface SubscriptionDetails {
   current_period_end: number
   cancel_at_period_end: boolean
   default_payment_method: any
-  latest_invoice: any
+  latest_invoice?: {
+    subtotal: number
+    total: number
+    currency: string
+    total_discount_amounts?: Array<{
+      amount: number
+      discount: string
+    }>
+  }
   items?: {
     data: Array<{
       price: {
@@ -24,15 +32,7 @@ interface SubscriptionDetails {
       quantity: number
     }>
   }
-  discount?: {
-    coupon: {
-      id: string
-      name?: string
-      percent_off?: number
-      amount_off?: number
-      currency?: string
-    }
-  } | null
+  discounts?: string[]
 }
 
 interface Brand {
@@ -230,26 +230,27 @@ export default function BillingPage() {
     )
   }
 
-  // Use Stripe subscription data if available, otherwise fall back to database
+  // Use Stripe subscription/invoice data if available, otherwise fall back to database
   const stripePrice = subscription?.items?.data?.[0]?.price
-  const stripeCurrency = stripePrice?.currency || group.currency
+  const latestInvoice = subscription?.latest_invoice
+  const stripeCurrency = latestInvoice?.currency || stripePrice?.currency || group.currency
+
+  // Get price per brand from Stripe or database
   const pricePerBrand = stripePrice
     ? stripePrice.unit_amount / 100
     : group.price_per_brand_cents / 100
 
-  // Calculate discount if present
-  const discount = subscription?.discount
-  const discountPercent = discount?.coupon?.percent_off || 0
-  const discountAmountOff = discount?.coupon?.amount_off ? discount.coupon.amount_off / 100 : 0
+  // Calculate discount from invoice data (most accurate)
+  const hasDiscount = (subscription?.discounts?.length ?? 0) > 0
+  const discountAmount = latestInvoice?.total_discount_amounts?.[0]?.amount
+    ? latestInvoice.total_discount_amounts[0].amount / 100
+    : 0
 
-  // Calculate totals
+  // Calculate totals - use invoice total if available (includes discount)
   const subtotal = brandCount * pricePerBrand
-  let totalMonthly = subtotal
-  if (discountPercent > 0) {
-    totalMonthly = subtotal * (1 - discountPercent / 100)
-  } else if (discountAmountOff > 0) {
-    totalMonthly = Math.max(0, subtotal - discountAmountOff)
-  }
+  const totalMonthly = latestInvoice
+    ? latestInvoice.total / 100
+    : subtotal
 
   return (
     <RequireAuth>
@@ -318,13 +319,9 @@ export default function BillingPage() {
                 <p className="mt-1 text-2xl font-semibold text-gray-900">
                   ${totalMonthly.toFixed(2)} <span className="text-sm text-gray-500">{stripeCurrency.toUpperCase()}</span>
                 </p>
-                {discount && (
+                {hasDiscount && discountAmount > 0 && (
                   <p className="mt-1 text-sm text-green-600">
-                    {discountPercent > 0
-                      ? `${discountPercent}% discount applied`
-                      : `$${discountAmountOff.toFixed(2)} discount applied`
-                    }
-                    {discount.coupon.name && ` (${discount.coupon.name})`}
+                    ${discountAmount.toFixed(2)} discount applied
                   </p>
                 )}
               </div>
@@ -336,13 +333,8 @@ export default function BillingPage() {
                   <p className="text-sm font-medium text-gray-900">Price per brand</p>
                   <p className="text-sm text-gray-500">
                     ${pricePerBrand.toFixed(2)} / month × {brandCount} {brandCount === 1 ? 'brand' : 'brands'}
-                    {discount && (
-                      <span className="text-green-600">
-                        {discountPercent > 0
-                          ? ` - ${discountPercent}%`
-                          : ` - $${discountAmountOff.toFixed(2)}`
-                        }
-                      </span>
+                    {hasDiscount && discountAmount > 0 && (
+                      <span className="text-green-600"> - ${discountAmount.toFixed(2)} discount</span>
                     )}
                   </p>
                 </div>
@@ -485,13 +477,8 @@ export default function BillingPage() {
               
               <p className="pt-3 border-t border-blue-200 font-medium">
                 Current Price: ${pricePerBrand.toFixed(2)} {stripeCurrency.toUpperCase()} per brand per month
-                {discount && (
-                  <span className="text-green-700">
-                    {discountPercent > 0
-                      ? ` (${discountPercent}% discount applied)`
-                      : ` ($${discountAmountOff.toFixed(2)} discount applied)`
-                    }
-                  </span>
+                {hasDiscount && discountAmount > 0 && (
+                  <span className="text-green-700"> (${discountAmount.toFixed(2)} discount applied)</span>
                 )}
               </p>
             </div>
