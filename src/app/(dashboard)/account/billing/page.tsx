@@ -365,7 +365,12 @@ export default function BillingPage() {
                   <li key={brand.id} className="py-3 flex items-center justify-between">
                     <span className="text-sm text-gray-900">{brand.name}</span>
                     <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-500">${pricePerBrand.toFixed(2)}/month</span>
+                      <span className="text-sm text-gray-500">
+                        ${(totalMonthly / brandCount).toFixed(2)}/month
+                        {hasDiscount && discountAmount > 0 && (
+                          <span className="text-green-600 ml-1">(discounted)</span>
+                        )}
+                      </span>
                       {canManageBilling && brands.length > 1 && (
                         <button
                           onClick={() => handleRemoveBrand(brand)}
