@@ -251,7 +251,7 @@ export async function getSubscriptionDetails(groupId: string) {
     }
 
     const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id, {
-      expand: ['latest_invoice', 'default_payment_method'],
+      expand: ['latest_invoice', 'default_payment_method', 'discount.coupon'],
     })
 
     const customer = await stripe.customers.retrieve(group.stripe_customer_id!)
