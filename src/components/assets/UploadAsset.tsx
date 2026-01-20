@@ -7,9 +7,10 @@ interface UploadAssetProps {
   brandId: string
   onUploadSuccess: (assetIds: string[]) => void
   onUploadError: (error: string) => void
+  label?: string
 }
 
-export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }: UploadAssetProps) {
+export default function UploadAsset({ brandId, onUploadSuccess, onUploadError, label = 'Upload images/videos' }: UploadAssetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const { uploadAsset, uploading, progress } = useUploadAsset()
@@ -127,7 +128,7 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError }:
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span>Upload images</span>
+            <span>{label}</span>
           </>
         )}
       </button>

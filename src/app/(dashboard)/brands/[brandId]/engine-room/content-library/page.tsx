@@ -536,6 +536,7 @@ export default function ContentLibraryPage() {
                       brandId={brandId}
                       onUploadSuccess={handleUploadSuccess}
                       onUploadError={handleUploadError}
+                      label={mediaFilter === 'videos' ? 'Add videos' : 'Add images'}
                     />
                   </div>
                 </div>
