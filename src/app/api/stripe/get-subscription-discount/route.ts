@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
 
     // Check if subscription has discounts
     const discounts = subscription.discounts
+    console.log('Subscription details:', {
+      id: subscription.id,
+      status: subscription.status,
+      discounts: discounts,
+      discountsLength: discounts?.length || 0,
+    })
+
     if (!discounts || discounts.length === 0) {
       console.log('No discounts on subscription')
       return NextResponse.json({

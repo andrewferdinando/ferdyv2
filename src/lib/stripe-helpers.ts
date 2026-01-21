@@ -58,7 +58,30 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
 
     // Add coupon if provided (using discounts array for newer Stripe API)
     if (couponCode) {
-      subscriptionParams.discounts = [{ coupon: couponCode.trim() }]
+      const trimmedCode = couponCode.trim()
+
+      // First, try to find as a promotion code (customer-facing codes)
+      try {
+        const promoCodes = await stripe.promotionCodes.list({
+          code: trimmedCode,
+          active: true,
+          limit: 1,
+        })
+
+        if (promoCodes.data.length > 0) {
+          // Use the promotion code ID
+          subscriptionParams.discounts = [{ promotion_code: promoCodes.data[0].id }]
+          console.log('Applied promotion code:', promoCodes.data[0].code)
+        } else {
+          // Try as a direct coupon ID
+          subscriptionParams.discounts = [{ coupon: trimmedCode }]
+          console.log('Applied coupon ID:', trimmedCode)
+        }
+      } catch (promoError) {
+        // If promotion code lookup fails, try as coupon ID
+        console.log('Promotion code lookup failed, trying as coupon ID:', trimmedCode)
+        subscriptionParams.discounts = [{ coupon: trimmedCode }]
+      }
     }
 
     // Create subscription with payment_behavior: 'default_incomplete'
