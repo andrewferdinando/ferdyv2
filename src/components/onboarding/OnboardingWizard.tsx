@@ -225,7 +225,7 @@ export function OnboardingWizard() {
                 <>
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Your Name
+                      Your Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="name"
@@ -241,7 +241,7 @@ export function OnboardingWizard() {
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                      Email
+                      Email <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="email"
@@ -257,7 +257,7 @@ export function OnboardingWizard() {
 
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                      Password
+                      Password <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="password"
@@ -275,7 +275,7 @@ export function OnboardingWizard() {
                   {data.isMultipleBrands && (
                     <div>
                       <label htmlFor="groupName" className="block text-sm font-medium text-gray-700">
-                        Company/Agency Name
+                        Company/Agency Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         id="groupName"
@@ -292,7 +292,7 @@ export function OnboardingWizard() {
 
                   <div>
                     <label htmlFor="brandName" className="block text-sm font-medium text-gray-700">
-                      {data.isMultipleBrands ? 'First Brand Name' : 'Brand Name'}
+                      {data.isMultipleBrands ? 'First Brand Name' : 'Brand Name'} <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="brandName"
@@ -319,14 +319,11 @@ export function OnboardingWizard() {
                       className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                       placeholder="https://www.example.com"
                     />
-                    <p className="mt-1 text-xs text-gray-500">
-                      We'll use this to generate AI-powered content suggestions
-                    </p>
                   </div>
 
                   <div>
                     <label htmlFor="countryCode" className="block text-sm font-medium text-gray-700">
-                      Country
+                      Country <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="countryCode"
