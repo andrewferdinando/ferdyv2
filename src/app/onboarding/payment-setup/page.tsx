@@ -79,14 +79,18 @@ export default function PaymentSetupPage() {
         const count = brands?.length || 1
         setBrandCount(count)
 
-        // Fetch initial pricing
-        await fetchPricing(count)
-
         // Check if there's already an incomplete subscription
         if (userGroup.stripe_subscription_id && userGroup.subscription_status === 'incomplete') {
           setHasExistingSubscription(true)
+
+          // Fetch discount info from existing subscription
+          await fetchSubscriptionDiscount(userGroup.id)
+
           // For existing subscriptions, automatically fetch the payment setup
           await fetchPaymentSetup(userGroup, user.email, count)
+        } else {
+          // Fetch initial pricing (no existing subscription)
+          await fetchPricing(count)
         }
 
         setLoading(false)
@@ -122,6 +126,42 @@ export default function PaymentSetupPage() {
       }
     } catch (err) {
       console.error('Error fetching pricing:', err)
+      return null
+    }
+  }
+
+  const fetchSubscriptionDiscount = async (groupId: string) => {
+    try {
+      const response = await fetch('/api/stripe/get-subscription-discount', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      })
+
+      const data = await response.json()
+      console.log('Subscription discount response:', data)
+
+      if (data.hasDiscount || data.baseUnitPrice) {
+        setPricing({
+          baseUnitPrice: data.baseUnitPrice,
+          baseTotal: data.baseTotal,
+          discountedUnitPrice: data.discountedUnitPrice,
+          discountedTotal: data.discountedTotal,
+          discountAmount: data.discountAmount,
+          discountPercent: data.discountPercent,
+          currency: data.currency,
+          couponName: data.couponName,
+          couponDuration: data.couponDuration,
+          couponDurationMonths: data.couponDurationMonths,
+        })
+        if (data.hasDiscount) {
+          setCouponApplied(true)
+        }
+        return data
+      }
+      return null
+    } catch (err) {
+      console.error('Error fetching subscription discount:', err)
       return null
     }
   }
