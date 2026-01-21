@@ -85,7 +85,7 @@ export function OnboardingWizard() {
 
     try {
       // Validate required fields
-      if (!data.name || !data.email || !data.password || !data.brandName) {
+      if (!data.name || !data.email || !data.password || !data.brandName || !data.websiteUrl || data.websiteUrl === 'https://') {
         throw new Error('Please fill in all required fields')
       }
 
@@ -308,12 +308,13 @@ export function OnboardingWizard() {
 
                   <div>
                     <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700">
-                      Brand Website (Optional)
+                      Brand Website <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="websiteUrl"
                       name="websiteUrl"
                       type="url"
+                      required
                       value={data.websiteUrl}
                       onChange={(e) => setData({ ...data, websiteUrl: e.target.value })}
                       className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
