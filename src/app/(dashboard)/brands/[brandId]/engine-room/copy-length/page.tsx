@@ -104,11 +104,15 @@ export default function EngineRoomCopyLengthPage() {
                       Default copy length
                     </label>
                     <div className="mt-2 space-y-3">
-                      {(['short', 'medium', 'long'] as CopyLength[]).map((option) => (
+                      {([
+                        { value: 'short', label: 'Short', description: '1 sentence' },
+                        { value: 'medium', label: 'Medium', description: '3–5 sentences' },
+                        { value: 'long', label: 'Long', description: '6–8 sentences' },
+                      ] as const).map((option) => (
                         <label
-                          key={option}
-                          className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                            defaultCopyLength === option
+                          key={option.value}
+                          className={`flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            defaultCopyLength === option.value
                               ? 'border-[#6366F1] bg-[#EEF2FF]'
                               : 'border-gray-200 bg-white hover:border-gray-300'
                           }`}
@@ -116,14 +120,19 @@ export default function EngineRoomCopyLengthPage() {
                           <input
                             type="radio"
                             name="copyLength"
-                            value={option}
-                            checked={defaultCopyLength === option}
+                            value={option.value}
+                            checked={defaultCopyLength === option.value}
                             onChange={(e) => setDefaultCopyLength(e.target.value as CopyLength)}
-                            className="w-4 h-4 text-[#6366F1] focus:ring-[#6366F1] focus:ring-2"
+                            className="mt-0.5 w-4 h-4 text-[#6366F1] focus:ring-[#6366F1] focus:ring-2"
                           />
-                          <span className="ml-3 text-sm font-medium text-gray-900 capitalize">
-                            {option}
-                          </span>
+                          <div className="ml-3">
+                            <span className="text-sm font-medium text-gray-900">
+                              {option.label}
+                            </span>
+                            <span className="ml-2 text-sm text-gray-500">
+                              — {option.description}
+                            </span>
+                          </div>
                         </label>
                       ))}
                     </div>

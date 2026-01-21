@@ -2791,7 +2791,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       <FormField label="Post length (default for this category)" required>
                         <div className="flex flex-col gap-3">
                           {[
-                            { value: 'short', label: 'Short', description: '1–2 sentences' },
+                            { value: 'short', label: 'Short', description: '1 sentence' },
                             { value: 'medium', label: 'Medium', description: '3–5 sentences' },
                             { value: 'long', label: 'Long', description: '6–8 sentences' },
                           ].map((option) => {
