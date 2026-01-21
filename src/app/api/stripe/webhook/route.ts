@@ -145,14 +145,25 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     
     const brandCount = brands?.length || 1
     
-    // Format billing period dates
-    const periodStart = invoice.period_start 
-      ? new Date(invoice.period_start * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    
-    const periodEnd = invoice.period_end
-      ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    // Format billing period dates from subscription line item (more accurate than invoice.period_start/end)
+    const dateFormat: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+    let periodStart: string
+    let periodEnd: string
+
+    // Get the billing period from the first subscription line item
+    const subscriptionLineItem = invoice.lines?.data?.find(line => line.type === 'subscription')
+    if (subscriptionLineItem?.period) {
+      periodStart = new Date(subscriptionLineItem.period.start * 1000).toLocaleDateString('en-US', dateFormat)
+      periodEnd = new Date(subscriptionLineItem.period.end * 1000).toLocaleDateString('en-US', dateFormat)
+    } else {
+      // Fallback to invoice period (may be same date for non-subscription invoices)
+      periodStart = invoice.period_start
+        ? new Date(invoice.period_start * 1000).toLocaleDateString('en-US', dateFormat)
+        : new Date().toLocaleDateString('en-US', dateFormat)
+      periodEnd = invoice.period_end
+        ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', dateFormat)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', dateFormat)
+    }
     
     if (email) {
       await sendInvoicePaid({
