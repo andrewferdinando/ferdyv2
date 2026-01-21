@@ -45,7 +45,7 @@ export async function POST(request: Request, context: any) {
 
     const { data: accounts, error: fetchError } = await supabaseAdmin
       .from('social_accounts')
-      .select('provider, account_id, handle, token_encrypted')
+      .select('id, provider, account_id, handle, token_encrypted')
       .eq('brand_id', brandId)
       .in('provider', providerTargets)
 
@@ -74,6 +74,21 @@ export async function POST(request: Request, context: any) {
       }
     }
 
+    // Get the social account IDs (primary key) to delete related records first
+    const socialAccountIds = accounts.map(a => a.id)
+
+    // Delete related publishes records first (foreign key constraint)
+    const { error: publishesDeleteError } = await supabaseAdmin
+      .from('publishes')
+      .delete()
+      .in('social_account_id', socialAccountIds)
+
+    if (publishesDeleteError) {
+      console.warn('Failed to delete related publishes:', publishesDeleteError.message)
+      // Continue anyway - the records might not exist
+    }
+
+    // Now delete the social accounts
     const { error: deleteError } = await supabaseAdmin
       .from('social_accounts')
       .delete()
