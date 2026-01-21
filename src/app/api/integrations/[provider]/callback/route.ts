@@ -136,7 +136,12 @@ export async function GET(
     }
 
     const stateProvider = state.provider as SupportedProvider
-    if (stateProvider !== provider && !(provider === 'instagram' && stateProvider === 'facebook')) {
+    // Allow Facebook/Instagram interchangeability since Instagram uses Facebook OAuth
+    const isFacebookInstagramMatch =
+      (provider === 'instagram' && stateProvider === 'facebook') ||
+      (provider === 'facebook' && stateProvider === 'instagram')
+
+    if (stateProvider !== provider && !isFacebookInstagramMatch) {
       throw new Error('OAuth provider mismatch.')
     }
 
