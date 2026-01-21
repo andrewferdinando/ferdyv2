@@ -15,9 +15,9 @@ It covers:
 - How Ferdy stores and uses tokens
 - How posts are published
 - What happens when tokens expire
-- **✅ NEW:** Automatic token refresh system
-- **✅ NEW:** Disconnection detection and email alerts
-- Known gaps / future improvements
+- **✅ IMPLEMENTED:** Automatic token refresh system
+- **✅ IMPLEMENTED:** Disconnection detection and email alerts
+- **✅ IMPLEMENTED:** Proactive token health monitoring (cron job, warning emails, UI status)
 
 ---
 
@@ -297,15 +297,81 @@ When token refresh fails or publishing encounters auth errors, Ferdy now:
 - `/src/lib/emails/send.ts` - Email notification function
 - `/src/emails/SocialConnectionDisconnected.tsx` - Email template
 
-## 6.3 What is not implemented yet
+## ✅ 6.3 Proactive Token Health Monitoring (IMPLEMENTED)
 
-**Proactive Health Monitoring (Optional Future Enhancement):**
-- Scheduled job to check token expiry proactively
-- Send warning emails before tokens expire
-- Currently, tokens are only refreshed on-demand when publishing
-- This works well for active brands, but inactive brands may still see token expiry
+As of January 2025, Ferdy now **proactively monitors token health** to prevent disconnections before they happen.
 
-**Note:** The current on-demand refresh system solves 95% of use cases. Proactive monitoring can be added later if needed.
+### Long-Lived Token Exchange on Connect
+
+When users first connect Facebook or Instagram, Ferdy now automatically:
+1. Exchanges the short-lived token (1-2 hours) for a long-lived token (60 days)
+2. Stores the long-lived token expiry date
+3. Page Access Tokens obtained with long-lived user tokens are effectively **never-expiring**
+
+**Implementation:** `/src/lib/integrations/facebook.ts` - `exchangeFacebookCodeForToken()`
+
+### Daily Token Expiry Check (Cron Job)
+
+A daily cron job runs at 8 AM UTC to proactively manage tokens:
+
+1. **Finds all tokens expiring within 7 days**
+2. **Attempts automatic refresh** for each expiring token
+3. **Sends warning emails** if refresh fails or isn't possible
+4. **Updates token status** in the database
+
+**Cron Schedule:** `0 8 * * *` (8 AM UTC daily)
+**Implementation:** `/src/app/api/emails/token-expiry-check/route.ts`
+
+### Token Expiring Warning Email
+
+When a token is expiring and can't be auto-refreshed:
+
+**Template:** `TokenExpiringWarning.tsx`
+**Subject:** "[Platform] connection for [Brand] expires in X days"
+**Recipients:** All brand admins and editors
+**Content:**
+- Brand name and platform
+- Days until expiry (with urgent styling for ≤3 days)
+- Clear explanation of what will happen
+- Direct reconnect button
+
+**Implementation:** `/src/emails/TokenExpiringWarning.tsx`
+
+### Health Check API Endpoint
+
+An API endpoint validates token health on-demand:
+
+**Endpoint:** `POST /api/integrations/health-check`
+**Input:** `{ brandId, provider? }`
+**Returns:**
+- `status`: 'healthy' | 'expiring_soon' | 'expired' | 'invalid'
+- `daysUntilExpiry`: number or null
+- `lastVerified`: timestamp
+
+The endpoint makes actual API calls to validate tokens (not just checking expiry dates).
+
+**Implementation:** `/src/app/api/integrations/health-check/route.ts`
+
+### Integrations Page Status Display
+
+The integrations page now shows token health visually:
+
+- **🟢 Connected** - Token is valid with >7 days until expiry
+- **🟡 Refresh Soon** (amber badge) - Token expires within 7 days
+- **🔴 Reconnect Required** (red badge) - Token expired or invalid
+- **"Expires in Xd"** - Shows days remaining for expiring tokens
+- **"Last verified X days ago"** - Shows when token was last validated
+
+**Implementation:** `/src/app/(dashboard)/brands/[brandId]/engine-room/integrations/page.tsx`
+
+### Result
+
+✅ Tokens are **exchanged for long-lived versions** on initial connect
+✅ Expiring tokens are **detected 7 days in advance**
+✅ Auto-refresh is **attempted proactively** (not just at publish time)
+✅ Users receive **warning emails** before tokens expire
+✅ **Visual indicators** in the UI show token health
+✅ Inactive brands are **no longer at risk** of silent token expiry
 
 ---
 
@@ -492,6 +558,17 @@ Disconnection handling:
 - Email alerts sent to all brand admins/editors
 - Email includes reconnect link and instructions
 
+Proactive health monitoring:
+
+✅ **Implemented** - Prevents disconnections before they happen.
+
+- Long-lived tokens exchanged on initial connect (60+ days)
+- Daily cron job checks tokens expiring within 7 days
+- Auto-refresh attempted proactively
+- Warning emails sent if refresh fails
+- UI shows token health status (green/amber/red badges)
+- Inactive brands are protected from silent expiry
+
 Primary usage pattern:
 
 Ferdy is mainly used for repeatable, automated posting:
@@ -504,8 +581,8 @@ Auto-publish via scheduled jobs.
 
 This file should be kept updated whenever:
 
-New platforms are added.
-
-Token refresh logic is implemented.
-
-The publishing pipeline changes.
+- New platforms are added
+- Token refresh logic changes
+- The publishing pipeline changes
+- Proactive monitoring features are modified
+- New email templates for token/connection alerts are added
