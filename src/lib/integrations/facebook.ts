@@ -114,7 +114,102 @@ async function exchangeFacebookCodeForToken(
   }
 }
 
-async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger) {
+async function fetchFacebookUserProfile(userAccessToken: string, logger?: OAuthLogger) {
+  const profileUrl = new URL('https://graph.facebook.com/v19.0/me')
+  profileUrl.searchParams.set('fields', 'id,name,email')
+  profileUrl.searchParams.set('access_token', userAccessToken)
+
+  try {
+    const response = await fetch(profileUrl, { method: 'GET' })
+    const raw = await response.text()
+
+    logger?.('facebook_user_profile', {
+      provider: 'facebook',
+      status: response.status,
+      ok: response.ok,
+      raw: raw.slice(0, 500),
+    })
+
+    if (response.ok) {
+      return JSON.parse(raw) as { id: string; name?: string; email?: string }
+    }
+  } catch (error) {
+    logger?.('facebook_user_profile_error', {
+      provider: 'facebook',
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+  }
+  return null
+}
+
+async function fetchTokenPermissions(userAccessToken: string, logger?: OAuthLogger) {
+  const permissionsUrl = new URL('https://graph.facebook.com/v19.0/me/permissions')
+  permissionsUrl.searchParams.set('access_token', userAccessToken)
+
+  try {
+    const response = await fetch(permissionsUrl, { method: 'GET' })
+    const raw = await response.text()
+
+    logger?.('facebook_permissions_response', {
+      provider: 'facebook',
+      status: response.status,
+      ok: response.ok,
+      raw: raw.slice(0, 1000),
+    })
+
+    if (response.ok) {
+      const data = JSON.parse(raw) as { data?: Array<{ permission: string; status: string }> }
+      return data.data || []
+    }
+  } catch (error) {
+    logger?.('facebook_permissions_error', {
+      provider: 'facebook',
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+  }
+  return []
+}
+
+interface FacebookPagesResult {
+  data?: Array<{
+    id: string
+    name: string
+    access_token: string
+    instagram_business_account?: { id: string }
+  }>
+  _debug?: {
+    userId?: string
+    userName?: string
+    grantedPermissions: string[]
+    declinedPermissions: string[]
+    hasPageShowList: boolean
+    hasPagesManagePosts: boolean
+  }
+}
+
+async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger): Promise<FacebookPagesResult> {
+  // First fetch user profile to see who is authorizing
+  const userProfile = await fetchFacebookUserProfile(userAccessToken, logger)
+
+  // Then check what permissions the token actually has
+  const permissions = await fetchTokenPermissions(userAccessToken, logger)
+  const grantedPermissions = permissions.filter(p => p.status === 'granted').map(p => p.permission)
+  const declinedPermissions = permissions.filter(p => p.status === 'declined').map(p => p.permission)
+
+  const debugInfo = {
+    userId: userProfile?.id,
+    userName: userProfile?.name,
+    grantedPermissions,
+    declinedPermissions,
+    hasPageShowList: grantedPermissions.includes('pages_show_list'),
+    hasPagesManagePosts: grantedPermissions.includes('pages_manage_posts'),
+  }
+
+  logger?.('facebook_token_permissions', {
+    provider: 'facebook',
+    ...debugInfo,
+  })
+
   const pagesUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
   pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account')
   pagesUrl.searchParams.set('access_token', userAccessToken)
@@ -139,14 +234,9 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   }
 
   try {
-    return JSON.parse(raw) as {
-      data?: Array<{
-        id: string
-        name: string
-        access_token: string
-        instagram_business_account?: { id: string }
-      }>
-    }
+    const result = JSON.parse(raw) as FacebookPagesResult
+    result._debug = debugInfo
+    return result
   } catch (error) {
     logger?.('facebook_pages_parse_error', {
       provider: 'facebook',
@@ -207,7 +297,19 @@ export async function handleFacebookCallback({
 
   const pages = pagesResponse.data || []
   if (!pages.length) {
-    throw new Error('No Facebook pages were returned. Please go to Facebook Settings → Apps and Websites → Remove Ferdy, then reconnect and make sure to select your pages when prompted.')
+    const debug = pagesResponse._debug
+
+    // Provide specific error message based on what we found
+    if (debug && !debug.hasPageShowList) {
+      throw new Error('Facebook did not grant page access permissions. Please reconnect and make sure to select "Yes" when Facebook asks if you want to grant access to your pages.')
+    }
+
+    if (debug && debug.grantedPermissions.length === 0) {
+      throw new Error('No permissions were granted. Please try connecting again and accept all the requested permissions when prompted by Facebook.')
+    }
+
+    // If permissions look fine but no pages, the user likely doesn't manage any pages
+    throw new Error(`No Facebook pages found. The Facebook account "${debug?.userName || 'connected'}" does not appear to manage any Facebook Pages. Please make sure you are an admin of the Facebook Page you want to connect, or try logging into a different Facebook account.`)
   }
 
   const primaryPage = pages[0]
