@@ -8,6 +8,19 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
+interface PricingInfo {
+  baseUnitPrice: number
+  baseTotal: number
+  discountedUnitPrice: number
+  discountedTotal: number
+  discountAmount: number
+  discountPercent: number
+  currency: string
+  couponName: string | null
+  couponDuration?: string
+  couponDurationMonths?: number
+}
+
 export default function PaymentSetupPage() {
   const router = useRouter()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
@@ -19,6 +32,10 @@ export default function PaymentSetupPage() {
   const [brandCount, setBrandCount] = useState(1)
   const [couponCode, setCouponCode] = useState('')
   const [hasExistingSubscription, setHasExistingSubscription] = useState(false)
+  const [pricing, setPricing] = useState<PricingInfo | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [couponApplied, setCouponApplied] = useState(false)
 
   useEffect(() => {
     async function initializePayment() {
@@ -62,6 +79,9 @@ export default function PaymentSetupPage() {
         const count = brands?.length || 1
         setBrandCount(count)
 
+        // Fetch initial pricing
+        await fetchPricing(count)
+
         // Check if there's already an incomplete subscription
         if (userGroup.stripe_subscription_id && userGroup.subscription_status === 'incomplete') {
           setHasExistingSubscription(true)
@@ -79,6 +99,75 @@ export default function PaymentSetupPage() {
 
     initializePayment()
   }, [router])
+
+  const fetchPricing = async (count: number, coupon?: string) => {
+    try {
+      const response = await fetch('/api/stripe/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          couponCode: coupon || undefined,
+          brandCount: count,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.valid) {
+        setPricing(data)
+        return data
+      } else {
+        return null
+      }
+    } catch (err) {
+      console.error('Error fetching pricing:', err)
+      return null
+    }
+  }
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code')
+      return
+    }
+
+    setCouponLoading(true)
+    setCouponError(null)
+
+    try {
+      const response = await fetch('/api/stripe/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          couponCode: couponCode.trim(),
+          brandCount,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.valid) {
+        setPricing(data)
+        setCouponApplied(true)
+        setCouponError(null)
+      } else {
+        setCouponError(data.error || 'Invalid coupon code')
+        setCouponApplied(false)
+      }
+    } catch (err: any) {
+      setCouponError('Failed to validate coupon')
+      setCouponApplied(false)
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = async () => {
+    setCouponCode('')
+    setCouponApplied(false)
+    setCouponError(null)
+    await fetchPricing(brandCount)
+  }
 
   const fetchPaymentSetup = async (userGroup: any, email: string, count: number, coupon?: string) => {
     setSetupLoading(true)
@@ -148,8 +237,15 @@ export default function PaymentSetupPage() {
     )
   }
 
+  // Helper to format price
+  const formatPrice = (cents: number, currency: string) => {
+    return `$${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+  }
+
   // Show coupon input if no subscription exists yet
   if (!clientSecret && !hasExistingSubscription) {
+    const hasDiscount = pricing && pricing.discountAmount > 0
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -157,9 +253,34 @@ export default function PaymentSetupPage() {
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
               Complete Payment Setup
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              {group && `$${(group.price_per_brand_cents / 100).toFixed(2)} NZD/month per brand`}
-            </p>
+            {pricing ? (
+              <div className="mt-2 text-center">
+                {hasDiscount ? (
+                  <>
+                    <p className="text-sm text-gray-500 line-through">
+                      {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                    </p>
+                    <p className="text-lg font-semibold text-green-600">
+                      {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
+                    </p>
+                    <p className="text-sm text-green-600">
+                      {pricing.discountPercent}% off
+                      {pricing.couponDuration === 'forever' && ' forever'}
+                      {pricing.couponDuration === 'once' && ' (first month)'}
+                      {pricing.couponDuration === 'repeating' && pricing.couponDurationMonths && ` for ${pricing.couponDurationMonths} months`}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-center text-sm text-gray-600">
+                Loading pricing...
+              </p>
+            )}
             <p className="mt-1 text-center text-sm text-gray-500">
               {brandCount} {brandCount === 1 ? 'brand' : 'brands'}
             </p>
@@ -170,15 +291,49 @@ export default function PaymentSetupPage() {
               <label htmlFor="couponCode" className="block text-sm font-medium text-gray-700">
                 Coupon Code (Optional)
               </label>
-              <input
-                id="couponCode"
-                name="couponCode"
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Enter coupon code"
-              />
+              <div className="mt-1 flex gap-2">
+                <input
+                  id="couponCode"
+                  name="couponCode"
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value)
+                    if (couponApplied) {
+                      setCouponApplied(false)
+                    }
+                  }}
+                  disabled={couponApplied}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:bg-gray-100"
+                  placeholder="Enter coupon code"
+                />
+                {couponApplied ? (
+                  <button
+                    onClick={handleRemoveCoupon}
+                    type="button"
+                    className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    type="button"
+                    className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {couponLoading ? '...' : 'Apply'}
+                  </button>
+                )}
+              </div>
+              {couponApplied && pricing?.couponName && (
+                <p className="mt-2 text-sm text-green-600">
+                  Coupon "{pricing.couponName}" applied!
+                </p>
+              )}
+              {couponError && (
+                <p className="mt-2 text-sm text-red-600">{couponError}</p>
+              )}
             </div>
 
             {error && (
@@ -221,6 +376,8 @@ export default function PaymentSetupPage() {
     )
   }
 
+  const hasDiscount = pricing && pricing.discountAmount > 0
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -228,9 +385,34 @@ export default function PaymentSetupPage() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Complete Payment Setup
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {group && `$${(group.price_per_brand_cents / 100).toFixed(2)} NZD/month per brand`}
-          </p>
+          {pricing ? (
+            <div className="mt-2 text-center">
+              {hasDiscount ? (
+                <>
+                  <p className="text-sm text-gray-500 line-through">
+                    {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                  </p>
+                  <p className="text-lg font-semibold text-green-600">
+                    {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
+                  </p>
+                  <p className="text-sm text-green-600">
+                    {pricing.discountPercent}% off
+                    {pricing.couponDuration === 'forever' && ' forever'}
+                    {pricing.couponDuration === 'once' && ' (first month)'}
+                    {pricing.couponDuration === 'repeating' && pricing.couponDurationMonths && ` for ${pricing.couponDurationMonths} months`}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-2 text-center text-sm text-gray-600">
+              {group && `$${(group.price_per_brand_cents / 100).toFixed(2)} NZD/month per brand`}
+            </p>
+          )}
         </div>
 
         <Elements stripe={stripePromise} options={{ clientSecret }}>
