@@ -112,6 +112,7 @@ export default function PaymentSetupPage() {
       })
 
       const data = await response.json()
+      console.log('Initial pricing response:', data)
 
       if (data.valid) {
         setPricing(data)
@@ -145,8 +146,15 @@ export default function PaymentSetupPage() {
       })
 
       const data = await response.json()
+      console.log('Coupon validation response:', data)
 
       if (data.valid) {
+        console.log('Setting pricing with discount:', {
+          baseUnitPrice: data.baseUnitPrice,
+          discountedUnitPrice: data.discountedUnitPrice,
+          discountAmount: data.discountAmount,
+          discountPercent: data.discountPercent,
+        })
         setPricing(data)
         setCouponApplied(true)
         setCouponError(null)
