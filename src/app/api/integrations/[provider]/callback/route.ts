@@ -181,7 +181,14 @@ export async function GET(
       }
     }
 
+    console.log('[OAuth callback:checking_access]', {
+      brandId: state.brandId,
+      userId: state.userId,
+    })
+
     const hasAccess = await requireAdmin(state.brandId, state.userId)
+    console.log('[OAuth callback:access_result]', { hasAccess })
+
     if (!hasAccess) {
       throw new Error('You no longer have permission to manage this brand.')
     }
@@ -274,6 +281,12 @@ export async function GET(
         }
       }
     }
+
+    console.log('[OAuth callback:all_accounts_saved]', {
+      brandId: state.brandId,
+      providers: targetProviders,
+      accountCount: accounts.length,
+    })
 
     const successRedirect = getRedirectUrl(originForRedirect, state.brandId, {
       connected: targetProviders.join(','),
