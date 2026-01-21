@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
@@ -176,11 +176,43 @@ function ClientAuthGate() {
 
 export default function IntegrationsPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const brandId = params.brandId as string
   const { accounts, loading, disconnectAccount, refetch } = useSocialAccounts(brandId)
   const { isAdmin, loading: roleLoading } = useUserRole(brandId)
   const [actionProvider, setActionProvider] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Handle URL query params from OAuth callback redirects
+  useEffect(() => {
+    const error = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
+    const connected = searchParams.get('connected')
+
+    if (error || errorDescription) {
+      setErrorMessage(errorDescription || error || 'An error occurred during connection.')
+      // Clear the URL params without triggering a navigation
+      const url = new URL(window.location.href)
+      url.searchParams.delete('error')
+      url.searchParams.delete('error_description')
+      url.searchParams.delete('reason')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    if (connected) {
+      const providers = connected.split(',').map(p => p.trim()).filter(Boolean)
+      if (providers.length > 0) {
+        const names = providers.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' and ')
+        setSuccessMessage(`Successfully connected ${names}!`)
+        refetch()
+        // Clear the URL params
+        const url = new URL(window.location.href)
+        url.searchParams.delete('connected')
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
+  }, [searchParams, refetch])
 
   const accountsByProvider = useMemo(() => {
     const map = new Map<string, typeof accounts[number]>()
@@ -192,6 +224,7 @@ export default function IntegrationsPage() {
 
   const handleConnect = async (providerId: string) => {
     setErrorMessage(null)
+    setSuccessMessage(null)
     setActionProvider(providerId)
     try {
     console.log('[oauth click]', providerId)
@@ -231,6 +264,7 @@ export default function IntegrationsPage() {
 
   const handleDisconnect = async (providerId: string) => {
     setErrorMessage(null)
+    setSuccessMessage(null)
     setActionProvider(providerId)
     try {
       await disconnectAccount(providerId)
@@ -270,6 +304,12 @@ export default function IntegrationsPage() {
                 Connect your brand’s social accounts to schedule and publish directly from Ferdy.
               </p>
             </div>
+
+            {successMessage && (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {successMessage}
+              </div>
+            )}
 
             {errorMessage && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
