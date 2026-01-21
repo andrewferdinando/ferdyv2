@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { decryptToken, encryptToken } from '@/lib/encryption'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -49,17 +50,29 @@ export async function refreshMetaToken(socialAccount: SocialAccount): Promise<{
 }> {
   try {
     console.log(`[refreshMetaToken] Refreshing token for ${socialAccount.provider} account ${socialAccount.id}`)
-    
+
+    // Decrypt the token before sending to Facebook
+    let decryptedToken: string
+    try {
+      decryptedToken = decryptToken(socialAccount.token_encrypted)
+    } catch (decryptError) {
+      console.error(`[refreshMetaToken] Failed to decrypt token:`, decryptError)
+      return {
+        success: false,
+        error: 'Failed to decrypt stored token'
+      }
+    }
+
     // Exchange current token for new long-lived token
     const url = `https://graph.facebook.com/v24.0/oauth/access_token?` +
       `grant_type=fb_exchange_token&` +
       `client_id=${FACEBOOK_APP_ID}&` +
       `client_secret=${FACEBOOK_APP_SECRET}&` +
-      `fb_exchange_token=${socialAccount.token_encrypted}`
-    
+      `fb_exchange_token=${encodeURIComponent(decryptedToken)}`
+
     const response = await fetch(url)
     const data = await response.json()
-    
+
     if (!response.ok || data.error) {
       console.error(`[refreshMetaToken] Failed to refresh token:`, data.error)
       return {
@@ -67,9 +80,9 @@ export async function refreshMetaToken(socialAccount: SocialAccount): Promise<{
         error: data.error?.message || 'Unknown error'
       }
     }
-    
+
     console.log(`[refreshMetaToken] Successfully refreshed token, expires in ${data.expires_in} seconds`)
-    
+
     return {
       success: true,
       accessToken: data.access_token,
@@ -96,17 +109,29 @@ export async function refreshLinkedInToken(socialAccount: SocialAccount): Promis
 }> {
   try {
     console.log(`[refreshLinkedInToken] Refreshing token for LinkedIn account ${socialAccount.id}`)
-    
+
     if (!socialAccount.refresh_token_encrypted) {
       return {
         success: false,
         error: 'No refresh token available'
       }
     }
-    
+
+    // Decrypt the refresh token before sending to LinkedIn
+    let decryptedRefreshToken: string
+    try {
+      decryptedRefreshToken = decryptToken(socialAccount.refresh_token_encrypted)
+    } catch (decryptError) {
+      console.error(`[refreshLinkedInToken] Failed to decrypt refresh token:`, decryptError)
+      return {
+        success: false,
+        error: 'Failed to decrypt stored refresh token'
+      }
+    }
+
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: socialAccount.refresh_token_encrypted,
+      refresh_token: decryptedRefreshToken,
       client_id: LINKEDIN_CLIENT_ID,
       client_secret: LINKEDIN_CLIENT_SECRET
     })
@@ -217,21 +242,35 @@ export async function refreshSocialAccountToken(socialAccountId: string): Promis
       }
     }
     
-    // Update the database with new token
-    const expiresAt = refreshResult.expiresIn 
+    // Update the database with new token (encrypted)
+    const expiresAt = refreshResult.expiresIn
       ? new Date(Date.now() + refreshResult.expiresIn * 1000).toISOString()
       : null
-    
+
+    // Encrypt the new tokens before storing
+    const encryptedAccessToken = refreshResult.accessToken
+      ? encryptToken(refreshResult.accessToken)
+      : null
+
+    if (!encryptedAccessToken) {
+      console.error(`[refreshSocialAccountToken] No access token to encrypt`)
+      return {
+        success: false,
+        refreshed: true,
+        error: 'No access token returned from refresh'
+      }
+    }
+
     const updateData: any = {
-      token_encrypted: refreshResult.accessToken,
+      token_encrypted: encryptedAccessToken,
       token_expires_at: expiresAt,
       last_refreshed_at: new Date().toISOString(),
       status: 'connected' // Ensure status is set back to connected
     }
-    
-    // Update refresh token for LinkedIn if provided
+
+    // Update refresh token for LinkedIn if provided (also encrypted)
     if (refreshResult.refreshToken) {
-      updateData.refresh_token_encrypted = refreshResult.refreshToken
+      updateData.refresh_token_encrypted = encryptToken(refreshResult.refreshToken)
     }
     
     const { error: updateError } = await supabaseAdmin

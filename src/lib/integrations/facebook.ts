@@ -98,12 +98,9 @@ async function exchangeFacebookCodeForToken(
     throw new Error(`TOKEN_EXCHANGE_FAILED:facebook:${response.status}:${raw.slice(0, 200)}`)
   }
 
+  let tokenData: { access_token: string; token_type: string; expires_in?: number }
   try {
-    return JSON.parse(raw) as {
-      access_token: string
-      token_type: string
-      expires_in?: number
-    }
+    tokenData = JSON.parse(raw)
   } catch (error) {
     logger?.('token_parse_error', {
       provider: 'facebook',
@@ -112,6 +109,48 @@ async function exchangeFacebookCodeForToken(
     })
     throw new Error('TOKEN_EXCHANGE_FAILED:facebook:invalid_json')
   }
+
+  // Exchange short-lived token for long-lived token (60 days)
+  // This is crucial: Page tokens obtained with a long-lived user token are "never-expiring"
+  logger?.('long_lived_token_exchange', {
+    provider: 'facebook',
+    step: 'starting',
+  })
+
+  const longLivedUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
+  longLivedUrl.searchParams.set('grant_type', 'fb_exchange_token')
+  longLivedUrl.searchParams.set('client_id', clientId)
+  longLivedUrl.searchParams.set('client_secret', clientSecret)
+  longLivedUrl.searchParams.set('fb_exchange_token', tokenData.access_token)
+
+  const longLivedResponse = await fetch(longLivedUrl, { method: 'GET' })
+  const longLivedRaw = await longLivedResponse.text()
+
+  logger?.('long_lived_token_response', {
+    provider: 'facebook',
+    status: longLivedResponse.status,
+    ok: longLivedResponse.ok,
+    raw: longLivedRaw.slice(0, 500),
+  })
+
+  if (longLivedResponse.ok) {
+    try {
+      const longLivedData = JSON.parse(longLivedRaw) as { access_token: string; expires_in?: number }
+      console.log('[facebook] Exchanged for long-lived token, expires_in:', longLivedData.expires_in)
+      return {
+        access_token: longLivedData.access_token,
+        token_type: 'bearer',
+        expires_in: longLivedData.expires_in,
+      }
+    } catch {
+      // Fall back to short-lived token if parsing fails
+      console.warn('[facebook] Failed to parse long-lived token response, using short-lived token')
+    }
+  } else {
+    console.warn('[facebook] Failed to exchange for long-lived token, using short-lived token')
+  }
+
+  return tokenData
 }
 
 async function fetchFacebookUserProfile(userAccessToken: string, logger?: OAuthLogger) {
