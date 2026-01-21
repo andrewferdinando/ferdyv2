@@ -17,6 +17,9 @@ export type SocialAccountSummary = {
   connected_by?: {
     full_name: string | null
   } | null
+  // Computed fields for display
+  daysUntilExpiry?: number | null
+  isExpiringSoon?: boolean
 }
 
 export function useSocialAccounts(brandId: string) {
@@ -94,12 +97,27 @@ export function useSocialAccounts(brandId: string) {
         }
       }
 
-      const normalized: SocialAccountSummary[] = socialAccounts.map((account: any) => ({
-        ...account,
-        connected_by: account.connected_by_user_id
-          ? userNameLookup[account.connected_by_user_id] ?? null
-          : null,
-      }))
+      const now = new Date()
+      const normalized: SocialAccountSummary[] = socialAccounts.map((account: any) => {
+        let daysUntilExpiry: number | null = null
+        let isExpiringSoon = false
+
+        if (account.token_expires_at) {
+          const expiryDate = new Date(account.token_expires_at)
+          const diffMs = expiryDate.getTime() - now.getTime()
+          daysUntilExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+          isExpiringSoon = daysUntilExpiry <= 7 && daysUntilExpiry > 0
+        }
+
+        return {
+          ...account,
+          connected_by: account.connected_by_user_id
+            ? userNameLookup[account.connected_by_user_id] ?? null
+            : null,
+          daysUntilExpiry,
+          isExpiringSoon,
+        }
+      })
 
       setAccounts(normalized)
     } catch (err) {

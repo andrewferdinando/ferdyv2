@@ -11,6 +11,7 @@ import { WeeklyApprovalSummary } from '@/emails/WeeklyApprovalSummary'
 import { LowApprovedDraftsReminder } from '@/emails/LowApprovedDraftsReminder'
 import { PostPublished } from '@/emails/PostPublished'
 import { SocialConnectionDisconnected } from '@/emails/SocialConnectionDisconnected'
+import { TokenExpiringWarning } from '@/emails/TokenExpiringWarning'
 
 // Initialize Resend
 let resendInstance: Resend | null = null
@@ -113,6 +114,14 @@ export interface SocialConnectionDisconnectedData {
   to: string
   brandName: string
   platform: string
+  reconnectLink: string
+}
+
+export interface TokenExpiringWarningData {
+  to: string
+  brandName: string
+  platform: string
+  daysUntilExpiry: number
   reconnectLink: string
 }
 
@@ -345,7 +354,7 @@ export async function sendPostPublished(data: PostPublishedData) {
 
 export async function sendSocialConnectionDisconnected(data: SocialConnectionDisconnectedData) {
   const resend = getResend()
-  
+
   const html = await render(
     SocialConnectionDisconnected({
       brandName: data.brandName,
@@ -358,6 +367,30 @@ export async function sendSocialConnectionDisconnected(data: SocialConnectionDis
     from: FROM_EMAIL,
     to: data.to,
     subject: `Action Required: ${data.platform} Connection Lost`,
+    html,
+  })
+}
+
+export async function sendTokenExpiringWarning(data: TokenExpiringWarningData) {
+  const resend = getResend()
+
+  const urgencyText = data.daysUntilExpiry <= 1
+    ? 'expires tomorrow'
+    : `expires in ${data.daysUntilExpiry} days`
+
+  const html = await render(
+    TokenExpiringWarning({
+      brandName: data.brandName,
+      platform: data.platform,
+      daysUntilExpiry: data.daysUntilExpiry,
+      reconnectLink: data.reconnectLink,
+    })
+  )
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.to,
+    subject: `${data.platform} connection for ${data.brandName} ${urgencyText}`,
     html,
   })
 }

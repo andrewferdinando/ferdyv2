@@ -347,10 +347,50 @@ export default function IntegrationsPage() {
                         ? 'Change connection'
                         : 'Connect'
 
+                // Token status helpers
+                const isExpired = connectedAccount?.status === 'expired' || (connectedAccount?.daysUntilExpiry !== null && connectedAccount?.daysUntilExpiry !== undefined && connectedAccount.daysUntilExpiry <= 0)
+                const isExpiringSoon = connectedAccount?.isExpiringSoon
+
+                const getTokenStatusBadge = () => {
+                  if (!isConnected) return null
+                  if (isExpired) {
+                    return (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                        Expired
+                      </span>
+                    )
+                  }
+                  if (isExpiringSoon && connectedAccount?.daysUntilExpiry) {
+                    return (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        Expires in {connectedAccount.daysUntilExpiry}d
+                      </span>
+                    )
+                  }
+                  return null
+                }
+
+                const getLastRefreshedText = () => {
+                  if (!connectedAccount?.last_refreshed_at) return null
+                  const lastRefreshed = new Date(connectedAccount.last_refreshed_at)
+                  const now = new Date()
+                  const diffDays = Math.floor((now.getTime() - lastRefreshed.getTime()) / (1000 * 60 * 60 * 24))
+
+                  if (diffDays === 0) return 'Last verified today'
+                  if (diffDays === 1) return 'Last verified yesterday'
+                  return `Last verified ${diffDays} days ago`
+                }
+
                 const connectionSummary = isConnected ? (
-                  <div className="flex flex-col">
-                    <span className="text-gray-600">Connected as:</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Connected as:</span>
+                      {getTokenStatusBadge()}
+                    </div>
                     <span className="font-medium text-gray-900">{displayHandle}</span>
+                    {getLastRefreshedText() && (
+                      <span className="text-xs text-gray-500">{getLastRefreshedText()}</span>
+                    )}
                   </div>
                 ) : provider.id === 'linkedin' ? (
                   <>Connect LinkedIn Profile</>
@@ -366,11 +406,19 @@ export default function IntegrationsPage() {
                     <div className="flex items-center justify-between">
                       {renderSocialIcon(provider.icon, 'w-10 h-10')}
                       <span className="inline-flex h-6 items-center">
-                        {isConnected && (
+                        {isExpired ? (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                            Reconnect Required
+                          </span>
+                        ) : isExpiringSoon ? (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                            Refresh Soon
+                          </span>
+                        ) : isConnected ? (
                           <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                             Connected
                           </span>
-                        )}
+                        ) : null}
                       </span>
                     </div>
                     <h3 className="mt-4 text-lg font-semibold text-gray-900">{provider.name}</h3>
