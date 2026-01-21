@@ -207,7 +207,7 @@ export async function handleFacebookCallback({
 
   const pages = pagesResponse.data || []
   if (!pages.length) {
-    throw new Error('No Facebook pages were found for this account. Please ensure you manage at least one page.')
+    throw new Error('No Facebook pages were returned. Please go to Facebook Settings → Apps and Websites → Remove Ferdy, then reconnect and make sure to select your pages when prompted.')
   }
 
   const primaryPage = pages[0]
