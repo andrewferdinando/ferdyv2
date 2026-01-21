@@ -424,8 +424,6 @@ export default function PaymentSetupPage() {
     )
   }
 
-  const hasDiscount = pricing && pricing.discountAmount > 0
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -433,34 +431,6 @@ export default function PaymentSetupPage() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Complete Payment Setup
           </h2>
-          {pricing ? (
-            <div className="mt-2 text-center">
-              {hasDiscount ? (
-                <>
-                  <p className="text-sm text-gray-500 line-through">
-                    {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
-                  </p>
-                  <p className="text-lg font-semibold text-green-600">
-                    {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
-                  </p>
-                  <p className="text-sm text-green-600">
-                    {pricing.discountPercent}% off
-                    {pricing.couponDuration === 'forever' && ' forever'}
-                    {pricing.couponDuration === 'once' && ' (first month)'}
-                    {pricing.couponDuration === 'repeating' && pricing.couponDurationMonths && ` for ${pricing.couponDurationMonths} months`}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-gray-600">
-                  {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="mt-2 text-center text-sm text-gray-600">
-              {group && `$${(group.price_per_brand_cents / 100).toFixed(2)} NZD/month per brand`}
-            </p>
-          )}
         </div>
 
         <Elements stripe={stripePromise} options={{ clientSecret }}>
