@@ -21,6 +21,17 @@ interface OnboardingData {
   couponCode: string
 }
 
+interface PricingInfo {
+  baseUnitPrice: number
+  discountedUnitPrice: number
+  discountAmount: number
+  discountPercent: number
+  currency: string
+  couponName: string | null
+  couponDuration?: string
+  couponDurationMonths?: number
+}
+
 export function OnboardingWizard() {
   const [step, setStep] = useState(1)
   const [data, setData] = useState<OnboardingData>({
@@ -38,8 +49,34 @@ export function OnboardingWizard() {
   const [groupId, setGroupId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pricing, setPricing] = useState<PricingInfo | null>(null)
 
   const router = useRouter()
+
+  const fetchPricing = async (couponCode?: string) => {
+    try {
+      const response = await fetch('/api/stripe/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          couponCode: couponCode || undefined,
+          brandCount: 1,
+        }),
+      })
+
+      const pricingData = await response.json()
+      console.log('Pricing response:', pricingData)
+
+      if (pricingData.valid) {
+        setPricing(pricingData)
+        return pricingData
+      }
+      return null
+    } catch (err) {
+      console.error('Error fetching pricing:', err)
+      return null
+    }
+  }
 
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -120,6 +157,10 @@ export function OnboardingWizard() {
       const { clientSecret: secret } = await response.json()
       console.log('Got clientSecret:', secret ? 'YES' : 'NO')
       setClientSecret(secret)
+
+      // Fetch pricing info (with coupon if provided)
+      await fetchPricing(data.couponCode || undefined)
+
       console.log('Setting step to 2')
       setStep(2)
     } catch (err: any) {
@@ -345,7 +386,14 @@ export function OnboardingWizard() {
     )
   }
 
+  // Helper to format price
+  const formatPrice = (cents: number, currency: string) => {
+    return `$${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+  }
+
   if (step === 2 && clientSecret) {
+    const hasDiscount = pricing && pricing.discountAmount > 0
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -353,9 +401,34 @@ export function OnboardingWizard() {
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
               Payment Details
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              $147 NZD/month per brand
-            </p>
+            {pricing ? (
+              <div className="mt-2 text-center">
+                {hasDiscount ? (
+                  <>
+                    <p className="text-sm text-gray-500 line-through">
+                      {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                    </p>
+                    <p className="text-lg font-semibold text-green-600">
+                      {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
+                    </p>
+                    <p className="text-sm text-green-600">
+                      {pricing.discountPercent}% off
+                      {pricing.couponDuration === 'forever' && ' forever'}
+                      {pricing.couponDuration === 'once' && ' (first month)'}
+                      {pricing.couponDuration === 'repeating' && pricing.couponDurationMonths && ` for ${pricing.couponDurationMonths} months`}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-center text-sm text-gray-600">
+                Loading pricing...
+              </p>
+            )}
           </div>
 
           <Elements stripe={stripePromise} options={{ clientSecret }}>
