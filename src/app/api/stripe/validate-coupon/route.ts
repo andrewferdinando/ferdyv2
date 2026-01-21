@@ -41,11 +41,13 @@ export async function POST(request: NextRequest) {
         code: trimmedCode,
         active: true,
         limit: 1,
+        expand: ['data.coupon'],
       })
 
       if (promoCodes.data.length > 0) {
         promoCode = promoCodes.data[0]
-        coupon = promoCode.coupon
+        // The coupon is expanded on the promotion code
+        coupon = (promoCode as any).coupon as Stripe.Coupon
         console.log('Found promotion code:', promoCode.code, 'with coupon:', coupon.id)
       }
     } catch (promoError) {
