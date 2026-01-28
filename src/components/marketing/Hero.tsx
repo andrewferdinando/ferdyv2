@@ -54,13 +54,38 @@ export default function Hero() {
           </div>
 
           {/* Illustration */}
-          <div className="relative mx-auto max-w-6xl">
-            <div className="relative z-20 transform hover:scale-[1.02] transition-transform duration-500">
-              <img 
-                src="/images/scheduling_table_hero.png" 
-                alt="Ferdy scheduling interface showing categories, types, schedules and dates" 
-                className="w-full h-auto rounded-2xl shadow-2xl"
-              />
+          <div className="relative mx-auto max-w-4xl">
+            {/* Outer glow effect */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl"></div>
+
+            {/* Browser frame */}
+            <div className="relative z-20 transform hover:scale-[1.01] transition-transform duration-500">
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50">
+                {/* Browser header */}
+                <div className="bg-gray-100 px-4 py-3 flex items-center gap-2 border-b border-gray-200">
+                  {/* Traffic lights */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                  </div>
+                  {/* URL bar */}
+                  <div className="flex-1 mx-4">
+                    <div className="bg-white rounded-md px-3 py-1.5 text-sm text-gray-500 flex items-center gap-2 border border-gray-200">
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>app.ferdy.io</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Screenshot content */}
+                <img
+                  src="/images/published_post_screenshot.png"
+                  alt="Ferdy published post interface"
+                  className="w-full h-auto"
+                />
+              </div>
             </div>
           </div>
         </div>
