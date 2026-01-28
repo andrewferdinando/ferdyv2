@@ -53,14 +53,14 @@ export default function Hero() {
             </p>
           </div>
 
-          {/* Illustration - full bleed on mobile, contained on desktop */}
-          <div className="relative -mx-4 sm:-mx-6 md:mx-auto md:max-w-4xl">
-            {/* Outer glow effect - hidden on mobile for cleaner look */}
-            <div className="hidden md:block absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl"></div>
+          {/* Illustration */}
+          <div className="relative mx-auto max-w-sm sm:max-w-lg md:max-w-4xl">
+            {/* Outer glow effect */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl"></div>
 
             {/* Browser frame */}
-            <div className="relative z-20 md:transform md:hover:scale-[1.01] transition-transform duration-500">
-              <div className="bg-white md:rounded-2xl shadow-2xl overflow-hidden md:border md:border-gray-200/50">
+            <div className="relative z-20 transform hover:scale-[1.01] transition-transform duration-500">
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50">
                 {/* Browser header */}
                 <div className="bg-gray-100 px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-2 border-b border-gray-200">
                   {/* Traffic lights */}
