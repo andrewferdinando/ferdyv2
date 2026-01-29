@@ -1081,17 +1081,16 @@ function AssetDetailView({
                               : 'border-gray-200 bg-white hover:border-[#6366F1]/50'
                           }`}
                         >
-                          {/* Recommended badge */}
-                          {isRecommended && (
-                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                                Best fit
-                              </span>
-                            </div>
-                          )}
-
                           {/* Thumbnail preview */}
                           <div className={`${aspectStyle} relative w-full overflow-hidden rounded-lg bg-gray-100`}>
+                            {/* Recommended badge - positioned inside thumbnail for proper centering */}
+                            {isRecommended && (
+                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
+                                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 whitespace-nowrap">
+                                  Best fit
+                                </span>
+                              </div>
+                            )}
                             {!isImageLoading && displayAsset.signed_url && (
                               <img
                                 src={displayAsset.signed_url}

@@ -238,21 +238,17 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div
-        className={`relative overflow-hidden bg-gray-100 ${canPreview ? 'cursor-pointer' : ''}`}
-        onClick={canPreview ? handlePreviewClick : undefined}
-        role={canPreview ? 'button' : undefined}
-        tabIndex={canPreview ? 0 : undefined}
-        onKeyDown={
-          canPreview
-            ? (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  handlePreviewClick()
-                }
-              }
-            : undefined
-        }
-        aria-label={canPreview ? `Preview video ${asset.title}` : undefined}
+        className="relative overflow-hidden bg-gray-100 cursor-pointer"
+        onClick={() => onEdit(asset)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onEdit(asset)
+          }
+        }}
+        aria-label={`Edit ${asset.title}`}
       >
         {/* Fixed aspect ratio container - use 4:3 for consistent thumbnails */}
         <div className="aspect-[4/3] w-full">
