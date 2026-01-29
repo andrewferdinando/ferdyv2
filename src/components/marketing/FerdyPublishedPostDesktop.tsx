@@ -62,8 +62,8 @@ export default function FerdyPublishedPostDesktop() {
 
             {/* Copy with annotation */}
             <div className="flex-1 mt-2 sm:mt-0">
-              {/* Annotation: Auto-generated - positioned as callout */}
-              <div className="mb-2">
+              {/* Annotation: Auto-generated - above copy on desktop, below on mobile */}
+              <div className="hidden sm:block mb-2">
                 <div className="relative inline-block">
                   <Annotation className="rotate-1">Auto-generated copy</Annotation>
                 </div>
@@ -71,6 +71,11 @@ export default function FerdyPublishedPostDesktop() {
               <p className="text-[13px] sm:text-sm leading-relaxed text-gray-700">
                 Imagine savoring two delicious burgers for the price of one every Tuesday, making it the perfect opportunity for friends and family to indulge together.
               </p>
+              <div className="sm:hidden mt-2">
+                <div className="relative inline-block">
+                  <Annotation className="rotate-1">Auto-generated copy</Annotation>
+                </div>
+              </div>
             </div>
           </div>
 
