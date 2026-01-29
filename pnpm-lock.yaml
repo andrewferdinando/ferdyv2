@@ -29,6 +29,9 @@ importers:
       '@types/pg':
         specifier: ^8.15.6
         version: 8.16.0
+      '@types/sharp':
+        specifier: ^0.31.1
+        version: 0.31.1
       cheerio:
         specifier: ^1.1.2
         version: 1.1.2
@@ -50,6 +53,9 @@ importers:
       resend:
         specifier: ^6.5.2
         version: 6.6.0(@react-email/render@2.0.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1))
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
       stripe:
         specifier: ^20.0.0
         version: 20.0.0(@types/node@20.19.26)
@@ -939,6 +945,9 @@ packages:
 
   '@types/react@19.2.7':
     resolution: {integrity: sha512-MWtvHrGZLFttgeEj28VXHxpmwYbor/ATPYbBfSFZEIRK0ecCFLl2Qo55z52Hss+UV9CRN7trSeq1zbgx7YDWWg==}
+
+  '@types/sharp@0.31.1':
+    resolution: {integrity: sha512-5nWwamN9ZFHXaYEincMSuza8nNfOof8nmO+mcI+Agx1uMUk4/pQnNIcix+9rLPXzKrm1pS34+6WRDbDV0Jn7ag==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -2713,8 +2722,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.0.0':
-    optional: true
+  '@img/colour@1.0.0': {}
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -3226,6 +3234,10 @@ snapshots:
   '@types/react@19.2.7':
     dependencies:
       csstype: 3.2.3
+
+  '@types/sharp@0.31.1':
+    dependencies:
+      '@types/node': 20.19.26
 
   '@types/ws@8.18.1':
     dependencies:
@@ -4792,7 +4804,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
