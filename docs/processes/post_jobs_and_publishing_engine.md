@@ -143,7 +143,24 @@ For each post_jobs row:
 - The parent draft
 - The brand's social auth credentials for the specified channel
 
-**2. Automatic Token Refresh (NEW - Dec 2024):**
+**2. Image Processing (NEW - Jan 2025):**
+
+Before publishing, assets are processed to meet Meta's requirements:
+
+- Validates image format, dimensions, and file size.
+- Applies user-defined crop coordinates from `assets.image_crops`.
+- Resizes to Meta's exact dimensions (1080px base):
+  - 1:1 → 1080x1080
+  - 4:5 → 1080x1350
+  - 1.91:1 → 1080x566
+  - 9:16 → 1080x1920
+- Stores processed images in `{path}/processed/{name}_{ratio}.jpg`.
+- Updates `assets.processed_images` JSONB column.
+- Publishing providers use processed images when available.
+
+See `image_processing.md` for complete details.
+
+**3. Automatic Token Refresh (NEW - Dec 2024):**
 
 Before publishing, the system checks if social platform tokens need refreshing:
 
@@ -153,7 +170,7 @@ Before publishing, the system checks if social platform tokens need refreshing:
 - Update `social_accounts` table with new token and expiry
 - See `social_api_connections.md` for full token refresh details
 
-**3. Build provider-specific payload:**
+**4. Build provider-specific payload:**
 
 Copy text (from draft.copy, formatted per channel rules).
 
@@ -171,7 +188,7 @@ publishToFacebookPage(...)
 
 publishToLinkedInProfile(...)
 
-**4. Handle publishing result:**
+**5. Handle publishing result:**
 
 **On success:**
 - `post_jobs.status = 'success'`
@@ -416,13 +433,10 @@ Approve & Publish Now flow
 
 should be reflected in this file and in related docs:
 
-draft_lifecycle.md
-
-schedule_rules.md
-
-rpc_framework_targets.md
-
-rpc_framework_targets.md
+- draft_lifecycle.md
+- schedule_rules.md
+- rpc_framework_targets.md
+- image_processing.md
 
 Mermaid:
 flowchart TD

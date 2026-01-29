@@ -6,7 +6,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
-import UploadAsset from '@/components/assets/UploadAsset'
+import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import AssetCard from '@/components/assets/AssetCard'
 import TagSelector from '@/components/assets/TagSelector'
 import { getSignedUrl } from '@/lib/storage/getSignedUrl'
@@ -354,7 +354,7 @@ export default function ContentLibraryPage() {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
               </div>
-              <UploadAsset
+              <AssetUploadMenu
                 brandId={brandId}
                 onUploadSuccess={handleUploadSuccess}
                 onUploadError={handleUploadError}
@@ -468,7 +468,7 @@ export default function ContentLibraryPage() {
                       <p className="text-gray-600">No content needs attention right now</p>
                     </div>
                     <div className="mt-auto">
-                      <UploadAsset
+                      <AssetUploadMenu
                         brandId={brandId}
                         onUploadSuccess={handleUploadSuccess}
                         onUploadError={handleUploadError}
@@ -531,7 +531,7 @@ export default function ContentLibraryPage() {
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No ready content yet</h3>
                     <p className="text-gray-600">Tag your assets to make them ready to use</p>
                   </div>
-                  <UploadAsset
+                  <AssetUploadMenu
                     brandId={brandId}
                     onUploadSuccess={handleUploadSuccess}
                     onUploadError={handleUploadError}
@@ -873,6 +873,8 @@ function AssetDetailView({
   }
 
   const handleWheel = (event: React.WheelEvent) => {
+    // Only zoom on pinch gesture (ctrlKey) - allow normal page scroll otherwise
+    if (!event.ctrlKey) return
     event.preventDefault()
     const delta = -event.deltaY * 0.001
     handleScaleChange(activeCrop.scale * (1 + delta))
@@ -1099,7 +1101,7 @@ function AssetDetailView({
                     )}
                   </div>
                   <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
-                    Drag to pan • Scroll or use slider to zoom
+                    Drag to pan • Use buttons or slider to zoom
                   </div>
                 </div>
               )}
@@ -1110,6 +1112,17 @@ function AssetDetailView({
                 <label className="text-sm font-medium text-gray-700" htmlFor="crop-zoom">
                   Zoom
                 </label>
+                <button
+                  type="button"
+                  onClick={() => handleScaleChange(activeCrop.scale * 0.9)}
+                  disabled={activeCrop.scale <= minScale}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Zoom out"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                  </svg>
+                </button>
                 <input
                   id="crop-zoom"
                   type="range"
@@ -1119,6 +1132,17 @@ function AssetDetailView({
                   onChange={handleSliderChange}
                   className="flex-1 accent-[#6366F1]"
                 />
+                <button
+                  type="button"
+                  onClick={() => handleScaleChange(activeCrop.scale * 1.1)}
+                  disabled={activeCrop.scale >= maxScale}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Zoom in"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
               </div>
             )}
           </div>

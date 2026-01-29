@@ -22,7 +22,7 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError, l
     const uploadedAssetIds: string[] = []
 
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-    const maxImageSize = 50 * 1024 * 1024 // 50MB
+    const maxImageSize = 30 * 1024 * 1024 // 30MB (Meta's limit)
     const maxVideoSize = 200 * 1024 * 1024 // 200MB
 
     for (const file of fileArray) {
@@ -43,7 +43,7 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError, l
           return
         }
         if (file.size > maxImageSize) {
-          onUploadError(`Image files must be smaller than 50MB. Problem file: ${file.name}`)
+          onUploadError(`Image files must be smaller than 30MB. Problem file: ${file.name}`)
           return
         }
       }

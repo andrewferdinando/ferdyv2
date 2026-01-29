@@ -1,18 +1,26 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 
+// Meta requirements for images (client-side constants)
+const META_IMAGE_REQUIREMENTS = {
+  recommendedMinWidth: 600,
+  recommendedMinHeight: 600,
+  unsupportedFormats: ['image/gif', 'image/webp'],
+}
+
 export interface UploadAssetParams {
   file: File
   brandId: string
   onSuccess?: (assetId: string) => void
   onError?: (error: string) => void
+  onWarning?: (warning: string) => void // Optional callback for non-blocking warnings
 }
 
 export function useUploadAsset() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
 
-  const uploadAsset = async ({ file, brandId, onSuccess, onError }: UploadAssetParams) => {
+  const uploadAsset = async ({ file, brandId, onSuccess, onError, onWarning }: UploadAssetParams) => {
     try {
       setUploading(true)
       setProgress(0)
@@ -51,6 +59,26 @@ export function useUploadAsset() {
           const { width: imageWidth, height: imageHeight } = await getImageDimensions(file)
           width = imageWidth
           height = imageHeight
+
+          // Check for upload-time warnings
+          if (onWarning) {
+            // Warn about unsupported formats for Meta
+            if (META_IMAGE_REQUIREMENTS.unsupportedFormats.includes(file.type)) {
+              const formatName = file.type === 'image/gif' ? 'GIF' : 'WebP'
+              onWarning(
+                `${formatName} images are not supported by Instagram/Facebook. The image will be uploaded, but you may need to convert it before publishing.`
+              )
+            }
+            // Warn about small dimensions
+            else if (
+              imageWidth < META_IMAGE_REQUIREMENTS.recommendedMinWidth ||
+              imageHeight < META_IMAGE_REQUIREMENTS.recommendedMinHeight
+            ) {
+              onWarning(
+                `Image dimensions (${imageWidth}x${imageHeight}) are below the recommended ${META_IMAGE_REQUIREMENTS.recommendedMinWidth}x${META_IMAGE_REQUIREMENTS.recommendedMinHeight} pixels for Instagram/Facebook. Image quality may be reduced.`
+              )
+            }
+          }
         } catch (dimensionError) {
           console.warn('useUploadAsset: unable to read image dimensions', dimensionError)
         }

@@ -8,6 +8,14 @@ import { publishFacebookPost } from './providers/facebook'
 import { publishInstagramFeedPost, publishInstagramStory } from './providers/instagram'
 import { sendPostPublished } from '@/lib/emails/send'
 import { refreshSocialAccountToken } from '../social/tokenRefresh'
+import { validateAssetForMeta } from '@/lib/publishing/validateAssetForMeta'
+import {
+  processImage,
+  isValidAspectRatio,
+  getDefaultCrop,
+  type AspectRatio,
+  type CropCoordinates,
+} from '@/lib/image-processing/processImage'
 
 type DraftRow = {
   id: string
@@ -239,6 +247,165 @@ export async function publishJob(
   }
 }
 
+/**
+ * Process assets before publishing to ensure they meet Meta requirements.
+ * Generates cropped/resized versions if not already processed.
+ */
+async function ensureAssetsProcessed(
+  assetIds: string[] | null,
+  jobId: string,
+  brandId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!assetIds || assetIds.length === 0) {
+    return { success: true }
+  }
+
+  for (const assetId of assetIds) {
+    try {
+      // Fetch asset to check if it needs processing
+      const { data: asset, error: fetchError } = await supabaseAdmin
+        .from('assets')
+        .select('id, asset_type, aspect_ratio, processed_images, storage_path, mime_type, width, height, file_size')
+        .eq('id', assetId)
+        .single()
+
+      if (fetchError || !asset) {
+        console.warn('[ensureAssetsProcessed] Asset not found:', { assetId, fetchError })
+        continue // Skip missing assets, let the provider handle the error
+      }
+
+      // Skip videos - they don't need processing
+      if (asset.asset_type === 'video') {
+        continue
+      }
+
+      // Validate asset for Meta requirements
+      const validation = validateAssetForMeta({
+        asset_type: asset.asset_type as 'image' | 'video' | null,
+        mime_type: asset.mime_type,
+        width: asset.width,
+        height: asset.height,
+        file_size: asset.file_size,
+      })
+
+      if (!validation.valid) {
+        console.error('[ensureAssetsProcessed] Asset validation failed:', {
+          assetId,
+          errors: validation.errors,
+        })
+        return {
+          success: false,
+          error: validation.errors[0] || 'Asset validation failed',
+        }
+      }
+
+      // Check if processed image already exists for this aspect ratio
+      const aspectRatio = asset.aspect_ratio
+      const processedImages = asset.processed_images as Record<string, unknown> | null
+
+      if (aspectRatio && isValidAspectRatio(aspectRatio)) {
+        if (processedImages && processedImages[aspectRatio]) {
+          console.log('[ensureAssetsProcessed] Processed image already exists:', {
+            assetId,
+            aspectRatio,
+          })
+          continue // Already processed
+        }
+
+        // Process the image
+        console.log('[ensureAssetsProcessed] Processing image:', {
+          assetId,
+          aspectRatio,
+          jobId,
+        })
+
+        // Download original image
+        const { data: downloadData, error: downloadError } = await supabaseAdmin.storage
+          .from('ferdy-assets')
+          .download(asset.storage_path)
+
+        if (downloadError || !downloadData) {
+          console.error('[ensureAssetsProcessed] Failed to download:', {
+            assetId,
+            downloadError,
+          })
+          continue // Skip, let publishing proceed with original
+        }
+
+        // Get crop coordinates
+        const { data: assetWithCrops } = await supabaseAdmin
+          .from('assets')
+          .select('image_crops')
+          .eq('id', assetId)
+          .single()
+
+        const crops = assetWithCrops?.image_crops as Record<string, CropCoordinates> | null
+        const crop: CropCoordinates = crops?.[aspectRatio] || getDefaultCrop()
+
+        // Process image
+        const arrayBuffer = await downloadData.arrayBuffer()
+        const imageBuffer = Buffer.from(arrayBuffer)
+        const result = await processImage(imageBuffer, aspectRatio as AspectRatio, crop)
+
+        // Generate storage path for processed image
+        const pathParts = asset.storage_path.split('/')
+        const fileName = pathParts.pop() || 'image'
+        const fileNameWithoutExt = fileName.split('.')[0]
+        const basePath = pathParts.join('/')
+        const ratioSafe = aspectRatio.replace(':', '_').replace('.', '-')
+        const processedPath = `${basePath}/processed/${fileNameWithoutExt}_${ratioSafe}.jpg`
+
+        // Upload processed image
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('ferdy-assets')
+          .upload(processedPath, result.buffer, {
+            contentType: 'image/jpeg',
+            upsert: true,
+          })
+
+        if (uploadError) {
+          console.error('[ensureAssetsProcessed] Failed to upload:', {
+            assetId,
+            uploadError,
+          })
+          continue // Skip, let publishing proceed with original
+        }
+
+        // Update processed_images column
+        const existingProcessed = processedImages || {}
+        const updatedProcessed = {
+          ...existingProcessed,
+          [aspectRatio]: {
+            storage_path: processedPath,
+            width: result.width,
+            height: result.height,
+            processed_at: new Date().toISOString(),
+          },
+        }
+
+        await supabaseAdmin
+          .from('assets')
+          .update({ processed_images: updatedProcessed })
+          .eq('id', assetId)
+
+        console.log('[ensureAssetsProcessed] Image processed successfully:', {
+          assetId,
+          aspectRatio,
+          processedPath,
+        })
+      }
+    } catch (error) {
+      console.error('[ensureAssetsProcessed] Unexpected error:', {
+        assetId,
+        error: error instanceof Error ? error.message : 'unknown',
+      })
+      // Continue with other assets, don't fail the entire publish
+    }
+  }
+
+  return { success: true }
+}
+
 async function publishToChannel(
   channel: string,
   draft: DraftRow,
@@ -256,6 +423,20 @@ async function publishToChannel(
     return {
       success: false,
       error: `Social account is not connected (status: ${socialAccount.status})`,
+    }
+  }
+
+  // Pre-publish: Ensure assets are processed for Meta requirements
+  const processingResult = await ensureAssetsProcessed(
+    draft.asset_ids,
+    job.id,
+    draft.brand_id,
+  )
+
+  if (!processingResult.success) {
+    return {
+      success: false,
+      error: processingResult.error || 'Failed to process assets',
     }
   }
 

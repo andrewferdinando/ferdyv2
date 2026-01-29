@@ -320,14 +320,26 @@ function buildPostMessage(copy: string | null, hashtags: string[] | null): strin
   return message.trim()
 }
 
+interface ProcessedImageRecord {
+  storage_path: string
+  width: number
+  height: number
+  processed_at: string
+}
+
 /**
  * Get signed URL for an asset
+ *
+ * This function will:
+ * 1. Check for a processed image matching the asset's aspect_ratio
+ * 2. Use the processed image if available (cropped + resized to Meta dimensions)
+ * 3. Fall back to original image if no processed version exists
  */
 async function getAssetSignedUrl(assetId: string): Promise<string | null> {
   try {
     const { data: asset, error } = await supabaseAdmin
       .from('assets')
-      .select('storage_path')
+      .select('storage_path, aspect_ratio, processed_images')
       .eq('id', assetId)
       .single()
 
@@ -336,14 +348,40 @@ async function getAssetSignedUrl(assetId: string): Promise<string | null> {
       return null
     }
 
+    // Check for processed image matching the asset's aspect ratio
+    const aspectRatio = asset.aspect_ratio
+    const processedImages = asset.processed_images as Record<string, ProcessedImageRecord> | null
+
+    let storagePath = asset.storage_path
+    let usingProcessed = false
+
+    if (aspectRatio && processedImages && processedImages[aspectRatio]) {
+      const processed = processedImages[aspectRatio]
+      storagePath = processed.storage_path
+      usingProcessed = true
+      console.log('[facebook publish] Using processed image', {
+        assetId,
+        aspectRatio,
+        processedPath: storagePath,
+        dimensions: `${processed.width}x${processed.height}`,
+      })
+    } else {
+      console.log('[facebook publish] Using original image (no processed version)', {
+        assetId,
+        aspectRatio,
+        originalPath: storagePath,
+      })
+    }
+
     const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
       .from('ferdy-assets')
-      .createSignedUrl(asset.storage_path, 3600) // 1 hour expiry
+      .createSignedUrl(storagePath, 3600) // 1 hour expiry
 
     if (urlError || !signedUrlData?.signedUrl) {
       console.warn('[facebook publish] Failed to create signed URL', {
         assetId,
-        storagePath: asset.storage_path,
+        storagePath,
+        usingProcessed,
         error: urlError,
       })
       return null
