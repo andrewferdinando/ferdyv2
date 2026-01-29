@@ -1083,31 +1083,22 @@ function AssetDetailView({
                         Loading image...
                       </div>
                     )}
-                    {!isImageLoading && (() => {
-                      // Calculate the displayed size of the image after scaling
-                      const scaledWidth = (imageDimensions.width || 1080) * activeCrop.scale
-                      const scaledHeight = (imageDimensions.height || 1080) * activeCrop.scale
-
-                      // Calculate position offset from center based on pan values
-                      const offsetX = translateX
-                      const offsetY = translateY
-
-                      return (
-                        <img
-                          src={displayAsset.signed_url}
-                          alt={displayAsset.title}
-                          className="pointer-events-none absolute select-none"
-                          style={{
-                            width: scaledWidth,
-                            height: scaledHeight,
-                            left: '50%',
-                            top: '50%',
-                            transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
-                          }}
-                          draggable={false}
-                        />
-                      )
-                    })()}
+                    {!isImageLoading && (
+                      <img
+                        src={displayAsset.signed_url}
+                        alt={displayAsset.title}
+                        className="pointer-events-none absolute left-1/2 top-1/2 select-none"
+                        style={{
+                          width: imageDimensions.width || '100%',
+                          height: imageDimensions.height || '100%',
+                          maxWidth: 'none',
+                          maxHeight: 'none',
+                          transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
+                          transformOrigin: 'center',
+                        }}
+                        draggable={false}
+                      />
+                    )}
                   </div>
                   <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
                     Drag to pan • Use buttons or slider to zoom
