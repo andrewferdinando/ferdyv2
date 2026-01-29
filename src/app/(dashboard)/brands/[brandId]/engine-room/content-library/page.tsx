@@ -1083,10 +1083,10 @@ function AssetDetailView({
                         >
                           {/* Thumbnail preview */}
                           <div className={`${aspectStyle} relative w-full overflow-hidden rounded-lg bg-gray-100`}>
-                            {/* Recommended badge - positioned inside thumbnail for proper centering */}
+                            {/* Recommended badge */}
                             {isRecommended && (
-                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-                                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 whitespace-nowrap">
+                              <div className="absolute top-1 inset-x-0 z-10 flex justify-center">
+                                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 shadow-sm">
                                   Best fit
                                 </span>
                               </div>
