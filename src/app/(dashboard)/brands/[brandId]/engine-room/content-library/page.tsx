@@ -983,35 +983,21 @@ function AssetDetailView({
     }
   }
 
+  // Calculate object-position for thumbnail previews based on crop state
+  const getObjectPosition = (formatKey: string) => {
+    const crop = crops[formatKey] ?? { scale: 1, x: 0, y: 0 }
+    // Convert normalized pan values (-1 to 1) to percentage (0% to 100%)
+    // x: -1 = 0% (left), 0 = 50% (center), 1 = 100% (right)
+    const xPercent = ((crop.x + 1) / 2) * 100
+    const yPercent = ((crop.y + 1) / 2) * 100
+    return `${xPercent}% ${yPercent}%`
+  }
+
   return (
     <div className="flex-1 overflow-auto">
           <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
-            {!isVideo && (
-              <div className="flex flex-wrap gap-3">
-                {FORMATS.map((format) => {
-                  const isActive = format.key === selectedFormat
-                  return (
-                    <button
-                      key={format.key}
-                      onClick={() => handleFormatChange(format.key)}
-                      className={`rounded-xl border px-4 py-2 text-left shadow-sm transition-all hover:border-[#6366F1] hover:text-[#6366F1] ${
-                        isActive
-                          ? 'border-[#6366F1] bg-[#EEF2FF] text-[#6366F1]'
-                          : 'border-gray-200 bg-white text-gray-700'
-                      }`}
-                    >
-                      <span className="block text-sm font-semibold">{format.key}</span>
-                      <span className={`block text-xs ${isActive ? 'text-[#4F46E5]' : 'text-gray-500'}`}>
-                        {format.hint}
-                      </span>
-                    </button>
-                  )
-                })}
-                </div>
-            )}
-
             {isVideo && (
               <div className="flex items-center gap-2">
                 <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-semibold text-gray-600">
@@ -1041,8 +1027,8 @@ function AssetDetailView({
               </div>
             )}
 
-            <div className="relative">
-              {isVideo ? (
+            {isVideo ? (
+              <div className="relative">
                 <div
                   className="relative w-full overflow-hidden rounded-xl bg-black"
                   style={{ aspectRatio: `${placementAspectRatio}` }}
@@ -1067,83 +1053,157 @@ function AssetDetailView({
                     </button>
                   )}
                 </div>
-              ) : (
-                <div className={`${aspectClass} relative w-full max-w-md mx-auto overflow-hidden rounded-xl bg-gray-100`}>
-                  <div
-                    ref={frameRef}
-                    className="absolute inset-0 cursor-move"
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerUp}
-                    onWheel={handleWheel}
-                  >
-                    {isImageLoading && (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
-                        Loading image...
-                      </div>
-                    )}
-                    {!isImageLoading && (
-                      <img
-                        src={displayAsset.signed_url}
-                        alt={displayAsset.title}
-                        className="pointer-events-none absolute left-1/2 top-1/2 select-none"
-                        style={{
-                          width: imageDimensions.width || '100%',
-                          height: imageDimensions.height || '100%',
-                          maxWidth: 'none',
-                          maxHeight: 'none',
-                          transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
-                          transformOrigin: 'center',
-                        }}
-                        draggable={false}
-                      />
-                    )}
-                  </div>
-                  <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
-                    Drag to pan • Use buttons or slider to zoom
+              </div>
+            ) : (
+              <>
+                {/* Aspect Ratio Thumbnail Grid */}
+                <div>
+                  <h3 className="mb-3 text-sm font-medium text-gray-700">Select aspect ratio</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {FORMATS.map((format) => {
+                      const isActive = format.key === selectedFormat
+                      const isRecommended = format.key === bestFormat.key
+                      const aspectStyle = format.key === '1:1'
+                        ? 'aspect-square'
+                        : format.key === '4:5'
+                        ? 'aspect-[4/5]'
+                        : format.key === '1.91:1'
+                        ? 'aspect-[1.91/1]'
+                        : 'aspect-[9/16]'
+
+                      return (
+                        <button
+                          key={format.key}
+                          onClick={() => handleFormatChange(format.key)}
+                          className={`group relative rounded-xl border-2 p-2 transition-all ${
+                            isActive
+                              ? 'border-[#6366F1] bg-[#EEF2FF] ring-2 ring-[#6366F1] ring-offset-2'
+                              : 'border-gray-200 bg-white hover:border-[#6366F1]/50'
+                          }`}
+                        >
+                          {/* Recommended badge */}
+                          {isRecommended && (
+                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                                Best fit
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Thumbnail preview */}
+                          <div className={`${aspectStyle} relative w-full overflow-hidden rounded-lg bg-gray-100`}>
+                            {!isImageLoading && displayAsset.signed_url && (
+                              <img
+                                src={displayAsset.signed_url}
+                                alt={`${format.key} preview`}
+                                className="h-full w-full object-cover"
+                                style={{ objectPosition: getObjectPosition(format.key) }}
+                                draggable={false}
+                              />
+                            )}
+                            {isImageLoading && (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#6366F1]" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Format label */}
+                          <div className="mt-2 text-center">
+                            <span className={`block text-sm font-semibold ${isActive ? 'text-[#6366F1]' : 'text-gray-900'}`}>
+                              {format.key}
+                            </span>
+                            <span className={`block text-xs ${isActive ? 'text-[#4F46E5]' : 'text-gray-500'}`}>
+                              {format.hint}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {!isVideo && (
-              <div className="flex items-center gap-3 max-w-xl mx-auto">
-                <label className="text-sm font-medium text-gray-700" htmlFor="crop-zoom">
-                  Zoom
-                </label>
-                <button
-                  type="button"
-                  onClick={() => handleScaleChange(activeCrop.scale * 0.9)}
-                  disabled={activeCrop.scale <= minScale}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Zoom out"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                  </svg>
-                </button>
-                <input
-                  id="crop-zoom"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={sliderValue}
-                  onChange={handleSliderChange}
-                  className="flex-1 accent-[#6366F1]"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleScaleChange(activeCrop.scale * 1.1)}
-                  disabled={activeCrop.scale >= maxScale}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Zoom in"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
+                {/* Interactive Crop Editor for Selected Format */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Adjust crop for {selectedFormat}
+                  </h3>
+                  <div className={`${aspectClass} relative w-full max-w-xs mx-auto overflow-hidden rounded-xl bg-gray-100 shadow-sm border border-gray-200`}>
+                    <div
+                      ref={frameRef}
+                      className="absolute inset-0 cursor-move"
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerLeave={handlePointerUp}
+                      onWheel={handleWheel}
+                    >
+                      {isImageLoading && (
+                        <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                          Loading...
+                        </div>
+                      )}
+                      {!isImageLoading && (
+                        <img
+                          src={displayAsset.signed_url}
+                          alt={displayAsset.title}
+                          className="pointer-events-none absolute left-1/2 top-1/2 select-none"
+                          style={{
+                            width: imageDimensions.width || '100%',
+                            height: imageDimensions.height || '100%',
+                            maxWidth: 'none',
+                            maxHeight: 'none',
+                            transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
+                            transformOrigin: 'center',
+                          }}
+                          draggable={false}
+                        />
+                      )}
+                    </div>
+                    <div className="pointer-events-none absolute left-2 top-2 rounded bg-gray-900/70 px-2 py-0.5 text-xs font-medium text-white">
+                      Drag to pan
+                    </div>
+                  </div>
+
+                  {/* Zoom controls */}
+                  <div className="flex items-center gap-3 max-w-xs mx-auto">
+                    <label className="text-xs font-medium text-gray-600" htmlFor="crop-zoom">
+                      Zoom
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleScaleChange(activeCrop.scale * 0.9)}
+                      disabled={activeCrop.scale <= minScale}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Zoom out"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <input
+                      id="crop-zoom"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={sliderValue}
+                      onChange={handleSliderChange}
+                      className="flex-1 accent-[#6366F1]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleScaleChange(activeCrop.scale * 1.1)}
+                      disabled={activeCrop.scale >= maxScale}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Zoom in"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
 
