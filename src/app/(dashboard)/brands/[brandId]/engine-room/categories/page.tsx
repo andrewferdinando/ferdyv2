@@ -564,21 +564,8 @@ export default function CategoriesPage() {
                   const subcategoriesWithoutRulesList = allSubcategories.filter(sub => !subcategoriesWithRulesSet.has(sub.id))
                   
                   if (activeRules.length > 0 || subcategoriesWithoutRulesList.length > 0) {
-                    return (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead>
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                          {(() => {
+                    // Build all the data needed for rendering
+                    const buildTableData = () => {
                             const activeRules = (rules || []).filter(r => r.is_active)
                             const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
                             const weekdayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
@@ -733,12 +720,20 @@ export default function CategoriesPage() {
 
                             const rows: React.ReactElement[] = []
 
+                            // Track archived event categories (all dates in the past)
+                            const archivedEventCategories: Array<{
+                              subcategoryId: string
+                              subcategoryName: string
+                              lastEventDate: string
+                              eventRules: typeof eventRules
+                            }> = []
+
                             // Render each subcategory (flat list, no category headers)
                             subcategoryItems.forEach((subcat) => {
                                 if (subcat.isEvent && subcat.eventRules) {
                                   const groupRules = subcat.eventRules
                                   const firstRule = groupRules[0]
-                                  
+
                                   // Sort occurrences by start_date (normalize to UTC for correct sorting)
                                   const sortedOccurrences = [...groupRules].sort((a, b) => {
                                     const aDate = a.start_date ? new Date(normalizeToUTC(a.start_date)).getTime() : 0
@@ -756,6 +751,18 @@ export default function CategoriesPage() {
                                     const end = r.end_date || r.start_date
                                     return end ? new Date(normalizeToUTC(end)) < now : false
                                   })
+
+                                  // If all dates are in the past, add to archived list instead of main table
+                                  if (upcoming.length === 0 && past.length > 0) {
+                                    const lastOccurrence = sortedOccurrences[sortedOccurrences.length - 1]
+                                    archivedEventCategories.push({
+                                      subcategoryId: subcat.subcategoryId,
+                                      subcategoryName: subcat.subcategoryName,
+                                      lastEventDate: formatDateRange(lastOccurrence.start_date, lastOccurrence.end_date, groupRules, true),
+                                      eventRules: groupRules
+                                    })
+                                    return // Skip adding to main rows
+                                  }
 
                                   const channels = firstRule.channels || []
                                   const subcategoryChannels = firstRule.subcategories?.channels ?? channels
@@ -965,11 +972,79 @@ export default function CategoriesPage() {
                                 }
                               })
 
-                            return rows
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
+                            return { rows, archivedEventCategories }
+                          }
+
+                    const { rows, archivedEventCategories } = buildTableData()
+
+                    return (
+                      <>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead>
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days / Dates</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {rows}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Archived Event Categories */}
+                        {archivedEventCategories.length > 0 && (
+                          <details className="mt-6 px-6 pb-6">
+                            <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                              View {archivedEventCategories.length} Archived Event {archivedEventCategories.length === 1 ? 'Category' : 'Categories'}
+                            </summary>
+                            <ul className="mt-4 space-y-3">
+                              {archivedEventCategories.map((archived) => (
+                                <li key={archived.subcategoryId} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                                  <div className="flex items-center gap-4">
+                                    <span className="text-sm font-medium text-gray-700">{archived.subcategoryName}</span>
+                                    <span className="text-xs text-gray-400">Last event: {archived.lastEventDate}</span>
+                                  </div>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => {
+                                        router.push(`/brands/${brandId}/engine-room/categories/${archived.subcategoryId}/edit`)
+                                      }}
+                                      className="text-gray-400 hover:text-gray-600"
+                                      title="Edit category"
+                                    >
+                                      <EditIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDuplicateSubcategory(archived.subcategoryId, archived.subcategoryName)}
+                                      className="text-gray-400 hover:text-blue-600"
+                                      title="Duplicate category"
+                                    >
+                                      <DuplicateIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Delete event category "${archived.subcategoryName}"? This will permanently delete the category and all ${archived.eventRules.length} occurrence(s), along with any associated drafts and posts.`)) {
+                                          handleDeleteSubcategory(archived.subcategoryId, archived.subcategoryName)
+                                        }
+                                      }}
+                                      className="text-gray-400 hover:text-red-600"
+                                      title="Delete category"
+                                    >
+                                      <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </>
                     )
                   }
                   
