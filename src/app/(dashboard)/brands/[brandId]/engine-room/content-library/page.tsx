@@ -1084,32 +1084,25 @@ function AssetDetailView({
                       </div>
                     )}
                     {!isImageLoading && (() => {
-                      // Calculate display dimensions - limit to reasonable size for preview
-                      // This prevents blurriness from scaling down very large images
-                      const maxPreviewDimension = 1500
-                      const nativeWidth = imageDimensions.width || 1080
-                      const nativeHeight = imageDimensions.height || 1080
-                      const scaleFactor = Math.min(1, maxPreviewDimension / Math.max(nativeWidth, nativeHeight))
-                      const displayWidth = nativeWidth * scaleFactor
-                      const displayHeight = nativeHeight * scaleFactor
+                      // Calculate the displayed size of the image after scaling
+                      const scaledWidth = (imageDimensions.width || 1080) * activeCrop.scale
+                      const scaledHeight = (imageDimensions.height || 1080) * activeCrop.scale
 
-                      // Adjust the transform scale to account for the display size reduction
-                      const adjustedScale = activeCrop.scale / scaleFactor
-                      const adjustedTranslateX = translateX * scaleFactor
-                      const adjustedTranslateY = translateY * scaleFactor
+                      // Calculate position offset from center based on pan values
+                      const offsetX = translateX
+                      const offsetY = translateY
 
                       return (
                         <img
                           src={displayAsset.signed_url}
                           alt={displayAsset.title}
-                          className="pointer-events-none absolute left-1/2 top-1/2 select-none"
+                          className="pointer-events-none absolute select-none"
                           style={{
-                            width: displayWidth,
-                            height: displayHeight,
-                            maxWidth: 'none',
-                            maxHeight: 'none',
-                            transform: `translate(-50%, -50%) translate(${adjustedTranslateX}px, ${adjustedTranslateY}px) scale(${adjustedScale})`,
-                            transformOrigin: 'center',
+                            width: scaledWidth,
+                            height: scaledHeight,
+                            left: '50%',
+                            top: '50%',
+                            transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
                           }}
                           draggable={false}
                         />
