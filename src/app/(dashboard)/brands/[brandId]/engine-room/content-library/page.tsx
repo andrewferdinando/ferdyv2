@@ -1083,22 +1083,38 @@ function AssetDetailView({
                         Loading image...
                       </div>
                     )}
-                    {!isImageLoading && (
-                      <img
-                        src={displayAsset.signed_url}
-                        alt={displayAsset.title}
-                        className="pointer-events-none absolute left-1/2 top-1/2 select-none"
-                        style={{ 
-                          width: imageDimensions.width || '100%',
-                          height: imageDimensions.height || '100%',
-                          maxWidth: 'none',
-                          maxHeight: 'none',
-                          transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${activeCrop.scale})`,
-                          transformOrigin: 'center',
-                        }}
-                        draggable={false}
-                      />
-                    )}
+                    {!isImageLoading && (() => {
+                      // Calculate display dimensions - limit to reasonable size for preview
+                      // This prevents blurriness from scaling down very large images
+                      const maxPreviewDimension = 1500
+                      const nativeWidth = imageDimensions.width || 1080
+                      const nativeHeight = imageDimensions.height || 1080
+                      const scaleFactor = Math.min(1, maxPreviewDimension / Math.max(nativeWidth, nativeHeight))
+                      const displayWidth = nativeWidth * scaleFactor
+                      const displayHeight = nativeHeight * scaleFactor
+
+                      // Adjust the transform scale to account for the display size reduction
+                      const adjustedScale = activeCrop.scale / scaleFactor
+                      const adjustedTranslateX = translateX * scaleFactor
+                      const adjustedTranslateY = translateY * scaleFactor
+
+                      return (
+                        <img
+                          src={displayAsset.signed_url}
+                          alt={displayAsset.title}
+                          className="pointer-events-none absolute left-1/2 top-1/2 select-none"
+                          style={{
+                            width: displayWidth,
+                            height: displayHeight,
+                            maxWidth: 'none',
+                            maxHeight: 'none',
+                            transform: `translate(-50%, -50%) translate(${adjustedTranslateX}px, ${adjustedTranslateY}px) scale(${adjustedScale})`,
+                            transformOrigin: 'center',
+                          }}
+                          draggable={false}
+                        />
+                      )
+                    })()}
                   </div>
                   <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-gray-900/70 px-3 py-1 text-xs font-medium text-white">
                     Drag to pan • Use buttons or slider to zoom
