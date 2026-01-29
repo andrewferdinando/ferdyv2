@@ -29,8 +29,8 @@ export const STRIPE_CONFIG = {
   publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
   pricePerBrand: 14700, // NZ$147.00 in cents
   currency: 'nzd',
-  productName: 'Ferdy Brand Automation',
-  productDescription: 'Social media automation per brand',
+  productName: 'Ferdy Subscription',
+  productDescription: 'Ferdy social media automation - per brand monthly subscription',
 }
 
 export const GST_RATE_NZ = 0.15 // 15% GST for New Zealand businesses

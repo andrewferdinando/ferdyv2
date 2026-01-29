@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
-import { sendInvoicePaid } from '@/lib/emails/send'
+import { sendInvoicePaid, sendPaymentFailed, sendSubscriptionCancelled } from '@/lib/emails/send'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -111,7 +111,29 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 
   console.log(`Subscription canceled for group ${groupId}`)
-  // TODO: Send email notification about subscription cancellation
+
+  // Send cancellation email
+  try {
+    const customerId = subscription.customer as string
+    const customer = await stripe.customers.retrieve(customerId)
+    const email = (customer as Stripe.Customer).email
+
+    // Get group name
+    const { data: groupData } = await supabase
+      .from('groups')
+      .select('name')
+      .eq('id', groupId)
+      .single()
+
+    if (email && groupData) {
+      await sendSubscriptionCancelled({
+        to: email,
+        groupName: groupData.name,
+      })
+    }
+  } catch (emailError) {
+    console.error('Failed to send subscription cancelled email:', emailError)
+  }
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
@@ -251,22 +273,20 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   // Send email notification about payment failure
   console.log(`Payment failed for group ${group.name}:`, invoice.id)
-  
-  // TODO: Implement payment failed email template
-  // try {
-  //   const customer = await stripe.customers.retrieve(customerId)
-  //   const email = (customer as Stripe.Customer).email
-  //   
-  //   if (email) {
-  //     await sendPaymentFailed({
-  //       to: email,
-  //       groupName: group.name,
-  //       amount: invoice.amount_due,
-  //       currency: invoice.currency,
-  //       invoiceUrl: invoice.hosted_invoice_url || '',
-  //     })
-  //   }
-  // } catch (emailError) {
-  //   console.error('Failed to send payment failed email:', emailError)
-  // }
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId)
+    const email = (customer as Stripe.Customer).email
+
+    if (email) {
+      await sendPaymentFailed({
+        to: email,
+        amount: invoice.amount_due,
+        currency: invoice.currency,
+        invoiceUrl: invoice.hosted_invoice_url || '',
+      })
+    }
+  } catch (emailError) {
+    console.error('Failed to send payment failed email:', emailError)
+  }
 }

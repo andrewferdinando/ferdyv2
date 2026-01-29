@@ -56,10 +56,16 @@ Group (Company/Agency)
 ## Stripe Integration
 
 ### Product & Pricing
-- **Product**: "Ferdy Brand Automation"
-- **Price**: $147 NZD/month per brand
+- **Product**: "Ferdy Subscription" (`prod_TsnRdORd80oMap`)
+- **Price**: $147 NZD/month per brand (`price_1Sv1qkK7D1xWdfkZtBcDnXzf`)
 - **Billing**: Usage-based (quantity = number of brands)
 - **Proration**: Automatic when brands added/removed
+- **Mode**: Live (`STRIPE_MODE=live`)
+
+### Coupons
+- `group20` - 20% off, forever
+- `agency40` - 40% off, forever
+- `andrew50` - 50% off, forever
 
 ### API Routes
 
@@ -127,9 +133,9 @@ Handles Stripe webhook events.
 **Events Handled:**
 - `customer.subscription.created`
 - `customer.subscription.updated`
-- `customer.subscription.deleted`
+- `customer.subscription.deleted` → Sends subscription cancelled email
 - `invoice.paid` → Sends receipt email
-- `invoice.payment_failed` → Sends alert email
+- `invoice.payment_failed` → Sends payment failed email
 
 ### Webhook Setup
 Webhook endpoint: `https://www.ferdy.io/api/stripe/webhook`
@@ -226,22 +232,30 @@ All emails sent via **Resend** (`andrew@ferdy.io` receives copies).
 
 ### Payment Failed
 **Trigger:** Stripe webhook `invoice.payment_failed`
-**Content:** Alert, link to update payment method
+**Template:** `src/emails/PaymentFailed.tsx`
+**Content:** Failed amount, link to update payment method
+
+### Subscription Cancelled
+**Trigger:** Stripe webhook `customer.subscription.deleted`
+**Template:** `src/emails/SubscriptionCancelled.tsx`
+**Content:** Group name, information about service stopping at end of billing period
 
 ### Brand Added
-**Trigger:** Brand created (optional)
+**Trigger:** Brand created
+**Template:** `src/emails/BrandAdded.tsx`
 **Content:** New brand name, updated monthly total
 
 ## Environment Variables
 
 ### Required
 ```bash
-# Stripe
+# Stripe (Live mode)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_SECRET_KEY=sk_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_PRODUCT_ID=prod_xxx
-STRIPE_PRICE_ID=price_xxx
+STRIPE_PRODUCT_ID=prod_TsnRdORd80oMap
+STRIPE_PRICE_ID=price_1Sv1qkK7D1xWdfkZtBcDnXzf
+STRIPE_MODE=live
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co

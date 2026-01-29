@@ -12,6 +12,8 @@ import { LowApprovedDraftsReminder } from '@/emails/LowApprovedDraftsReminder'
 import { PostPublished } from '@/emails/PostPublished'
 import { SocialConnectionDisconnected } from '@/emails/SocialConnectionDisconnected'
 import { TokenExpiringWarning } from '@/emails/TokenExpiringWarning'
+import { PaymentFailed } from '@/emails/PaymentFailed'
+import { SubscriptionCancelled } from '@/emails/SubscriptionCancelled'
 
 // Initialize Resend
 let resendInstance: Resend | null = null
@@ -123,6 +125,18 @@ export interface TokenExpiringWarningData {
   platform: string
   daysUntilExpiry: number
   reconnectLink: string
+}
+
+export interface PaymentFailedData {
+  to: string
+  amount: number
+  currency: string
+  invoiceUrl: string
+}
+
+export interface SubscriptionCancelledData {
+  to: string
+  groupName: string
 }
 
 // Email sending functions
@@ -391,6 +405,42 @@ export async function sendTokenExpiringWarning(data: TokenExpiringWarningData) {
     from: FROM_EMAIL,
     to: data.to,
     subject: `${data.platform} connection for ${data.brandName} ${urgencyText}`,
+    html,
+  })
+}
+
+export async function sendPaymentFailed(data: PaymentFailedData) {
+  const resend = getResend()
+
+  const html = await render(
+    PaymentFailed({
+      amount: data.amount,
+      currency: data.currency,
+      invoiceUrl: data.invoiceUrl,
+    })
+  )
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.to,
+    subject: 'Payment Failed - Action Required',
+    html,
+  })
+}
+
+export async function sendSubscriptionCancelled(data: SubscriptionCancelledData) {
+  const resend = getResend()
+
+  const html = await render(
+    SubscriptionCancelled({
+      groupName: data.groupName,
+    })
+  )
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.to,
+    subject: 'Your Ferdy Subscription Has Been Cancelled',
     html,
   })
 }

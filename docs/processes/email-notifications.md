@@ -103,7 +103,33 @@ const response = await fetch('/api/auth/reset-password', {
 - If post was published to multiple channels (e.g., Instagram Feed, Instagram Story, Facebook), all channels are listed in one email
 - Each channel can have its own "View post" link if available
 
-### 10. Social Connection Disconnected
+### 10. Payment Failed
+**Location:** `/src/app/api/stripe/webhook/route.ts`
+**Trigger:** Stripe webhook `invoice.payment_failed`
+**When:** A subscription payment attempt fails
+**Data:** Amount due, currency, invoice URL (to update payment method)
+**Status:** ✅ Fully implemented
+**Recipients:** Stripe customer email (billing contact)
+**Template:** `/src/emails/PaymentFailed.tsx`
+**Behavior:**
+- Notifies the billing contact that their payment failed
+- Includes the amount that failed to charge
+- Links to Stripe hosted invoice page where they can update their payment method
+
+### 11. Subscription Cancelled
+**Location:** `/src/app/api/stripe/webhook/route.ts`
+**Trigger:** Stripe webhook `customer.subscription.deleted`
+**When:** A subscription is cancelled (via Stripe portal or admin action)
+**Data:** Group name
+**Status:** ✅ Fully implemented
+**Recipients:** Stripe customer email (billing contact)
+**Template:** `/src/emails/SubscriptionCancelled.tsx`
+**Behavior:**
+- Confirms the subscription has been cancelled
+- Informs that automated features stop at end of billing period
+- Links to billing page in case they want to resubscribe
+
+### 12. Social Connection Disconnected
 **Location:** `/src/server/publishing/publishJob.ts`
 **Trigger:** Reactive detection during publishing when auth errors occur
 **When:** Token refresh fails OR publishing encounters authentication errors
@@ -139,10 +165,12 @@ APP_URL=https://www.ferdy.io
 
 ## Implementation Summary
 
-**Completed: 10/10 email notifications ✅**
+**Completed: 12/12 email notifications ✅**
 
 ✅ **Critical User Flows (All Implemented):**
 - Invoice Paid - Billing confirmation
+- Payment Failed - Payment failure alert with update link
+- Subscription Cancelled - Cancellation confirmation
 - Brand Added - Brand management
 - Brand Deleted - Brand management
 - New User Invite - Team onboarding
