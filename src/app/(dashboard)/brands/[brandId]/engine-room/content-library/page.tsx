@@ -1068,7 +1068,7 @@ function AssetDetailView({
                   )}
                 </div>
               ) : (
-                <div className={`${aspectClass} relative w-full max-w-2xl mx-auto overflow-hidden rounded-xl bg-gray-100`}>
+                <div className={`${aspectClass} relative w-full max-w-md mx-auto overflow-hidden rounded-xl bg-gray-100`}>
                   <div
                     ref={frameRef}
                     className="absolute inset-0 cursor-move"
