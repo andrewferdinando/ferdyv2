@@ -44,14 +44,14 @@ export default function FerdyPublishedPostDesktop() {
           {/* Main content: thumbnail + copy */}
           <div className="relative flex flex-col sm:flex-row gap-4 mb-4">
             {/* Thumbnail with annotation */}
-            <div className="relative flex-shrink-0 self-start">
+            <div className="relative flex-shrink-0 self-start sm:self-auto w-full sm:w-auto">
               <img
                 src="/images/burger-tuesday.jpg"
                 alt="Burger Tuesday"
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover"
+                className="w-full h-40 sm:w-20 sm:h-20 rounded-lg object-cover"
               />
               {/* Annotation: Auto selected - positioned as callout */}
-              <div className="absolute -bottom-3 -left-2 sm:-left-4 z-10">
+              <div className="absolute -bottom-3 left-2 sm:-left-4 z-10">
                 <div className="relative">
                   {/* Connector line */}
                   <div className="hidden sm:block absolute top-1/2 right-full w-2 border-t-2 border-dashed border-purple-300" />
