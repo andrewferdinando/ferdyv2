@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import ContactForm from './ContactForm';
+import FerdyPublishedPostDesktop from './FerdyPublishedPostDesktop';
 
 export default function Hero() {
   const [videoOpen, setVideoOpen] = useState(false);
@@ -79,12 +80,10 @@ export default function Hero() {
                     </div>
                   </div>
                 </div>
-                {/* Screenshot content */}
-                <img
-                  src="/images/published_post_screenshot.png"
-                  alt="Ferdy published post interface"
-                  className="w-full h-auto"
-                />
+                {/* Published post component */}
+                <div className="flex justify-center p-4 md:p-8 bg-gray-50">
+                  <FerdyPublishedPostDesktop />
+                </div>
               </div>
             </div>
           </div>

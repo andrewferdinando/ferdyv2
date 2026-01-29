@@ -2,7 +2,7 @@ const steps = [
   {
     number: "01",
     title: "Define your structure and assets",
-    description: "Tell Ferdy what to post (offers, FAQs, products, reminders) and upload the images and videos you're happy to use.",
+    description: "Tell Ferdy what to post (products, services, promos, events) and upload the images and videos you're happy to use.",
     bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
     numberColor: "text-blue-300"
   },
