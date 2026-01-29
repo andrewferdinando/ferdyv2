@@ -3,9 +3,16 @@ import { supabase } from '@/lib/supabase-browser'
 
 // Meta requirements for images (client-side constants)
 const META_IMAGE_REQUIREMENTS = {
+  minWidth: 320,
+  minHeight: 320,
   recommendedMinWidth: 600,
   recommendedMinHeight: 600,
   unsupportedFormats: ['image/gif', 'image/webp'],
+}
+
+const META_VIDEO_REQUIREMENTS = {
+  minWidth: 500,
+  minHeight: 500,
 }
 
 export interface UploadAssetParams {
@@ -49,14 +56,32 @@ export function useUploadAsset() {
           width = metaWidth
           height = metaHeight
           durationSeconds = Math.round(duration)
+
+          if (metaWidth && metaHeight && (metaWidth < META_VIDEO_REQUIREMENTS.minWidth || metaHeight < META_VIDEO_REQUIREMENTS.minHeight)) {
+            throw new Error(
+              `Video dimensions (${metaWidth}x${metaHeight}) are below the minimum ${META_VIDEO_REQUIREMENTS.minWidth}x${META_VIDEO_REQUIREMENTS.minHeight} pixels required by Instagram/Facebook.`
+            )
+          }
+
           thumbnailFile = new File([thumbnailBlob], `${assetId}-thumb.jpg`, { type: 'image/jpeg' })
           thumbnailPath = `brands/${brandId}/thumbnails/${assetId}.jpg`
         } catch (metadataError) {
+          // Re-throw dimension validation errors so they reach the outer catch / onError
+          if (metadataError instanceof Error && metadataError.message.includes('below the minimum')) {
+            throw metadataError
+          }
           console.warn('useUploadAsset: unable to read video metadata locally', metadataError)
         }
       } else {
         try {
           const { width: imageWidth, height: imageHeight } = await getImageDimensions(file)
+
+          if (imageWidth < META_IMAGE_REQUIREMENTS.minWidth || imageHeight < META_IMAGE_REQUIREMENTS.minHeight) {
+            throw new Error(
+              `Image dimensions (${imageWidth}x${imageHeight}) are below the minimum ${META_IMAGE_REQUIREMENTS.minWidth}x${META_IMAGE_REQUIREMENTS.minHeight} pixels required by Instagram/Facebook.`
+            )
+          }
+
           width = imageWidth
           height = imageHeight
 
@@ -80,6 +105,10 @@ export function useUploadAsset() {
             }
           }
         } catch (dimensionError) {
+          // Re-throw dimension validation errors so they reach the outer catch / onError
+          if (dimensionError instanceof Error && dimensionError.message.includes('below the minimum')) {
+            throw dimensionError
+          }
           console.warn('useUploadAsset: unable to read image dimensions', dimensionError)
         }
       }
