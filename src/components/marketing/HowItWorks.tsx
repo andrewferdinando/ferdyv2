@@ -60,19 +60,24 @@ export default function HowItWorks() {
 
         {/* Video Section */}
         <div className="max-w-5xl mx-auto">
-          <div className="rounded-2xl overflow-hidden border border-gray-200 aspect-video">
-            <iframe
-              width="100%"
-              height="100%"
-              src="https://www.youtube.com/embed/EYeDs6awRuU?si=iiRPbIN2DUcaIU6S"
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerPolicy="strict-origin-when-cross-origin"
-              allowFullScreen
-            ></iframe>
+          <div className="relative">
+            <div className="absolute -inset-3 bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 rounded-3xl"></div>
+            <div className="relative bg-white rounded-2xl p-2 shadow-lg">
+              <div className="rounded-xl overflow-hidden aspect-video">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src="https://www.youtube.com/embed/EYeDs6awRuU?si=iiRPbIN2DUcaIU6S"
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
           </div>
-          <p className="text-center text-sm text-gray-500 mt-3">We recommend watching at 1.5x speed</p>
+          <p className="text-center text-sm text-gray-500 mt-4">We recommend watching at 1.5x speed</p>
         </div>
       </div>
     </section>
