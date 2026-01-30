@@ -6,6 +6,7 @@ import FerdyPublishedPostDesktop from './FerdyPublishedPostDesktop';
 
 export default function Hero() {
   const [videoOpen, setVideoOpen] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const [loomFormOpen, setLoomFormOpen] = useState(false);
 
   return (
@@ -91,31 +92,54 @@ export default function Hero() {
 
         {/* Video Modal */}
         {videoOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-            onClick={() => setVideoOpen(false)}
+            onClick={() => { setVideoOpen(false); setVideoPlaying(false); }}
           >
-            <div 
+            <div
               className="relative w-full max-w-4xl aspect-video bg-black rounded-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <button
-                onClick={() => setVideoOpen(false)}
+                onClick={() => { setVideoOpen(false); setVideoPlaying(false); }}
                 className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <iframe 
-                width="100%" 
-                height="100%" 
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1" 
-                title="Ferdy Demo Video" 
-                frameBorder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowFullScreen
-              ></iframe>
+              {videoPlaying ? (
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src="https://www.youtube.com/embed/EYeDs6awRuU?autoplay=1"
+                  title="Ferdy Demo Video"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <div
+                  className="w-full h-full cursor-pointer relative group"
+                  onClick={() => setVideoPlaying(true)}
+                >
+                  <img
+                    src="https://img.youtube.com/vi/EYeDs6awRuU/maxresdefault.jpg"
+                    alt="Ferdy Demo Video"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-4">
+                    <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
+                      <svg className="w-8 h-8 text-blue-600 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </div>
+                    <span className="text-white/90 text-sm font-medium bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                      Tip: Watch at 1.5x speed
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
