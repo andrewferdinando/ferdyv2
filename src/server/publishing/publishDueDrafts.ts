@@ -635,6 +635,19 @@ async function processDraft(
       continue
     }
 
+    // Guard against race conditions: skip jobs in 'publishing' status that were
+    // started recently (within the last 10 minutes). These are actively being
+    // processed by another invocation (e.g. publish-now). Only retry 'publishing'
+    // jobs that appear stuck (last_attempt_at > 10 minutes ago or not set).
+    if (job.status === 'publishing' && job.last_attempt_at) {
+      const lastAttempt = new Date(job.last_attempt_at).getTime()
+      const tenMinutesAgo = Date.now() - 10 * 60 * 1000
+      if (lastAttempt > tenMinutesAgo) {
+        console.log(`[processDraft] Skipping job ${job.id} (${jobChannel}) - still actively publishing (last attempt ${job.last_attempt_at})`)
+        continue
+      }
+    }
+
     attempted += 1
     summary.jobsAttempted += 1
 
