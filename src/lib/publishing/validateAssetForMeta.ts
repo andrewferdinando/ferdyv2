@@ -24,7 +24,7 @@ export const META_REQUIREMENTS = {
     maxFileSize: 200 * 1024 * 1024, // 200MB (varies by format)
     minDuration: 3, // seconds
     maxDuration: 60 * 60, // 60 minutes for Reels, varies by format
-    supportedFormats: ['video/mp4'],
+    supportedFormats: ['video/mp4', 'video/quicktime'],
   },
 }
 
@@ -127,7 +127,7 @@ function validateVideo(asset: AssetForValidation, errors: string[], warnings: st
   // Check file format
   if (asset.mime_type && !video.supportedFormats.includes(asset.mime_type)) {
     errors.push(
-      `Video format ${asset.mime_type} is not supported. Please use MP4 format.`
+      `Video format ${asset.mime_type} is not supported. Please use MP4 or MOV format.`
     )
   }
 

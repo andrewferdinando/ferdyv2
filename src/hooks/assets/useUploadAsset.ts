@@ -35,11 +35,13 @@ export function useUploadAsset() {
       const assetId = crypto.randomUUID()
       const isVideo = file.type.startsWith('video/')
 
-      if (isVideo && file.type !== 'video/mp4') {
-        throw new Error('Only .mp4 videos are supported at this time.')
+      if (isVideo && file.type !== 'video/mp4' && file.type !== 'video/quicktime') {
+        throw new Error('Only .mp4 and .mov videos are supported at this time.')
       }
 
-      const ext = isVideo ? 'mp4' : file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const ext = isVideo
+        ? (file.name.split('.').pop()?.toLowerCase() || 'mp4')
+        : (file.name.split('.').pop()?.toLowerCase() || 'jpg')
       const storagePath = isVideo
         ? `videos/${brandId}/${assetId}.${ext}`
         : `brands/${brandId}/originals/${assetId}.${ext}`

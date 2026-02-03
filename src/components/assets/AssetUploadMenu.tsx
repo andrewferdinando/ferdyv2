@@ -134,8 +134,8 @@ export default function AssetUploadMenu({
       const isVideo = file.type.startsWith('video/')
 
       if (isVideo) {
-        if (file.type !== 'video/mp4') {
-          onUploadError(`Only .mp4 videos are supported. Problem file: ${file.name}`)
+        if (file.type !== 'video/mp4' && file.type !== 'video/quicktime') {
+          onUploadError(`Only .mp4 and .mov videos are supported. Problem file: ${file.name}`)
           return
         }
         if (file.size > maxVideoSize) {
@@ -249,7 +249,7 @@ export default function AssetUploadMenu({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/mp4"
+          accept="image/*,video/mp4,video/quicktime,.mov"
           multiple
           onChange={(e) => handleFileSelect(e.target.files)}
           className="hidden"
@@ -283,7 +283,7 @@ export default function AssetUploadMenu({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/mp4"
+        accept="image/*,video/mp4,video/quicktime,.mov"
         multiple
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"

@@ -26,7 +26,7 @@ const ALLOWED_IMAGE_TYPES = [
 ]
 
 // Allowed MIME types for videos
-const ALLOWED_VIDEO_TYPES = ['video/mp4']
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime']
 
 // Size limits
 const MAX_IMAGE_SIZE = 50 * 1024 * 1024 // 50MB
@@ -77,7 +77,7 @@ export function validateGoogleDriveFile(file: GoogleDriveFile): ValidationResult
   if (!isAllowedFileType(mimeType)) {
     return {
       valid: false,
-      error: `"${name}" is not a supported file type. Allowed: JPEG, PNG, GIF, WebP images and MP4 videos.`,
+      error: `"${name}" is not a supported file type. Allowed: JPEG, PNG, GIF, WebP images and MP4/MOV videos.`,
     }
   }
 
