@@ -3,6 +3,18 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 
 const GRAPH_API_VERSION = 'v19.0'
 
+/**
+ * Ensure a Facebook permalink is an absolute URL.
+ * The Graph API sometimes returns relative paths (e.g. "/reel/123")
+ * which need to be prefixed with the Facebook domain.
+ */
+function ensureAbsoluteFacebookUrl(url: string): string {
+  if (url.startsWith('/')) {
+    return `https://www.facebook.com${url}`
+  }
+  return url
+}
+
 type FacebookPublishParams = {
   brandId: string
   jobId: string
@@ -171,7 +183,7 @@ async function publishTextPost(
     const permalinkData = await permalinkResponse.json()
 
     if (permalinkResponse.ok && permalinkData.permalink_url) {
-      permalinkUrl = permalinkData.permalink_url
+      permalinkUrl = ensureAbsoluteFacebookUrl(permalinkData.permalink_url)
     } else {
       console.warn('[facebook publish] Failed to fetch permalink', {
         pageId,
@@ -275,7 +287,7 @@ async function publishPhotoPost(
     const permalinkData = await permalinkResponse.json()
 
     if (permalinkResponse.ok && permalinkData.permalink_url) {
-      permalinkUrl = permalinkData.permalink_url
+      permalinkUrl = ensureAbsoluteFacebookUrl(permalinkData.permalink_url)
     } else {
       console.warn('[facebook publish] Failed to fetch permalink', {
         pageId,
@@ -377,7 +389,7 @@ async function publishVideoPost(
     const permalinkData = await permalinkResponse.json()
 
     if (permalinkResponse.ok && permalinkData.permalink_url) {
-      permalinkUrl = permalinkData.permalink_url
+      permalinkUrl = ensureAbsoluteFacebookUrl(permalinkData.permalink_url)
     } else {
       console.warn('[facebook publish] Failed to fetch video permalink', {
         pageId,
