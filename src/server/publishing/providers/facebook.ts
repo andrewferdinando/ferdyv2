@@ -60,27 +60,31 @@ export async function publishFacebookPost(
     const pageId = socialAccount.account_id
     const message = buildPostMessage(draft.copy, draft.hashtags)
 
-    // Get asset URL if available
-    let imageUrl: string | undefined
+    // Get asset info if available
+    let assetInfo: { url: string; assetType: string } | null = null
     if (draft.asset_ids && draft.asset_ids.length > 0) {
-      const assetUrl = await getAssetSignedUrl(draft.asset_ids[0])
-      if (assetUrl) {
-        imageUrl = assetUrl
-      }
+      assetInfo = await getAssetSignedUrl(draft.asset_ids[0])
     }
+
+    const isVideo = assetInfo?.assetType === 'video'
 
     console.log('[facebook publish] Publishing post', {
       brandId,
       jobId,
       pageId,
-      hasImage: !!imageUrl,
+      hasAsset: !!assetInfo,
+      assetType: assetInfo?.assetType || 'none',
       messageLength: message.length,
     })
 
     // Publish to Facebook
-    if (imageUrl) {
+    if (assetInfo && isVideo) {
+      // Post with video
+      const result = await publishVideoPost(pageId, accessToken, message, assetInfo.url)
+      return result
+    } else if (assetInfo) {
       // Post with image
-      const result = await publishPhotoPost(pageId, accessToken, message, imageUrl)
+      const result = await publishPhotoPost(pageId, accessToken, message, assetInfo.url)
       return result
     } else {
       // Text-only post
@@ -305,6 +309,107 @@ async function publishPhotoPost(
 }
 
 /**
+ * Publish a video post to Facebook
+ */
+async function publishVideoPost(
+  pageId: string,
+  accessToken: string,
+  message: string,
+  videoUrl: string,
+): Promise<FacebookPublishResult> {
+  const url = new URL(`https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/videos`)
+  url.searchParams.set('file_url', videoUrl)
+  url.searchParams.set('description', message)
+  url.searchParams.set('access_token', accessToken)
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  const responseData = await response.json()
+
+  if (!response.ok) {
+    const errorMessage =
+      responseData.error?.message || `HTTP ${response.status}: ${response.statusText}`
+    console.error('[facebook publish] Video upload error', {
+      pageId,
+      status: response.status,
+      error: responseData.error,
+    })
+    return {
+      success: false,
+      error: `Facebook video upload error: ${errorMessage}`,
+    }
+  }
+
+  const videoId = responseData.id
+
+  if (!videoId) {
+    console.error('[facebook publish] Video ID not returned', {
+      pageId,
+      responseData,
+    })
+    return {
+      success: false,
+      error: 'Facebook API did not return a video ID',
+    }
+  }
+
+  // Fetch the permalink from Graph API
+  let permalinkUrl: string | null = null
+  try {
+    const permalinkUrlObj = new URL(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${videoId}`,
+    )
+    permalinkUrlObj.searchParams.set('fields', 'permalink_url')
+    permalinkUrlObj.searchParams.set('access_token', accessToken)
+
+    const permalinkResponse = await fetch(permalinkUrlObj.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const permalinkData = await permalinkResponse.json()
+
+    if (permalinkResponse.ok && permalinkData.permalink_url) {
+      permalinkUrl = permalinkData.permalink_url
+    } else {
+      console.warn('[facebook publish] Failed to fetch video permalink', {
+        pageId,
+        videoId,
+        status: permalinkResponse.status,
+        error: permalinkData.error,
+      })
+      // Continue without permalink - still mark as success
+    }
+  } catch (error) {
+    console.warn('[facebook publish] Error fetching video permalink', {
+      pageId,
+      videoId,
+      error: error instanceof Error ? error.message : 'unknown',
+    })
+    // Continue without permalink - still mark as success
+  }
+
+  console.log('[facebook publish] Video post success', {
+    pageId,
+    videoId,
+    permalinkUrl,
+  })
+
+  return {
+    success: true,
+    externalId: videoId,
+    externalUrl: permalinkUrl,
+  }
+}
+
+/**
  * Build post message from copy and hashtags
  */
 function buildPostMessage(copy: string | null, hashtags: string[] | null): string {
@@ -335,11 +440,11 @@ interface ProcessedImageRecord {
  * 2. Use the processed image if available (cropped + resized to Meta dimensions)
  * 3. Fall back to original image if no processed version exists
  */
-async function getAssetSignedUrl(assetId: string): Promise<string | null> {
+async function getAssetSignedUrl(assetId: string): Promise<{ url: string; assetType: string } | null> {
   try {
     const { data: asset, error } = await supabaseAdmin
       .from('assets')
-      .select('storage_path, aspect_ratio, processed_images')
+      .select('storage_path, aspect_ratio, processed_images, asset_type')
       .eq('id', assetId)
       .single()
 
@@ -348,14 +453,18 @@ async function getAssetSignedUrl(assetId: string): Promise<string | null> {
       return null
     }
 
+    const assetType = asset.asset_type || 'image'
+    const isVideo = assetType === 'video'
+
     // Check for processed image matching the asset's aspect ratio
+    // (skip for videos — they don't have processed versions)
     const aspectRatio = asset.aspect_ratio
     const processedImages = asset.processed_images as Record<string, ProcessedImageRecord> | null
 
     let storagePath = asset.storage_path
     let usingProcessed = false
 
-    if (aspectRatio && processedImages && processedImages[aspectRatio]) {
+    if (!isVideo && aspectRatio && processedImages && processedImages[aspectRatio]) {
       const processed = processedImages[aspectRatio]
       storagePath = processed.storage_path
       usingProcessed = true
@@ -366,7 +475,7 @@ async function getAssetSignedUrl(assetId: string): Promise<string | null> {
         dimensions: `${processed.width}x${processed.height}`,
       })
     } else {
-      console.log('[facebook publish] Using original image (no processed version)', {
+      console.log(`[facebook publish] Using original ${assetType} (no processed version)`, {
         assetId,
         aspectRatio,
         originalPath: storagePath,
@@ -387,7 +496,7 @@ async function getAssetSignedUrl(assetId: string): Promise<string | null> {
       return null
     }
 
-    return signedUrlData.signedUrl
+    return { url: signedUrlData.signedUrl, assetType }
   } catch (error) {
     console.error('[facebook publish] Error getting asset signed URL', {
       assetId,

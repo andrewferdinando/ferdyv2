@@ -12,8 +12,12 @@ const DEFAULT_SUPPORT: ChannelSupport = {
 
 const CHANNEL_MEDIA_SUPPORT: Record<string, ChannelSupport> = {
   facebook: { images: true, videos: true },
+  facebook_page: { images: true, videos: true },
   instagram: { images: true, videos: true },
+  instagram_feed: { images: true, videos: true },
+  instagram_story: { images: true, videos: true },
   linkedin: { images: true, videos: true },
+  linkedin_profile: { images: true, videos: true },
   tiktok: { images: false, videos: true },
   twitter: { images: true, videos: false },
   x: { images: true, videos: false },

@@ -13,9 +13,10 @@ async function waitForInstagramMediaReady(
   brandId: string,
   jobId: string,
   channel: string,
+  options?: { maxAttempts?: number; delayMs?: number },
 ): Promise<{ ready: boolean; statusCode: string | null }> {
-  const maxAttempts = 20
-  const delayMs = 1000 // 1 second
+  const maxAttempts = options?.maxAttempts ?? 20
+  const delayMs = options?.delayMs ?? 1000
   let containerStatus: string | null = null
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -171,19 +172,20 @@ export async function publishInstagramFeedPost(
     if (!draft.asset_ids || draft.asset_ids.length === 0) {
       return {
         success: false,
-        error: 'Instagram Feed posts require at least one image',
+        error: 'Instagram Feed posts require at least one image or video',
       }
     }
 
     // Instagram requires publicly accessible URLs, not signed URLs
-    const imageUrl = await getAssetPublicUrl(draft.asset_ids[0])
-    if (!imageUrl) {
+    const assetInfo = await getAssetPublicUrl(draft.asset_ids[0])
+    if (!assetInfo) {
       return {
         success: false,
-        error: 'Failed to get public image URL for Instagram post',
+        error: 'Failed to get public URL for Instagram post asset',
       }
     }
 
+    const isVideo = assetInfo.assetType === 'video'
     const caption = buildPostMessage(draft.copy, draft.hashtags)
 
     console.log('[instagram feed publish] Publishing post', {
@@ -191,7 +193,8 @@ export async function publishInstagramFeedPost(
       jobId,
       channel: 'instagram_feed',
       igAccountId,
-      imageUrl: imageUrl.substring(0, 100) + '...', // Log partial URL (no secrets)
+      assetType: assetInfo.assetType,
+      assetUrl: assetInfo.url.substring(0, 100) + '...', // Log partial URL (no secrets)
       captionLength: caption.length,
     })
 
@@ -199,7 +202,12 @@ export async function publishInstagramFeedPost(
     const containerUrl = new URL(
       `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media`,
     )
-    containerUrl.searchParams.set('image_url', imageUrl)
+    if (isVideo) {
+      containerUrl.searchParams.set('video_url', assetInfo.url)
+      containerUrl.searchParams.set('media_type', 'REELS')
+    } else {
+      containerUrl.searchParams.set('image_url', assetInfo.url)
+    }
     containerUrl.searchParams.set('caption', caption)
     containerUrl.searchParams.set('access_token', accessToken)
 
@@ -271,20 +279,23 @@ export async function publishInstagramFeedPost(
     })
 
     // Step 2: Wait for media container to be ready
+    // Videos take longer to process than images
     const waitResult = await waitForInstagramMediaReady(
       creationId,
       accessToken,
       brandId,
       jobId,
       'instagram_feed',
+      isVideo ? { maxAttempts: 60, delayMs: 5000 } : undefined,
     )
 
     if (!waitResult.ready) {
+      const mediaType = isVideo ? 'video' : 'image'
       const errorMessage =
         waitResult.statusCode === 'ERROR'
-          ? 'Instagram media container creation failed with ERROR status'
-          : 'Instagram media container is still processing after waiting, please retry later'
-      
+          ? `Instagram ${mediaType} container creation failed with ERROR status`
+          : `Instagram ${mediaType} container is still processing after waiting, please retry later`
+
       return {
         success: false,
         error: errorMessage,
@@ -313,7 +324,7 @@ export async function publishInstagramFeedPost(
         publishData.error?.error_user_msg ||
         JSON.stringify(publishData.error) ||
         `HTTP ${publishResponse.status}: ${publishResponse.statusText}`
-      
+
       console.error('[instagram feed publish] Publish error', {
         brandId,
         jobId,
@@ -325,7 +336,7 @@ export async function publishInstagramFeedPost(
         error: publishData.error,
         fullResponse: JSON.stringify(publishData),
       })
-      
+
       return {
         success: false,
         error: `Instagram publish failed: ${errorMessage}`,
@@ -479,25 +490,28 @@ export async function publishInstagramStory(
     if (!draft.asset_ids || draft.asset_ids.length === 0) {
       return {
         success: false,
-        error: 'Instagram Story posts require at least one image',
+        error: 'Instagram Story posts require at least one image or video',
       }
     }
 
     // Instagram requires publicly accessible URLs, not signed URLs
-    const imageUrl = await getAssetPublicUrl(draft.asset_ids[0])
-    if (!imageUrl) {
+    const assetInfo = await getAssetPublicUrl(draft.asset_ids[0])
+    if (!assetInfo) {
       return {
         success: false,
-        error: 'Failed to get public image URL for Instagram Story',
+        error: 'Failed to get public URL for Instagram Story asset',
       }
     }
+
+    const isVideo = assetInfo.assetType === 'video'
 
     console.log('[instagram story publish] Publishing story', {
       brandId,
       jobId,
       channel: 'instagram_story',
       igAccountId,
-      imageUrl: imageUrl.substring(0, 100) + '...', // Log partial URL (no secrets)
+      assetType: assetInfo.assetType,
+      assetUrl: assetInfo.url.substring(0, 100) + '...', // Log partial URL (no secrets)
     })
 
     // Instagram Story uses a similar two-step process but with media_type=STORIES
@@ -505,7 +519,11 @@ export async function publishInstagramStory(
     const containerUrl = new URL(
       `https://graph.facebook.com/${GRAPH_API_VERSION}/${igAccountId}/media`,
     )
-    containerUrl.searchParams.set('image_url', imageUrl)
+    if (isVideo) {
+      containerUrl.searchParams.set('video_url', assetInfo.url)
+    } else {
+      containerUrl.searchParams.set('image_url', assetInfo.url)
+    }
     containerUrl.searchParams.set('media_type', 'STORIES')
     // Stories can have a caption but it's optional
     if (draft.copy || (draft.hashtags && draft.hashtags.length > 0)) {
@@ -579,20 +597,23 @@ export async function publishInstagramStory(
     })
 
     // Step 2: Wait for media container to be ready
+    // Videos take longer to process than images
     const waitResult = await waitForInstagramMediaReady(
       creationId,
       accessToken,
       brandId,
       jobId,
       'instagram_story',
+      isVideo ? { maxAttempts: 60, delayMs: 5000 } : undefined,
     )
 
     if (!waitResult.ready) {
+      const mediaType = isVideo ? 'video' : 'image'
       const errorMessage =
         waitResult.statusCode === 'ERROR'
-          ? 'Instagram Story media container creation failed with ERROR status'
-          : 'Instagram Story media container is still processing after waiting, please retry later'
-      
+          ? `Instagram Story ${mediaType} container creation failed with ERROR status`
+          : `Instagram Story ${mediaType} container is still processing after waiting, please retry later`
+
       return {
         success: false,
         error: errorMessage,
@@ -756,11 +777,11 @@ interface ProcessedImageRecord {
  * 2. Use the processed image if available (cropped + resized to Meta dimensions)
  * 3. Fall back to original image if no processed version exists
  */
-async function getAssetPublicUrl(assetId: string): Promise<string | null> {
+async function getAssetPublicUrl(assetId: string): Promise<{ url: string; assetType: string } | null> {
   try {
     const { data: asset, error } = await supabaseAdmin
       .from('assets')
-      .select('storage_path, aspect_ratio, processed_images')
+      .select('storage_path, aspect_ratio, processed_images, asset_type')
       .eq('id', assetId)
       .single()
 
@@ -769,14 +790,18 @@ async function getAssetPublicUrl(assetId: string): Promise<string | null> {
       return null
     }
 
+    const assetType = asset.asset_type || 'image'
+    const isVideo = assetType === 'video'
+
     // Check for processed image matching the asset's aspect ratio
+    // (skip for videos — they don't have processed versions)
     const aspectRatio = asset.aspect_ratio
     const processedImages = asset.processed_images as Record<string, ProcessedImageRecord> | null
 
     let storagePath = asset.storage_path
     let usingProcessed = false
 
-    if (aspectRatio && processedImages && processedImages[aspectRatio]) {
+    if (!isVideo && aspectRatio && processedImages && processedImages[aspectRatio]) {
       const processed = processedImages[aspectRatio]
       storagePath = processed.storage_path
       usingProcessed = true
@@ -787,7 +812,7 @@ async function getAssetPublicUrl(assetId: string): Promise<string | null> {
         dimensions: `${processed.width}x${processed.height}`,
       })
     } else {
-      console.log('[instagram publish] Using original image (no processed version)', {
+      console.log(`[instagram publish] Using original ${assetType} (no processed version)`, {
         assetId,
         aspectRatio,
         originalPath: storagePath,
@@ -809,7 +834,7 @@ async function getAssetPublicUrl(assetId: string): Promise<string | null> {
       return null
     }
 
-    return publicUrlData.publicUrl
+    return { url: publicUrlData.publicUrl, assetType }
   } catch (error) {
     console.error('[instagram publish] Error getting asset public URL', {
       assetId,
