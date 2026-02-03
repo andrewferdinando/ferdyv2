@@ -443,15 +443,11 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
     );
   }
 
-  // Sort published posts by scheduled date (earliest first) - chronological order by when they were scheduled
+  // Sort published posts by published_at descending (most recently published first)
   const sortedPublished = [...published].sort((a, b) => {
-    const dateA = a.post_jobs?.scheduled_at 
-      ? new Date(a.post_jobs.scheduled_at).getTime() 
-      : (a.scheduled_for ? new Date(a.scheduled_for).getTime() : (a.published_at ? new Date(a.published_at).getTime() : new Date(a.created_at).getTime()));
-    const dateB = b.post_jobs?.scheduled_at 
-      ? new Date(b.post_jobs.scheduled_at).getTime() 
-      : (b.scheduled_for ? new Date(b.scheduled_for).getTime() : (b.published_at ? new Date(b.published_at).getTime() : new Date(b.created_at).getTime()));
-    return dateA - dateB; // Ascending order (earliest first)
+    const aTime = a.publishes?.published_at || a.published_at || a.scheduled_for || a.created_at;
+    const bTime = b.publishes?.published_at || b.published_at || b.scheduled_for || b.created_at;
+    return new Date(bTime).getTime() - new Date(aTime).getTime(); // Descending order (most recent first)
   });
 
   return (
