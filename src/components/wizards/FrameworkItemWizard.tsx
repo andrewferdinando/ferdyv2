@@ -12,8 +12,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
-import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
-import UploadAsset from '@/components/assets/UploadAsset'
+import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 import { HashtagInput } from '@/components/ui/HashtagInput'
@@ -594,7 +593,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   })
   
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
-  const { uploadAsset, uploading: isUploading } = useUploadAsset()
 
   // Update timezone when brand loads (only if not already set from saved data)
   useEffect(() => {
@@ -3484,7 +3482,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     {imageMode === 'upload' && (
                       <div className="space-y-4">
 
-                        <UploadAsset
+                        <AssetUploadMenu
                           brandId={brandId}
                           onUploadSuccess={(assetIds) => {
                             setSelectedAssetIds(prev => [...prev, ...assetIds])

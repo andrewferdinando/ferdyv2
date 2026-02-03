@@ -25,31 +25,34 @@ export function SocialConnectionDisconnected({
   return (
     <EmailLayout preview={`Action required: ${platform} connection lost`}>
       <Text style={emailStyles.h1}>⚠️ Social Connection Needs Attention</Text>
-      
+
       <Text style={emailStyles.paragraph}>
         Hi there,
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        We've detected that the <strong>{platform}</strong> connection for{' '}
-        <strong>{brandName}</strong> is no longer working.
+        We've noticed that the connection between Ferdy and your <strong>{platform}</strong> account
+        for <strong>{brandName}</strong> has been interrupted.
       </Text>
 
       <Section style={{ ...alertBox, borderLeftColor: platformColor }}>
-        <Text style={alertTitle}>What This Means</Text>
+        <Text style={alertTitle}>What's going on?</Text>
         <Text style={alertText}>
-          Ferdy can't currently publish posts to your {platform} account. This usually happens when:
+          This is common and usually happens on the social platform's side. Accounts can disconnect
+          unexpectedly, even when nothing has changed on your end.
         </Text>
-        <ul style={{ ...emailStyles.list, marginTop: '12px' }}>
-          <li style={emailStyles.listItem}>Your password was changed</li>
-          <li style={emailStyles.listItem}>Access permissions were revoked</li>
-          <li style={emailStyles.listItem}>The connection token expired</li>
-        </ul>
       </Section>
 
       <Text style={emailStyles.paragraph}>
-        <strong>Action Required:</strong> Please reconnect your {platform} account to resume
-        publishing posts.
+        <strong>What this means</strong>
+        <br />
+        Ferdy can't publish posts to your {platform} account until the connection is restored.
+      </Text>
+
+      <Text style={emailStyles.paragraph}>
+        <strong>What to do next</strong>
+        <br />
+        Reconnect your {platform} account to resume publishing:
       </Text>
 
       <Section style={{ textAlign: 'center' }}>
@@ -59,11 +62,7 @@ export function SocialConnectionDisconnected({
       </Section>
 
       <Text style={emailStyles.paragraph}>
-        Any scheduled posts for {platform} are currently paused and will resume once you reconnect.
-      </Text>
-
-      <Text style={emailStyles.paragraph}>
-        If you need help, our support team is here to assist you.
+        Any scheduled posts for {platform} are paused and will automatically resume once you reconnect.
       </Text>
 
       <Text style={emailStyles.paragraph}>
