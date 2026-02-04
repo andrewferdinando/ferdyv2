@@ -351,9 +351,8 @@ export default function ScheduleCalendar({ drafts, scheduled, published, brandId
                               className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
                             >
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_CONFIG[entry.calendarStatus].dot}`} />
-                              <span className="text-xs text-gray-700 truncate">
-                                {getChannelLabel(entry.channel)}
-                                <span className="text-gray-400"> &middot; {truncate(entry.copy, 24)}</span>
+                              <span className="text-[11px] text-gray-600 truncate leading-tight">
+                                {truncate(entry.copy || getChannelLabel(entry.channel), 30)}
                               </span>
                             </Link>
                         ))}
