@@ -87,6 +87,25 @@ export interface UpcomingDraft {
   channels: string[];
 }
 
+export interface ExpectedDraftSlot {
+  key: string;
+  brand_id: string;
+  brand_name: string;
+  subcategory_id: string;
+  subcategory_name: string;
+  frequency: string;
+  scheduled_at: string;
+  status: 'created' | 'missing';
+  draft_id: string | null;
+}
+
+export interface ExpectedDraftsData {
+  totalExpected: number;
+  alreadyCreated: number;
+  pendingCreation: number;
+  slots: ExpectedDraftSlot[];
+}
+
 export interface SystemHealthData {
   overall: 'healthy' | 'warning' | 'critical';
   overallMessage: string;
@@ -119,6 +138,7 @@ export interface SystemHealthData {
     disconnectedAccounts: DisconnectedAccount[];
     expiringAccounts: ExpiringAccount[];
   };
+  expectedDrafts: ExpectedDraftsData;
   upcomingThisWeek: UpcomingDraft[];
   loading: boolean;
   error: string | null;
@@ -139,6 +159,7 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
     publishing: { dueToday: 0, published: 0, failed: 0, pending: 0, overdue: 0, successRate: 0, failedJobs: [], publishedJobs: [], pendingJobs: [], lastCronRun: null },
     drafts: { activeRules: 0, createdToday: 0, unapprovedUpcoming: 0, activeRulesList: [], createdTodayList: [], unapprovedList: [], brandsWithoutDrafts: [] },
     social: { connected: 0, disconnected: 0, expiringSoon: 0, connectedAccounts: [], disconnectedAccounts: [], expiringAccounts: [] },
+    expectedDrafts: { totalExpected: 0, alreadyCreated: 0, pendingCreation: 0, slots: [] },
     upcomingThisWeek: [],
   });
   const [loading, setLoading] = useState(true);
@@ -392,6 +413,99 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
         channels: upcomingChannelsMap[d.id] || [],
       }));
 
+      // --- Process Expected Drafts This Week ---
+      const brandsForTargets = (brandsWithRulesRes.data || []) as any[];
+      const targetResults = await Promise.all(
+        brandsForTargets.map((b: any) =>
+          supabase.rpc('rpc_framework_targets', { p_brand_id: b.id }).then((res: any) => ({
+            brand_id: b.id as string,
+            brand_name: b.name as string,
+            targets: (res.data || []) as any[],
+          }))
+        )
+      );
+
+      // Flatten and filter to next 7 days
+      const allTargets: { brand_id: string; brand_name: string; subcategory_id: string; frequency: string; scheduled_at: string }[] = [];
+      for (const result of targetResults) {
+        for (const t of result.targets) {
+          if (t.scheduled_at >= now && t.scheduled_at <= sevenDaysFromNow) {
+            allTargets.push({
+              brand_id: result.brand_id,
+              brand_name: result.brand_name,
+              subcategory_id: t.subcategory_id,
+              frequency: t.frequency,
+              scheduled_at: t.scheduled_at,
+            });
+          }
+        }
+      }
+
+      // Lookup subcategory names
+      const uniqueSubcategoryIds = [...new Set(allTargets.map(t => t.subcategory_id))];
+      let subcategoryNameMap: Record<string, string> = {};
+      if (uniqueSubcategoryIds.length > 0) {
+        const { data: subcatData } = await supabase
+          .from('subcategories')
+          .select('id, name')
+          .in('id', uniqueSubcategoryIds);
+        if (subcatData) {
+          for (const s of subcatData) {
+            subcategoryNameMap[s.id] = s.name;
+          }
+        }
+      }
+
+      // Batch-query existing framework drafts in the window
+      const uniqueBrandIds = [...new Set(allTargets.map(t => t.brand_id))];
+      let draftLookup: Record<string, string> = {};
+      if (uniqueBrandIds.length > 0) {
+        const { data: existingDrafts } = await supabase
+          .from('drafts')
+          .select('id, brand_id, subcategory_id, scheduled_for')
+          .in('brand_id', uniqueBrandIds)
+          .eq('schedule_source', 'framework')
+          .gte('scheduled_for', now)
+          .lte('scheduled_for', sevenDaysFromNow);
+        if (existingDrafts) {
+          for (const d of existingDrafts) {
+            const key = `${d.brand_id}|${d.subcategory_id}|${d.scheduled_for}`;
+            draftLookup[key] = d.id;
+          }
+        }
+      }
+
+      // Build slots
+      const expectedSlots: ExpectedDraftSlot[] = allTargets.map(t => {
+        const key = `${t.brand_id}|${t.subcategory_id}|${t.scheduled_at}`;
+        const draftId = draftLookup[key] || null;
+        return {
+          key,
+          brand_id: t.brand_id,
+          brand_name: t.brand_name,
+          subcategory_id: t.subcategory_id,
+          subcategory_name: subcategoryNameMap[t.subcategory_id] || 'Unknown',
+          frequency: t.frequency,
+          scheduled_at: t.scheduled_at,
+          status: draftId ? 'created' as const : 'missing' as const,
+          draft_id: draftId,
+        };
+      });
+
+      // Sort: missing first, then by scheduled_at ascending
+      expectedSlots.sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'missing' ? -1 : 1;
+        return a.scheduled_at.localeCompare(b.scheduled_at);
+      });
+
+      const alreadyCreated = expectedSlots.filter(s => s.status === 'created').length;
+      const expectedDrafts: ExpectedDraftsData = {
+        totalExpected: expectedSlots.length,
+        alreadyCreated,
+        pendingCreation: expectedSlots.length - alreadyCreated,
+        slots: expectedSlots,
+      };
+
       // --- Compute overall health ---
       let overall: 'healthy' | 'warning' | 'critical' = 'healthy';
       let overallMessage = 'All systems healthy';
@@ -421,6 +535,7 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
         publishing: { dueToday, published, failed, pending, overdue, successRate, failedJobs, publishedJobs, pendingJobs: pendingJobsList, lastCronRun },
         drafts: { activeRules, createdToday, unapprovedUpcoming, activeRulesList, createdTodayList, unapprovedList, brandsWithoutDrafts },
         social: { connected, disconnected, expiringSoon, connectedAccounts, disconnectedAccounts, expiringAccounts },
+        expectedDrafts,
         upcomingThisWeek,
       });
     } catch (err) {

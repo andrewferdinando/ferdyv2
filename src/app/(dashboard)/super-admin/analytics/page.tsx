@@ -6,6 +6,7 @@ import { useSystemHealth } from './useSystemHealth';
 import HealthBanner from './HealthBanner';
 import PublishingSection from './PublishingSection';
 import DraftGenerationSection from './DraftGenerationSection';
+import ExpectedDraftsSection from './ExpectedDraftsSection';
 import SocialHealthSection from './SocialHealthSection';
 import UpcomingDraftsSection from './UpcomingDraftsSection';
 
@@ -142,6 +143,9 @@ export default function AnalyticsPage() {
                   unapprovedList={health.drafts.unapprovedList}
                   brandsWithoutDrafts={health.drafts.brandsWithoutDrafts}
                 />
+
+                {/* Expected Drafts This Week */}
+                <ExpectedDraftsSection data={health.expectedDrafts} />
 
                 {/* Social Connections */}
                 <SocialHealthSection
