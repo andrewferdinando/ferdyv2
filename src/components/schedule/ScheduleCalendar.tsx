@@ -45,15 +45,6 @@ const STATUS_CONFIG: Record<CalendarStatus, { dot: string; label: string }> = {
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// Platform colours matching DraftCard
-const CHANNEL_COLORS: Record<string, string> = {
-  facebook: 'bg-[#1877F2]',
-  instagram_feed: 'bg-gradient-to-br from-[#833AB4] via-[#C13584] to-[#E1306C]',
-  instagram_story: 'bg-gradient-to-br from-[#833AB4] via-[#C13584] to-[#E1306C]',
-  linkedin_profile: 'bg-[#0A66C2]',
-  tiktok: 'bg-black',
-  x: 'bg-black',
-};
 
 function getLocalDateString(utcDateStr: string): string {
   const d = new Date(utcDateStr);
@@ -330,22 +321,18 @@ export default function ScheduleCalendar({ drafts, scheduled, published, brandId
 
               {/* Post entries */}
               <div className="space-y-px">
-                {visibleEntries.map((entry) => {
-                  const channelColor = CHANNEL_COLORS[entry.channel] || 'bg-gray-400';
-                  return (
+                {visibleEntries.map((entry) => (
                     <Link
                       key={entry.id}
                       href={`/brands/${brandId}/edit-post/${entry.id}`}
                       className="flex items-center gap-1.5 px-1 py-[3px] rounded-md hover:bg-gray-100 transition-colors group"
                     >
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_CONFIG[entry.calendarStatus].dot}`} />
-                      <span className={`w-3 h-3 rounded-[3px] flex-shrink-0 ${channelColor}`} />
                       <span className="text-[11px] text-gray-600 group-hover:text-gray-900 truncate leading-tight">
                         {truncate(entry.copy || getChannelLabel(entry.channel), 22)}
                       </span>
                     </Link>
-                  );
-                })}
+                ))}
                 {overflowCount > 0 && (
                   <div className="relative group/overflow">
                     <button
@@ -357,23 +344,19 @@ export default function ScheduleCalendar({ drafts, scheduled, published, brandId
                     {/* Hover popover */}
                     <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover/overflow:block">
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-1.5 min-w-[220px]">
-                        {overflowEntries.map((entry) => {
-                          const channelColor = CHANNEL_COLORS[entry.channel] || 'bg-gray-400';
-                          return (
+                        {overflowEntries.map((entry) => (
                             <Link
                               key={entry.id}
                               href={`/brands/${brandId}/edit-post/${entry.id}`}
                               className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
                             >
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_CONFIG[entry.calendarStatus].dot}`} />
-                              <span className={`w-3.5 h-3.5 rounded-[3px] flex-shrink-0 ${channelColor}`} />
                               <span className="text-xs text-gray-700 truncate">
                                 {getChannelLabel(entry.channel)}
                                 <span className="text-gray-400"> &middot; {truncate(entry.copy, 24)}</span>
                               </span>
                             </Link>
-                          );
-                        })}
+                        ))}
                       </div>
                     </div>
                   </div>
