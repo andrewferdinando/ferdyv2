@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import DraftCard from '@/components/schedule/DraftCard';
+import ScheduleCalendar from '@/components/schedule/ScheduleCalendar';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
@@ -128,11 +129,14 @@ export default function SchedulePage() {
     return tabParam && ['drafts', 'scheduled', 'published'].includes(tabParam) ? tabParam : 'drafts';
   });
   
+  const [view, setView] = useState<'list' | 'calendar'>('list');
+
   // Update activeTab when URL query parameter changes
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam && ['drafts', 'scheduled', 'published'].includes(tabParam)) {
       setActiveTab(tabParam);
+      setView('list');
     }
   }, [searchParams]);
 
@@ -242,35 +246,60 @@ export default function SchedulePage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-wrap gap-4 sm:gap-8 mt-6">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
-                    activeTab === tab.id
-                      ? 'border-[#6366F1] text-[#6366F1]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab.name}
-                  {tab.count !== undefined && (
-                    <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
-                      activeTab === tab.id
-                        ? 'bg-[#6366F1] text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="flex items-end justify-between mt-6">
+              <div className="flex flex-wrap gap-4 sm:gap-8">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id); setView('list'); }}
+                    className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
+                      view === 'list' && activeTab === tab.id
+                        ? 'border-[#6366F1] text-[#6366F1]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.name}
+                    {tab.count !== undefined && (
+                      <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                        view === 'list' && activeTab === tab.id
+                          ? 'bg-[#6366F1] text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setView('calendar')}
+                className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm flex items-center gap-1.5 ${
+                  view === 'calendar'
+                    ? 'border-[#6366F1] text-[#6366F1]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Calendar
+              </button>
             </div>
           </div>
 
           {/* Tab Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
-            {renderTabContent()}
+            {view === 'calendar' ? (
+              <ScheduleCalendar
+                drafts={drafts}
+                scheduled={scheduled}
+                published={published}
+                brandId={brandId}
+              />
+            ) : (
+              renderTabContent()
+            )}
           </div>
         </div>
 
