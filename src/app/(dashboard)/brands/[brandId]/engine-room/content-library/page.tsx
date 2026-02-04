@@ -353,7 +353,6 @@ export default function ContentLibraryPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
-                <p className="mt-1 text-sm text-gray-500">Images: JPG or PNG, min 600×600px, max 30 MB. Videos: MP4 or MOV, min 500×500px, max 200 MB.</p>
               </div>
               <AssetUploadMenu
                 brandId={brandId}
@@ -365,33 +364,42 @@ export default function ContentLibraryPage() {
 
           {/* Tabs */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10">
-            <div className="flex space-x-8">
-              <button
-                onClick={() => {
-                  setActiveTab('ready')
-                  setEditingAssetData(null) // Clear editing data when switching tabs
-                }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'ready'
-                    ? 'border-[#6366F1] text-[#6366F1]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Ready to Use ({readyAssets.length})
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('needs_attention')
-                  setEditingAssetData(null) // Clear editing data when switching tabs
-                }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'needs_attention'
-                    ? 'border-[#6366F1] text-[#6366F1]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Needs Attention ({needsAttentionAssets.length})
-              </button>
+            <div className="flex items-center justify-between">
+              <div className="flex space-x-8">
+                <button
+                  onClick={() => {
+                    setActiveTab('ready')
+                    setEditingAssetData(null) // Clear editing data when switching tabs
+                  }}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'ready'
+                      ? 'border-[#6366F1] text-[#6366F1]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Ready to Use ({readyAssets.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('needs_attention')
+                    setEditingAssetData(null) // Clear editing data when switching tabs
+                  }}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'needs_attention'
+                      ? 'border-[#6366F1] text-[#6366F1]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Needs Attention ({needsAttentionAssets.length})
+                </button>
+              </div>
+              <div className="relative group">
+                <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
+                <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 whitespace-nowrap shadow-lg">
+                  Images: JPG or PNG, min 600×600px, max 30 MB<br />
+                  Videos: MP4 or MOV, min 500×500px, max 200 MB
+                </div>
+              </div>
             </div>
           </div>
 

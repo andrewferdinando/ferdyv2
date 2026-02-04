@@ -3440,11 +3440,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       Step 4: Images
                     </h2>
 
-                    <h3 className="text-base font-semibold text-gray-900 mb-4">
-                      Choose images
-                    </h3>
-
-                    <p className="text-sm text-gray-500 mb-4">Images: JPG or PNG, min 600×600px, max 30 MB. Videos: MP4 or MOV, min 500×500px, max 200 MB.</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-semibold text-gray-900">
+                        Choose images
+                      </h3>
+                      <div className="relative group">
+                        <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
+                        <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 whitespace-nowrap shadow-lg">
+                          Images: JPG or PNG, min 600×600px, max 30 MB<br />
+                          Videos: MP4 or MOV, min 500×500px, max 200 MB
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Mode Toggle - Tabs */}
                     <div className="mb-6 border-b border-gray-200">
@@ -3503,25 +3510,39 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         {selectedAssetIds.length > 0 && (
                           <div className="mt-6">
                             <h4 className="text-sm font-medium text-gray-900 mb-3">
-                              Currently assigned images: {selectedAssetIds.length}
+                              Currently assigned media: {selectedAssetIds.length}
                             </h4>
                             <div className="grid grid-cols-4 gap-4">
                               {assets
                                 .filter(asset => selectedAssetIds.includes(asset.id))
-                                .map(asset => (
+                                .map(asset => {
+                                  const isVideo = asset.asset_type === 'video'
+                                  const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
+                                  return (
                                   <div
                                     key={asset.id}
                                     className="relative group border-2 border-[#6366F1] rounded-lg overflow-hidden"
                                   >
-                                    {asset.signed_url ? (
-                                      <img
-                                        src={asset.signed_url}
-                                        alt={asset.title}
-                                        className="w-full h-32 object-cover"
-                                      />
+                                    {thumbUrl ? (
+                                      <>
+                                        <img
+                                          src={thumbUrl}
+                                          alt={asset.title}
+                                          className="w-full h-32 object-cover"
+                                        />
+                                        {isVideo && (
+                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                                              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
                                     ) : (
                                       <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                                        Loading...
+                                        {isVideo ? (
+                                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                                        ) : 'Loading...'}
                                       </div>
                                     )}
                                     <button
@@ -3532,7 +3553,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                       ×
                                     </button>
                                   </div>
-                                ))}
+                                  )
+                                })}
                             </div>
                           </div>
                         )}
@@ -3553,12 +3575,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           </div>
                         ) : assets.length === 0 ? (
                           <p className="text-sm text-gray-500 py-8 text-center">
-                            No images available yet. Upload some images to get started.
+                            No media available yet. Upload some images or videos to get started.
                           </p>
                         ) : (
                           <div className="grid grid-cols-4 gap-4">
                             {assets.map(asset => {
                               const isSelected = selectedAssetIds.includes(asset.id)
+                              const isVideo = asset.asset_type === 'video'
+                              const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
                               return (
                                 <button
                                   key={asset.id}
@@ -3579,15 +3603,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                     }
                                   `}
                                 >
-                                  {asset.signed_url ? (
-                                    <img
-                                      src={asset.signed_url}
-                                      alt={asset.title}
-                                      className="w-full h-32 object-cover"
-                                    />
+                                  {thumbUrl ? (
+                                    <>
+                                      <img
+                                        src={thumbUrl}
+                                        alt={asset.title}
+                                        className="w-full h-32 object-cover"
+                                      />
+                                      {isVideo && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                          <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                                            <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
                                   ) : (
                                     <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                                      Loading...
+                                      {isVideo ? (
+                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                                      ) : 'Loading...'}
                                     </div>
                                   )}
                                   {isSelected && (
@@ -3607,9 +3642,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         <div className="mt-4 pt-4 border-t border-gray-200">
                           <p className="text-sm text-gray-600">
                             {selectedAssetIds.length > 0 ? (
-                              <>Selected: <span className="font-semibold">{selectedAssetIds.length}</span> image{selectedAssetIds.length !== 1 ? 's' : ''}</>
+                              <>Selected: <span className="font-semibold">{selectedAssetIds.length}</span> item{selectedAssetIds.length !== 1 ? 's' : ''}</>
                             ) : (
-                              'No images selected'
+                              'No media selected'
                             )}
                           </p>
                         </div>
