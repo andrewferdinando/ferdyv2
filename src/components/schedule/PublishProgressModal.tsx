@@ -67,6 +67,10 @@ export default function PublishProgressModal({
           {message}
         </p>
 
+        {!isComplete && (
+          <p className="text-xs text-gray-400 mb-4">This can take a couple of minutes.</p>
+        )}
+
         {/* Progress */}
         {!isComplete && (
           <div className="mb-4">
