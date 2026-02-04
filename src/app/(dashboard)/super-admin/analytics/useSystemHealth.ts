@@ -1,0 +1,292 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase-browser';
+
+export interface FailedJob {
+  id: string;
+  brand_name: string;
+  channel: string;
+  scheduled_at: string;
+  error: string | null;
+  status: string;
+}
+
+export interface DisconnectedAccount {
+  id: string;
+  brand_name: string;
+  provider: string;
+  handle: string;
+  error: string | null;
+  disconnected_since: string | null;
+}
+
+export interface ExpiringAccount {
+  id: string;
+  brand_name: string;
+  provider: string;
+  handle: string;
+  token_expires_at: string;
+}
+
+export interface BrandWithoutDrafts {
+  id: string;
+  name: string;
+}
+
+export interface SystemHealthData {
+  overall: 'healthy' | 'warning' | 'critical';
+  overallMessage: string;
+  publishing: {
+    dueToday: number;
+    published: number;
+    failed: number;
+    pending: number;
+    overdue: number;
+    successRate: number;
+    failedJobs: FailedJob[];
+    lastCronRun: string | null;
+  };
+  drafts: {
+    activeRules: number;
+    createdToday: number;
+    unapprovedUpcoming: number;
+    brandsWithoutDrafts: BrandWithoutDrafts[];
+  };
+  social: {
+    connected: number;
+    disconnected: number;
+    expiringSoon: number;
+    disconnectedAccounts: DisconnectedAccount[];
+    expiringAccounts: ExpiringAccount[];
+  };
+  loading: boolean;
+  error: string | null;
+}
+
+function getDateBounds(date: Date): { start: string; end: string } {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+export function useSystemHealth(selectedDate: Date): SystemHealthData {
+  const [data, setData] = useState<Omit<SystemHealthData, 'loading' | 'error'>>({
+    overall: 'healthy',
+    overallMessage: 'All systems healthy',
+    publishing: { dueToday: 0, published: 0, failed: 0, pending: 0, overdue: 0, successRate: 0, failedJobs: [], lastCronRun: null },
+    drafts: { activeRules: 0, createdToday: 0, unapprovedUpcoming: 0, brandsWithoutDrafts: [] },
+    social: { connected: 0, disconnected: 0, expiringSoon: 0, disconnectedAccounts: [], expiringAccounts: [] },
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { start, end } = getDateBounds(selectedDate);
+      const now = new Date().toISOString();
+      const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [
+        postJobsRes,
+        failedJobsRes,
+        lastCronRes,
+        activeRulesRes,
+        createdTodayRes,
+        unapprovedRes,
+        brandsWithRulesRes,
+        brandsWithDraftsRes,
+        connectedRes,
+        disconnectedRes,
+        expiringSoonRes,
+      ] = await Promise.all([
+        // 1. All post_jobs for the selected day
+        supabase
+          .from('post_jobs')
+          .select('id, status, scheduled_at', { count: 'exact' })
+          .gte('scheduled_at', start)
+          .lte('scheduled_at', end),
+
+        // 2. Failed post_jobs with brand info
+        supabase
+          .from('post_jobs')
+          .select('id, channel, scheduled_at, error, status, brand_id, brands(name)')
+          .gte('scheduled_at', start)
+          .lte('scheduled_at', end)
+          .eq('status', 'failed')
+          .order('scheduled_at', { ascending: false }),
+
+        // 3. Most recent last_attempt_at across all jobs
+        supabase
+          .from('post_jobs')
+          .select('last_attempt_at')
+          .not('last_attempt_at', 'is', null)
+          .order('last_attempt_at', { ascending: false })
+          .limit(1),
+
+        // 4. Active schedule rules count
+        supabase
+          .from('schedule_rules')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_active', true),
+
+        // 5. Drafts created today
+        supabase
+          .from('drafts')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', start)
+          .lte('created_at', end),
+
+        // 6. Unapproved drafts with scheduled_for in the next 7 days
+        supabase
+          .from('drafts')
+          .select('id', { count: 'exact', head: true })
+          .eq('approved', false)
+          .gte('scheduled_for', now)
+          .lte('scheduled_for', sevenDaysFromNow),
+
+        // 7. Active brands with schedule rules (for "brands without drafts" check)
+        supabase
+          .from('brands')
+          .select('id, name, schedule_rules!inner(id)')
+          .eq('status', 'active')
+          .eq('schedule_rules.is_active', true),
+
+        // 8. Brands that have drafts in the next 7 days
+        supabase
+          .from('drafts')
+          .select('brand_id')
+          .gte('scheduled_for', now)
+          .lte('scheduled_for', sevenDaysFromNow),
+
+        // 9. Connected social accounts (active brands)
+        supabase
+          .from('social_accounts')
+          .select('id, brands!inner(status)', { count: 'exact', head: true })
+          .eq('status', 'connected')
+          .eq('brands.status', 'active'),
+
+        // 10. Disconnected social accounts with details
+        supabase
+          .from('social_accounts')
+          .select('id, provider, handle, status, updated_at, brand_id, brands!inner(name, status)')
+          .in('status', ['expired', 'revoked', 'error', 'disconnected'])
+          .eq('brands.status', 'active'),
+
+        // 11. Expiring social accounts (connected, token expires within 7 days)
+        supabase
+          .from('social_accounts')
+          .select('id, provider, handle, token_expires_at, brand_id, brands!inner(name, status)')
+          .eq('status', 'connected')
+          .eq('brands.status', 'active')
+          .not('token_expires_at', 'is', null)
+          .lte('token_expires_at', sevenDaysFromNow)
+          .gte('token_expires_at', now),
+      ]);
+
+      // --- Process Publishing ---
+      const allJobs = (postJobsRes.data || []) as { id: string; status: string; scheduled_at: string }[];
+      const dueToday = postJobsRes.count || allJobs.length;
+      const published = allJobs.filter(j => j.status === 'published' || j.status === 'success').length;
+      const failed = allJobs.filter(j => j.status === 'failed').length;
+      const pendingStatuses = ['pending', 'generated', 'ready', 'publishing'];
+      const pendingJobs = allJobs.filter(j => pendingStatuses.includes(j.status));
+      const pending = pendingJobs.length;
+      const overdue = pendingJobs.filter(j => j.scheduled_at && j.scheduled_at < now).length;
+      const successRate = dueToday > 0 ? Math.round((published / dueToday) * 100) : 0;
+
+      const failedJobs: FailedJob[] = (failedJobsRes.data || []).map((j: any) => ({
+        id: j.id,
+        brand_name: j.brands?.name || 'Unknown',
+        channel: j.channel,
+        scheduled_at: j.scheduled_at,
+        error: j.error,
+        status: j.status,
+      }));
+
+      const lastCronRun = lastCronRes.data?.[0]?.last_attempt_at || null;
+
+      // --- Process Drafts ---
+      const activeRules = activeRulesRes.count || 0;
+      const createdToday = createdTodayRes.count || 0;
+      const unapprovedUpcoming = unapprovedRes.count || 0;
+
+      // Brands with rules but no upcoming drafts
+      const brandsWithRules = (brandsWithRulesRes.data || []) as any[];
+      const brandIdsWithDrafts = new Set(
+        (brandsWithDraftsRes.data || []).map((d: any) => d.brand_id)
+      );
+      const brandsWithoutDrafts: BrandWithoutDrafts[] = brandsWithRules
+        .filter(b => !brandIdsWithDrafts.has(b.id))
+        .map(b => ({ id: b.id, name: b.name }));
+
+      // --- Process Social ---
+      const connected = connectedRes.count || 0;
+      const disconnectedAccounts: DisconnectedAccount[] = (disconnectedRes.data || []).map((a: any) => ({
+        id: a.id,
+        brand_name: a.brands?.name || 'Unknown',
+        provider: a.provider,
+        handle: a.handle || '',
+        error: a.status,
+        disconnected_since: a.updated_at,
+      }));
+      const disconnected = disconnectedAccounts.length;
+
+      const expiringAccounts: ExpiringAccount[] = (expiringSoonRes.data || []).map((a: any) => ({
+        id: a.id,
+        brand_name: a.brands?.name || 'Unknown',
+        provider: a.provider,
+        handle: a.handle || '',
+        token_expires_at: a.token_expires_at,
+      }));
+      const expiringSoon = expiringAccounts.length;
+
+      // --- Compute overall health ---
+      let overall: 'healthy' | 'warning' | 'critical' = 'healthy';
+      let overallMessage = 'All systems healthy';
+
+      const hasCritical =
+        (dueToday > 0 && successRate < 50) ||
+        (disconnected > 0);
+
+      const hasWarning =
+        failed > 0 ||
+        unapprovedUpcoming > 0 ||
+        expiringSoon > 0 ||
+        overdue > 0 ||
+        brandsWithoutDrafts.length > 0;
+
+      if (hasCritical) {
+        overall = 'critical';
+        overallMessage = 'Action required';
+      } else if (hasWarning) {
+        overall = 'warning';
+        overallMessage = 'Attention needed';
+      }
+
+      setData({
+        overall,
+        overallMessage,
+        publishing: { dueToday, published, failed, pending, overdue, successRate, failedJobs, lastCronRun },
+        drafts: { activeRules, createdToday, unapprovedUpcoming, brandsWithoutDrafts },
+        social: { connected, disconnected, expiringSoon, disconnectedAccounts, expiringAccounts },
+      });
+    } catch (err) {
+      console.error('[useSystemHealth] Failed to fetch health data:', err);
+      setError('Unable to load system health data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { ...data, loading, error };
+}
