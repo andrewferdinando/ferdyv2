@@ -3444,6 +3444,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       Choose images
                     </h3>
 
+                    <p className="text-sm text-gray-500 mb-4">Images: JPG or PNG, min 600×600px, max 30 MB. Videos: MP4 or MOV, min 500×500px, max 200 MB.</p>
+
                     {/* Mode Toggle - Tabs */}
                     <div className="mb-6 border-b border-gray-200">
                       <div className="flex space-x-8">
@@ -3672,7 +3674,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         </>
                       ) : (
                         <>
-                          Next: Images
+                          Next: Media
                           <ChevronRightIcon className="w-4 h-4 ml-2" />
                         </>
                       )}

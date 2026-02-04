@@ -353,6 +353,7 @@ export default function ContentLibraryPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
+                <p className="mt-1 text-sm text-gray-500">Images: JPG or PNG, min 600×600px, max 30 MB. Videos: MP4 or MOV, min 500×500px, max 200 MB.</p>
               </div>
               <AssetUploadMenu
                 brandId={brandId}
@@ -446,6 +447,10 @@ export default function ContentLibraryPage() {
                 // Otherwise show the grid of assets needing attention
                 if (needsAttentionAssets.length > 0) {
                   return (
+                    <>
+                    <div className="mb-4 rounded-md bg-indigo-50 px-4 py-3">
+                      <p className="text-sm text-indigo-700">Tap an image or video below to assign it to a Category. Content must be tagged before Ferdy can use it in posts.</p>
+                    </div>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                       {needsAttentionAssets.map((asset) => (
                         <div key={asset.id}>
@@ -458,6 +463,7 @@ export default function ContentLibraryPage() {
                         </div>
                       ))}
                     </div>
+                    </>
                   )
                 }
 
