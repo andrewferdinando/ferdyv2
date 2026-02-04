@@ -47,6 +47,9 @@ export interface DraftGenerationResult {
   draftsCreated: number;
   draftsSkipped: number;
   copyGenerationCount: number;
+  /** Per-target outcomes for diagnostics (only populated when there are issues) */
+  errors: string[];
+  skippedTargets: Array<{ subcategory_id: string; scheduled_at: string; reason: string }>;
 }
 
 /**
@@ -113,7 +116,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       targetsFound: 0,
       draftsCreated: 0,
       draftsSkipped: 0,
-      copyGenerationCount
+      copyGenerationCount,
+      errors: [],
+      skippedTargets: [],
     };
   }
 
@@ -154,7 +159,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       targetsFound: 0,
       draftsCreated: 0,
       draftsSkipped: 0,
-      copyGenerationCount
+      copyGenerationCount,
+      errors: [],
+      skippedTargets: [],
     };
   }
 
@@ -165,6 +172,25 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   });
 
   console.log(`[draftGeneration] Found ${targetsInWindow.length} targets within 30-day window for brand ${brandId}`);
+
+  // Fetch subcategory names for meaningful logging
+  const targetSubcategoryIds = [...new Set(targetsInWindow.map((t: any) => t.subcategory_id).filter(Boolean))];
+  const subcategoryNameMap: Record<string, string> = {};
+  if (targetSubcategoryIds.length > 0) {
+    const { data: subcats } = await supabaseAdmin
+      .from('subcategories')
+      .select('id, name')
+      .in('id', targetSubcategoryIds);
+    if (subcats) {
+      for (const sc of subcats) subcategoryNameMap[sc.id] = sc.name;
+    }
+  }
+
+  // Log all targets the generator will attempt to process
+  for (const t of targetsInWindow) {
+    const name = subcategoryNameMap[t.subcategory_id] || t.subcategory_id;
+    console.log(`[draftGeneration] Target: ${name} (${t.frequency}) at ${t.scheduled_at} [subcategory=${t.subcategory_id}]`);
+  }
 
   // Get brand timezone
   const { data: brand, error: brandError } = await supabaseAdmin
@@ -196,6 +222,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   let draftsCreated = 0;
   let draftsSkipped = 0;
   const createdDraftIds: string[] = []; // Track created draft IDs for copy generation
+  const generationErrors: string[] = [];
+  const skippedTargets: Array<{ subcategory_id: string; scheduled_at: string; reason: string }> = [];
 
   // Track selected assets per schedule_rule_id to ensure rotation within a single generation run
   // Map: schedule_rule_id -> Set of asset_ids already selected in this run
@@ -203,11 +231,16 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
   // Process each target
   for (const target of targetsInWindow) {
+    const targetName = subcategoryNameMap[target.subcategory_id] || target.subcategory_id;
     try {
       const scheduledAt = new Date(target.scheduled_at);
       const scheduledAtISO = scheduledAt.toISOString();
+
+      console.log(`[draftGeneration] Processing: ${targetName} at ${scheduledAtISO}`);
       
-      // Check if draft already exists
+      // Check if an active (non-published, non-deleted) framework draft already exists.
+      // Published/deleted drafts are ignored so the generator creates replacements
+      // (e.g. when a draft is published early or deleted from the calendar).
       const { data: existingDraft, error: checkError } = await supabaseAdmin
         .from('drafts')
         .select('id')
@@ -215,18 +248,19 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         .eq('subcategory_id', target.subcategory_id)
         .eq('scheduled_for', scheduledAtISO)
         .eq('schedule_source', 'framework')
+        .not('status', 'in', '("published","partially_published","deleted")')
         .maybeSingle();
 
       if (checkError) {
-        console.error(`[draftGeneration] Error checking existing draft for brand ${brandId}:`, checkError);
-        continue; // Skip this target on error
+        const reason = `Dedup check error: ${checkError.message}`;
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
       if (existingDraft) {
-        console.log(`[draftGeneration] Draft already exists, skipping for brand ${brandId}:`, {
-          subcategory_id: target.subcategory_id,
-          scheduled_for: scheduledAtISO
-        });
+        console.log(`[draftGeneration] SKIP ${targetName}: Draft already exists (${existingDraft.id}) at ${scheduledAtISO}`);
         draftsSkipped++;
         continue;
       }
@@ -235,11 +269,11 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // For every target, fetch schedule rule using: brand_id + subcategory_id + is_active = true
       // REMOVED: Any reliance on target.schedule_rule_id
       if (!target.subcategory_id) {
-        console.error(`[draftGeneration] SKIPPING target: No subcategory_id`, {
-          brand_id: brandId,
-          scheduled_at: scheduledAtISO
-        });
-        continue; // Skip this target - do not create draft
+        const reason = 'No subcategory_id on target';
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
       // Explicitly fetch schedule rule for this target
@@ -258,35 +292,30 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
       // HARD GUARD: If no schedule rule found, skip this target (NO DEFAULTS)
       if (ruleError) {
-        console.error(`[draftGeneration] SKIPPING target: Error fetching schedule_rule`, {
-          brand_id: brandId,
-          subcategory_id: target.subcategory_id,
-          scheduled_at: scheduledAtISO,
-          error: ruleError.message
-        });
-        continue; // Skip this target - do not create draft
+        const reason = `Error fetching schedule_rule: ${ruleError.message}`;
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
       if (!scheduleRule || !scheduleRule.id) {
-        console.error(`[draftGeneration] SKIPPING target: No active schedule_rule found`, {
-          brand_id: brandId,
-          subcategory_id: target.subcategory_id,
-          scheduled_at: scheduledAtISO
-        });
-        continue; // Skip this target - do not create draft
+        const reason = 'No active schedule_rule found for this subcategory';
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
       const scheduleRuleId = scheduleRule.id;
 
       // HARD GUARD: If schedule_rule.channels.length === 0, skip with error
       if (!scheduleRule.channels || !Array.isArray(scheduleRule.channels) || scheduleRule.channels.length === 0) {
-        console.error(`[draftGeneration] SKIPPING target: Schedule rule has no channels`, {
-          brand_id: brandId,
-          schedule_rule_id: scheduleRuleId,
-          subcategory_id: target.subcategory_id,
-          scheduled_at: scheduledAtISO
-        });
-        continue; // Skip this target - do not create draft
+        const reason = `Schedule rule ${scheduleRuleId} has no channels`;
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
       // Get channels from the schedule rule (normalized) - schedule_rule.channels is single source of truth
@@ -294,14 +323,11 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
       // HARD GUARD: If normalized channels are empty, skip this target (NO DEFAULTS)
       if (!channels || channels.length === 0) {
-        console.error(`[draftGeneration] SKIPPING target: Normalized channels are empty`, {
-          brand_id: brandId,
-          schedule_rule_id: scheduleRuleId,
-          subcategory_id: target.subcategory_id,
-          scheduled_at: scheduledAtISO,
-          original_channels: scheduleRule.channels
-        });
-        continue; // Skip this target - do not create draft
+        const reason = `Normalized channels are empty (raw: ${JSON.stringify(scheduleRule.channels)})`;
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
       const firstChannel = channels[0];
@@ -511,11 +537,14 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         .single();
 
       if (draftError) {
-        console.error(`[draftGeneration] Error creating draft for brand ${brandId}:`, draftError);
-        continue; // Skip this target on error
+        const reason = `Error creating draft: ${draftError.message}`;
+        console.error(`[draftGeneration] FAIL ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
       }
 
-      console.log(`[draftGeneration] Created draft for brand ${brandId}:`, newDraft.id);
+      console.log(`[draftGeneration] CREATED ${targetName} at ${scheduledAtISO} → draft ${newDraft.id} with ${channels.length} channels`);
       createdDraftIds.push(newDraft.id);
 
       // Create post_jobs for each channel (one per channel from the schedule rule)
@@ -640,17 +669,29 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       draftsCreated++;
 
     } catch (error) {
-      console.error(`[draftGeneration] Error processing target for brand ${brandId}:`, error);
-      // Continue with next target
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const reason = `Exception: ${errorMsg}`;
+      console.error(`[draftGeneration] FAIL ${targetName} at ${target.scheduled_at}: ${reason}`);
+      generationErrors.push(`${targetName} at ${target.scheduled_at}: ${reason}`);
+      skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: target.scheduled_at, reason });
       continue;
     }
   }
 
+  // Detailed summary log
+  const expectedCreated = targetsInWindow.length - draftsSkipped;
   console.log(`[draftGeneration] Summary for brand ${brandId}:`, {
     targetsFound: targetsInWindow.length,
     draftsCreated,
-    draftsSkipped
+    draftsSkipped,
+    errors: generationErrors.length,
   });
+  if (generationErrors.length > 0) {
+    console.error(`[draftGeneration] ERRORS for brand ${brandId}:`, generationErrors);
+  }
+  if (draftsCreated < expectedCreated) {
+    console.warn(`[draftGeneration] WARNING: Expected to create ${expectedCreated} drafts but only created ${draftsCreated} for brand ${brandId}`);
+  }
 
   // Fetch existing drafts that need copy generation within the same 30-day window
   // NOTE: Copy generation is automatic and non-optional - all drafts get copy generated
@@ -693,7 +734,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
     targetsFound: targetsInWindow.length,
     draftsCreated,
     draftsSkipped,
-    copyGenerationCount
+    copyGenerationCount,
+    errors: generationErrors,
+    skippedTargets,
   };
 }
 

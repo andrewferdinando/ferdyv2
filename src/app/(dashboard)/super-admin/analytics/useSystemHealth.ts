@@ -457,6 +457,7 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
       }
 
       // Batch-query existing framework drafts in the window
+      // Also include published/deleted drafts so we don't flag them as "missing"
       const uniqueBrandIds = [...new Set(allTargets.map(t => t.brand_id))];
       let draftLookup: Record<string, string> = {};
       if (uniqueBrandIds.length > 0) {
@@ -469,7 +470,9 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
           .lte('scheduled_for', sevenDaysFromNow);
         if (existingDrafts) {
           for (const d of existingDrafts) {
-            const key = `${d.brand_id}|${d.subcategory_id}|${d.scheduled_for}`;
+            // Normalize timestamp to ISO millis format for reliable matching
+            const normalizedTime = new Date(d.scheduled_for).toISOString();
+            const key = `${d.brand_id}|${d.subcategory_id}|${normalizedTime}`;
             draftLookup[key] = d.id;
           }
         }
@@ -477,7 +480,9 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
 
       // Build slots
       const expectedSlots: ExpectedDraftSlot[] = allTargets.map(t => {
-        const key = `${t.brand_id}|${t.subcategory_id}|${t.scheduled_at}`;
+        // Normalize timestamp to ISO millis format for reliable matching
+        const normalizedTime = new Date(t.scheduled_at).toISOString();
+        const key = `${t.brand_id}|${t.subcategory_id}|${normalizedTime}`;
         const draftId = draftLookup[key] || null;
         return {
           key,

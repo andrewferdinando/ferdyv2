@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
     // Use shared utility function
     const result = await generateDraftsForBrand(validatedBrandId);
 
+    // Log warnings if there were generation issues
+    if (result.errors.length > 0) {
+      console.warn(`[api/drafts/generate] Generation completed with ${result.errors.length} error(s) for brand ${validatedBrandId}:`, result.errors);
+    }
+
     return NextResponse.json(result);
 
   } catch (error) {

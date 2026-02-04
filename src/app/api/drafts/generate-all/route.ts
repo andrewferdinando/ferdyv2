@@ -84,22 +84,28 @@ async function handleGenerateAll(req: NextRequest) {
     let totalDraftsCreated = 0;
     let totalDraftsSkipped = 0;
     let totalCopyGenerated = 0;
+    const allErrors: string[] = [];
 
     for (const brand of brands) {
       try {
         console.log(`[api/drafts/generate-all] Processing brand ${brand.id}`);
         const result = await generateDraftsForBrand(brand.id);
-        
+
         brandsProcessed++;
         totalTargetsFound += result.targetsFound;
         totalDraftsCreated += result.draftsCreated;
         totalDraftsSkipped += result.draftsSkipped;
         totalCopyGenerated += result.copyGenerationCount;
-        
-        console.log(`[api/drafts/generate-all] Brand ${brand.id} completed:`, result);
+
+        if (result.errors.length > 0) {
+          allErrors.push(...result.errors.map(e => `[brand ${brand.id}] ${e}`));
+        }
+
+        console.log(`[api/drafts/generate-all] Brand ${brand.id} completed: created=${result.draftsCreated}, skipped=${result.draftsSkipped}, errors=${result.errors.length}`);
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error(`[api/drafts/generate-all] Error processing brand ${brand.id}:`, error);
-        // Continue with next brand even if one fails
+        allErrors.push(`[brand ${brand.id}] Fatal: ${msg}`);
         continue;
       }
     }
@@ -109,10 +115,14 @@ async function handleGenerateAll(req: NextRequest) {
       totalTargetsFound,
       totalDraftsCreated,
       totalDraftsSkipped,
-      totalCopyGenerated
+      totalCopyGenerated,
+      errors: allErrors,
     };
 
-    console.log('[api/drafts/generate-all] Summary:', summary);
+    if (allErrors.length > 0) {
+      console.warn(`[api/drafts/generate-all] Completed with ${allErrors.length} error(s):`, allErrors);
+    }
+    console.log('[api/drafts/generate-all] Summary:', { ...summary, errors: `${allErrors.length} error(s)` });
 
     return NextResponse.json(summary);
 
