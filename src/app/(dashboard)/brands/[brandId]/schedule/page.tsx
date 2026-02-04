@@ -255,7 +255,7 @@ export default function SchedulePage() {
                     className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
                       view === 'list' && activeTab === tab.id
                         ? 'border-[#6366F1] text-[#6366F1]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
                     {tab.name}
@@ -273,11 +273,11 @@ export default function SchedulePage() {
               </div>
 
               <button
-                onClick={() => setView('calendar')}
+                onClick={() => setView(view === 'calendar' ? 'list' : 'calendar')}
                 className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm flex items-center gap-1.5 ${
                   view === 'calendar'
                     ? 'border-[#6366F1] text-[#6366F1]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
