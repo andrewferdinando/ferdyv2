@@ -12,6 +12,50 @@ export interface FailedJob {
   status: string;
 }
 
+export interface PublishedJob {
+  id: string;
+  brand_name: string;
+  channel: string;
+  scheduled_at: string;
+}
+
+export interface PendingJob {
+  id: string;
+  brand_name: string;
+  channel: string;
+  scheduled_at: string;
+  status: string;
+}
+
+export interface ActiveRule {
+  id: string;
+  brand_name: string;
+  subcategory_name: string;
+  frequency: string;
+  channels: string[];
+}
+
+export interface CreatedDraft {
+  id: string;
+  brand_name: string;
+  subcategory_name: string;
+  scheduled_for: string;
+}
+
+export interface UnapprovedDraft {
+  id: string;
+  brand_name: string;
+  subcategory_name: string;
+  scheduled_for: string;
+}
+
+export interface ConnectedAccount {
+  id: string;
+  brand_name: string;
+  provider: string;
+  handle: string;
+}
+
 export interface DisconnectedAccount {
   id: string;
   brand_name: string;
@@ -34,6 +78,15 @@ export interface BrandWithoutDrafts {
   name: string;
 }
 
+export interface UpcomingDraft {
+  id: string;
+  brand_name: string;
+  subcategory_name: string;
+  scheduled_for: string;
+  approved: boolean;
+  channels: string[];
+}
+
 export interface SystemHealthData {
   overall: 'healthy' | 'warning' | 'critical';
   overallMessage: string;
@@ -45,21 +98,28 @@ export interface SystemHealthData {
     overdue: number;
     successRate: number;
     failedJobs: FailedJob[];
+    publishedJobs: PublishedJob[];
+    pendingJobs: PendingJob[];
     lastCronRun: string | null;
   };
   drafts: {
     activeRules: number;
     createdToday: number;
     unapprovedUpcoming: number;
+    activeRulesList: ActiveRule[];
+    createdTodayList: CreatedDraft[];
+    unapprovedList: UnapprovedDraft[];
     brandsWithoutDrafts: BrandWithoutDrafts[];
   };
   social: {
     connected: number;
     disconnected: number;
     expiringSoon: number;
+    connectedAccounts: ConnectedAccount[];
     disconnectedAccounts: DisconnectedAccount[];
     expiringAccounts: ExpiringAccount[];
   };
+  upcomingThisWeek: UpcomingDraft[];
   loading: boolean;
   error: string | null;
 }
@@ -76,9 +136,10 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
   const [data, setData] = useState<Omit<SystemHealthData, 'loading' | 'error'>>({
     overall: 'healthy',
     overallMessage: 'All systems healthy',
-    publishing: { dueToday: 0, published: 0, failed: 0, pending: 0, overdue: 0, successRate: 0, failedJobs: [], lastCronRun: null },
-    drafts: { activeRules: 0, createdToday: 0, unapprovedUpcoming: 0, brandsWithoutDrafts: [] },
-    social: { connected: 0, disconnected: 0, expiringSoon: 0, disconnectedAccounts: [], expiringAccounts: [] },
+    publishing: { dueToday: 0, published: 0, failed: 0, pending: 0, overdue: 0, successRate: 0, failedJobs: [], publishedJobs: [], pendingJobs: [], lastCronRun: null },
+    drafts: { activeRules: 0, createdToday: 0, unapprovedUpcoming: 0, activeRulesList: [], createdTodayList: [], unapprovedList: [], brandsWithoutDrafts: [] },
+    social: { connected: 0, disconnected: 0, expiringSoon: 0, connectedAccounts: [], disconnectedAccounts: [], expiringAccounts: [] },
+    upcomingThisWeek: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,11 +165,12 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
         connectedRes,
         disconnectedRes,
         expiringSoonRes,
+        upcomingDraftsRes,
       ] = await Promise.all([
-        // 1. All post_jobs for the selected day
+        // 1. All post_jobs for the selected day (with brand + channel for detail tables)
         supabase
           .from('post_jobs')
-          .select('id, status, scheduled_at', { count: 'exact' })
+          .select('id, status, scheduled_at, channel, brand_id, brands(name)', { count: 'exact' })
           .gte('scheduled_at', start)
           .lte('scheduled_at', end),
 
@@ -129,23 +191,23 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
           .order('last_attempt_at', { ascending: false })
           .limit(1),
 
-        // 4. Active schedule rules count
+        // 4. Active schedule rules with details
         supabase
           .from('schedule_rules')
-          .select('id', { count: 'exact', head: true })
+          .select('id, frequency, channels, brand_id, brands(name), subcategories(name)')
           .eq('is_active', true),
 
-        // 5. Drafts created today
+        // 5. Drafts created today with details
         supabase
           .from('drafts')
-          .select('id', { count: 'exact', head: true })
+          .select('id, scheduled_for, brand_id, brands(name), subcategories(name)')
           .gte('created_at', start)
           .lte('created_at', end),
 
         // 6. Unapproved drafts with scheduled_for in the next 7 days
         supabase
           .from('drafts')
-          .select('id', { count: 'exact', head: true })
+          .select('id, scheduled_for, brand_id, brands(name), subcategories(name)')
           .eq('approved', false)
           .gte('scheduled_for', now)
           .lte('scheduled_for', sevenDaysFromNow),
@@ -164,10 +226,10 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
           .gte('scheduled_for', now)
           .lte('scheduled_for', sevenDaysFromNow),
 
-        // 9. Connected social accounts (active brands)
+        // 9. Connected social accounts (active brands) with details
         supabase
           .from('social_accounts')
-          .select('id, brands!inner(status)', { count: 'exact', head: true })
+          .select('id, provider, handle, brand_id, brands!inner(name, status)')
           .eq('status', 'connected')
           .eq('brands.status', 'active'),
 
@@ -187,18 +249,42 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
           .not('token_expires_at', 'is', null)
           .lte('token_expires_at', sevenDaysFromNow)
           .gte('token_expires_at', now),
+
+        // 12. Upcoming drafts in the next 7 days
+        supabase
+          .from('drafts')
+          .select('id, scheduled_for, approved, brand_id, brands(name), subcategories(name)')
+          .gte('scheduled_for', now)
+          .lte('scheduled_for', sevenDaysFromNow)
+          .order('scheduled_for', { ascending: true }),
       ]);
 
       // --- Process Publishing ---
-      const allJobs = (postJobsRes.data || []) as { id: string; status: string; scheduled_at: string }[];
+      const allJobs = (postJobsRes.data || []) as any[];
       const dueToday = postJobsRes.count || allJobs.length;
-      const published = allJobs.filter(j => j.status === 'published' || j.status === 'success').length;
+      const publishedRaw = allJobs.filter(j => j.status === 'published' || j.status === 'success');
+      const published = publishedRaw.length;
       const failed = allJobs.filter(j => j.status === 'failed').length;
       const pendingStatuses = ['pending', 'generated', 'ready', 'publishing'];
-      const pendingJobs = allJobs.filter(j => pendingStatuses.includes(j.status));
-      const pending = pendingJobs.length;
-      const overdue = pendingJobs.filter(j => j.scheduled_at && j.scheduled_at < now).length;
+      const pendingRaw = allJobs.filter(j => pendingStatuses.includes(j.status));
+      const pending = pendingRaw.length;
+      const overdue = pendingRaw.filter(j => j.scheduled_at && j.scheduled_at < now).length;
       const successRate = dueToday > 0 ? Math.round((published / dueToday) * 100) : 0;
+
+      const publishedJobs: PublishedJob[] = publishedRaw.map((j: any) => ({
+        id: j.id,
+        brand_name: j.brands?.name || 'Unknown',
+        channel: j.channel,
+        scheduled_at: j.scheduled_at,
+      }));
+
+      const pendingJobsList: PendingJob[] = pendingRaw.map((j: any) => ({
+        id: j.id,
+        brand_name: j.brands?.name || 'Unknown',
+        channel: j.channel,
+        scheduled_at: j.scheduled_at,
+        status: j.status,
+      }));
 
       const failedJobs: FailedJob[] = (failedJobsRes.data || []).map((j: any) => ({
         id: j.id,
@@ -212,9 +298,33 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
       const lastCronRun = lastCronRes.data?.[0]?.last_attempt_at || null;
 
       // --- Process Drafts ---
-      const activeRules = activeRulesRes.count || 0;
-      const createdToday = createdTodayRes.count || 0;
-      const unapprovedUpcoming = unapprovedRes.count || 0;
+      const activeRulesData = (activeRulesRes.data || []) as any[];
+      const activeRules = activeRulesData.length;
+      const activeRulesList: ActiveRule[] = activeRulesData.map((r: any) => ({
+        id: r.id,
+        brand_name: r.brands?.name || 'Unknown',
+        subcategory_name: r.subcategories?.name || 'Unknown',
+        frequency: r.frequency,
+        channels: r.channels || [],
+      }));
+
+      const createdTodayData = (createdTodayRes.data || []) as any[];
+      const createdToday = createdTodayData.length;
+      const createdTodayList: CreatedDraft[] = createdTodayData.map((d: any) => ({
+        id: d.id,
+        brand_name: d.brands?.name || 'Unknown',
+        subcategory_name: d.subcategories?.name || 'Unknown',
+        scheduled_for: d.scheduled_for,
+      }));
+
+      const unapprovedData = (unapprovedRes.data || []) as any[];
+      const unapprovedUpcoming = unapprovedData.length;
+      const unapprovedList: UnapprovedDraft[] = unapprovedData.map((d: any) => ({
+        id: d.id,
+        brand_name: d.brands?.name || 'Unknown',
+        subcategory_name: d.subcategories?.name || 'Unknown',
+        scheduled_for: d.scheduled_for,
+      }));
 
       // Brands with rules but no upcoming drafts
       const brandsWithRules = (brandsWithRulesRes.data || []) as any[];
@@ -226,7 +336,15 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
         .map(b => ({ id: b.id, name: b.name }));
 
       // --- Process Social ---
-      const connected = connectedRes.count || 0;
+      const connectedData = (connectedRes.data || []) as any[];
+      const connected = connectedData.length;
+      const connectedAccounts: ConnectedAccount[] = connectedData.map((a: any) => ({
+        id: a.id,
+        brand_name: a.brands?.name || 'Unknown',
+        provider: a.provider,
+        handle: a.handle || '',
+      }));
+
       const disconnectedAccounts: DisconnectedAccount[] = (disconnectedRes.data || []).map((a: any) => ({
         id: a.id,
         brand_name: a.brands?.name || 'Unknown',
@@ -245,6 +363,34 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
         token_expires_at: a.token_expires_at,
       }));
       const expiringSoon = expiringAccounts.length;
+
+      // --- Process Upcoming Drafts ---
+      const upcomingRaw = (upcomingDraftsRes.data || []) as any[];
+      // Fetch post_jobs channels for upcoming drafts in a single query
+      const upcomingDraftIds = upcomingRaw.map((d: any) => d.id);
+      let upcomingChannelsMap: Record<string, string[]> = {};
+      if (upcomingDraftIds.length > 0) {
+        const { data: channelData } = await supabase
+          .from('post_jobs')
+          .select('draft_id, channel')
+          .in('draft_id', upcomingDraftIds);
+        if (channelData) {
+          for (const row of channelData) {
+            if (!upcomingChannelsMap[row.draft_id]) upcomingChannelsMap[row.draft_id] = [];
+            if (row.channel && !upcomingChannelsMap[row.draft_id].includes(row.channel)) {
+              upcomingChannelsMap[row.draft_id].push(row.channel);
+            }
+          }
+        }
+      }
+      const upcomingThisWeek: UpcomingDraft[] = upcomingRaw.map((d: any) => ({
+        id: d.id,
+        brand_name: d.brands?.name || 'Unknown',
+        subcategory_name: d.subcategories?.name || 'Unknown',
+        scheduled_for: d.scheduled_for,
+        approved: d.approved,
+        channels: upcomingChannelsMap[d.id] || [],
+      }));
 
       // --- Compute overall health ---
       let overall: 'healthy' | 'warning' | 'critical' = 'healthy';
@@ -272,9 +418,10 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
       setData({
         overall,
         overallMessage,
-        publishing: { dueToday, published, failed, pending, overdue, successRate, failedJobs, lastCronRun },
-        drafts: { activeRules, createdToday, unapprovedUpcoming, brandsWithoutDrafts },
-        social: { connected, disconnected, expiringSoon, disconnectedAccounts, expiringAccounts },
+        publishing: { dueToday, published, failed, pending, overdue, successRate, failedJobs, publishedJobs, pendingJobs: pendingJobsList, lastCronRun },
+        drafts: { activeRules, createdToday, unapprovedUpcoming, activeRulesList, createdTodayList, unapprovedList, brandsWithoutDrafts },
+        social: { connected, disconnected, expiringSoon, connectedAccounts, disconnectedAccounts, expiringAccounts },
+        upcomingThisWeek,
       });
     } catch (err) {
       console.error('[useSystemHealth] Failed to fetch health data:', err);

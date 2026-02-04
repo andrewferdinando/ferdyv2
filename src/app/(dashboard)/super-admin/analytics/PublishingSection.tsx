@@ -1,6 +1,9 @@
 'use client';
 
-import type { FailedJob } from './useSystemHealth';
+import { useState } from 'react';
+import type { FailedJob, PublishedJob, PendingJob } from './useSystemHealth';
+import ExpandableMetricCard from './ExpandableMetricCard';
+import { getChannelLabel } from '@/lib/channels';
 
 interface PublishingSectionProps {
   dueToday: number;
@@ -10,16 +13,9 @@ interface PublishingSectionProps {
   overdue: number;
   successRate: number;
   failedJobs: FailedJob[];
+  publishedJobs: PublishedJob[];
+  pendingJobs: PendingJob[];
   lastCronRun: string | null;
-}
-
-function MetricCard({ label, value, color }: { label: string; value: string | number; color: string }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="mt-1 text-sm text-gray-500">{label}</p>
-    </div>
-  );
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -72,13 +68,21 @@ export default function PublishingSection({
   overdue,
   successRate,
   failedJobs,
+  publishedJobs,
+  pendingJobs,
   lastCronRun,
 }: PublishingSectionProps) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   const pubColor = dueToday > 0 && published === dueToday ? 'text-emerald-600' : published > 0 ? 'text-amber-600' : 'text-gray-900';
   const failColor = failed > 0 ? 'text-rose-600' : 'text-gray-900';
   const pendColor = overdue > 0 ? 'text-amber-600' : 'text-gray-900';
   const rateColor = successRate >= 90 ? 'text-emerald-600' : successRate >= 50 ? 'text-amber-600' : 'text-rose-600';
   const cron = timeAgo(lastCronRun);
+
+  function toggle(key: string) {
+    setExpanded(prev => prev === key ? null : key);
+  }
 
   return (
     <section>
@@ -88,12 +92,76 @@ export default function PublishingSection({
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <MetricCard label="Due Today" value={dueToday} color="text-gray-900" />
-        <MetricCard label="Published" value={published} color={pubColor} />
-        <MetricCard label="Failed" value={failed} color={failColor} />
-        <MetricCard label="Pending" value={pending} color={pendColor} />
-        <MetricCard label="Success Rate" value={dueToday > 0 ? `${successRate}%` : '—'} color={dueToday > 0 ? rateColor : 'text-gray-400'} />
+        <ExpandableMetricCard label="Due Today" value={dueToday} color="text-gray-900" />
+        <ExpandableMetricCard
+          label="Published"
+          value={published}
+          color={pubColor}
+          expandable={publishedJobs.length > 0}
+          expanded={expanded === 'published'}
+          onClick={() => toggle('published')}
+        />
+        <ExpandableMetricCard label="Failed" value={failed} color={failColor} />
+        <ExpandableMetricCard
+          label="Pending"
+          value={pending}
+          color={pendColor}
+          expandable={pendingJobs.length > 0}
+          expanded={expanded === 'pending'}
+          onClick={() => toggle('pending')}
+        />
+        <ExpandableMetricCard label="Success Rate" value={dueToday > 0 ? `${successRate}%` : '—'} color={dueToday > 0 ? rateColor : 'text-gray-400'} />
       </div>
+
+      {/* Published detail table */}
+      {expanded === 'published' && publishedJobs.length > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Brand</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Channel</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Scheduled</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {publishedJobs.map((job) => (
+                <tr key={job.id} className="hover:bg-gray-50">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{job.brand_name}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{getChannelLabel(job.channel)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatTime(job.scheduled_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pending detail table */}
+      {expanded === 'pending' && pendingJobs.length > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Brand</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Channel</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Scheduled</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {pendingJobs.map((job) => (
+                <tr key={job.id} className="hover:bg-gray-50">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{job.brand_name}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{getChannelLabel(job.channel)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatTime(job.scheduled_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={job.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Failed jobs table */}
       {failedJobs.length > 0 && (
@@ -112,7 +180,7 @@ export default function PublishingSection({
               {failedJobs.map((job) => (
                 <tr key={job.id} className="hover:bg-gray-50">
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{job.brand_name}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{job.channel}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{getChannelLabel(job.channel)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatTime(job.scheduled_at)}</td>
                   <td className="max-w-xs truncate px-4 py-3 text-sm text-gray-500" title={job.error || ''}>{job.error || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={job.status} /></td>

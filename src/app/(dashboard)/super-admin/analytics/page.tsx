@@ -7,6 +7,7 @@ import HealthBanner from './HealthBanner';
 import PublishingSection from './PublishingSection';
 import DraftGenerationSection from './DraftGenerationSection';
 import SocialHealthSection from './SocialHealthSection';
+import UpcomingDraftsSection from './UpcomingDraftsSection';
 
 function formatDisplayDate(date: Date): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -126,6 +127,8 @@ export default function AnalyticsPage() {
                   overdue={health.publishing.overdue}
                   successRate={health.publishing.successRate}
                   failedJobs={health.publishing.failedJobs}
+                  publishedJobs={health.publishing.publishedJobs}
+                  pendingJobs={health.publishing.pendingJobs}
                   lastCronRun={health.publishing.lastCronRun}
                 />
 
@@ -134,6 +137,9 @@ export default function AnalyticsPage() {
                   activeRules={health.drafts.activeRules}
                   createdToday={health.drafts.createdToday}
                   unapprovedUpcoming={health.drafts.unapprovedUpcoming}
+                  activeRulesList={health.drafts.activeRulesList}
+                  createdTodayList={health.drafts.createdTodayList}
+                  unapprovedList={health.drafts.unapprovedList}
                   brandsWithoutDrafts={health.drafts.brandsWithoutDrafts}
                 />
 
@@ -142,9 +148,13 @@ export default function AnalyticsPage() {
                   connected={health.social.connected}
                   disconnected={health.social.disconnected}
                   expiringSoon={health.social.expiringSoon}
+                  connectedAccounts={health.social.connectedAccounts}
                   disconnectedAccounts={health.social.disconnectedAccounts}
                   expiringAccounts={health.social.expiringAccounts}
                 />
+
+                {/* Upcoming This Week */}
+                <UpcomingDraftsSection drafts={health.upcomingThisWeek} />
               </>
             )}
           </div>
