@@ -986,10 +986,11 @@ function AssetDetailView({
   // Calculate object-position for thumbnail previews based on crop state
   const getObjectPosition = (formatKey: string) => {
     const crop = crops[formatKey] ?? { scale: 1, x: 0, y: 0 }
-    // Convert normalized pan values (-1 to 1) to percentage (0% to 100%)
-    // x: -1 = 0% (left), 0 = 50% (center), 1 = 100% (right)
-    const xPercent = ((crop.x + 1) / 2) * 100
-    const yPercent = ((crop.y + 1) / 2) * 100
+    // Convert normalized pan values (-1 to 1) to object-position percentage (0% to 100%)
+    // crop.x > 0 means image shifted right → viewport shows left side → object-position nearer 0%
+    // crop.x < 0 means image shifted left  → viewport shows right side → object-position nearer 100%
+    const xPercent = ((1 - crop.x) / 2) * 100
+    const yPercent = ((1 - crop.y) / 2) * 100
     return `${xPercent}% ${yPercent}%`
   }
 
