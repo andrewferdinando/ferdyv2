@@ -97,6 +97,7 @@ export default function EditCategoryPage() {
             .from('asset_tags')
             .select('asset_id')
             .eq('tag_id', tag.id)
+            .order('position', { ascending: true, nullsFirst: false })
 
           if (!assetTagsError && assetTags) {
             assetIds = assetTags.map((at: any) => at.asset_id)

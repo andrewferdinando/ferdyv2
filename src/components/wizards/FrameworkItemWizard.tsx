@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/ToastProvider'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
-import SortableAssetGrid from '@/components/assets/SortableAssetGrid'
+import SortableAssetGrid, { type AssetUsageInfo } from '@/components/assets/SortableAssetGrid'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 import { HashtagInput } from '@/components/ui/HashtagInput'
@@ -594,6 +594,47 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   })
   
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
+
+  // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued
+  const [assetUsage, setAssetUsage] = useState<Map<string, AssetUsageInfo>>(new Map())
+
+  useEffect(() => {
+    if (mode !== 'edit' || !savedSubcategoryId) return
+
+    const fetchUsage = async () => {
+      const { data: drafts, error } = await supabase
+        .from('drafts')
+        .select('asset_ids, status')
+        .eq('subcategory_id', savedSubcategoryId)
+        .eq('schedule_source', 'framework')
+        .not('status', 'in', '("deleted","canceled")')
+
+      if (error || !drafts) return
+
+      const usage = new Map<string, AssetUsageInfo>()
+
+      for (const draft of drafts) {
+        if (!draft.asset_ids || !Array.isArray(draft.asset_ids)) continue
+        const assetId = draft.asset_ids[0] as string | undefined
+        if (!assetId) continue
+
+        const entry = usage.get(assetId) || { usedCount: 0, queuedCount: 0 }
+
+        if (draft.status === 'published' || draft.status === 'partially_published') {
+          entry.usedCount++
+        } else {
+          // pending, ready, generated, draft statuses = queued
+          entry.queuedCount++
+        }
+
+        usage.set(assetId, entry)
+      }
+
+      setAssetUsage(usage)
+    }
+
+    fetchUsage()
+  }, [mode, savedSubcategoryId])
 
   // Update timezone when brand loads (only if not already set from saved data)
   useEffect(() => {
@@ -2073,25 +2114,23 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       if (subcategoryTag) {
         const tagId = subcategoryTag.id
 
-        // Get currently linked assets
-        const { data: existingLinks } = await supabase
+        // Delete all existing asset_tags for this tag, then re-insert with positions.
+        // This is simpler than diffing and ensures position order is always correct.
+        const { error: deleteError } = await supabase
           .from('asset_tags')
-          .select('asset_id')
+          .delete()
           .eq('tag_id', tagId)
 
-        const existingAssetIds = new Set(existingLinks?.map((link: any) => link.asset_id) || [])
-        const desiredAssetIds = new Set(selectedAssetIds)
+        if (deleteError) {
+          console.error('[Wizard] Error clearing asset associations:', deleteError)
+          throw new Error(`Failed to update image associations: ${deleteError.message}`)
+        }
 
-        // Find assets to add
-        const assetsToAdd = selectedAssetIds.filter(id => !existingAssetIds.has(id))
-        // Find assets to remove
-        const assetsToRemove = Array.from(existingAssetIds).filter((id: any) => !desiredAssetIds.has(id))
-
-        // Add new associations
-        if (assetsToAdd.length > 0) {
-          const assetTagInserts = assetsToAdd.map(assetId => ({
+        if (selectedAssetIds.length > 0) {
+          const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
             asset_id: assetId,
-            tag_id: tagId
+            tag_id: tagId,
+            position: index
           }))
 
           const { error: insertError } = await supabase
@@ -2101,20 +2140,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (insertError) {
             console.error('[Wizard] Error adding asset associations:', insertError)
             throw new Error(`Failed to update image associations: ${insertError.message}`)
-          }
-        }
-
-        // Remove old associations
-        if (assetsToRemove.length > 0) {
-          const { error: deleteError } = await supabase
-            .from('asset_tags')
-            .delete()
-            .eq('tag_id', tagId)
-            .in('asset_id', assetsToRemove)
-
-          if (deleteError) {
-            console.error('[Wizard] Error removing asset associations:', deleteError)
-            throw new Error(`Failed to update image associations: ${deleteError.message}`)
           }
         }
 
@@ -2132,9 +2157,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           .single()
 
         if (!createTagError && newTag && selectedAssetIds.length > 0) {
-          const assetTagInserts = selectedAssetIds.map(assetId => ({
+          const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
             asset_id: assetId,
-            tag_id: newTag.id
+            tag_id: newTag.id,
+            position: index
           }))
 
           const { error: linkError } = await supabase
@@ -2320,43 +2346,30 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         if (tagId) {
-          // Check which assets are already linked
-          const { data: existingLinks } = await supabase
+          // Defensive: delete any existing asset_tags for this tag, then insert with positions.
+          const { error: clearError } = await supabase
             .from('asset_tags')
-            .select('asset_id')
+            .delete()
             .eq('tag_id', tagId)
-            .in('asset_id', selectedAssetIds)
 
-          const existingAssetIds = new Set(existingLinks?.map((link: any) => link.asset_id) || [])
-          const newAssetIds = selectedAssetIds.filter(id => !existingAssetIds.has(id))
+          if (clearError) {
+            console.error('[Wizard] Error clearing existing asset_tags:', clearError)
+            // Non-fatal for create mode, continue with insert
+          }
 
-          if (newAssetIds.length > 0) {
-            const assetTagInserts = newAssetIds.map(assetId => ({
-              asset_id: assetId,
-              tag_id: tagId
-            }))
+          const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
+            asset_id: assetId,
+            tag_id: tagId,
+            position: index
+          }))
 
-            const { error: linkError } = await supabase
-              .from('asset_tags')
-              .insert(assetTagInserts)
+          const { error: linkError } = await supabase
+            .from('asset_tags')
+            .insert(assetTagInserts)
 
-            if (linkError) {
-              console.error('[Wizard] Error linking assets to tag:', linkError)
-              throw new Error(`Failed to link images: ${linkError.message}`)
-            }
-            
-            // Verify the assets are actually linked before proceeding (defensive check)
-            if (newAssetIds.length > 0) {
-              const { error: verifyError } = await supabase
-                .from('asset_tags')
-                .select('asset_id')
-                .eq('tag_id', tagId)
-                .in('asset_id', newAssetIds)
-              
-              if (verifyError) {
-                console.error('[Wizard] Could not verify asset_tags:', verifyError)
-              }
-            }
+          if (linkError) {
+            console.error('[Wizard] Error linking assets to tag:', linkError)
+            throw new Error(`Failed to link images: ${linkError.message}`)
           }
         } else {
           throw new Error('Failed to find or create subcategory tag')
@@ -3498,6 +3511,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         selectedIds={selectedAssetIds}
                         onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
                         onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
+                        assetUsage={mode === 'edit' ? assetUsage : undefined}
                       />
                     </div>
 
@@ -3591,6 +3605,25 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                       <CheckIcon className="w-4 h-4" />
                                     </div>
                                   )}
+                                  {/* Usage badges (edit mode only, only when usage > 0) */}
+                                  {mode === 'edit' && (() => {
+                                    const u = assetUsage.get(asset.id)
+                                    if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
+                                    return (
+                                      <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
+                                        {u.usedCount > 0 && (
+                                          <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                            Used {u.usedCount}x
+                                          </span>
+                                        )}
+                                        {u.queuedCount > 0 && (
+                                          <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                            Queued
+                                          </span>
+                                        )}
+                                      </div>
+                                    )
+                                  })()}
                                   <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
                                     {asset.title}
                                   </div>

@@ -3,14 +3,16 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Asset } from '@/hooks/assets/useAssets'
+import type { AssetUsageInfo } from './SortableAssetGrid'
 
 interface SortableAssetItemProps {
   asset: Asset
   position: number
   onRemove: (id: string) => void
+  usage?: AssetUsageInfo
 }
 
-export default function SortableAssetItem({ asset, position, onRemove }: SortableAssetItemProps) {
+export default function SortableAssetItem({ asset, position, onRemove, usage }: SortableAssetItemProps) {
   const {
     attributes,
     listeners,
@@ -87,6 +89,27 @@ export default function SortableAssetItem({ asset, position, onRemove }: Sortabl
             </svg>
           ) : (
             'Loading...'
+          )}
+        </div>
+      )}
+
+      {/* Usage badges */}
+      {usage && (
+        <div className="absolute bottom-0 left-0 flex items-center gap-1 p-1.5">
+          {usage.usedCount === 0 && usage.queuedCount === 0 && (
+            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+              New
+            </span>
+          )}
+          {usage.usedCount > 0 && (
+            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+              Used {usage.usedCount}x
+            </span>
+          )}
+          {usage.queuedCount > 0 && (
+            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+              Queued
+            </span>
           )}
         </div>
       )}

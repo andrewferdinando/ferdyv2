@@ -18,11 +18,17 @@ import {
 import SortableAssetItem from './SortableAssetItem'
 import type { Asset } from '@/hooks/assets/useAssets'
 
+export interface AssetUsageInfo {
+  usedCount: number
+  queuedCount: number
+}
+
 interface SortableAssetGridProps {
   assets: Asset[]
   selectedIds: string[]
   onReorder: (newOrder: string[]) => void
   onRemove: (id: string) => void
+  assetUsage?: Map<string, AssetUsageInfo>
 }
 
 export default function SortableAssetGrid({
@@ -30,6 +36,7 @@ export default function SortableAssetGrid({
   selectedIds,
   onReorder,
   onRemove,
+  assetUsage,
 }: SortableAssetGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -82,6 +89,7 @@ export default function SortableAssetGrid({
                 asset={asset}
                 position={index + 1}
                 onRemove={onRemove}
+                usage={assetUsage?.get(asset.id)}
               />
             ))}
           </div>
