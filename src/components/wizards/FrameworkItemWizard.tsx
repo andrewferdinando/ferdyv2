@@ -595,26 +595,32 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
 
-  // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued
+  // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued.
+  // NOTE: Only drafts with asset_ids populated are counted. Historical drafts created before
+  // reliable asset selection was implemented may have empty asset_ids and won't appear in counts.
   const [assetUsage, setAssetUsage] = useState<Map<string, AssetUsageInfo>>(new Map())
 
   useEffect(() => {
     if (mode !== 'edit' || !savedSubcategoryId) return
 
     const fetchUsage = async () => {
+      // Query all non-deleted drafts for this subcategory (any schedule_source)
       const { data: drafts, error } = await supabase
         .from('drafts')
         .select('asset_ids, status')
         .eq('subcategory_id', savedSubcategoryId)
-        .eq('schedule_source', 'framework')
-        .not('status', 'in', '("deleted","canceled")')
+        .not('status', 'in', '("deleted")')
 
       if (error || !drafts) return
 
       const usage = new Map<string, AssetUsageInfo>()
+      let emptyAssetCount = 0
 
       for (const draft of drafts) {
-        if (!draft.asset_ids || !Array.isArray(draft.asset_ids)) continue
+        if (!draft.asset_ids || !Array.isArray(draft.asset_ids) || draft.asset_ids.length === 0) {
+          emptyAssetCount++
+          continue
+        }
         const assetId = draft.asset_ids[0] as string | undefined
         if (!assetId) continue
 
@@ -622,12 +628,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         if (draft.status === 'published' || draft.status === 'partially_published') {
           entry.usedCount++
-        } else {
-          // pending, ready, generated, draft statuses = queued
+        } else if (draft.status === 'scheduled') {
+          // Approved and waiting to publish
           entry.queuedCount++
         }
+        // 'draft' status = unapproved, don't count as queued
 
         usage.set(assetId, entry)
+      }
+
+      if (emptyAssetCount > 0) {
+        console.log(`[Wizard] ${emptyAssetCount} drafts have no asset_ids (pre-rotation historical data)`)
       }
 
       setAssetUsage(usage)
