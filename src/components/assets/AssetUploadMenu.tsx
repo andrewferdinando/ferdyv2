@@ -81,8 +81,7 @@ export default function AssetUploadMenu({
   })
 
   const isUploading = deviceUploading || driveUploading || pickerLoading
-  // Google Drive integration disabled for now - TODO: enable when configured
-  const googleDriveEnabled = false // isGoogleDriveConfigured()
+  const googleDriveEnabled = isGoogleDriveConfigured()
 
   // Close menu when clicking outside
   useEffect(() => {
