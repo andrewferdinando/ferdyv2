@@ -235,7 +235,7 @@ export default function AssetUploadMenu({
     return (
       <>
         <span>{label}</span>
-        {googleDriveEnabled && <ChevronDownIcon className="ml-1 w-4 h-4" />}
+        {googleDriveEnabled && <ChevronDownIcon className="ml-0.5 w-4 h-4" />}
       </>
     )
   }
@@ -261,7 +261,7 @@ export default function AssetUploadMenu({
           onDrop={handleDrop}
           disabled={isUploading}
           className={`
-            flex items-center gap-2.5 px-4 py-2 rounded-lg transition-colors
+            flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
             ${
               isUploading
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -296,7 +296,7 @@ export default function AssetUploadMenu({
         onDrop={handleDrop}
         disabled={isUploading}
         className={`
-          flex items-center gap-2.5 px-4 py-2 rounded-lg transition-colors
+          flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
           ${
             isUploading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -310,7 +310,7 @@ export default function AssetUploadMenu({
 
       {/* Dropdown menu */}
       {isOpen && !isUploading && (
-        <div className="absolute left-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+        <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
           <div className="py-1">
             <button
               onClick={handleDeviceUploadClick}

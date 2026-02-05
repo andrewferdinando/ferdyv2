@@ -110,7 +110,7 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError, l
         onDrop={handleDrop}
         disabled={uploading}
         className={`
-          flex items-center gap-2.5 px-4 py-2 rounded-lg transition-colors
+          flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
           ${uploading
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
             : 'bg-[#6366F1] text-white hover:bg-[#4F46E5]'

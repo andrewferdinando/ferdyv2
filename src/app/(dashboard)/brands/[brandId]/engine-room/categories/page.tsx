@@ -554,7 +554,7 @@ export default function CategoriesPage() {
                   onClick={() => setShowCalendar(v => !v)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <CalendarIcon className="w-4 h-4 mr-2.5" />
+                  <CalendarIcon className="w-4 h-4 mr-3" />
                   {showCalendar ? 'Hide Calendar' : 'Category Calendar'}
                 </button>
                 <button
