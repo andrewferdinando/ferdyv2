@@ -25,7 +25,7 @@ export default function TimeSaved() {
               <div className="text-6xl md:text-7xl font-bold text-gray-900 mb-2">60</div>
               <div className="text-lg font-semibold text-blue-600 mb-4">minutes, one-time setup</div>
               <p className="text-gray-600 leading-relaxed">
-                Connect your accounts, describe your brand, and set your posting schedule.
+                Connect your accounts. Set up your categories and posting schedule.
               </p>
             </div>
 
@@ -41,7 +41,7 @@ export default function TimeSaved() {
                 <div className="text-6xl md:text-7xl font-bold text-gray-900 mb-2">15</div>
                 <div className="text-lg font-semibold text-blue-600 mb-4">minutes per month, ongoing</div>
                 <p className="text-gray-600 leading-relaxed">
-                  Review your AI-generated drafts, approve or tweak, and Ferdy handles the rest.
+                  Review your auto-generated drafts, approve or tweak, and Ferdy handles the rest.
                 </p>
               </div>
             </div>
