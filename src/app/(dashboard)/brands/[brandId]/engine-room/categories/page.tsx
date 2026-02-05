@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -10,6 +10,7 @@ import { SubcategoryScheduleForm } from '@/components/forms/SubcategoryScheduleF
 import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
 import { SubcategoryType } from '@/types/subcategories'
+import CategoryCalendar from '@/components/categories/CategoryCalendar'
 
 const SUBCATEGORY_TYPE_LABELS: Record<SubcategoryType, string> = {
   event_series: 'Events',
@@ -58,12 +59,19 @@ const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const CalendarIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+
 export default function CategoriesPage() {
   const params = useParams()
   const router = useRouter()
   const brandId = params.brandId as string
   const { showToast } = useToast()
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<{id: string, name: string, detail?: string, url?: string, subcategory_type?: SubcategoryType, settings?: Record<string, any>, hashtags: string[], channels?: string[]} | null>(null)
   const [editingScheduleRule, setEditingScheduleRule] = useState<{
     id: string
@@ -528,29 +536,46 @@ export default function CategoriesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories</h1>
+                <div className="relative inline-block group/info mt-1">
+                  <span className="text-sm text-[#6366F1] hover:text-[#4F46E5] cursor-default transition-colors">
+                    How do categories work?
+                  </span>
+                  <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover/info:block">
+                    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-[360px]">
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        Categories automatically create draft posts. Ferdy continuously generates drafts for the next 30 days based on your active categories. Review and approve drafts in the Schedule when you're ready.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={() => {
-                  router.push(`/brands/${brandId}/engine-room/framework/new`)
-                }}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
-              >
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Add Category
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowCalendar(v => !v)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  {showCalendar ? 'Hide Calendar' : 'Category Calendar'}
+                </button>
+                <button
+                  onClick={() => {
+                    router.push(`/brands/${brandId}/engine-room/framework/new`)
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Add Category
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
             <div className="space-y-6">
-              {/* Automatic Draft Generation Info */}
-              <div className="rounded-2xl border border-gray-200 bg-[#6366F1]/5 px-6 py-5 md:py-6">
-                <p className="text-sm md:text-base text-gray-700">
-                  Categories automatically create draft posts. Ferdy continuously generates drafts for the next 30 days based on your active categories. Review and approve drafts in the Schedule when you're ready.
-                </p>
-              </div>
-
+              {showCalendar && (
+                <CategoryCalendar rules={(rules || []).filter(r => r.is_active)} />
+              )}
               <div className="bg-white rounded-lg border border-gray-200">
                 {(rulesLoading || subcategoriesLoading) ? (
                   <div className="p-6">
