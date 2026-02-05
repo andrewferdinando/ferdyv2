@@ -358,6 +358,7 @@ export default function ContentLibraryPage() {
                 brandId={brandId}
                 onUploadSuccess={handleUploadSuccess}
                 onUploadError={handleUploadError}
+                dropdownAlign="right"
               />
             </div>
           </div>
@@ -486,6 +487,7 @@ export default function ContentLibraryPage() {
                         brandId={brandId}
                         onUploadSuccess={handleUploadSuccess}
                         onUploadError={handleUploadError}
+                        dropdownAlign="right"
                       />
                     </div>
                   </div>
@@ -550,6 +552,7 @@ export default function ContentLibraryPage() {
                     onUploadSuccess={handleUploadSuccess}
                     onUploadError={handleUploadError}
                     label={mediaFilter === 'videos' ? 'Add videos' : 'Add images'}
+                    dropdownAlign="right"
                   />
                 </div>
               )

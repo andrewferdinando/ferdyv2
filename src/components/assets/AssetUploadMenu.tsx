@@ -11,6 +11,7 @@ interface AssetUploadMenuProps {
   onUploadSuccess: (assetIds: string[]) => void
   onUploadError: (error: string) => void
   label?: string
+  dropdownAlign?: 'left' | 'right'
 }
 
 // Upload icon
@@ -51,6 +52,7 @@ export default function AssetUploadMenu({
   onUploadSuccess,
   onUploadError,
   label = 'Upload',
+  dropdownAlign = 'left',
 }: AssetUploadMenuProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -310,7 +312,7 @@ export default function AssetUploadMenu({
 
       {/* Dropdown menu */}
       {isOpen && !isUploading && (
-        <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50`}>
           <div className="py-1">
             <button
               onClick={handleDeviceUploadClick}
