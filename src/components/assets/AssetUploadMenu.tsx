@@ -234,7 +234,6 @@ export default function AssetUploadMenu({
 
     return (
       <>
-        <UploadIcon />
         <span>{label}</span>
         {googleDriveEnabled && <ChevronDownIcon className="ml-1 w-4 h-4" />}
       </>
@@ -262,7 +261,7 @@ export default function AssetUploadMenu({
           onDrop={handleDrop}
           disabled={isUploading}
           className={`
-            flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors
+            flex items-center gap-2.5 px-4 py-2 rounded-lg transition-colors
             ${
               isUploading
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -297,7 +296,7 @@ export default function AssetUploadMenu({
         onDrop={handleDrop}
         disabled={isUploading}
         className={`
-          flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors
+          flex items-center gap-2.5 px-4 py-2 rounded-lg transition-colors
           ${
             isUploading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'

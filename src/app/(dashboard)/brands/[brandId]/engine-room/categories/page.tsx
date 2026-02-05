@@ -536,7 +536,7 @@ export default function CategoriesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Categories</h1>
-                <div className="relative inline-block group/info mt-1">
+                <div className="relative inline-block group/info mt-2">
                   <span className="text-sm text-[#6366F1] hover:text-[#4F46E5] cursor-default transition-colors">
                     How do categories work?
                   </span>
@@ -554,7 +554,7 @@ export default function CategoriesPage() {
                   onClick={() => setShowCalendar(v => !v)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  <CalendarIcon className="w-4 h-4 mr-2.5" />
                   {showCalendar ? 'Hide Calendar' : 'Category Calendar'}
                 </button>
                 <button
@@ -563,7 +563,6 @@ export default function CategoriesPage() {
                   }}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-sm font-medium rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200"
                 >
-                  <PlusIcon className="w-4 h-4 mr-2" />
                   Add Category
                 </button>
               </div>
