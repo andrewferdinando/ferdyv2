@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -588,7 +588,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [schedule.frequency, leadTimesInput])
   // Accordion state for edit mode
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    () => new Set(['details'])
+    () => new Set<string>()
   )
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -1178,7 +1178,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
-          name: `${details.name.trim()} â€“ Specific Events`,
+          name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
           days_during: eventOccurrenceType === 'range' ? null : null, // Can be set in future, but null for now
           channels: normalizedEventChannels, // Use normalized channels - this is the single source of truth
@@ -1389,7 +1389,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
-          name: `${details.name.trim()} â€“ ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
+          name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
           frequency: schedule.frequency,
           channels: normalizedChannels, // Use normalized channels - this is the single source of truth
           is_active: true,
@@ -1754,7 +1754,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
-          name: `${details.name.trim()} â€“ Specific Events`,
+          name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
           days_during: null,
           channels: details.channels.length > 0 ? details.channels : null,
@@ -2011,7 +2011,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             brand_id: brandId,
             subcategory_id: subcategoryId,
             category_id: null,
-            name: `${details.name.trim()} â€“ ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
+            name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
             frequency: schedule.frequency,
             channels: details.channels.length > 0 ? details.channels : null,
             is_active: true,
@@ -2730,8 +2730,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         <div className="flex flex-col gap-3">
           {[
             { value: 'short', label: 'Short', description: '1 sentence' },
-            { value: 'medium', label: 'Medium', description: '3â€“5 sentences' },
-            { value: 'long', label: 'Long', description: '6â€“8 sentences' },
+            { value: 'medium', label: 'Medium', description: '3–5 sentences' },
+            { value: 'long', label: 'Long', description: '6–8 sentences' },
           ].map((option) => {
             const isBrandDefault = option.value === defaultCopyLength
             const description = isBrandDefault
@@ -2757,7 +2757,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 />
                 <div>
                   <span className="text-sm font-medium text-gray-900">{option.label}</span>
-                  <span className="text-sm text-gray-600 ml-2">â€” {description}</span>
+                  <span className="text-sm text-gray-600 ml-2">— {description}</span>
                 </div>
               </label>
             )
@@ -3048,7 +3048,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   error={eventErrors.daysDuring}
                 />
                 <p className="mt-2 text-sm text-gray-600">
-                  Offsets from start date (0 = start day, 1 = next dayâ€¦). Leave blank to skip during-event posts.
+                  Offsets from start date (0 = start day, 1 = next day…). Leave blank to skip during-event posts.
                 </p>
               </FormField>
             )}
@@ -3560,7 +3560,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             </div>
           </div>
 
-          {/* Progress Header â€” create mode only */}
+          {/* Progress Header — create mode only */}
           {mode === 'create' && (
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between max-w-3xl">
