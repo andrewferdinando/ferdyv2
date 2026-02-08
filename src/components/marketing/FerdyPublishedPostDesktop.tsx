@@ -44,20 +44,13 @@ export default function FerdyPublishedPostDesktop() {
           {/* Main content: thumbnail + copy */}
           <div className="relative flex flex-col sm:flex-row gap-4 mb-4">
             {/* Thumbnail with annotation */}
-            <div className="relative flex-shrink-0 self-start sm:self-auto w-full sm:w-auto">
+            <div className="flex-shrink-0 self-start sm:self-auto w-full sm:w-auto flex flex-col items-start gap-2">
               <img
                 src="/images/burger-tuesday.jpg"
                 alt="Burger Tuesday"
                 className="w-full h-40 sm:w-20 sm:h-20 rounded-lg object-cover"
               />
-              {/* Annotation: Auto selected - positioned as callout */}
-              <div className="absolute -bottom-3 left-2 sm:-left-4 z-10">
-                <div className="relative">
-                  {/* Connector line */}
-                  <div className="hidden sm:block absolute top-1/2 right-full w-2 border-t-2 border-dashed border-purple-300" />
-                  <Annotation className="-rotate-2">Auto selected</Annotation>
-                </div>
-              </div>
+              <Annotation className="-rotate-2">Auto selected</Annotation>
             </div>
 
             {/* Copy with annotation */}
