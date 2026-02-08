@@ -133,7 +133,7 @@ export default function ContactForm({ title, description, formType, onClose }: C
                   Brand URL
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   id="brandUrl"
                   value={formData.brandUrl}
                   onChange={(e) => setFormData({ ...formData, brandUrl: e.target.value })}
