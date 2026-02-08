@@ -2802,7 +2802,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               Event dates
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Are these events single dates or date ranges?
+              Input the detail for your event date(s)
             </p>
 
             {eventScheduling.occurrences.length === 0 ? (
