@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -41,6 +41,12 @@ const ArrowLeftIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 const ChevronRightIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const ChevronDownIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
 
@@ -580,6 +586,22 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
     }
   }, [schedule.frequency, leadTimesInput])
+  // Accordion state for edit mode
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    () => new Set(['details'])
+  )
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(section)) {
+        next.delete(section)
+      } else {
+        next.add(section)
+      }
+      return next
+    })
+  }
+
   const [isSaving, setIsSaving] = useState(false)
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
     mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
@@ -885,6 +907,41 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     currentStep === 4 ? true : // Step 4 has no required fields
     true
 
+  // Collapsed summaries for accordion sections (edit mode)
+  const detailsSummary = React.useMemo(() => {
+    const parts: string[] = []
+    if (details.name.trim()) parts.push(details.name.trim())
+    if (details.channels.length > 0) {
+      const channelLabels = details.channels.map(ch => CHANNELS.find(c => c.value === ch)?.label || ch)
+      parts.push(channelLabels.join(', '))
+    }
+    if (details.default_copy_length) parts.push(`${details.default_copy_length} posts`)
+    return parts.join(' \u00b7 ')
+  }, [details.name, details.channels, details.default_copy_length])
+
+  const scheduleSummary = React.useMemo(() => {
+    if (schedule.frequency === 'specific') {
+      const count = eventScheduling.occurrences.length
+      return count === 1 ? '1 event date' : `${count} event dates`
+    }
+    const parts: string[] = []
+    if (schedule.frequency) {
+      parts.push(FREQUENCY_LABELS[schedule.frequency]?.label || schedule.frequency)
+    }
+    if (schedule.frequency === 'weekly' && schedule.daysOfWeek.length > 0) {
+      const dayLabels = schedule.daysOfWeek.map(d => DAYS_OF_WEEK.find(dw => dw.value === d)?.label || d)
+      parts.push(dayLabels.join(', '))
+    }
+    if (schedule.timeOfDay) parts.push(`at ${schedule.timeOfDay}`)
+    return parts.join(' \u00b7 ')
+  }, [schedule.frequency, schedule.daysOfWeek, schedule.timeOfDay, eventScheduling.occurrences.length])
+
+  const imagesSummary = React.useMemo(() => {
+    const count = selectedAssetIds.length
+    if (count === 0) return 'No images selected'
+    return count === 1 ? '1 image selected' : `${count} images selected`
+  }, [selectedAssetIds.length])
+
   // Helper function to build subcategory settings based on type
   const buildSubcategorySettings = (
     details: WizardDetails,
@@ -1048,7 +1105,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
 
     // Don't set isSaving here - modal should only show in handleFinish() (Step 4)
-    // This allows Step 3 → Step 4 to happen without showing the modal
+    // This allows Step 3 â†’ Step 4 to happen without showing the modal
     // Note: isSaving is managed in handleFinish() where the modal is shown
 
     try {
@@ -1121,7 +1178,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
-          name: `${details.name.trim()} – Specific Events`,
+          name: `${details.name.trim()} â€“ Specific Events`,
           frequency: 'specific',
           days_during: eventOccurrenceType === 'range' ? null : null, // Can be set in future, but null for now
           channels: normalizedEventChannels, // Use normalized channels - this is the single source of truth
@@ -1239,7 +1296,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             const hasTime = (createdRule.time_of_day && Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0) ||
                             (createdRule.times_of_day && Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0)
             if (!createdRule.start_date || !hasTime) {
-              console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time is missing')
+              console.error('[Wizard] âš ï¸ Schedule rule verification failed: start_date or time is missing')
             }
           }
         }
@@ -1332,7 +1389,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
-          name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
+          name: `${details.name.trim()} â€“ ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
           frequency: schedule.frequency,
           channels: normalizedChannels, // Use normalized channels - this is the single source of truth
           is_active: true,
@@ -1489,7 +1546,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
 
       if (!verifyRules || verifyRules.length === 0) {
-        console.error('[Wizard] ⚠️ CRITICAL: No active schedule_rule found after save!')
+        console.error('[Wizard] âš ï¸ CRITICAL: No active schedule_rule found after save!')
         throw new Error('Failed to create schedule rule: No active schedule rule exists for this category. This should never happen.')
       }
 
@@ -1555,10 +1612,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         if (!details.detail.trim()) newErrors.detail = 'Please describe this item.'
         if (details.channels.length === 0) newErrors.channels = 'Select at least one channel.'
         setDetailsErrors(newErrors)
-        setCurrentStep(2)
+        if (mode === 'edit') {
+          setExpandedSections(prev => new Set([...prev, 'details']))
+        } else {
+          setCurrentStep(2)
+        }
         return false
       }
-      
+
       if (!isStep3Valid()) {
         // Events validation
         if (subcategoryType === 'event_series') {
@@ -1585,9 +1646,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             }
           }
           setEventErrors(newErrors)
+          if (mode === 'edit') setExpandedSections(prev => new Set([...prev, 'schedule']))
           return false
         }
-        
+
         // Other types validation
         const newErrors: typeof scheduleErrors = {}
         if (!schedule.frequency) {
@@ -1615,6 +1677,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
         }
         setScheduleErrors(newErrors)
+        if (mode === 'edit') setExpandedSections(prev => new Set([...prev, 'schedule']))
         return false
       }
       return false
@@ -1691,7 +1754,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
-          name: `${details.name.trim()} – Specific Events`,
+          name: `${details.name.trim()} â€“ Specific Events`,
           frequency: 'specific',
           days_during: null,
           channels: details.channels.length > 0 ? details.channels : null,
@@ -1791,7 +1854,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               const hasTime = (updatedRule.time_of_day && Array.isArray(updatedRule.time_of_day) && updatedRule.time_of_day.length > 0) ||
                               (updatedRule.times_of_day && Array.isArray(updatedRule.times_of_day) && updatedRule.times_of_day.length > 0)
               if (!updatedRule.start_date || !hasTime) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time is missing')
+                console.error('[Wizard] âš ï¸ Schedule rule verification failed: start_date or time is missing')
               }
             }
           }
@@ -1820,7 +1883,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               const hasTime = (createdRule.time_of_day && Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0) ||
                               (createdRule.times_of_day && Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0)
               if (!createdRule.start_date || !hasTime) {
-                console.error('[Wizard] ⚠️ Schedule rule verification failed: start_date or time is missing')
+                console.error('[Wizard] âš ï¸ Schedule rule verification failed: start_date or time is missing')
               }
             }
           }
@@ -1948,7 +2011,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             brand_id: brandId,
             subcategory_id: subcategoryId,
             category_id: null,
-            name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
+            name: `${details.name.trim()} â€“ ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
             frequency: schedule.frequency,
             channels: details.channels.length > 0 ? details.channels : null,
             is_active: true,
@@ -2089,7 +2152,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         } else {
           // This should never happen due to validation, but if frequency is not set,
           // we should NOT delete existing rules - we should throw an error instead
-          console.error('[Wizard] ⚠️ CRITICAL: schedule.frequency is not set, but validation should have prevented this!')
+          console.error('[Wizard] âš ï¸ CRITICAL: schedule.frequency is not set, but validation should have prevented this!')
           throw new Error('Schedule frequency is required. This should have been caught by validation.')
         }
       }
@@ -2107,7 +2170,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
 
       if (!verifyRules || verifyRules.length === 0) {
-        console.error('[Wizard] ⚠️ CRITICAL: No active schedule_rule found after update!')
+        console.error('[Wizard] âš ï¸ CRITICAL: No active schedule_rule found after update!')
         throw new Error('Failed to ensure schedule rule exists: No active schedule rule exists for this category. This should never happen.')
       }
 
@@ -2511,6 +2574,977 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     setCurrentStep(targetStep)
   }
 
+  // --- Render functions for step content (shared by wizard and accordion) ---
+
+  const renderDetailsContent = () => (
+    <div className="space-y-5">
+      {/* Occurrence Type Selector (Events only) */}
+      {subcategoryType === 'event_series' && (
+        <div className="mb-5">
+          <h3 className="text-sm font-medium text-gray-900 mb-3">
+            Are these events single dates or date ranges?
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setEventOccurrenceType('single')}
+              className={`
+                relative p-4 rounded-lg border-2 text-left transition-all
+                ${
+                  eventOccurrenceType === 'single'
+                    ? 'border-[#6366F1] bg-white shadow-sm'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }
+              `}
+            >
+              {eventOccurrenceType === 'single' && (
+                <div className="absolute top-3 right-3">
+                  <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
+                    <CheckIcon className="w-3 h-3 text-white" />
+                  </div>
+                </div>
+              )}
+              <div className="pr-8">
+                <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                  Single dates
+                </h4>
+                <p className="text-xs text-gray-600">
+                  One specific day + time per occurrence
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEventOccurrenceType('range')}
+              className={`
+                relative p-4 rounded-lg border-2 text-left transition-all
+                ${
+                  eventOccurrenceType === 'range'
+                    ? 'border-[#6366F1] bg-white shadow-sm'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }
+              `}
+            >
+              {eventOccurrenceType === 'range' && (
+                <div className="absolute top-3 right-3">
+                  <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
+                    <CheckIcon className="w-3 h-3 text-white" />
+                  </div>
+                </div>
+              )}
+              <div className="pr-8">
+                <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                  Date ranges
+                </h4>
+                <p className="text-xs text-gray-600">
+                  Multi-day period (start + end date)
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Name */}
+      <FormField label="Name" required>
+        <Input
+          value={details.name}
+          onChange={(e) => {
+            setDetails(prev => ({ ...prev, name: e.target.value }))
+            if (detailsErrors.name) {
+              setDetailsErrors(prev => ({ ...prev, name: undefined }))
+            }
+          }}
+          placeholder="Short, clear name"
+          error={detailsErrors.name}
+        />
+      </FormField>
+
+      {/* Description */}
+      <FormField label="Description" required>
+        <Textarea
+          value={details.detail}
+          onChange={(e) => {
+            setDetails(prev => ({ ...prev, detail: e.target.value }))
+            if (detailsErrors.detail) {
+              setDetailsErrors(prev => ({ ...prev, detail: undefined }))
+            }
+          }}
+          placeholder="What should Ferdy mention?"
+          rows={4}
+          error={detailsErrors.detail}
+        />
+      </FormField>
+
+      {/* URL */}
+      <FormField label="URL (optional)">
+        <Input
+          type="url"
+          value={details.url}
+          onChange={(e) => setDetails(prev => ({ ...prev, url: e.target.value }))}
+          placeholder="Link for Ferdy to pull extra details"
+        />
+      </FormField>
+
+      {/* Default Hashtags */}
+      <FormField label="Default hashtags (optional)">
+        <HashtagInput
+          value={details.defaultHashtags}
+          onChange={(hashtags) => setDetails(prev => ({ ...prev, defaultHashtags: hashtags }))}
+          placeholder="brandname, event, networking"
+          helperText="Press Enter to add a hashtag"
+        />
+      </FormField>
+
+      {/* Channels */}
+      <FormField label="Channels" required>
+        <div className="flex flex-wrap gap-4">
+          {CHANNELS.map((channel) => (
+            <label key={channel.value} className="flex items-center">
+              <input
+                type="checkbox"
+                checked={details.channels.includes(channel.value)}
+                onChange={(e) => {
+                  const newChannels = e.target.checked
+                    ? [...details.channels, channel.value]
+                    : details.channels.filter(c => c !== channel.value)
+                  setDetails(prev => ({ ...prev, channels: newChannels }))
+                  if (detailsErrors.channels) {
+                    setDetailsErrors(prev => ({ ...prev, channels: undefined }))
+                  }
+                }}
+                className="mr-2 w-4 h-4 text-[#6366F1] border-gray-300 rounded focus:ring-[#6366F1]"
+              />
+              <span className="text-sm text-gray-700">{channel.label}</span>
+            </label>
+          ))}
+        </div>
+        {detailsErrors.channels && (
+          <p className="text-red-500 text-sm mt-1">{detailsErrors.channels}</p>
+        )}
+      </FormField>
+
+      {/* Post Length */}
+      <FormField label="Post length (default for this category)" required>
+        <div className="flex flex-col gap-3">
+          {[
+            { value: 'short', label: 'Short', description: '1 sentence' },
+            { value: 'medium', label: 'Medium', description: '3â€“5 sentences' },
+            { value: 'long', label: 'Long', description: '6â€“8 sentences' },
+          ].map((option) => {
+            const isBrandDefault = option.value === defaultCopyLength
+            const description = isBrandDefault
+              ? `${option.description} (default)`
+              : option.description
+            return (
+              <label
+                key={option.value}
+                className="flex items-start cursor-pointer"
+              >
+                <input
+                  type="radio"
+                  name="default_copy_length"
+                  value={option.value}
+                  checked={details.default_copy_length === option.value}
+                  onChange={(e) => {
+                    setDetails(prev => ({
+                      ...prev,
+                      default_copy_length: e.target.value as 'short' | 'medium' | 'long'
+                    }))
+                  }}
+                  className="mt-1 mr-3 w-4 h-4 text-[#6366F1] border-gray-300 focus:ring-[#6366F1]"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">{option.label}</span>
+                  <span className="text-sm text-gray-600 ml-2">â€” {description}</span>
+                </div>
+              </label>
+            )
+          })}
+        </div>
+      </FormField>
+
+      {/* Post Time Override */}
+      <FormField label="Post time (optional override)">
+        <Input
+          type="time"
+          value={details.post_time || ''}
+          onChange={(e) => {
+            const newTime = e.target.value || null
+            setDetails(prev => ({
+              ...prev,
+              post_time: newTime
+            }))
+            const timeToUse = newTime || defaultPostTime || ''
+            setSchedule(prev => ({ ...prev, timeOfDay: timeToUse }))
+          }}
+          placeholder={defaultPostTime || '10:00'}
+        />
+        <p className="mt-2 text-sm text-gray-600">
+          {details.post_time
+            ? `This category will post at ${details.post_time}. Leave blank to use brand default (${defaultPostTime || '10:00'}).`
+            : `Uses brand default time: ${defaultPostTime || '10:00'}. Set a time to override for this category.`
+          }
+        </p>
+      </FormField>
+    </div>
+  )
+
+  const renderScheduleContent = () => (
+    <>
+      {/* Specific frequency: Show occurrences manager (for all types) */}
+      {schedule.frequency === 'specific' ? (
+        <div className="space-y-6">
+          {/* Occurrences List */}
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-2">
+              Event dates
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Are these events single dates or date ranges?
+            </p>
+
+            {eventScheduling.occurrences.length === 0 ? (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center mb-4">
+                <p className="text-sm text-gray-600">
+                  No dates added yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {eventScheduling.occurrences.map((occurrence, index) => (
+                  <div
+                    key={occurrence.id || index}
+                    ref={(el) => {
+                      if (el) {
+                        occurrenceRefs.current.set(index, el)
+                      } else {
+                        occurrenceRefs.current.delete(index)
+                      }
+                    }}
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <h4 className="text-sm font-medium text-gray-900">
+                        {eventOccurrenceType === 'single' ? `Date ${index + 1}` : `Range ${index + 1}`}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEventScheduling(prev => ({
+                            ...prev,
+                            occurrences: prev.occurrences.filter((_, i) => i !== index)
+                          }))
+                        }}
+                        className="text-red-600 hover:text-red-700 p-1"
+                        title="Remove"
+                      >
+                        <XMarkIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {eventOccurrenceType === 'single' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField label="Date" required>
+                          <Input
+                            type="date"
+                            value={occurrence.date || ''}
+                            onChange={(e) => {
+                              const updated = [...eventScheduling.occurrences]
+                              updated[index] = { ...updated[index], date: e.target.value }
+                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                              if (eventErrors.occurrences) {
+                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                              }
+                            }}
+                            error={eventErrors.occurrences && (!occurrence.date || !occurrence.date.trim()) ? 'Date is required' : undefined}
+                          />
+                        </FormField>
+                        <FormField label="Time" required>
+                          <Input
+                            type="time"
+                            value={occurrence.time || ''}
+                            onChange={(e) => {
+                              const updated = [...eventScheduling.occurrences]
+                              updated[index] = { ...updated[index], time: e.target.value }
+                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                              if (eventErrors.occurrences) {
+                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                              }
+                            }}
+                            error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
+                          />
+                        </FormField>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField label="Start Date" required>
+                          <Input
+                            type="date"
+                            value={occurrence.start_date || ''}
+                            onChange={(e) => {
+                              const updated = [...eventScheduling.occurrences]
+                              updated[index] = { ...updated[index], start_date: e.target.value }
+                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                              if (eventErrors.occurrences) {
+                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                              }
+                            }}
+                            error={eventErrors.occurrences && (!occurrence.start_date || !occurrence.start_date.trim()) ? 'Start date is required' : undefined}
+                          />
+                        </FormField>
+                        <FormField label="End Date" required>
+                          <Input
+                            type="date"
+                            value={occurrence.end_date || ''}
+                            onChange={(e) => {
+                              const updated = [...eventScheduling.occurrences]
+                              updated[index] = { ...updated[index], end_date: e.target.value }
+                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                              if (eventErrors.occurrences) {
+                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                              }
+                            }}
+                            error={eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim()) ? 'End date is required' : undefined}
+                          />
+                        </FormField>
+                      </div>
+                    )}
+
+                    <FormField label="URL (optional)">
+                      <Input
+                        type="url"
+                        value={occurrence.url || ''}
+                        onChange={(e) => {
+                          const updated = [...eventScheduling.occurrences]
+                          updated[index] = { ...updated[index], url: e.target.value }
+                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                        }}
+                        placeholder="https://example.com/event"
+                      />
+                    </FormField>
+
+                    <FormField label="Notes (optional)">
+                      <Textarea
+                        value={occurrence.notes || ''}
+                        onChange={(e) => {
+                          const updated = [...eventScheduling.occurrences]
+                          updated[index] = { ...updated[index], notes: e.target.value }
+                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                        }}
+                        placeholder="Additional notes..."
+                        rows={2}
+                      />
+                    </FormField>
+
+                    {occurrence.summary && occurrence.summary.details && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
+                        <p className="font-medium text-gray-900 mb-2">Details found:</p>
+                        <div className="space-y-1 text-gray-700">
+                          {occurrence.summary.details.dateText && (
+                            <p><strong>Date:</strong> {occurrence.summary.details.dateText}</p>
+                          )}
+                          {occurrence.summary.details.startTime && (
+                            <p><strong>Time:</strong> {occurrence.summary.details.startTime}</p>
+                          )}
+                          {occurrence.summary.details.venueName && (
+                            <p><strong>Venue:</strong> {occurrence.summary.details.venueName}</p>
+                          )}
+                          {occurrence.summary.details.priceText && (
+                            <p><strong>Price:</strong> {occurrence.summary.details.priceText}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
+                  ? { date: '', time: '', url: '', notes: '' }
+                  : { start_date: '', end_date: '', url: '', notes: '' }
+                const newIndex = eventScheduling.occurrences.length
+                setEventScheduling(prev => ({
+                  ...prev,
+                  occurrences: [...prev.occurrences, newOccurrence]
+                }))
+                if (eventErrors.occurrences) {
+                  setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                }
+                setTimeout(() => {
+                  const cardRef = occurrenceRefs.current.get(newIndex)
+                  if (cardRef) {
+                    cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
+                    if (dateInput) dateInput.focus()
+                  }
+                }, 100)
+              }}
+              className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              {eventOccurrenceType === 'single' ? '+ Add date' : '+ Add range'}
+            </button>
+
+            {eventErrors.occurrences && (
+              <p className="text-red-500 text-sm mt-2">{eventErrors.occurrences}</p>
+            )}
+          </div>
+
+          {/* Lead-time Input */}
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-3">
+              Reminder schedule
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              When should Ferdy post about this event?
+            </p>
+            <FormField label="Days before">
+              <Input
+                type="text"
+                value={leadTimesInput}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setLeadTimesInput(value)
+                  const parsed = parseLeadTimes(value)
+                  const hasInvalidChars = value.split(',').some(s => {
+                    const trimmed = s.trim()
+                    return trimmed.length > 0 && isNaN(parseInt(trimmed, 10))
+                  })
+                  if (hasInvalidChars && value.trim() !== '') {
+                    setEventErrors(prev => ({ ...prev, leadTimes: 'Please enter only positive numbers separated by commas' }))
+                  } else {
+                    setEventErrors(prev => ({ ...prev, leadTimes: undefined }))
+                  }
+                }}
+                placeholder="14, 7, 3, 1"
+                error={eventErrors.leadTimes}
+              />
+            </FormField>
+
+            {hasDateRangeSelection && (
+              <FormField label="Days During">
+                <Input
+                  type="text"
+                  value={daysDuringInput}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setDaysDuringInput(value)
+                    const hasInvalidChars = value.split(',').some(s => {
+                      const trimmed = s.trim()
+                      return trimmed.length > 0 && isNaN(parseInt(trimmed, 10))
+                    })
+                    if (hasInvalidChars && value.trim() !== '') {
+                      setEventErrors(prev => ({ ...prev, daysDuring: 'Use numbers separated by commas (0 for event start day)' }))
+                    } else {
+                      setEventErrors(prev => ({ ...prev, daysDuring: undefined }))
+                    }
+                  }}
+                  placeholder="0, 1, 2"
+                  error={eventErrors.daysDuring}
+                />
+                <p className="mt-2 text-sm text-gray-600">
+                  Offsets from start date (0 = start day, 1 = next dayâ€¦). Leave blank to skip during-event posts.
+                </p>
+              </FormField>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Non-Events: Show standard schedule UI */
+        <div className="space-y-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            How often should this post?
+          </h3>
+
+        {/* Frequency Selector */}
+        <FormField label="" required>
+          {(() => {
+            const allowedFrequencies = subcategoryType
+              ? ALLOWED_FREQUENCIES_BY_TYPE[subcategoryType]
+              : []
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {allowedFrequencies.map((freq) => {
+                  const freqInfo = FREQUENCY_LABELS[freq]
+                  const isSelected = schedule.frequency === freq
+
+                  return (
+                    <button
+                      key={freq}
+                      type="button"
+                      onClick={() => {
+                        setSchedule(prev => ({
+                          ...prev,
+                          frequency: freq,
+                          daysOfWeek: freq !== 'weekly' ? [] : prev.daysOfWeek,
+                          dayOfMonth: freq !== 'monthly' ? null : prev.dayOfMonth,
+                        }))
+                        if (scheduleErrors.frequency) {
+                          setScheduleErrors(prev => ({ ...prev, frequency: undefined }))
+                        }
+                      }}
+                      className={`
+                        relative p-4 rounded-lg border-2 text-left transition-all
+                        ${
+                          isSelected
+                            ? 'border-[#6366F1] bg-blue-50 shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                        }
+                      `}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-3 right-3">
+                          <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
+                            <CheckIcon className="w-3 h-3 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="pr-8">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                          {freqInfo.label}
+                        </h4>
+                        {freq === 'weekly' && (
+                          <p className="text-xs text-gray-600">
+                            Pick days of the week
+                          </p>
+                        )}
+                        {freq === 'monthly' && (
+                          <p className="text-xs text-gray-600">
+                            Pick a day of the month
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })()}
+          {scheduleErrors.frequency && (
+            <p className="text-red-500 text-sm mt-2">{scheduleErrors.frequency}</p>
+          )}
+        </FormField>
+
+        {/* Daily fields */}
+        {schedule.frequency === 'daily' && (
+          <div className="space-y-3">
+            <FormField label="Time" required>
+              <Input
+                type="time"
+                value={schedule.timeOfDay}
+                onChange={(e) => {
+                  setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
+                  if (scheduleErrors.timeOfDay) {
+                    setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
+                  }
+                }}
+                error={scheduleErrors.timeOfDay}
+              />
+              <p className="mt-2 text-sm text-gray-600">
+                Timezone: {brand?.timezone || 'Not set'}
+              </p>
+            </FormField>
+          </div>
+        )}
+
+        {/* Weekly fields */}
+        {schedule.frequency === 'weekly' && (
+          <div className="space-y-3">
+            <FormField label="Days of week" required>
+              <div className="flex flex-wrap gap-2">
+                {DAYS_OF_WEEK.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => {
+                      const newDays = schedule.daysOfWeek.includes(day.value)
+                        ? schedule.daysOfWeek.filter(d => d !== day.value)
+                        : [...schedule.daysOfWeek, day.value]
+                      const dayOrder: Record<string, number> = { 'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6 }
+                      const sortedDays = newDays.sort((a, b) => (dayOrder[a] || 99) - (dayOrder[b] || 99))
+                      setSchedule(prev => ({ ...prev, daysOfWeek: sortedDays }))
+                      if (scheduleErrors.daysOfWeek) {
+                        setScheduleErrors(prev => ({ ...prev, daysOfWeek: undefined }))
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      schedule.daysOfWeek.includes(day.value)
+                        ? 'bg-[#6366F1] text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+              {scheduleErrors.daysOfWeek && (
+                <p className="text-red-500 text-sm mt-2">{scheduleErrors.daysOfWeek}</p>
+              )}
+            </FormField>
+            <FormField label="Time" required>
+              <Input
+                type="time"
+                value={schedule.timeOfDay}
+                onChange={(e) => {
+                  setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
+                  if (scheduleErrors.timeOfDay) {
+                    setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
+                  }
+                }}
+                error={scheduleErrors.timeOfDay}
+              />
+              <p className="mt-2 text-sm text-gray-600">
+                Timezone: {brand?.timezone || 'Not set'}
+              </p>
+            </FormField>
+          </div>
+        )}
+
+        {/* Monthly fields */}
+        {schedule.frequency === 'monthly' && (
+          <div className="space-y-4">
+            <div>
+              <FormField label="Specific days of the month">
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => {
+                    const isSelected = schedule.daysOfMonth.includes(day)
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const newDays = isSelected
+                            ? schedule.daysOfMonth.filter(d => d !== day)
+                            : [...schedule.daysOfMonth, day].sort((a, b) => a - b)
+                          setSchedule(prev => ({
+                            ...prev,
+                            daysOfMonth: newDays,
+                            nthWeek: null,
+                            weekday: null,
+                            dayOfMonth: newDays.length > 0 ? newDays[0] : null
+                          }))
+                          if (scheduleErrors.dayOfMonth) {
+                            setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-[#6366F1] text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    )
+                  })}
+                </div>
+              </FormField>
+            </div>
+
+            <div>
+              <FormField label="Or post on">
+                <div className="flex gap-3 items-center">
+                  <select
+                    value={schedule.nthWeek !== null ? schedule.nthWeek : ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? parseInt(e.target.value, 10) : null
+                      setSchedule(prev => ({
+                        ...prev,
+                        nthWeek: value,
+                        daysOfMonth: [],
+                        dayOfMonth: null
+                      }))
+                      if (scheduleErrors.dayOfMonth) {
+                        setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
+                      }
+                    }}
+                    disabled={schedule.daysOfMonth.length > 0}
+                    className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select</option>
+                    <option value="1">1st</option>
+                    <option value="2">2nd</option>
+                    <option value="3">3rd</option>
+                    <option value="4">4th</option>
+                    <option value="5">Last</option>
+                  </select>
+                  <select
+                    value={schedule.weekday !== null ? schedule.weekday : ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? parseInt(e.target.value, 10) : null
+                      setSchedule(prev => ({ ...prev, weekday: value }))
+                      if (scheduleErrors.dayOfMonth) {
+                        setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
+                      }
+                    }}
+                    disabled={schedule.daysOfMonth.length > 0}
+                    className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select day</option>
+                    {[
+                      { value: 1, label: 'Monday' },
+                      { value: 2, label: 'Tuesday' },
+                      { value: 3, label: 'Wednesday' },
+                      { value: 4, label: 'Thursday' },
+                      { value: 5, label: 'Friday' },
+                      { value: 6, label: 'Saturday' },
+                      { value: 7, label: 'Sunday' },
+                    ].map(day => (
+                      <option key={day.value} value={day.value}>
+                        {day.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {scheduleErrors.dayOfMonth && (
+                  <p className="text-red-500 text-sm mt-1">{scheduleErrors.dayOfMonth}</p>
+                )}
+              </FormField>
+            </div>
+
+            <FormField label="Time" required>
+              <Input
+                type="time"
+                value={schedule.timeOfDay}
+                onChange={(e) => {
+                  setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
+                  if (scheduleErrors.timeOfDay) {
+                    setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
+                  }
+                }}
+                error={scheduleErrors.timeOfDay}
+              />
+              <p className="mt-2 text-sm text-gray-600">
+                Timezone: {brand?.timezone || 'Not set'}
+              </p>
+            </FormField>
+          </div>
+        )}
+        </div>
+      )}
+    </>
+  )
+
+  const renderImagesContent = () => (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-gray-900">
+          Choose images
+        </h3>
+        <div className="relative group">
+          <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
+          <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 whitespace-nowrap shadow-lg">
+            Images: JPG or PNG, min 600Ã—600px, max 30 MB<br />
+            Videos: MP4 or MOV, min 500Ã—500px, max 200 MB
+          </div>
+        </div>
+      </div>
+
+      {/* Mode Toggle - Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <div className="flex space-x-8">
+          <button
+            type="button"
+            onClick={() => setImageMode('upload')}
+            className={`
+              px-1 py-4 text-sm font-medium border-b-2 transition-colors
+              ${
+                imageMode === 'upload'
+                  ? 'border-[#6366F1] text-gray-900 font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+            `}
+          >
+            Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => setImageMode('existing')}
+            className={`
+              px-1 py-4 text-sm font-medium border-b-2 transition-colors
+              ${
+                imageMode === 'existing'
+                  ? 'border-[#6366F1] text-gray-900 font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+            `}
+          >
+            From library
+          </button>
+        </div>
+      </div>
+
+      {/* Selected Media - Always visible */}
+      <div className="mb-6">
+        <h4 className="text-sm font-medium text-gray-900 mb-3">
+          Selected Media ({selectedAssetIds.length})
+        </h4>
+        <SortableAssetGrid
+          assets={assets}
+          selectedIds={selectedAssetIds}
+          onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
+          onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
+          assetUsage={mode === 'edit' ? assetUsage : undefined}
+        />
+      </div>
+
+      {/* Upload Mode */}
+      {imageMode === 'upload' && (
+        <div className="space-y-4">
+          <AssetUploadMenu
+            brandId={brandId}
+            onUploadSuccess={(assetIds) => {
+              setSelectedAssetIds(prev => [...prev, ...assetIds])
+              refetchAssets()
+            }}
+            onUploadError={(error) => {
+              showToast({
+                title: 'Upload failed',
+                message: error,
+                type: 'error'
+              })
+            }}
+          />
+        </div>
+      )}
+
+      {/* Existing Images Mode */}
+      {imageMode === 'existing' && (
+        <div className="space-y-4">
+          {assetsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+            </div>
+          ) : assets.length === 0 ? (
+            <p className="text-sm text-gray-500 py-8 text-center">
+              No media available yet. Upload some images or videos to get started.
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-4">
+              {assets.map(asset => {
+                const isSelected = selectedAssetIds.includes(asset.id)
+                const isVideo = asset.asset_type === 'video'
+                const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))
+                      } else {
+                        setSelectedAssetIds(prev => [...prev, asset.id])
+                      }
+                    }}
+                    className={`
+                      relative group border-2 rounded-lg overflow-hidden transition-all
+                      ${
+                        isSelected
+                          ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }
+                    `}
+                  >
+                    {thumbUrl ? (
+                      <>
+                        <img
+                          src={thumbUrl}
+                          alt={asset.title}
+                          className="w-full h-32 object-cover"
+                        />
+                        {isVideo && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                        {isVideo ? (
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                        ) : 'Loading...'}
+                      </div>
+                    )}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
+                        <CheckIcon className="w-4 h-4" />
+                      </div>
+                    )}
+                    {mode === 'edit' && (() => {
+                      const u = assetUsage.get(asset.id)
+                      if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
+                      return (
+                        <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
+                          {u.usedCount > 0 && (
+                            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              Used {u.usedCount}x
+                            </span>
+                          )}
+                          {u.queuedCount > 0 && (
+                            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                              Queued
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
+                      {asset.title}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+
+  // Accordion section helper for edit mode
+  const renderAccordionSection = (
+    key: string,
+    title: string,
+    summary: string,
+    renderContent: () => React.ReactNode
+  ) => {
+    const isExpanded = expandedSections.has(key)
+    return (
+      <div key={key} className="bg-white border border-gray-200 rounded-lg">
+        <button
+          type="button"
+          onClick={() => toggleSection(key)}
+          className="w-full flex items-center justify-between px-6 py-4 text-left"
+        >
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+            {!isExpanded && summary && (
+              <p className="text-sm text-gray-500 mt-1 truncate">{summary}</p>
+            )}
+          </div>
+          <ChevronDownIcon
+            className={`w-5 h-5 text-gray-400 flex-shrink-0 ml-4 transition-transform duration-200 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+        {isExpanded && (
+          <div className="px-6 pb-6 border-t border-gray-200 pt-4">
+            {renderContent()}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <RequireAuth>
       <AppLayout>
@@ -2526,7 +3560,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             </div>
           </div>
 
-          {/* Progress Header */}
+          {/* Progress Header â€” create mode only */}
+          {mode === 'create' && (
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between max-w-3xl">
               {STEPS.map((step, index) => (
@@ -2592,10 +3627,69 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               ))}
             </div>
           </div>
+          )}
 
           {/* Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-6">
             <div className="max-w-4xl">
+
+              {/* ========== EDIT MODE: Accordion layout ========== */}
+              {mode === 'edit' && (
+                <>
+                  {/* Type badge — static, non-editable */}
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                      {subcategoryType ? TYPE_LABEL_MAP[subcategoryType] : 'Unknown type'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {renderAccordionSection('details', 'Details', detailsSummary, renderDetailsContent)}
+                    {renderAccordionSection(
+                      'schedule',
+                      schedule.frequency === 'specific' ? 'Event dates' : 'Schedule',
+                      scheduleSummary,
+                      renderScheduleContent
+                    )}
+                    {renderAccordionSection('images', 'Images', imagesSummary, renderImagesContent)}
+                  </div>
+
+                  {/* Edit mode: Cancel / Save buttons */}
+                  <div className="mt-6 flex items-center justify-between">
+                    <button
+                      onClick={handleCancel}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleFinish}
+                      disabled={isSaving}
+                      className={`
+                        inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                        ${
+                          !isSaving
+                            ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      {isSaving ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent mr-2" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save changes'
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ========== CREATE MODE: Wizard layout ========== */}
+              {mode === 'create' && (
+              <>
               {/* Step Container */}
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 {currentStep === 1 && (
@@ -2612,13 +3706,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           <button
                             key={option.value}
                             onClick={() => {
-                              // In edit mode, prevent type change
-                              if (mode === 'edit') return
                               // Prevent selecting Schedules type (temporarily disabled)
                               if (option.value === 'dynamic_schedule') return
                               setSubcategoryType(option.value)
                             }}
-                            disabled={mode === 'edit'}
+                            disabled={option.value === 'dynamic_schedule'}
                             className={`
                               relative p-4 rounded-lg border-2 text-left transition-all
                               ${
@@ -2658,224 +3750,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
                       Step 2: Details
                     </h2>
-
-                    <div className="space-y-5">
-                      {/* Occurrence Type Selector (Events only) */}
-                      {subcategoryType === 'event_series' && (
-                        <div className="mb-5">
-                          <h3 className="text-sm font-medium text-gray-900 mb-3">
-                            Are these events single dates or date ranges?
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setEventOccurrenceType('single')}
-                              className={`
-                                relative p-4 rounded-lg border-2 text-left transition-all
-                                ${
-                                  eventOccurrenceType === 'single'
-                                    ? 'border-[#6366F1] bg-white shadow-sm'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
-                                }
-                              `}
-                            >
-                              {eventOccurrenceType === 'single' && (
-                                <div className="absolute top-3 right-3">
-                                  <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
-                                    <CheckIcon className="w-3 h-3 text-white" />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="pr-8">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                                  Single dates
-                                </h4>
-                                <p className="text-xs text-gray-600">
-                                  One specific day + time per occurrence
-                                </p>
-                              </div>
-                            </button>
-                            
-                            <button
-                              type="button"
-                              onClick={() => setEventOccurrenceType('range')}
-                              className={`
-                                relative p-4 rounded-lg border-2 text-left transition-all
-                                ${
-                                  eventOccurrenceType === 'range'
-                                    ? 'border-[#6366F1] bg-white shadow-sm'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
-                                }
-                              `}
-                            >
-                              {eventOccurrenceType === 'range' && (
-                                <div className="absolute top-3 right-3">
-                                  <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
-                                    <CheckIcon className="w-3 h-3 text-white" />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="pr-8">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                                  Date ranges
-                                </h4>
-                                <p className="text-xs text-gray-600">
-                                  Multi-day period (start + end date)
-                                </p>
-                              </div>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Name */}
-                      <FormField label="Name" required>
-                        <Input
-                          value={details.name}
-                          onChange={(e) => {
-                            setDetails(prev => ({ ...prev, name: e.target.value }))
-                            // Clear error when user types
-                            if (detailsErrors.name) {
-                              setDetailsErrors(prev => ({ ...prev, name: undefined }))
-                            }
-                          }}
-                          placeholder="Short, clear name"
-                          error={detailsErrors.name}
-                        />
-                      </FormField>
-
-                      {/* Description */}
-                      <FormField label="Description" required>
-                        <Textarea
-                          value={details.detail}
-                          onChange={(e) => {
-                            setDetails(prev => ({ ...prev, detail: e.target.value }))
-                            // Clear error when user types
-                            if (detailsErrors.detail) {
-                              setDetailsErrors(prev => ({ ...prev, detail: undefined }))
-                            }
-                          }}
-                          placeholder="What should Ferdy mention?"
-                          rows={4}
-                          error={detailsErrors.detail}
-                        />
-                      </FormField>
-
-                      {/* URL */}
-                      <FormField label="URL (optional)">
-                        <Input
-                          type="url"
-                          value={details.url}
-                          onChange={(e) => setDetails(prev => ({ ...prev, url: e.target.value }))}
-                          placeholder="Link for Ferdy to pull extra details"
-                        />
-                      </FormField>
-
-                      {/* Default Hashtags */}
-                      <FormField label="Default hashtags (optional)">
-                        <HashtagInput
-                          value={details.defaultHashtags}
-                          onChange={(hashtags) => setDetails(prev => ({ ...prev, defaultHashtags: hashtags }))}
-                          placeholder="brandname, event, networking"
-                          helperText="Press Enter to add a hashtag"
-                        />
-                      </FormField>
-
-                      {/* Channels */}
-                      <FormField label="Channels" required>
-                        <div className="flex flex-wrap gap-4">
-                          {CHANNELS.map((channel) => (
-                            <label key={channel.value} className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={details.channels.includes(channel.value)}
-                                onChange={(e) => {
-                                  const newChannels = e.target.checked
-                                    ? [...details.channels, channel.value]
-                                    : details.channels.filter(c => c !== channel.value)
-                                  setDetails(prev => ({ ...prev, channels: newChannels }))
-                                  // Clear error when user selects a channel
-                                  if (detailsErrors.channels) {
-                                    setDetailsErrors(prev => ({ ...prev, channels: undefined }))
-                                  }
-                                }}
-                                className="mr-2 w-4 h-4 text-[#6366F1] border-gray-300 rounded focus:ring-[#6366F1]"
-                              />
-                              <span className="text-sm text-gray-700">{channel.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                        {detailsErrors.channels && (
-                          <p className="text-red-500 text-sm mt-1">{detailsErrors.channels}</p>
-                        )}
-                      </FormField>
-
-                      {/* Post Length */}
-                      <FormField label="Post length (default for this category)" required>
-                        <div className="flex flex-col gap-3">
-                          {[
-                            { value: 'short', label: 'Short', description: '1 sentence' },
-                            { value: 'medium', label: 'Medium', description: '3–5 sentences' },
-                            { value: 'long', label: 'Long', description: '6–8 sentences' },
-                          ].map((option) => {
-                            const isBrandDefault = option.value === defaultCopyLength
-                            const description = isBrandDefault 
-                              ? `${option.description} (default)` 
-                              : option.description
-                            return (
-                              <label
-                                key={option.value}
-                                className="flex items-start cursor-pointer"
-                              >
-                                <input
-                                  type="radio"
-                                  name="default_copy_length"
-                                  value={option.value}
-                                  checked={details.default_copy_length === option.value}
-                                  onChange={(e) => {
-                                    setDetails(prev => ({ 
-                                      ...prev, 
-                                      default_copy_length: e.target.value as 'short' | 'medium' | 'long'
-                                    }))
-                                  }}
-                                  className="mt-1 mr-3 w-4 h-4 text-[#6366F1] border-gray-300 focus:ring-[#6366F1]"
-                                />
-                                <div>
-                                  <span className="text-sm font-medium text-gray-900">{option.label}</span>
-                                  <span className="text-sm text-gray-600 ml-2">— {description}</span>
-                                </div>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </FormField>
-
-                      {/* Post Time Override */}
-                      <FormField label="Post time (optional override)">
-                        <Input
-                          type="time"
-                          value={details.post_time || ''}
-                          onChange={(e) => {
-                            const newTime = e.target.value || null
-                            setDetails(prev => ({ 
-                              ...prev, 
-                              post_time: newTime
-                            }))
-                            // Also update schedule timeOfDay to keep them in sync
-                            // Use newTime if set, otherwise fall back to brand default
-                            const timeToUse = newTime || defaultPostTime || ''
-                            setSchedule(prev => ({ ...prev, timeOfDay: timeToUse }))
-                          }}
-                          placeholder={defaultPostTime || '10:00'}
-                        />
-                        <p className="mt-2 text-sm text-gray-600">
-                          {details.post_time 
-                            ? `This category will post at ${details.post_time}. Leave blank to use brand default (${defaultPostTime || '10:00'}).`
-                            : `Uses brand default time: ${defaultPostTime || '10:00'}. Set a time to override for this category.`
-                          }
-                        </p>
-                      </FormField>
-                    </div>
+                    {renderDetailsContent()}
                   </div>
                 )}
 
@@ -2884,767 +3759,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
                       Step 3: {schedule.frequency === 'specific' ? 'Event dates' : 'Schedule'}
                     </h2>
-
-                    {/* Specific frequency: Show occurrences manager (for all types) */}
-                    {schedule.frequency === 'specific' ? (
-                      <div className="space-y-6">
-                        {/* Occurrences List */}
-                        <div>
-                          <h3 className="text-base font-semibold text-gray-900 mb-2">
-                            Event dates
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-4">
-                            Are these events single dates or date ranges?
-                          </p>
-                          
-                          {eventScheduling.occurrences.length === 0 ? (
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center mb-4">
-                              <p className="text-sm text-gray-600">
-                                No dates added yet.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {eventScheduling.occurrences.map((occurrence, index) => (
-                                <div
-                                  key={occurrence.id || index}
-                                  ref={(el) => {
-                                    if (el) {
-                                      occurrenceRefs.current.set(index, el)
-                                    } else {
-                                      occurrenceRefs.current.delete(index)
-                                    }
-                                  }}
-                                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3"
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <h4 className="text-sm font-medium text-gray-900">
-                                      {eventOccurrenceType === 'single' ? `Date ${index + 1}` : `Range ${index + 1}`}
-                                    </h4>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEventScheduling(prev => ({
-                                          ...prev,
-                                          occurrences: prev.occurrences.filter((_, i) => i !== index)
-                                        }))
-                                      }}
-                                      className="text-red-600 hover:text-red-700 p-1"
-                                      title="Remove"
-                                    >
-                                      <XMarkIcon className="w-5 h-5" />
-                                    </button>
-                                  </div>
-                                  
-                                  {eventOccurrenceType === 'single' ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      {/* Date - Required */}
-                                      <FormField label="Date" required>
-                                        <Input
-                                          type="date"
-                                          value={occurrence.date || ''}
-                                          onChange={(e) => {
-                                            const updated = [...eventScheduling.occurrences]
-                                            updated[index] = { ...updated[index], date: e.target.value }
-                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                            if (eventErrors.occurrences) {
-                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                            }
-                                          }}
-                                          error={eventErrors.occurrences && (!occurrence.date || !occurrence.date.trim()) ? 'Date is required' : undefined}
-                                        />
-                                      </FormField>
-                                      
-                                      {/* Time - Required */}
-                                      <FormField label="Time" required>
-                                        <Input
-                                          type="time"
-                                          value={occurrence.time || ''}
-                                          onChange={(e) => {
-                                            const updated = [...eventScheduling.occurrences]
-                                            updated[index] = { ...updated[index], time: e.target.value }
-                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                            if (eventErrors.occurrences) {
-                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                            }
-                                          }}
-                                          error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
-                                        />
-                                      </FormField>
-                                    </div>
-                                  ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      {/* Start Date - Required */}
-                                      <FormField label="Start Date" required>
-                                        <Input
-                                          type="date"
-                                          value={occurrence.start_date || ''}
-                                          onChange={(e) => {
-                                            const updated = [...eventScheduling.occurrences]
-                                            updated[index] = { ...updated[index], start_date: e.target.value }
-                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                            if (eventErrors.occurrences) {
-                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                            }
-                                          }}
-                                          error={eventErrors.occurrences && (!occurrence.start_date || !occurrence.start_date.trim()) ? 'Start date is required' : undefined}
-                                        />
-                                      </FormField>
-                                      
-                                      {/* End Date - Required */}
-                                      <FormField label="End Date" required>
-                                        <Input
-                                          type="date"
-                                          value={occurrence.end_date || ''}
-                                          onChange={(e) => {
-                                            const updated = [...eventScheduling.occurrences]
-                                            updated[index] = { ...updated[index], end_date: e.target.value }
-                                            setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                            if (eventErrors.occurrences) {
-                                              setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                                            }
-                                          }}
-                                          error={eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim()) ? 'End date is required' : undefined}
-                                        />
-                                      </FormField>
-                                    </div>
-                                  )}
-                                  
-                                  {/* URL - Optional */}
-                                  <FormField label="URL (optional)">
-                                    <Input
-                                      type="url"
-                                      value={occurrence.url || ''}
-                                      onChange={(e) => {
-                                        const updated = [...eventScheduling.occurrences]
-                                        updated[index] = { ...updated[index], url: e.target.value }
-                                        setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                      }}
-                                      placeholder="https://example.com/event"
-                                    />
-                                  </FormField>
-                                  
-                                  {/* Notes - Optional */}
-                                  <FormField label="Notes (optional)">
-                                    <Textarea
-                                      value={occurrence.notes || ''}
-                                      onChange={(e) => {
-                                        const updated = [...eventScheduling.occurrences]
-                                        updated[index] = { ...updated[index], notes: e.target.value }
-                                        setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                                      }}
-                                      placeholder="Additional notes..."
-                                      rows={2}
-                                    />
-                                  </FormField>
-                                  
-                                  {/* URL Summary Preview */}
-                                  {occurrence.summary && occurrence.summary.details && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
-                                      <p className="font-medium text-gray-900 mb-2">Details found:</p>
-                                      <div className="space-y-1 text-gray-700">
-                                        {occurrence.summary.details.dateText && (
-                                          <p><strong>Date:</strong> {occurrence.summary.details.dateText}</p>
-                                        )}
-                                        {occurrence.summary.details.startTime && (
-                                          <p><strong>Time:</strong> {occurrence.summary.details.startTime}</p>
-                                        )}
-                                        {occurrence.summary.details.venueName && (
-                                          <p><strong>Venue:</strong> {occurrence.summary.details.venueName}</p>
-                                        )}
-                                        {occurrence.summary.details.priceText && (
-                                          <p><strong>Price:</strong> {occurrence.summary.details.priceText}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
-                                ? {
-                                    date: '',
-                                    time: '',
-                                    url: '',
-                                    notes: ''
-                                  }
-                                : {
-                                    start_date: '',
-                                    end_date: '',
-                                    url: '',
-                                    notes: ''
-                                  }
-                              const newIndex = eventScheduling.occurrences.length
-                              setEventScheduling(prev => ({
-                                ...prev,
-                                occurrences: [...prev.occurrences, newOccurrence]
-                              }))
-                              // Clear errors when adding
-                              if (eventErrors.occurrences) {
-                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                              }
-                              // Scroll into view and focus after state update
-                              setTimeout(() => {
-                                const cardRef = occurrenceRefs.current.get(newIndex)
-                                if (cardRef) {
-                                  cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                                  // Focus the first date input
-                                  const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
-                                  if (dateInput) {
-                                    dateInput.focus()
-                                  }
-                                }
-                              }, 100)
-                            }}
-                            className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
-                          >
-                            {eventOccurrenceType === 'single' ? '+ Add date' : '+ Add range'}
-                          </button>
-                          
-                          {eventErrors.occurrences && (
-                            <p className="text-red-500 text-sm mt-2">{eventErrors.occurrences}</p>
-                          )}
-                        </div>
-                        
-                        {/* Lead-time Input */}
-                        <div>
-                          <h3 className="text-base font-semibold text-gray-900 mb-3">
-                            Reminder schedule
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-4">
-                            When should Ferdy post about this event?
-                          </p>
-                          <FormField label="Days before">
-                            <Input
-                              type="text"
-                              value={leadTimesInput}
-                              onChange={(e) => {
-                                const value = e.target.value
-                                setLeadTimesInput(value)
-                                // Validate inline
-                                const parsed = parseLeadTimes(value)
-                                const hasInvalidChars = value.split(',').some(s => {
-                                  const trimmed = s.trim()
-                                  return trimmed.length > 0 && isNaN(parseInt(trimmed, 10))
-                                })
-                                if (hasInvalidChars && value.trim() !== '') {
-                                  setEventErrors(prev => ({ ...prev, leadTimes: 'Please enter only positive numbers separated by commas' }))
-                                } else {
-                                  setEventErrors(prev => ({ ...prev, leadTimes: undefined }))
-                                }
-                              }}
-                              placeholder="14, 7, 3, 1"
-                              error={eventErrors.leadTimes}
-                            />
-                          </FormField>
-
-                          {hasDateRangeSelection && (
-                            <FormField label="Days During">
-                              <Input
-                                type="text"
-                                value={daysDuringInput}
-                                onChange={(e) => {
-                                  const value = e.target.value
-                                  setDaysDuringInput(value)
-                                  const hasInvalidChars = value.split(',').some(s => {
-                                    const trimmed = s.trim()
-                                    return trimmed.length > 0 && isNaN(parseInt(trimmed, 10))
-                                  })
-                                  if (hasInvalidChars && value.trim() !== '') {
-                                    setEventErrors(prev => ({ ...prev, daysDuring: 'Use numbers separated by commas (0 for event start day)' }))
-                                  } else {
-                                    setEventErrors(prev => ({ ...prev, daysDuring: undefined }))
-                                  }
-                                }}
-                                placeholder="0, 1, 2"
-                                error={eventErrors.daysDuring}
-                              />
-                              <p className="mt-2 text-sm text-gray-600">
-                                Offsets from start date (0 = start day, 1 = next day…). Leave blank to skip during-event posts.
-                              </p>
-                            </FormField>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      /* Non-Events: Show standard schedule UI */
-                      <div className="space-y-6">
-                        <h3 className="text-base font-semibold text-gray-900 mb-4">
-                          How often should this post?
-                        </h3>
-
-                      {/* Frequency Selector */}
-                      <FormField label="" required>
-                        {(() => {
-                          const allowedFrequencies = subcategoryType
-                            ? ALLOWED_FREQUENCIES_BY_TYPE[subcategoryType]
-                            : []
-                          
-                          return (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {allowedFrequencies.map((freq) => {
-                                const freqInfo = FREQUENCY_LABELS[freq]
-                                const isSelected = schedule.frequency === freq
-                                
-                                return (
-                                  <button
-                                    key={freq}
-                                    type="button"
-                                    onClick={() => {
-                                      setSchedule(prev => ({
-                                        ...prev,
-                                        frequency: freq,
-                                        // Reset fields when switching frequencies
-                                        daysOfWeek: freq !== 'weekly' ? [] : prev.daysOfWeek,
-                                        dayOfMonth: freq !== 'monthly' ? null : prev.dayOfMonth,
-                                      }))
-                                      // Clear frequency error when selecting
-                                      if (scheduleErrors.frequency) {
-                                        setScheduleErrors(prev => ({ ...prev, frequency: undefined }))
-                                      }
-                                    }}
-                                    className={`
-                                      relative p-4 rounded-lg border-2 text-left transition-all
-                                      ${
-                                        isSelected
-                                          ? 'border-[#6366F1] bg-blue-50 shadow-sm'
-                                          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                                      }
-                                    `}
-                                  >
-                                    {isSelected && (
-                                      <div className="absolute top-3 right-3">
-                                        <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center">
-                                          <CheckIcon className="w-3 h-3 text-white" />
-                                        </div>
-                                      </div>
-                                    )}
-                                    <div className="pr-8">
-                                      <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                                        {freqInfo.label}
-                                      </h4>
-                                      {freq === 'weekly' && (
-                                        <p className="text-xs text-gray-600">
-                                          Pick days of the week
-                                        </p>
-                                      )}
-                                      {freq === 'monthly' && (
-                                        <p className="text-xs text-gray-600">
-                                          Pick a day of the month
-                                        </p>
-                                      )}
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )
-                        })()}
-                        {scheduleErrors.frequency && (
-                          <p className="text-red-500 text-sm mt-2">{scheduleErrors.frequency}</p>
-                        )}
-                      </FormField>
-
-                      {/* Daily fields */}
-                      {schedule.frequency === 'daily' && (
-                        <div className="space-y-3">
-                          <FormField label="Time" required>
-                            <Input
-                              type="time"
-                              value={schedule.timeOfDay}
-                              onChange={(e) => {
-                                setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
-                                if (scheduleErrors.timeOfDay) {
-                                  setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
-                                }
-                              }}
-                              error={scheduleErrors.timeOfDay}
-                            />
-                            <p className="mt-2 text-sm text-gray-600">
-                              Timezone: {brand?.timezone || 'Not set'}
-                            </p>
-                          </FormField>
-                        </div>
-                      )}
-
-                      {/* Weekly fields */}
-                      {schedule.frequency === 'weekly' && (
-                        <div className="space-y-3">
-                          <FormField label="Days of week" required>
-                            <div className="flex flex-wrap gap-2">
-                              {DAYS_OF_WEEK.map((day) => (
-                                <button
-                                  key={day.value}
-                                  type="button"
-                                  onClick={() => {
-                                    const newDays = schedule.daysOfWeek.includes(day.value)
-                                      ? schedule.daysOfWeek.filter(d => d !== day.value)
-                                      : [...schedule.daysOfWeek, day.value]
-                                    // Sort by day order
-                                    const dayOrder: Record<string, number> = { 'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6 }
-                                    const sortedDays = newDays.sort((a, b) => (dayOrder[a] || 99) - (dayOrder[b] || 99))
-                                    setSchedule(prev => ({ ...prev, daysOfWeek: sortedDays }))
-                                    if (scheduleErrors.daysOfWeek) {
-                                      setScheduleErrors(prev => ({ ...prev, daysOfWeek: undefined }))
-                                    }
-                                  }}
-                                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                                    schedule.daysOfWeek.includes(day.value)
-                                      ? 'bg-[#6366F1] text-white'
-                                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                  }`}
-                                >
-                                  {day.label}
-                                </button>
-                              ))}
-                            </div>
-                            {scheduleErrors.daysOfWeek && (
-                              <p className="text-red-500 text-sm mt-2">{scheduleErrors.daysOfWeek}</p>
-                            )}
-                          </FormField>
-                          <FormField label="Time" required>
-                            <Input
-                              type="time"
-                              value={schedule.timeOfDay}
-                              onChange={(e) => {
-                                setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
-                                if (scheduleErrors.timeOfDay) {
-                                  setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
-                                }
-                              }}
-                              error={scheduleErrors.timeOfDay}
-                            />
-                            <p className="mt-2 text-sm text-gray-600">
-                              Timezone: {brand?.timezone || 'Not set'}
-                            </p>
-                          </FormField>
-                        </div>
-                      )}
-
-                      {/* Monthly fields */}
-                      {schedule.frequency === 'monthly' && (
-                        <div className="space-y-4">
-                          {/* Mode A: Specific days of the month */}
-                          <div>
-                            <FormField label="Specific days of the month">
-                              <div className="flex flex-wrap gap-2">
-                                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => {
-                                  const isSelected = schedule.daysOfMonth.includes(day)
-                                  return (
-                                    <button
-                                      key={day}
-                                      type="button"
-                                      onClick={() => {
-                                        // Toggle day selection
-                                        const newDays = isSelected
-                                          ? schedule.daysOfMonth.filter(d => d !== day)
-                                          : [...schedule.daysOfMonth, day].sort((a, b) => a - b)
-                                        
-                                        setSchedule(prev => ({
-                                          ...prev,
-                                          daysOfMonth: newDays,
-                                          // Clear nth weekday when selecting days
-                                          nthWeek: null,
-                                          weekday: null,
-                                          // Keep legacy dayOfMonth for compatibility
-                                          dayOfMonth: newDays.length > 0 ? newDays[0] : null
-                                        }))
-                                        
-                                        if (scheduleErrors.dayOfMonth) {
-                                          setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
-                                        }
-                                      }}
-                                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                                        isSelected
-                                          ? 'bg-[#6366F1] text-white'
-                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                      }`}
-                                    >
-                                      {day}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </FormField>
-                          </div>
-                          
-                          {/* Mode B: Nth weekday */}
-                          <div>
-                            <FormField label="Or post on">
-                              <div className="flex gap-3 items-center">
-                                <select
-                                  value={schedule.nthWeek !== null ? schedule.nthWeek : ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value ? parseInt(e.target.value, 10) : null
-                                    setSchedule(prev => ({
-                                      ...prev,
-                                      nthWeek: value,
-                                      // Clear days of month when selecting nth weekday
-                                      daysOfMonth: [],
-                                      dayOfMonth: null
-                                    }))
-                                    if (scheduleErrors.dayOfMonth) {
-                                      setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
-                                    }
-                                  }}
-                                  disabled={schedule.daysOfMonth.length > 0}
-                                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                >
-                                  <option value="">Select</option>
-                                  <option value="1">1st</option>
-                                  <option value="2">2nd</option>
-                                  <option value="3">3rd</option>
-                                  <option value="4">4th</option>
-                                  <option value="5">Last</option>
-                                </select>
-                                <select
-                                  value={schedule.weekday !== null ? schedule.weekday : ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value ? parseInt(e.target.value, 10) : null
-                                    setSchedule(prev => ({ ...prev, weekday: value }))
-                                    if (scheduleErrors.dayOfMonth) {
-                                      setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
-                                    }
-                                  }}
-                                  disabled={schedule.daysOfMonth.length > 0}
-                                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                >
-                                  <option value="">Select day</option>
-                                  {[
-                                    { value: 1, label: 'Monday' },
-                                    { value: 2, label: 'Tuesday' },
-                                    { value: 3, label: 'Wednesday' },
-                                    { value: 4, label: 'Thursday' },
-                                    { value: 5, label: 'Friday' },
-                                    { value: 6, label: 'Saturday' },
-                                    { value: 7, label: 'Sunday' },
-                                  ].map(day => (
-                                    <option key={day.value} value={day.value}>
-                                      {day.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              {scheduleErrors.dayOfMonth && (
-                                <p className="text-red-500 text-sm mt-1">{scheduleErrors.dayOfMonth}</p>
-                              )}
-                            </FormField>
-                          </div>
-                          
-                          <FormField label="Time" required>
-                            <Input
-                              type="time"
-                              value={schedule.timeOfDay}
-                              onChange={(e) => {
-                                setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
-                                if (scheduleErrors.timeOfDay) {
-                                  setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
-                                }
-                              }}
-                              error={scheduleErrors.timeOfDay}
-                            />
-                            <p className="mt-2 text-sm text-gray-600">
-                              Timezone: {brand?.timezone || 'Not set'}
-                            </p>
-                          </FormField>
-                        </div>
-                      )}
-                      </div>
-                    )}
+                    {renderScheduleContent()}
                   </div>
                 )}
+
 
                 {currentStep === 4 && (
                   <div>
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
                       Step 4: Images
                     </h2>
-
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-base font-semibold text-gray-900">
-                        Choose images
-                      </h3>
-                      <div className="relative group">
-                        <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
-                        <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 whitespace-nowrap shadow-lg">
-                          Images: JPG or PNG, min 600×600px, max 30 MB<br />
-                          Videos: MP4 or MOV, min 500×500px, max 200 MB
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Mode Toggle - Tabs */}
-                    <div className="mb-6 border-b border-gray-200">
-                      <div className="flex space-x-8">
-                        <button
-                          type="button"
-                          onClick={() => setImageMode('upload')}
-                          className={`
-                            px-1 py-4 text-sm font-medium border-b-2 transition-colors
-                            ${
-                              imageMode === 'upload'
-                                ? 'border-[#6366F1] text-gray-900 font-semibold'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }
-                          `}
-                        >
-                          Upload
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setImageMode('existing')}
-                          className={`
-                            px-1 py-4 text-sm font-medium border-b-2 transition-colors
-                            ${
-                              imageMode === 'existing'
-                                ? 'border-[#6366F1] text-gray-900 font-semibold'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }
-                          `}
-                        >
-                          From library
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Selected Media - Always visible */}
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">
-                        Selected Media ({selectedAssetIds.length})
-                      </h4>
-                      <SortableAssetGrid
-                        assets={assets}
-                        selectedIds={selectedAssetIds}
-                        onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
-                        onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
-                        assetUsage={mode === 'edit' ? assetUsage : undefined}
-                      />
-                    </div>
-
-                    {/* Upload Mode */}
-                    {imageMode === 'upload' && (
-                      <div className="space-y-4">
-
-                        <AssetUploadMenu
-                          brandId={brandId}
-                          onUploadSuccess={(assetIds) => {
-                            setSelectedAssetIds(prev => [...prev, ...assetIds])
-                            refetchAssets()
-                          }}
-                          onUploadError={(error) => {
-                            showToast({
-                              title: 'Upload failed',
-                              message: error,
-                              type: 'error'
-                            })
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Existing Images Mode */}
-                    {/* We intentionally reuse the same useAssets hook and pattern as Content Library
-                        to keep behavior consistent and avoid duplication. Assets load once on mount
-                        and persist across mode switches. No refetch needed - selection changes don't
-                        trigger reloads, only uploads trigger refetches when complete. */}
-                    {imageMode === 'existing' && (
-                      <div className="space-y-4">
-
-                        {assetsLoading ? (
-                          <div className="flex items-center justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
-                          </div>
-                        ) : assets.length === 0 ? (
-                          <p className="text-sm text-gray-500 py-8 text-center">
-                            No media available yet. Upload some images or videos to get started.
-                          </p>
-                        ) : (
-                          <div className="grid grid-cols-4 gap-4">
-                            {assets.map(asset => {
-                              const isSelected = selectedAssetIds.includes(asset.id)
-                              const isVideo = asset.asset_type === 'video'
-                              const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
-                              return (
-                                <button
-                                  key={asset.id}
-                                  type="button"
-                                  onClick={() => {
-                                    if (isSelected) {
-                                      setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))
-                                    } else {
-                                      setSelectedAssetIds(prev => [...prev, asset.id])
-                                    }
-                                  }}
-                                  className={`
-                                    relative group border-2 rounded-lg overflow-hidden transition-all
-                                    ${
-                                      isSelected
-                                        ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                    }
-                                  `}
-                                >
-                                  {thumbUrl ? (
-                                    <>
-                                      <img
-                                        src={thumbUrl}
-                                        alt={asset.title}
-                                        className="w-full h-32 object-cover"
-                                      />
-                                      {isVideo && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                          <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
-                                            <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                                      {isVideo ? (
-                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                                      ) : 'Loading...'}
-                                    </div>
-                                  )}
-                                  {isSelected && (
-                                    <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
-                                      <CheckIcon className="w-4 h-4" />
-                                    </div>
-                                  )}
-                                  {/* Usage badges (edit mode only, only when usage > 0) */}
-                                  {mode === 'edit' && (() => {
-                                    const u = assetUsage.get(asset.id)
-                                    if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
-                                    return (
-                                      <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
-                                        {u.usedCount > 0 && (
-                                          <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                                            Used {u.usedCount}x
-                                          </span>
-                                        )}
-                                        {u.queuedCount > 0 && (
-                                          <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                                            Queued
-                                          </span>
-                                        )}
-                                      </div>
-                                    )
-                                  })()}
-                                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
-                                    {asset.title}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {renderImagesContent()}
                   </div>
                 )}
               </div>
@@ -3725,11 +3850,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       {isSaving ? (
                         <>
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent mr-2" />
-                          {mode === 'edit' ? 'Saving...' : 'Saving...'}
+                          Saving...
                         </>
                       ) : (
                         <>
-                          {mode === 'edit' ? 'Save' : 'Finish'}
+                          Finish
                           <ChevronRightIcon className="w-4 h-4 ml-2" />
                         </>
                       )}
@@ -3737,13 +3862,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   )}
                 </div>
               </div>
+              </>
+              )}
             </div>
           </div>
         </div>
-        
-        {/* Loading Modal - Only shows during handleFinish (Step 4) */}
+
+        {/* Loading Modal - Only shows during handleFinish (create mode Step 4) */}
         <Modal
-          isOpen={isSaving && currentStep === 4}
+          isOpen={mode === 'create' && isSaving && currentStep === 4}
           onClose={() => {}} // Prevent closing during save
           title="Creating category…"
           showCloseButton={false}
