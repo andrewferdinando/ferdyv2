@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,34 +20,25 @@ export async function POST(request: NextRequest) {
       subject = 'New Multi-Brand Call Request'
     }
 
-    // Format the email content
-    const emailContent = `
-New ${subject} from Ferdy Website
-
-Name: ${name}
-Email: ${email}
-Brand URL: ${brandUrl || 'Not provided'}
-Message: ${message || 'No additional message'}
-
-Form Type: ${formType}
-Submitted at: ${new Date().toLocaleString()}
-    `.trim()
-
-    // TODO: Integrate with your email service (e.g., SendGrid, Resend, etc.)
-    // For now, we'll log it and return success
-    // In production, you would send an actual email to andrew@ferdy.io
-    
-    console.log('Contact form submission:', {
+    await resend.emails.send({
+      from: 'Ferdy <support@ferdy.io>',
       to: 'andrew@ferdy.io',
       subject,
-      content: emailContent,
-      data: body
+      html: `
+        <h2>${subject}</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Brand URL:</strong> ${brandUrl || 'Not provided'}</p>
+        <p><strong>Message:</strong> ${message || 'No additional message'}</p>
+        <hr />
+        <p style="color: #666; font-size: 12px;">Form Type: ${formType} | Submitted at: ${new Date().toLocaleString()}</p>
+      `,
+      replyTo: email,
     })
 
-    // Return success response
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Form submitted successfully' 
+      message: 'Form submitted successfully'
     })
 
   } catch (error) {

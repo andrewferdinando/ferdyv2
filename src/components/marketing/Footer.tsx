@@ -19,7 +19,6 @@ export default function Footer() {
           <div>
             <h3 className="font-bold mb-6 text-gray-900">Product</h3>
             <ul className="space-y-3 text-sm text-gray-600">
-              <li><a href="#features" className="hover:text-blue-600 transition-colors">Features</a></li>
               <li><a href="#how-it-works" className="hover:text-blue-600 transition-colors">How it works</a></li>
               <li><a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a></li>
             </ul>
