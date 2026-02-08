@@ -146,9 +146,9 @@ This makes copy feel **on-brand** even when it’s fully AI generated.
 
 ### 4.1 Category Creation (`category_creation_flow.md`)
 
-- Step 2 (Details):
+- Details section (Step 2 in create mode, Details accordion section in edit mode):
   - Copy length radio buttons default to `brand_post_information.default_copy_length` when a new category is created.
-- Step 3 (Schedule):
+- Schedule section (Step 3 in create mode, Schedule accordion section in edit mode):
   - Time picker defaults to `brand_post_information.default_post_time`.
   - Timezone picker defaults to `brands.timezone`.
 

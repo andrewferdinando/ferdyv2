@@ -1,19 +1,23 @@
 # Category / Subcategory Creation Flow — Ferdy
 
-> **Updated:** 2025-01-XX — Clarified draft generation trigger (API route, not DB trigger) and channel normalization.
+> **Updated:** 2026-02-09 — Documented edit-mode accordion layout (replaces stepped wizard in edit mode). Create mode unchanged.
 
 ## TL;DR (for AI tools)
 
-"Categories" in the UI are stored as **`subcategories`** in the database.  
-The **Create Category** wizard (4 steps: Type → Details → Schedule → Images) does the following:
+"Categories" in the UI are stored as **`subcategories`** in the database.
 
-- Creates/updates a row in `subcategories` for the category itself.
-- Creates one or more `schedule_rules` rows (and `event_occurrences` for events).
-- Links selected assets to the category via `tags` and `asset_tags`.
-- Optionally refreshes the URL summary for the category URL.
-- **After subcategory + schedule_rule are successfully saved**, it triggers `/api/drafts/generate` to generate drafts for the brand (via API route, not DB trigger).
+**Create mode** uses a 4-step wizard (Type → Details → Schedule → Images).
+**Edit mode** uses an accordion layout where all sections (Details, Schedule, Images) are expandable panels — the user can jump directly to any section without stepping through.
 
-Saving happens **when moving from Step 3 → Step 4** (subcategory + schedule), and assets are linked on **Finish**. Draft generation is triggered immediately after save succeeds.
+Both modes:
+
+- Create/update a row in `subcategories` for the category itself.
+- Create or update `schedule_rules` rows (and `event_occurrences` for events).
+- Link selected assets to the category via `tags` and `asset_tags`.
+- Optionally refresh the URL summary for the category URL.
+
+**Create mode:** Saving happens when moving from Step 3 → Step 4 (subcategory + schedule), assets are linked on Finish, and `/api/drafts/generate` is triggered automatically.
+**Edit mode:** A single "Save changes" button calls `handleFinish()` → `ensureSubcategoryUpdated()`, which updates all data (subcategory, schedule, assets) in one pass.
 
 ---
 
@@ -49,9 +53,8 @@ Once a Category is set up:
   URL pattern:  
   `https://www.ferdy.io/brands/{brand_id}/engine-room/categories`
 
-- Button: **“Add Category”**
-
-This launches the **Create Category** wizard: a 4-step flow.
+- Button: **"Add Category"** → launches the **Create Category** wizard (4-step flow).
+- Each category row also has an **Edit** action → opens the **Edit Category** accordion layout.
 
 ---
 
@@ -80,14 +83,16 @@ In code and DB, Categories live in the `subcategories` table.
 
 ---
 
-## 4. Wizard steps → Fields
+## 4. Create mode — Wizard steps → Fields
 
-The Category wizard has 4 steps:
+The **create mode** wizard has 4 steps:
 
 1. **Type**
 2. **Details**
 3. **Schedule**
 4. **Images**
+
+> In **edit mode**, Steps 2–4 are presented as accordion sections (Details, Schedule, Images) instead of sequential steps. The Type is shown as a read-only badge. All fields are identical — only the layout differs. See [Section 4.5](#45--edit-mode-accordion-layout) below.
 
 ### Step 1 — Type
 
@@ -184,6 +189,24 @@ These tags + asset links are later used to pick images for this category via:
 
 ---
 
+### 4.5 — Edit mode: Accordion layout
+
+When editing an existing category, the UI shows an **accordion layout** instead of the stepped wizard:
+
+- **Type badge** — read-only pill at the top showing the category type (e.g. "Events"). Not editable.
+- **Details section** — collapsible panel containing all Step 2 fields (name, description, URL, hashtags, channels, copy length).
+- **Schedule section** — collapsible panel containing all Step 3 fields. Title is "Event dates" for event-type categories, "Schedule" otherwise.
+- **Images section** — collapsible panel containing all Step 4 fields (upload/library, sortable grid).
+
+Behaviour:
+
+- All sections **start collapsed**. Each shows a summary line when collapsed (e.g. "Friday Night Social · Instagram Feed, Facebook · medium posts").
+- Multiple sections can be open simultaneously.
+- A single **"Save changes"** button at the bottom saves all data in one pass (see [Section 5.4](#54-ensuresubcategoryupdated--edit-mode-save)).
+- On validation error, the relevant section **auto-expands** so the user sees the error message.
+
+---
+
 ## 5. Underlying logic & main component
 
 The main implementation lives in:
@@ -192,10 +215,11 @@ The main implementation lives in:
 
 Key functions:
 
-- **`handleFinish()`** — called when user clicks **“Finish”** on Step 4 (Images).
-- **`ensureSubcategorySaved()`** — core save function for Steps 1–3.
+- **`handleFinish()`** — called when user clicks **"Finish"** (create mode Step 4) or **"Save changes"** (edit mode).
+- **`ensureSubcategorySaved()`** — core save function for create mode (Steps 1–3).
+- **`ensureSubcategoryUpdated()`** — core save function for edit mode (updates all data in one pass).
 
-### 5.1 `ensureSubcategorySaved()`
+### 5.1 `ensureSubcategorySaved()` (create mode)
 
 Responsibilities:
 
@@ -233,7 +257,11 @@ This call does not block the wizard; if it fails, the category is still created.
 
 ---
 
-### 5.3 `handleFinish()` — Finish button on Step 4
+### 5.3 `handleFinish()` — Finish / Save changes
+
+**Create mode** — When the user clicks **Finish** on Step 4:
+
+(In edit mode, `handleFinish()` delegates to `ensureSubcategoryUpdated()` — see [Section 5.4](#54-ensuresubcategoryupdated--edit-mode-save) below.)
 
 When the user clicks **Finish**:
 
@@ -255,6 +283,22 @@ Net effect: after saving the subcategory and schedule, the brand immediately get
 
 ---
 
+### 5.4 `ensureSubcategoryUpdated()` — Edit mode save
+
+In edit mode, `handleFinish()` calls `ensureSubcategoryUpdated()` instead of `ensureSubcategorySaved()`. This function updates all data in a single pass:
+
+1. **Validate** — checks required fields (name, description, channels). On validation error, auto-expands the relevant accordion section.
+2. **Update `subcategories`** row — name, detail, url, hashtags, channels, copy length, type, settings.
+3. **Upsert `schedule_rules`** — updates frequency, days, time, timezone, channels (normalized).
+4. **Update `event_occurrences`** — for event-type categories, syncs occurrence rows.
+5. **Link assets** — finds/creates the subcategory tag and syncs `asset_tags` for selected assets.
+6. **Refresh URL summary** — fire-and-forget call to `/api/subcategories/{id}/refresh-url-summary`.
+7. **Redirect** — navigates back to the Categories page.
+
+Unlike create mode (where save happens incrementally across steps), edit mode saves everything at once when the user clicks **"Save changes"**.
+
+---
+
 ## 6. Save timing and behaviour
 
 - **When do we write the subcategory and schedule?**
@@ -267,10 +311,11 @@ Net effect: after saving the subcategory and schedule, the brand immediately get
   - On **Finish (Step 4)**:
     - Assets are tagged and linked.
 
-- **Editing existing categories**
-  - The same wizard is used; `ensureSubcategorySaved()` performs `update` rather than `insert` when there’s an existing `subcategoryId`.
-  - Schedule changes will update `schedule_rules` / `event_occurrences`.
-  - Images page can add/remove asset links via tags.
+- **Editing existing categories (edit mode — accordion layout)**
+  - Uses `ensureSubcategoryUpdated()` instead of `ensureSubcategorySaved()`.
+  - All data (subcategory, schedule, assets) is saved in one pass when the user clicks **"Save changes"**.
+  - Validation errors auto-expand the relevant accordion section.
+  - No step progression — the user edits whichever section they need and saves once.
 
 ---
 
@@ -279,7 +324,7 @@ Net effect: after saving the subcategory and schedule, the brand immediately get
 Category Creation interacts with several other documented processes:
 
 - **Schedule Rules**
-  - Created/updated during Step 3.
+  - Created/updated during Step 3 (create mode) or on Save (edit mode).
   - Used by `rpc_framework_targets` and the publishing pipeline.
 
 - **Event Occurrences**
@@ -299,12 +344,15 @@ Category Creation interacts with several other documented processes:
 ## 8. History / notes
 
 - **2025-12-05** — Category Creation flow documented based on `FrameworkItemWizard.tsx`, `subcategories` schema, and related Supabase functions.
+- **2026-02-09** — Edit mode refactored from stepped wizard to accordion layout. Create mode unchanged. Added `ensureSubcategoryUpdated()` documentation. Event dates description changed to "Input the detail for your event date(s)".
 - Behaviour may change if:
   - `subcategory_type` values are standardised (`event`, `promotion`, etc.).
   - Scheduling frequency types are expanded.
   - Asset-linking logic or tag structure is updated.
 
-Mermaid
+### Mermaid — Create mode
+
+```mermaid
 flowchart TD
     U[User] -->|Clicks 'Add Category'| W[Category Wizard]
 
@@ -324,3 +372,23 @@ flowchart TD
     S3 -->|After save succeeds| GEN[/api/drafts/generate\n(automatic draft generation\nvia API route)]
     FINISH --> TAGS[(asset_tags\nlink assets to subcategory tag)]
     FINISH --> URLSUM[/api/subcategories/{id}/refresh-url-summary/]
+```
+
+### Mermaid — Edit mode (accordion)
+
+```mermaid
+flowchart TD
+    U[User] -->|Clicks 'Edit' on a category| ACC[Accordion Layout]
+
+    ACC --> TYPE[Type badge\nread-only]
+    ACC --> DET[Details section\nexpandable]
+    ACC --> SCHED[Schedule section\nexpandable]
+    ACC --> IMG[Images section\nexpandable]
+
+    ACC -->|Save changes| UPDATE[ensureSubcategoryUpdated()]
+    UPDATE --> SUBC[(subcategories)]
+    UPDATE --> SR[(schedule_rules)]
+    UPDATE --> EO[(event_occurrences\nif event type)]
+    UPDATE --> TAGS[(asset_tags)]
+    UPDATE --> URLSUM[/api/subcategories/{id}/refresh-url-summary/]
+```

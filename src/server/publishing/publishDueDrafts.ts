@@ -226,6 +226,12 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
     throw dueError
   }
 
+  // Record cron heartbeat so System Health page knows the cron ran,
+  // even when no jobs are due.
+  await supabaseAdmin
+    .from('cron_heartbeats')
+    .upsert({ cron_name: 'publish', last_ran_at: new Date().toISOString() })
+
   if (!dueDrafts || dueDrafts.length === 0) {
     summary.draftsConsidered = 0
     return summary

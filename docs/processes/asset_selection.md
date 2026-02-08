@@ -48,7 +48,7 @@ asset_ids = CASE WHEN v_target.asset_id IS NOT NULL
 So every framework-based draft starts with one chosen asset based on its schedule rule / subcategory.
 
 2. Tagging model (UI behaviour)
-When a user creates a Category in the wizard (Step 4: Images):
+When a user creates or edits a Category (Images section — Step 4 in create mode, Images accordion section in edit mode):
 
 They can Upload new content or Use existing content.
 

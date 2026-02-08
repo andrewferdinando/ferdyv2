@@ -204,13 +204,12 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
           .eq('status', 'failed')
           .order('scheduled_at', { ascending: false }),
 
-        // 3. Most recent last_attempt_at across all jobs
+        // 3. Last time the publish cron actually ran (from heartbeat table)
         supabase
-          .from('post_jobs')
-          .select('last_attempt_at')
-          .not('last_attempt_at', 'is', null)
-          .order('last_attempt_at', { ascending: false })
-          .limit(1),
+          .from('cron_heartbeats')
+          .select('last_ran_at')
+          .eq('cron_name', 'publish')
+          .maybeSingle(),
 
         // 4. Active schedule rules with details
         supabase
@@ -316,7 +315,7 @@ export function useSystemHealth(selectedDate: Date): SystemHealthData {
         status: j.status,
       }));
 
-      const lastCronRun = lastCronRes.data?.[0]?.last_attempt_at || null;
+      const lastCronRun = lastCronRes.data?.last_ran_at || null;
 
       // --- Process Drafts ---
       const activeRulesData = (activeRulesRes.data || []) as any[];

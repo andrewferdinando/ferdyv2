@@ -32,7 +32,7 @@ Describes the triggers and implementation details for all email notifications se
 
 ### **7. Category Creation**
 `category_creation_flow.md`
-Explains how a user defines content inputs for automation, including the 4-step wizard and asset/copy settings.
+Explains how a user defines content inputs for automation, including the 4-step create wizard and the edit-mode accordion layout, plus asset/copy settings.
 
 ### **8. Schedule Rules**
 `schedule_rules.md`
