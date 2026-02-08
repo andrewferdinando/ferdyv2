@@ -144,7 +144,7 @@ export default function FerdyPublishedPostDesktop() {
               <span className="text-[12px] sm:text-[13px] text-gray-500 font-medium">
                 Published &bull; Feb 2, 2026, 6:00 PM
               </span>
-              <Annotation className="-rotate-1">Scheduled</Annotation>
+              <Annotation className="-rotate-1">Auto scheduled</Annotation>
             </div>
 
             {/* Schedule tag */}
@@ -159,7 +159,7 @@ export default function FerdyPublishedPostDesktop() {
                 </svg>
                 <span>Weekly</span>
               </div>
-              <Annotation className="rotate-1">Auto publish</Annotation>
+              <Annotation className="rotate-1">Auto published</Annotation>
             </div>
           </div>
         </div>

@@ -39,21 +39,18 @@ export default function Header() {
           </span>
         </Link>
         
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How it works</a>
-          <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
-        </nav>
-
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
+          <a href="#how-it-works" className="hidden md:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">How it works</a>
+          <a href="#pricing" className="hidden md:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Pricing</a>
           <button
             onClick={() => setVideoOpen(true)}
-            className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+            className="hidden sm:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
           >
             Watch demo
           </button>
-          <Link 
+          <Link
             href="/auth/sign-in"
-            className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+            className="hidden sm:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
           >
             Log in
           </Link>
