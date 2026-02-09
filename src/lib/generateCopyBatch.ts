@@ -383,6 +383,31 @@ export async function processBatchCopyGeneration(
         // Gracefully handle if copy_status column doesn't exist
       }
 
+      // Fetch last 3 generated copies for this subcategory to avoid repetition
+      let previousCopies: string[] = [];
+      if (draftSubcategoryId) {
+        try {
+          const { data: recentDrafts } = await supabaseAdmin
+            .from("drafts")
+            .select("copy")
+            .eq("subcategory_id", draftSubcategoryId)
+            .eq("brand_id", draftBrandId)
+            .eq("copy_status", "complete")
+            .not("copy", "is", null)
+            .neq("id", draft.draftId)
+            .order("created_at", { ascending: false })
+            .limit(3);
+
+          if (recentDrafts && recentDrafts.length > 0) {
+            previousCopies = recentDrafts
+              .map((d: any) => d.copy?.trim())
+              .filter(Boolean);
+          }
+        } catch (err) {
+          console.error(`[generateCopyBatch] Error fetching previous copies for subcategory ${draftSubcategoryId}:`, err);
+        }
+      }
+
       // Build PostCopyPayload
       // Note: length precedence is: payload.length (explicit) > subcategory.default_copy_length > "medium"
       const payload: PostCopyPayload = {
@@ -408,6 +433,7 @@ export async function processBatchCopyGeneration(
         variation_hint: (draft as any).variation_hint ?? null, // Pass through variation_hint if present
         variation_index: variationIndex, // 0-based index within subcategory
         variation_total: variationTotal, // Total drafts for this subcategory
+        previous_copies: previousCopies.length > 0 ? previousCopies : undefined,
       };
 
       // Log payload before calling generatePostCopyFromContext (for debugging)
@@ -481,7 +507,7 @@ export async function processBatchCopyGeneration(
           .update({
             copy: finalCopy,
             copy_status: "complete",
-            copy_model: "gpt-4o-mini",
+            copy_model: "gpt-4o",
             ...(finalHashtags.length > 0 && { hashtags: finalHashtags }),
             ...(assetIds.length > 0 && { asset_ids: assetIds }),
             copy_meta: {

@@ -56,6 +56,7 @@ export type PostCopyPayload = {
   variation_hint?: string | null; // Optional hint to guide AI toward a specific angle for this post
   variation_index?: number; // 0-based index for this post when multiple posts exist for same subcategory
   variation_total?: number; // Total number of posts for this subcategory (used with variation_index)
+  previous_copies?: string[]; // Last 2-3 generated copies for this subcategory (used to avoid repetition)
 };
 
 // Helper functions
@@ -789,7 +790,7 @@ ${
   urlSummaryText || eventDetails
     ? `### EXTRA CONTEXT FROM SUBCATEGORY URL
 
-This text was extracted from the page at the URL above. Use it as extra factual detail, but only if it clearly refers to this same subcategory:
+This text was extracted from the subcategory's own URL. Treat it as verified factual detail and actively incorporate specific details from it into the copy:
 
 ${urlSummaryText ? `${urlSummaryText}\n\n` : ""}${eventDetails && (
       eventDetails.venue ||
@@ -838,6 +839,8 @@ You MUST NOT copy, remix, paraphrase or reuse ANY sentences or phrases from thes
 ${exampleSnippets
   .map((snippet, i) => `${i + 1}) ${snippet}`)
   .join("\n\n")}
+
+Your writing should feel like it could be the next post in this same feed — matching the rhythm, energy, and personality naturally.
 
 ` : ""}${(() => {
   let emojiRulesText: string;
@@ -918,8 +921,15 @@ ${payload.prompt}
 - Avoid generic filler (e.g. "Don't miss out on this exciting event") unless clearly warranted by the context.
 ${urlSummaryText ? `
 **IMPORTANT: When url_page_summary is provided, you MUST consider both the description and the URL summary.**` : ''}
-${variationTotal > 1 && urlSummaryText ? `
-**VARIATION REQUIREMENT: Across multiple posts for the same subcategory, you SHOULD surface different specific details from the URL summary (e.g. pricing, number of games, who it's for, key features, value props), not just repeat the same line from the description. Avoid repeating the exact same phrase from the subcategory description in every variation. Each variation should pull a different detail from url_page_summary when available.**` : ''}
+${payload.previous_copies && payload.previous_copies.length > 0 ? `
+### PREVIOUSLY GENERATED COPY (DO NOT REPEAT)
+
+The following posts were recently generated for this same subcategory. You MUST NOT repeat the same opening sentence, structure, angle, or key phrases. Write something that feels fresh and different while still being accurate to the subcategory.
+
+${payload.previous_copies.map((copy, i) => `Previous ${i + 1}: "${copy}"`).join('\n')}
+` : ''}
+${urlSummaryText ? `
+**IMPORTANT: You MUST reference at least one specific detail from the URL summary (e.g. pricing, timing, features, capacity, who it's for). Do not just paraphrase the description — enrich the copy with concrete details from the URL summary. Each time copy is generated for this subcategory, a different detail should be highlighted.**` : ''}
 
 LENGTH & STRUCTURE
 
@@ -1044,7 +1054,7 @@ Plain text, no headings, no markdown, no explanations.
   // 10) Call OpenAI with retry logic
   const completion = await withRetry(() =>
     client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       temperature: 0.65,
       n: clamp(variants ?? 1, 1, 3),
       max_tokens: max_tokens ?? 120,
