@@ -167,7 +167,7 @@ export function useGoogleDrivePicker({
       if (!tokenClientRef.current) {
         tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
           client_id: config.clientId,
-          scope: 'https://www.googleapis.com/auth/drive.readonly',
+          scope: 'https://www.googleapis.com/auth/drive.file',
           callback: (response) => {
             if (response.error) {
               reject(new Error(response.error))

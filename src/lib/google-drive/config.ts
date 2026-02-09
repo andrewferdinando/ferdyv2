@@ -14,7 +14,7 @@ export const GOOGLE_DRIVE_CONFIG = {
   appId: process.env.NEXT_PUBLIC_GOOGLE_APP_ID || '',
 
   // Scopes for OAuth
-  scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
 
   // Discovery docs for the Google APIs
   discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],

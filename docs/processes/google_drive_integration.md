@@ -10,7 +10,7 @@ This provides a convenient way for users who store their media assets in Google 
 
 ## Current Status: Implementation Complete, Pending Google Verification
 
-The code implementation is complete and functional. However, Google requires OAuth consent screen verification for apps requesting sensitive scopes like `drive.readonly`. This verification process can take several weeks.
+The code implementation is complete and functional. However, Google requires OAuth consent screen verification for apps requesting sensitive scopes like `drive.file`. This verification process can take several weeks.
 
 **The integration is currently dormant** - without the required environment variables, the UI behaves exactly like the original upload button (no dropdown, no Google-related code runs).
 
@@ -147,7 +147,7 @@ In **APIs & Services → OAuth consent screen**:
    - App name: Ferdy
    - User support email: your email
    - Developer contact: your email
-3. Scopes: Add `https://www.googleapis.com/auth/drive.readonly`
+3. Scopes: Add `https://www.googleapis.com/auth/drive.file`
 4. Test Users: Add test accounts (while in testing mode)
 
 ### 4. Create OAuth Credentials
@@ -171,7 +171,7 @@ In **APIs & Services → Credentials**:
 In **OAuth consent screen**:
 
 1. Click "Publish App" to move from Testing to Production
-2. Google will require verification for the `drive.readonly` scope
+2. Google will require verification for the `drive.file` scope
 3. Submit verification request with:
    - Privacy policy URL
    - Terms of service URL
@@ -204,7 +204,7 @@ If environment variables are not set:
 - Users authenticate with their own Google accounts (Ferdy never sees their Google password)
 - Access tokens are short-lived and only used for the current session
 - Tokens are never stored in Ferdy's database
-- The `drive.readonly` scope provides read-only access (cannot modify user's Drive)
+- The `drive.file` scope limits access to files the user explicitly selects via the Picker
 - Server-side download proxy prevents exposing access tokens to the browser
 
 ---
