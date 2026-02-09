@@ -316,9 +316,9 @@ export default function AssetUploadMenu({
           <div className="py-1">
             <button
               onClick={handleDeviceUploadClick}
-              className="flex w-full items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <DeviceIcon className="w-5 h-5 mr-3 text-gray-400" />
+              <DeviceIcon className="w-5 h-5 shrink-0 text-gray-400" />
               <div className="text-left">
                 <div className="font-medium">Upload from device</div>
                 <div className="text-xs text-gray-500">Select files from your computer</div>
@@ -327,9 +327,9 @@ export default function AssetUploadMenu({
 
             <button
               onClick={handleGoogleDriveClick}
-              className="flex w-full items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <GoogleDriveIcon className="w-5 h-5 mr-3 text-gray-400" />
+              <GoogleDriveIcon className="w-5 h-5 shrink-0 text-gray-400" />
               <div className="text-left">
                 <div className="font-medium">Import from Google Drive</div>
                 <div className="text-xs text-gray-500">Select files from your Drive</div>

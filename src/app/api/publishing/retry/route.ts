@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { publishJob } from '@/server/publishing/publishJob'
+import { publishJob, notifyPostPublishedBatched } from '@/server/publishing/publishJob'
 import { updateDraftStatusFromJobs } from '@/server/publishing/publishDueDrafts'
 import { canonicalizeChannel } from '@/lib/channels'
 
@@ -132,6 +132,24 @@ export async function POST(req: NextRequest) {
 
       if (updatedJob) {
         jobResults.push(updatedJob as PostJobRow)
+      }
+    }
+
+    // Send email notification for successfully retried jobs
+    const successfulJobs = jobResults
+      .filter((job) => job.status === 'success')
+      .map((job) => ({
+        job,
+        channel: canonicalizeChannel(job.channel) ?? job.channel,
+        externalUrl: job.external_url,
+      }))
+
+    if (successfulJobs.length > 0) {
+      try {
+        await notifyPostPublishedBatched(draft as DraftRow, successfulJobs)
+      } catch (emailError) {
+        console.error('[retry] Failed to send post published email:', emailError)
+        // Don't fail the retry if email fails
       }
     }
 

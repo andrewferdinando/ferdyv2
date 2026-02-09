@@ -741,10 +741,31 @@ export default function EditPostPage() {
       // Refetch to ensure we have the latest data
       await fetchPostJobs();
       await loadDraft();
+
+      // Show success toast
+      const successCount = result.jobs?.filter((j: { status: string }) => j.status === 'success').length ?? 0;
+      const totalRetried = result.retried ?? 0;
+      if (successCount > 0) {
+        showToast({
+          title: 'Channels retried successfully',
+          message: `${successCount} of ${totalRetried} channel${totalRetried === 1 ? '' : 's'} published successfully.`,
+          type: 'success',
+        });
+      } else if (totalRetried > 0) {
+        showToast({
+          title: 'Retry failed',
+          message: 'All channels failed to publish. Check your social account connections.',
+          type: 'error',
+        });
+      }
     } catch (err) {
       console.error('Failed to retry channels:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to retry channels. Please try again.';
-      alert(errorMessage);
+      showToast({
+        title: 'Retry failed',
+        message: errorMessage,
+        type: 'error',
+      });
     } finally {
       setIsRetrying(false);
     }
