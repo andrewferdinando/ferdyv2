@@ -1,5 +1,6 @@
 import { decryptToken } from '@/lib/encryption'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { SUPPORTED_ASPECT_RATIOS } from '@/lib/image-processing/processImage'
 
 const GRAPH_API_VERSION = 'v19.0'
 
@@ -811,6 +812,30 @@ async function getAssetPublicUrl(assetId: string): Promise<{ url: string; assetT
         processedPath: storagePath,
         dimensions: `${processed.width}x${processed.height}`,
       })
+    } else if (!isVideo && (!aspectRatio || aspectRatio === 'original') && processedImages) {
+      // Fallback: look for any auto-processed version (e.g. from IG Feed auto-processing)
+      for (const ratio of SUPPORTED_ASPECT_RATIOS) {
+        if (processedImages[ratio]) {
+          const processed = processedImages[ratio]
+          storagePath = processed.storage_path
+          usingProcessed = true
+          console.log('[instagram publish] Using auto-processed image for original asset', {
+            assetId,
+            originalAspectRatio: aspectRatio,
+            usedRatio: ratio,
+            processedPath: storagePath,
+            dimensions: `${processed.width}x${processed.height}`,
+          })
+          break
+        }
+      }
+      if (!usingProcessed) {
+        console.log(`[instagram publish] Using original ${assetType} (no processed version)`, {
+          assetId,
+          aspectRatio,
+          originalPath: storagePath,
+        })
+      }
     } else {
       console.log(`[instagram publish] Using original ${assetType} (no processed version)`, {
         assetId,

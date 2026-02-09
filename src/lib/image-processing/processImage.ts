@@ -171,3 +171,15 @@ export function getDefaultCrop(): CropCoordinates {
 export function isValidAspectRatio(ratio: string): ratio is AspectRatio {
   return SUPPORTED_ASPECT_RATIOS.includes(ratio as AspectRatio)
 }
+
+/**
+ * Pick the closest valid aspect ratio for Instagram Feed.
+ * IG Feed allows ratios between 4:5 (0.8) and 1.91:1 (1.91).
+ * Returns the target ratio if the image is outside range, or null if the original is fine.
+ */
+export function pickClosestFeedRatio(width: number, height: number): AspectRatio | null {
+  const ratio = width / height
+  if (ratio < 0.8) return '4:5'    // Too tall — clamp to tallest IG Feed allows
+  if (ratio > 1.91) return '1.91:1' // Too wide — clamp to widest IG Feed allows
+  return null                        // Within range — original is fine
+}

@@ -13,6 +13,7 @@ import {
   processImage,
   isValidAspectRatio,
   getDefaultCrop,
+  pickClosestFeedRatio,
   type AspectRatio,
   type CropCoordinates,
 } from '@/lib/image-processing/processImage'
@@ -255,6 +256,7 @@ async function ensureAssetsProcessed(
   assetIds: string[] | null,
   jobId: string,
   brandId: string,
+  channel?: string,
 ): Promise<{ success: boolean; error?: string }> {
   if (!assetIds || assetIds.length === 0) {
     return { success: true }
@@ -393,6 +395,104 @@ async function ensureAssetsProcessed(
           aspectRatio,
           processedPath,
         })
+      } else if (channel === 'instagram_feed' && (!aspectRatio || aspectRatio === 'original')) {
+        // Auto-process 'original' images for IG Feed if outside allowed range (0.8–1.91)
+        if (!asset.width || !asset.height) {
+          console.warn('[ensureAssetsProcessed] Missing dimensions for original asset, skipping IG Feed auto-process:', { assetId })
+          continue
+        }
+
+        const targetRatio = pickClosestFeedRatio(asset.width, asset.height)
+        if (!targetRatio) {
+          console.log('[ensureAssetsProcessed] Original aspect ratio is within IG Feed range, no processing needed:', {
+            assetId,
+            ratio: (asset.width / asset.height).toFixed(3),
+          })
+          continue
+        }
+
+        // Check if already processed for this target ratio
+        if (processedImages && processedImages[targetRatio]) {
+          console.log('[ensureAssetsProcessed] Auto-processed image already exists for IG Feed:', {
+            assetId,
+            targetRatio,
+          })
+          continue
+        }
+
+        console.log('[ensureAssetsProcessed] Auto-processing original image for IG Feed:', {
+          assetId,
+          originalRatio: (asset.width / asset.height).toFixed(3),
+          targetRatio,
+          jobId,
+        })
+
+        // Download original image
+        const { data: downloadData, error: downloadError } = await supabaseAdmin.storage
+          .from('ferdy-assets')
+          .download(asset.storage_path)
+
+        if (downloadError || !downloadData) {
+          console.error('[ensureAssetsProcessed] Failed to download for IG Feed auto-process:', {
+            assetId,
+            downloadError,
+          })
+          continue
+        }
+
+        // Use default (centered) crop for auto-processing
+        const crop = getDefaultCrop()
+
+        const arrayBuffer = await downloadData.arrayBuffer()
+        const imageBuffer = Buffer.from(arrayBuffer)
+        const result = await processImage(imageBuffer, targetRatio, crop)
+
+        // Generate storage path for processed image
+        const pathParts = asset.storage_path.split('/')
+        const fileName = pathParts.pop() || 'image'
+        const fileNameWithoutExt = fileName.split('.')[0]
+        const basePath = pathParts.join('/')
+        const ratioSafe = targetRatio.replace(':', '_').replace('.', '-')
+        const processedPath = `${basePath}/processed/${fileNameWithoutExt}_${ratioSafe}.jpg`
+
+        // Upload processed image
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('ferdy-assets')
+          .upload(processedPath, result.buffer, {
+            contentType: 'image/jpeg',
+            upsert: true,
+          })
+
+        if (uploadError) {
+          console.error('[ensureAssetsProcessed] Failed to upload IG Feed auto-processed image:', {
+            assetId,
+            uploadError,
+          })
+          continue
+        }
+
+        // Update processed_images column
+        const existingProcessed = processedImages || {}
+        const updatedProcessed = {
+          ...existingProcessed,
+          [targetRatio]: {
+            storage_path: processedPath,
+            width: result.width,
+            height: result.height,
+            processed_at: new Date().toISOString(),
+          },
+        }
+
+        await supabaseAdmin
+          .from('assets')
+          .update({ processed_images: updatedProcessed })
+          .eq('id', assetId)
+
+        console.log('[ensureAssetsProcessed] IG Feed auto-processing complete:', {
+          assetId,
+          targetRatio,
+          processedPath,
+        })
       }
     } catch (error) {
       console.error('[ensureAssetsProcessed] Unexpected error:', {
@@ -431,6 +531,7 @@ async function publishToChannel(
     draft.asset_ids,
     job.id,
     draft.brand_id,
+    channel,
   )
 
   if (!processingResult.success) {
