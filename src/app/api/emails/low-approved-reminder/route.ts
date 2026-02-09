@@ -137,3 +137,8 @@ export async function POST() {
   }
 }
 
+// Also support GET for Vercel cron
+export async function GET() {
+  return POST()
+}
+
