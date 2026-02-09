@@ -56,6 +56,7 @@ interface ScheduledPost {
   created_by: string;
   created_at: string;
   approved: boolean;
+  scheduled_for?: string; // UTC timestamp from drafts table
   status: DraftStatus;
   post_jobs: {
     id: string;
@@ -400,13 +401,13 @@ function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: Scheduled
     );
   }
 
-  // Sort scheduled posts by scheduled date (earliest first), already ordered by useScheduled hook but ensure consistency
+  // Sort scheduled posts by scheduled date (earliest first)
   const sortedScheduled = [...scheduled].sort((a, b) => {
-    const dateA = a.post_jobs?.scheduled_at 
-      ? new Date(a.post_jobs.scheduled_at).getTime() 
+    const dateA = a.scheduled_for
+      ? new Date(a.scheduled_for).getTime()
       : new Date(a.created_at).getTime();
-    const dateB = b.post_jobs?.scheduled_at 
-      ? new Date(b.post_jobs.scheduled_at).getTime() 
+    const dateB = b.scheduled_for
+      ? new Date(b.scheduled_for).getTime()
       : new Date(b.created_at).getTime();
     return dateA - dateB; // Ascending order (earliest first)
   });
