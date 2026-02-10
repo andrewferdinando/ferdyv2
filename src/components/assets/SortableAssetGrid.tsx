@@ -24,7 +24,7 @@ export interface AssetUsageInfo {
   queuedCount: number
 }
 
-const PAGE_SIZE = 24
+const PAGE_SIZE = 12
 
 interface SortableAssetGridProps {
   assets: Asset[]

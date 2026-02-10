@@ -868,7 +868,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   })
 
   // Pagination for media grids
-  const MEDIA_PAGE_SIZE = 24
+  const MEDIA_PAGE_SIZE = 12
   const [libraryVisibleCount, setLibraryVisibleCount] = useState(MEDIA_PAGE_SIZE)
   const [selectedVisibleCount, setSelectedVisibleCount] = useState(MEDIA_PAGE_SIZE)
 
