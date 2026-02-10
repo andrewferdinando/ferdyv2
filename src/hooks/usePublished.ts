@@ -84,14 +84,13 @@ export function usePublished(brandId: string) {
       setError(null);
 
       // First, fetch drafts
-      // Order by published_at descending (most recently published first)
-      // Fall back to scheduled_for for posts without published_at
+      // Order by scheduled_for descending as base ordering
+      // Client-side sort will refine using published_at from publishes table
       const { data: draftsData, error: draftsError } = await supabase
         .from('drafts_with_labels')
         .select('*')
         .eq('brand_id', brandId)
         .eq('status', 'published')
-        .order('published_at', { ascending: false, nullsFirst: false })
         .order('scheduled_for', { ascending: false, nullsFirst: false });
 
       if (draftsError) throw draftsError;
