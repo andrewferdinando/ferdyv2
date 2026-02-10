@@ -164,18 +164,46 @@ export default function CategoriesPage() {
     }
   }, [brandId, rulesLoading])
 
-  const selectImageForSubcategory = async (brandId: string, subcategoryId: string): Promise<string | null> => {
+  const selectImageForSubcategory = async (brandId: string, subcategoryId: string, subcategoryName?: string): Promise<string | null> => {
     try {
-      // Step 1: fetch tags for subcategory
-      const { data: tags, error: tagsErr } = await supabase
-        .from('tags')
-        .select('id')
-        .eq('subcategory_id', subcategoryId)
-      if (tagsErr) {
-        console.error(`Error fetching tags for subcategory ${subcategoryId}:`, tagsErr)
-        // Continue to fallback
+      // Step 1: fetch tag for subcategory (tags are linked by brand_id + name + kind, not subcategory_id)
+      let tagIds: string[] = []
+
+      if (subcategoryName) {
+        const { data: tag, error: tagsErr } = await supabase
+          .from('tags')
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('name', subcategoryName)
+          .eq('kind', 'subcategory')
+          .eq('is_active', true)
+          .maybeSingle()
+        if (tagsErr) {
+          console.error(`Error fetching tag for subcategory ${subcategoryId}:`, tagsErr)
+        }
+        if (tag) tagIds = [tag.id]
+      } else {
+        // Fallback: fetch subcategory name first, then look up tag
+        const { data: subcat } = await supabase
+          .from('subcategories')
+          .select('name')
+          .eq('id', subcategoryId)
+          .single()
+        if (subcat) {
+          const { data: tag, error: tagsErr } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('name', subcat.name)
+            .eq('kind', 'subcategory')
+            .eq('is_active', true)
+            .maybeSingle()
+          if (tagsErr) {
+            console.error(`Error fetching tag for subcategory ${subcategoryId}:`, tagsErr)
+          }
+          if (tag) tagIds = [tag.id]
+        }
       }
-      const tagIds = (tags || []).map((t: { id: string }) => t.id)
 
       if (tagIds.length > 0) {
         // Step 2: fetch asset_ids via asset_tags

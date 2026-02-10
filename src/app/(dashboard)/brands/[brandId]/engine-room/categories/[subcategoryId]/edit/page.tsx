@@ -82,13 +82,15 @@ export default function EditCategoryPage() {
 
         // 4. Fetch associated assets via tags
         let assetIds: string[] = []
-        
-        // Get tag for this subcategory
+
+        // Get tag for this subcategory (tags are linked by brand_id + name + kind, not subcategory_id)
         const { data: tag, error: tagError } = await supabase
           .from('tags')
           .select('id')
-          .eq('subcategory_id', subcategoryId)
+          .eq('brand_id', brandId)
+          .eq('name', subcategory.name)
           .eq('kind', 'subcategory')
+          .eq('is_active', true)
           .maybeSingle()
 
         if (!tagError && tag) {

@@ -491,13 +491,10 @@ export default function EditPostPage() {
 
       setDraft((prev) => {
         if (!prev) return prev;
-        const existingIds = prev.asset_ids || [];
-        if (existingIds.includes(asset.id)) {
-          return prev;
-        }
+        // Replace existing media rather than appending
         return {
           ...prev,
-          asset_ids: [...existingIds, asset.id],
+          asset_ids: [asset.id],
         };
       });
 
@@ -1187,13 +1184,13 @@ export default function EditPostPage() {
                         </div>
                       )}
                       
-                      {/* Add Media Button */}
-                      <div 
+                      {/* Change / Add Media Button */}
+                      <div
                         onClick={() => setIsMediaModalOpen(true)}
                         className="border-2 border-dashed border-gray-300 rounded-lg h-32 flex items-center justify-center hover:border-gray-400 transition-colors cursor-pointer"
                       >
                         <div className="text-center">
-                          <p className="text-sm text-gray-500">Add Media</p>
+                          <p className="text-sm text-gray-500">{selectedAssets.length > 0 ? 'Change Media' : 'Add Media'}</p>
                         </div>
                       </div>
                     </div>
@@ -1444,7 +1441,7 @@ export default function EditPostPage() {
         <Modal
           isOpen={isMediaModalOpen}
           onClose={() => setIsMediaModalOpen(false)}
-          title="Select Media"
+          title={selectedAssets.length > 0 ? 'Change Media' : 'Select Media'}
         >
           {assetsLoading ? (
             <div className="flex items-center justify-center py-8">

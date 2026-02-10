@@ -3727,9 +3727,69 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         <div className="space-y-4">
           <AssetUploadMenu
             brandId={brandId}
-            onUploadSuccess={(assetIds) => {
+            onUploadSuccess={async (assetIds) => {
               setSelectedAssetIds(prev => [...prev, ...assetIds])
               refetchAssets()
+
+              // Auto-tag uploaded assets with the category name
+              const categoryName = details.name.trim()
+              if (!categoryName || assetIds.length === 0) return
+
+              try {
+                // Find or create the tag for this category
+                let tagId: string | null = null
+                const { data: existingTag } = await supabase
+                  .from('tags')
+                  .select('id')
+                  .eq('brand_id', brandId)
+                  .eq('name', categoryName)
+                  .eq('kind', 'subcategory')
+                  .eq('is_active', true)
+                  .maybeSingle()
+
+                if (existingTag) {
+                  tagId = existingTag.id
+                } else {
+                  // Create the tag (this handles create mode where trigger hasn't fired yet)
+                  const { data: newTag } = await supabase
+                    .from('tags')
+                    .insert({
+                      brand_id: brandId,
+                      name: categoryName,
+                      kind: 'subcategory',
+                      is_active: true,
+                    })
+                    .select('id')
+                    .single()
+                  if (newTag) tagId = newTag.id
+                }
+
+                if (tagId) {
+                  // Get existing asset_tags count for position ordering
+                  const { count } = await supabase
+                    .from('asset_tags')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tag_id', tagId)
+
+                  const startPosition = count ?? 0
+
+                  const assetTagInserts = assetIds.map((assetId, index) => ({
+                    asset_id: assetId,
+                    tag_id: tagId!,
+                    position: startPosition + index,
+                  }))
+
+                  const { error: insertError } = await supabase
+                    .from('asset_tags')
+                    .insert(assetTagInserts)
+
+                  if (insertError) {
+                    console.error('[Wizard] Error auto-tagging uploaded assets:', insertError)
+                  }
+                }
+              } catch (err) {
+                console.error('[Wizard] Error auto-tagging uploaded assets:', err)
+              }
             }}
             onUploadError={(error) => {
               showToast({

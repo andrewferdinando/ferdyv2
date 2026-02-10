@@ -172,8 +172,16 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         throw error
       }
 
-      const assetsWithUrls = await Promise.all((data || []).map((asset: AssetFromDB) => mapAsset(asset)))
-      
+      // Process assets in chunks to avoid overwhelming the browser with 250+ concurrent signed URL requests
+      const CHUNK_SIZE = 20
+      const allData = data || []
+      const assetsWithUrls: Asset[] = []
+      for (let i = 0; i < allData.length; i += CHUNK_SIZE) {
+        const chunk = allData.slice(i, i + CHUNK_SIZE)
+        const mapped = await Promise.all(chunk.map((asset: AssetFromDB) => mapAsset(asset)))
+        assetsWithUrls.push(...mapped)
+      }
+
       // Filter out assets that need tags if onlyReady is true
       const filteredAssets = onlyReady
         ? assetsWithUrls.filter((asset) => !assetsNeedingTagsIds.has(asset.id))
@@ -253,7 +261,15 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         throw error
       }
 
-      const assetsWithUrls = await Promise.all((data || []).map((asset: AssetFromDB) => mapAsset(asset)))
+      // Process in chunks to avoid overwhelming concurrent requests
+      const CHUNK_SIZE_TAGS = 20
+      const allTagData = data || []
+      const assetsWithUrls: Asset[] = []
+      for (let i = 0; i < allTagData.length; i += CHUNK_SIZE_TAGS) {
+        const chunk = allTagData.slice(i, i + CHUNK_SIZE_TAGS)
+        const mapped = await Promise.all(chunk.map((asset: AssetFromDB) => mapAsset(asset)))
+        assetsWithUrls.push(...mapped)
+      }
       return assetsWithUrls
     } catch (err) {
       console.error('Error fetching assets needing tags:', err)

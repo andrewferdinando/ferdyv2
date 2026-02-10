@@ -148,6 +148,10 @@ export default function ContentLibraryPage() {
   const pendingUploadIdsRef = useRef<string[]>([])
   const { showToast } = useToast()
 
+  // Pagination
+  const ASSETS_PER_PAGE = 30
+  const [visibleCount, setVisibleCount] = useState(ASSETS_PER_PAGE)
+
   // Full-page drag-and-drop state
   const dragCounterRef = useRef(0)
   const [pageDragOver, setPageDragOver] = useState(false)
@@ -245,6 +249,16 @@ export default function ContentLibraryPage() {
 
     return asset.tags.length > 0 && matchesFilter
   })
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(ASSETS_PER_PAGE)
+  }, [activeTab, searchQuery, mediaFilter])
+
+  const paginatedFilteredAssets = filteredAssets.slice(0, visibleCount)
+  const paginatedNeedsAttention = needsAttentionAssets.slice(0, visibleCount)
+  const hasMoreFiltered = filteredAssets.length > visibleCount
+  const hasMoreNeedsAttention = needsAttentionAssets.length > visibleCount
 
   const isVideoFilter = mediaFilter === 'videos'
 
@@ -557,7 +571,7 @@ export default function ContentLibraryPage() {
                       <p className="text-sm text-indigo-700">Tap an image or video below to assign it to a Category. Content must be tagged before Ferdy can use it in posts.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                      {needsAttentionAssets.map((asset) => (
+                      {paginatedNeedsAttention.map((asset) => (
                         <div key={asset.id}>
                           <AssetCard
                             asset={asset}
@@ -568,6 +582,16 @@ export default function ContentLibraryPage() {
                         </div>
                       ))}
                     </div>
+                    {hasMoreNeedsAttention && (
+                      <div className="mt-6 flex justify-center">
+                        <button
+                          onClick={() => setVisibleCount(prev => prev + ASSETS_PER_PAGE)}
+                          className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                        >
+                          Load more ({needsAttentionAssets.length - visibleCount} remaining)
+                        </button>
+                      </div>
+                    )}
                     </>
                   )
                 }
@@ -624,18 +648,30 @@ export default function ContentLibraryPage() {
                       )
                     })()
                   : (
-                    <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                      {filteredAssets.map((asset) => (
-                        <div key={asset.id}>
-                          <AssetCard
-                            asset={asset}
-                            onEdit={handleEditAsset}
-                            onDelete={handleDeleteAsset}
-                            onPreview={handlePreviewAsset}
-                          />
+                    <>
+                      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                        {paginatedFilteredAssets.map((asset) => (
+                          <div key={asset.id}>
+                            <AssetCard
+                              asset={asset}
+                              onEdit={handleEditAsset}
+                              onDelete={handleDeleteAsset}
+                              onPreview={handlePreviewAsset}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {hasMoreFiltered && (
+                        <div className="mt-6 flex justify-center">
+                          <button
+                            onClick={() => setVisibleCount(prev => prev + ASSETS_PER_PAGE)}
+                            className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                          >
+                            Load more ({filteredAssets.length - visibleCount} remaining)
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">

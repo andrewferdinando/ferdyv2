@@ -163,6 +163,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
             <img
               src={previewUrl}
               alt={asset.title}
+              loading="lazy"
               className="h-full w-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement
@@ -266,6 +267,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
             <img
               src={previewUrl}
               alt={asset.title}
+              loading="lazy"
               className="h-full w-full object-cover"
               draggable={false}
               onError={(e) => {
