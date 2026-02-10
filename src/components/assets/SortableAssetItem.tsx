@@ -68,6 +68,7 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
           <img
             src={thumbUrl}
             alt={asset.title}
+            loading="lazy"
             className="w-full h-32 object-cover"
             draggable={false}
           />

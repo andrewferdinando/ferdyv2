@@ -866,7 +866,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     // Always default to 'upload' mode
     return 'upload'
   })
-  
+
+  // Pagination for media grids
+  const MEDIA_PAGE_SIZE = 24
+  const [libraryVisibleCount, setLibraryVisibleCount] = useState(MEDIA_PAGE_SIZE)
+  const [selectedVisibleCount, setSelectedVisibleCount] = useState(MEDIA_PAGE_SIZE)
+
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
 
   // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued.
@@ -3814,83 +3819,97 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               No media available yet. Upload some images or videos to get started.
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-4">
-              {assets.map(asset => {
-                const isSelected = selectedAssetIds.includes(asset.id)
-                const isVideo = asset.asset_type === 'video'
-                const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
-                return (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    onClick={() => {
-                      if (isSelected) {
-                        setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))
-                      } else {
-                        setSelectedAssetIds(prev => [...prev, asset.id])
-                      }
-                    }}
-                    className={`
-                      relative group border-2 rounded-lg overflow-hidden transition-all
-                      ${
-                        isSelected
-                          ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }
-                    `}
-                  >
-                    {thumbUrl ? (
-                      <>
-                        <img
-                          src={thumbUrl}
-                          alt={asset.title}
-                          className="w-full h-32 object-cover"
-                        />
-                        {isVideo && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
-                              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+            <>
+              <div className="grid grid-cols-4 gap-4">
+                {assets.slice(0, libraryVisibleCount).map(asset => {
+                  const isSelected = selectedAssetIds.includes(asset.id)
+                  const isVideo = asset.asset_type === 'video'
+                  const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
+                  return (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))
+                        } else {
+                          setSelectedAssetIds(prev => [...prev, asset.id])
+                        }
+                      }}
+                      className={`
+                        relative group border-2 rounded-lg overflow-hidden transition-all
+                        ${
+                          isSelected
+                            ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }
+                      `}
+                    >
+                      {thumbUrl ? (
+                        <>
+                          <img
+                            src={thumbUrl}
+                            alt={asset.title}
+                            loading="lazy"
+                            className="w-full h-32 object-cover"
+                          />
+                          {isVideo && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                        {isVideo ? (
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                        ) : 'Loading...'}
-                      </div>
-                    )}
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
-                        <CheckIcon className="w-4 h-4" />
-                      </div>
-                    )}
-                    {mode === 'edit' && (() => {
-                      const u = assetUsage.get(asset.id)
-                      if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
-                      return (
-                        <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
-                          {u.usedCount > 0 && (
-                            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                              Used {u.usedCount}x
-                            </span>
                           )}
-                          {u.queuedCount > 0 && (
-                            <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                              Queued
-                            </span>
-                          )}
+                        </>
+                      ) : (
+                        <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                          {isVideo ? (
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                          ) : 'Loading...'}
                         </div>
-                      )
-                    })()}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
-                      {asset.title}
-                    </div>
+                      )}
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
+                          <CheckIcon className="w-4 h-4" />
+                        </div>
+                      )}
+                      {mode === 'edit' && (() => {
+                        const u = assetUsage.get(asset.id)
+                        if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
+                        return (
+                          <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
+                            {u.usedCount > 0 && (
+                              <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                Used {u.usedCount}x
+                              </span>
+                            )}
+                            {u.queuedCount > 0 && (
+                              <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                Queued
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
+                        {asset.title}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              {assets.length > libraryVisibleCount && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setLibraryVisibleCount(prev => prev + MEDIA_PAGE_SIZE)}
+                    className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                  >
+                    Load more ({assets.length - libraryVisibleCount} remaining)
                   </button>
-                )
-              })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

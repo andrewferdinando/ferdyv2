@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -23,6 +24,8 @@ export interface AssetUsageInfo {
   queuedCount: number
 }
 
+const PAGE_SIZE = 24
+
 interface SortableAssetGridProps {
   assets: Asset[]
   selectedIds: string[]
@@ -38,6 +41,8 @@ export default function SortableAssetGrid({
   onRemove,
   assetUsage,
 }: SortableAssetGridProps) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -49,6 +54,10 @@ export default function SortableAssetGrid({
   const orderedAssets = selectedIds
     .map(id => assets.find(a => a.id === id))
     .filter((a): a is Asset => a !== undefined)
+
+  const visibleAssets = orderedAssets.slice(0, visibleCount)
+  const visibleIds = visibleAssets.map(a => a.id)
+  const hasMore = orderedAssets.length > visibleCount
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -81,9 +90,9 @@ export default function SortableAssetGrid({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={selectedIds} strategy={rectSortingStrategy}>
+        <SortableContext items={visibleIds} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-4 gap-4">
-            {orderedAssets.map((asset, index) => (
+            {visibleAssets.map((asset, index) => (
               <SortableAssetItem
                 key={asset.id}
                 asset={asset}
@@ -95,6 +104,17 @@ export default function SortableAssetGrid({
           </div>
         </SortableContext>
       </DndContext>
+      {hasMore && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+            className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+          >
+            Show more ({orderedAssets.length - visibleCount} remaining)
+          </button>
+        </div>
+      )}
     </div>
   )
 }
