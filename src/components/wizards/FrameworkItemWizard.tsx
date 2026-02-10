@@ -228,20 +228,40 @@ const HASHTAG_STOP_WORDS = new Set([
 ])
 
 /**
- * Clean raw summary text: fix concatenated words and normalise whitespace.
- * Keeps the full text — more context means better AI-generated copy.
+ * Clean raw summary text from URL extraction.
+ * Strips HTML artifacts, fixes concatenated words from missing whitespace,
+ * and adds line breaks at section boundaries for readability.
+ * Keeps full text — more context means better AI-generated copy.
  */
 function cleanSummaryText(raw: string): string {
   const text = raw
-    // Insert space where a lowercase letter is immediately followed by an uppercase letter
-    // e.g. "trackGet" → "track Get", "timeAges" → "time Ages"
+    // Strip HTML tags (iframes, script tags, etc.)
+    .replace(/<[^>]+>/g, ' ')
+    // --- Section breaks: line breaks at major transitions ---
+    // lowercase followed by 3+ ALLCAPS chars (new heading): "electricSAVE" → "electric\nSAVE"
+    .replace(/([a-z])([A-Z]{3,})/g, '$1\n$2')
+    // ALLCAPS → Capitalized word (heading→body): "TRACKGet" → "TRACK\nGet"
+    .replace(/(?<=[A-Z])(?=[A-Z][a-z])/g, '\n')
+    // Sentence-ending punctuation → new sentence: "time.Ages" → "time.\nAges"
+    .replace(/([.!?])\s*([A-Z][a-z])/g, '$1\n$2')
+    // --- Word breaks: spaces at minor transitions ---
+    // lowercase → single Uppercase: "heightSingle" → "height Single"
     .replace(/([a-z])([A-Z])/g, '$1 $2')
-    // Insert space where a digit is immediately followed by an uppercase letter
-    // e.g. "13+Adult" → "13+ Adult"
+    // ALLCAPS → lowercase: "PERSONup" → "PERSON up"
+    .replace(/(?<=[A-Z]{2})(?=[a-z])/g, ' ')
+    // Punctuation/symbol → letter: "+Adult" → "+ Adult", ":Adults" → ": Adults"
+    .replace(/([;:,+\-])([A-Za-z])/g, '$1 $2')
+    // Digit → uppercase: "49PER" → "49 PER"
     .replace(/(\d)([A-Z])/g, '$1 $2')
-    // Collapse multiple whitespace chars into a single space
-    .replace(/\s+/g, ' ')
-    .trim()
+    // Word → digit: "now2" → "now 2"
+    .replace(/([a-z]{2,})(\d)/g, '$1 $2')
+    // Digits → word: "$19book" → "$19 book"
+    .replace(/(\d{2,})([a-z]{3,})/g, '$1 $2')
+    // --- Clean up each line ---
+    .split('\n')
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(line => line.length > 0)
+    .join('\n')
 
   return text
 }
