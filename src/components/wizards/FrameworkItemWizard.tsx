@@ -346,7 +346,7 @@ function deriveHashtagsFromSummary(details: Record<string, unknown>): string[] {
   const seen = new Set<string>()
   const result: string[] = []
   for (const tag of candidates) {
-    if (!tag || tag.length < 2) continue
+    if (!tag || tag.length < 2 || tag.length > 30) continue
     const lower = tag.toLowerCase()
     if (seen.has(lower)) continue
     seen.add(lower)
