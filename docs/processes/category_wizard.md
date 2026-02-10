@@ -21,8 +21,7 @@
 - Saves schedule_rules with upsert to avoid duplicates and keeps `is_active = true`.
 
 ## Media section (Step 4 / Images accordion)
-- Asset metadata loads instantly from `useAssets` (no signed URL generation).
-- Signed URLs are resolved lazily via `useAssetUrls` for only the visible library grid page (12 items) plus selected assets.
+- Asset metadata loads instantly from `useAssets` Phase 1 (no signed URLs yet). Signed URLs are resolved in the background by Phase 2 and assets update automatically.
 - The wizard passes `resolvedAssets` (with URLs merged in) to both the library grid and `SortableAssetGrid`.
 - Pagination: library grid shows `MEDIA_PAGE_SIZE` (12) items at a time with a "Load more" button.
 

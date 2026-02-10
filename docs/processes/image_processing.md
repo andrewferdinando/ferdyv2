@@ -315,24 +315,18 @@ Sharp is used server-side only. It provides:
 
 ### Lazy Asset URL Loading (Signed URLs)
 
-Assets are stored in private Supabase Storage buckets and require signed URLs for browser display. URL resolution uses a two-phase approach:
+Assets are stored in private Supabase Storage buckets and require signed URLs for browser display. `useAssets` uses a two-phase approach internally:
 
-1. **Fast metadata load** — `useAssets` hook fetches all asset rows from the DB in a single query and returns immediately with `signed_url: undefined`. The page renders instantly with placeholder thumbnails.
+1. **Phase 1 — Fast metadata load** — `useAssets` fetches all asset rows from the DB in a single query, sets state immediately with `signed_url: undefined`, and flips `loading` to `false`. The page renders instantly with placeholder thumbnails.
 
-2. **Lazy URL resolution** — `useAssetUrls` hook takes only the visible slice of assets (e.g. the current paginated page of 12-30 items), collects their `storage_path` and `thumbnail_url` values, and resolves signed URLs in parallel via `getSignedUrls()`. URLs are merged into assets at render time via `resolveAsset()` or `mergeAssetUrls()`.
+2. **Phase 2 — Background URL resolution** — In the same `fetchAssets` call (after Phase 1), `useAssets` resolves signed URLs for all assets in parallel via individual `getSignedUrl()` calls, then calls `setAssets(withUrls)` to update state. A `fetchIdRef` counter prevents stale Phase 2 results from overwriting newer data.
 
 **Key files:**
 - `src/lib/storage/getSignedUrl.ts` — `getSignedUrl()` (singular) and `getSignedUrls()` (parallel batch). Both share a 9-minute in-memory cache (`signedUrlCache`).
-- `src/hooks/assets/useAssetUrls.ts` — `useAssetUrls(assets)` hook + `mergeAssetUrls()` helper.
-- `src/hooks/assets/useAssets.ts` — Returns assets with `signed_url: undefined` (no URL generation).
+- `src/hooks/assets/useAssets.ts` — Two-phase fetch: instant metadata render, then background URL resolution.
+- `src/hooks/assets/useAssetUrls.ts` — Legacy `useAssetUrls(assets)` hook + `mergeAssetUrls()` helper (still imported by some consumers as a pass-through, but URLs are populated by `useAssets` Phase 2).
 
-**Consumers that call `useAssetUrls`:**
-- Content Library page — resolves for `visibleAssets` (paginated grid or detail view).
-- Framework Wizard — resolves for library grid + selected assets.
-- Edit Post page — resolves for modal grid + inline selected assets.
-- New Post page — resolves for modal grid + selected asset.
-
-**Performance:** Before this change, loading 125+ assets required 250+ sequential signed URL API calls (seconds of blocking). Now the DB query renders instantly and only 12-30 parallel URL calls are made for visible assets.
+**Performance:** Before this change, loading 125+ assets required 250+ sequential signed URL API calls blocking the initial render. Now the DB query renders instantly (Phase 1) and URL resolution happens in parallel in the background (Phase 2).
 
 ### Future Improvements
 
