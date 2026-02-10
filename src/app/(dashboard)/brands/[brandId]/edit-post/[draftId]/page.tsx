@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
+import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
@@ -111,6 +112,22 @@ export default function EditPostPage() {
   }, [assets]);
 
   const assetsForActiveTab = assetTab === 'videos' ? videoAssets : imageAssets;
+
+  // Resolve signed URLs for visible assets (modal grid + selected inline)
+  const editPostVisibleAssets = useMemo(() => {
+    const seen = new Set<string>();
+    const result: Asset[] = [];
+    for (const a of assetsForActiveTab) {
+      if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
+    }
+    for (const a of selectedAssets) {
+      if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
+    }
+    return result;
+  }, [assetsForActiveTab, selectedAssets]);
+  const { urlMap: editPostUrlMap } = useAssetUrls(editPostVisibleAssets);
+  const resolvedAssetsForTab = useMemo(() => mergeAssetUrls(assetsForActiveTab, editPostUrlMap), [assetsForActiveTab, editPostUrlMap]);
+  const resolvedSelectedAssets = useMemo(() => mergeAssetUrls(selectedAssets, editPostUrlMap), [selectedAssets, editPostUrlMap]);
 
   const selectedMediaTypes = useMemo(() => {
     const types = new Set<'image' | 'video'>();
@@ -1099,8 +1116,8 @@ export default function EditPostPage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Existing media from Draft */}
-                      {selectedAssets.length > 0 ? (
-                        selectedAssets.map((asset) => {
+                      {resolvedSelectedAssets.length > 0 ? (
+                        resolvedSelectedAssets.map((asset) => {
                           const isVideo = (asset.asset_type ?? 'image') === 'video';
                           const previewUrl = isVideo
                             ? asset.thumbnail_signed_url || asset.signed_url
@@ -1482,7 +1499,7 @@ export default function EditPostPage() {
                 </div>
               ) : (
                 <div className="grid max-h-[420px] grid-cols-2 gap-4 overflow-y-auto sm:grid-cols-3">
-                  {assetsForActiveTab.map((asset) => {
+                  {resolvedAssetsForTab.map((asset) => {
                     const isSelected = selectedAssets.some((selected) => selected.id === asset.id);
                     const isVideo = (asset.asset_type ?? 'image') === 'video';
                     const previewUrl = isVideo

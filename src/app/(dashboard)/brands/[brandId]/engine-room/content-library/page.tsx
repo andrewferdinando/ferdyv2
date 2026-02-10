@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
+import { useAssetUrls } from '@/hooks/assets/useAssetUrls'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import { useToast } from '@/components/ui/ToastProvider'
@@ -278,6 +279,29 @@ export default function ContentLibraryPage() {
     )
   }, [filteredAssets, isVideoFilter])
 
+  // Resolve signed URLs only for the assets currently visible on screen
+  const visibleAssets = useMemo(() => {
+    if (activeTab === 'needs_attention') {
+      if (editingAssetData) return [editingAssetData]
+      return paginatedNeedsAttention
+    }
+    // Ready tab: videos show all (grouped, no pagination), images are paginated
+    if (isVideoFilter) return filteredAssets
+    return paginatedFilteredAssets
+  }, [activeTab, editingAssetData, paginatedNeedsAttention, isVideoFilter, filteredAssets, paginatedFilteredAssets])
+
+  const { urlMap } = useAssetUrls(visibleAssets)
+
+  const resolveAsset = useCallback((asset: Asset): Asset => {
+    const entry = urlMap.get(asset.id)
+    if (!entry) return asset
+    return {
+      ...asset,
+      signed_url: entry.signedUrl ?? asset.signed_url,
+      thumbnail_signed_url: entry.thumbnailSignedUrl ?? asset.thumbnail_signed_url,
+    }
+  }, [urlMap])
+
   const filterOptions: { key: MediaFilterValue; label: string }[] = [
     { key: 'images', label: 'Images' },
     { key: 'videos', label: 'Videos' },
@@ -549,11 +573,12 @@ export default function ContentLibraryPage() {
               (() => {
                 // If editingAssetData is set, show the detail view for that asset
                 if (editingAssetData) {
+                  const resolved = resolveAsset(editingAssetData)
                   return (
                     <AssetDetailView
                       key={editingAssetData.id}
-                      asset={editingAssetData}
-                      originalAssetData={editingAssetData}
+                      asset={resolved}
+                      originalAssetData={resolved}
                       onBack={handleBackToGrid}
                       onUpdate={handleAssetUpdate}
                       brandId={brandId}
@@ -574,7 +599,7 @@ export default function ContentLibraryPage() {
                       {paginatedNeedsAttention.map((asset) => (
                         <div key={asset.id}>
                           <AssetCard
-                            asset={asset}
+                            asset={resolveAsset(asset)}
                             onEdit={handleEditNeedsAttentionAsset}
                             onDelete={handleDeleteAsset}
                             onPreview={handlePreviewAsset}
@@ -633,7 +658,7 @@ export default function ContentLibraryPage() {
                                   {groupAssets.map((asset) => (
                                     <div key={asset.id}>
                                       <AssetCard
-                                        asset={asset}
+                                        asset={resolveAsset(asset)}
                                         onEdit={handleEditAsset}
                                         onDelete={handleDeleteAsset}
                                         onPreview={handlePreviewAsset}
@@ -653,7 +678,7 @@ export default function ContentLibraryPage() {
                         {paginatedFilteredAssets.map((asset) => (
                           <div key={asset.id}>
                             <AssetCard
-                              asset={asset}
+                              asset={resolveAsset(asset)}
                               onEdit={handleEditAsset}
                               onDelete={handleDeleteAsset}
                               onPreview={handlePreviewAsset}

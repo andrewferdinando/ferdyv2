@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase-browser'
-import { getSignedUrl } from '@/lib/storage/getSignedUrl'
 
 export interface Asset {
   id: string
@@ -64,6 +63,47 @@ interface AssetFromDB {
   }>
 }
 
+function mapAsset(asset: AssetFromDB): Asset {
+  const assetTags: Tag[] = (asset.asset_tags || [])
+    .filter((at: any) => at.tags && at.tags.is_active)
+    .map((at: any) => ({
+      id: at.tags!.id,
+      name: at.tags!.name,
+      kind: at.tags!.kind,
+    }))
+
+  const tagIds = assetTags.map((tag: any) => tag.id)
+  const assetType = (asset.asset_type as 'image' | 'video' | null) ?? 'image'
+  const thumbnailPath = asset.thumbnail_url || (assetType === 'video' ? undefined : asset.storage_path)
+
+  const imageCrops =
+    asset.image_crops &&
+    Object.fromEntries(
+      Object.entries(asset.image_crops).map(([key, value]) => [
+        key,
+        {
+          scale: typeof value?.scale === 'number' ? value.scale : 1,
+          x: typeof value?.x === 'number' ? value.x : 0,
+          y: typeof value?.y === 'number' ? value.y : 0,
+        },
+      ]),
+    )
+
+  return {
+    ...asset,
+    asset_type: assetType,
+    mime_type: asset.mime_type,
+    file_size: asset.file_size,
+    duration_seconds: asset.duration_seconds,
+    thumbnail_url: thumbnailPath || null,
+    signed_url: undefined,
+    thumbnail_signed_url: undefined,
+    tags: assetTags,
+    tag_ids: tagIds,
+    image_crops: imageCrops ?? undefined,
+  } as Asset
+}
+
 export interface UseAssetsOptions {
   onlyReady?: boolean
 }
@@ -73,60 +113,6 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const buildSignedUrl = async (path?: string | null) => {
-    if (!path) return undefined
-    try {
-      return await getSignedUrl(path)
-    } catch (err) {
-      console.error('Error generating signed URL for path:', path, err)
-      return undefined
-    }
-  }
-
-  const mapAsset = async (asset: AssetFromDB) => {
-    const assetTags: Tag[] = (asset.asset_tags || [])
-      .filter((at: any) => at.tags && at.tags.is_active)
-      .map((at: any) => ({
-        id: at.tags!.id,
-        name: at.tags!.name,
-        kind: at.tags!.kind,
-      }))
-
-    const tagIds = assetTags.map((tag: any) => tag.id)
-    const assetType = (asset.asset_type as 'image' | 'video' | null) ?? 'image'
-
-    const signedUrl = await buildSignedUrl(asset.storage_path)
-    const thumbnailPath = asset.thumbnail_url || (assetType === 'video' ? undefined : asset.storage_path)
-    const thumbnailSignedUrl = await buildSignedUrl(thumbnailPath)
-
-    const imageCrops =
-      asset.image_crops &&
-      Object.fromEntries(
-        Object.entries(asset.image_crops).map(([key, value]) => [
-          key,
-          {
-            scale: typeof value?.scale === 'number' ? value.scale : 1,
-            x: typeof value?.x === 'number' ? value.x : 0,
-            y: typeof value?.y === 'number' ? value.y : 0,
-          },
-        ]),
-      )
-
-    return {
-      ...asset,
-      asset_type: assetType,
-      mime_type: asset.mime_type,
-      file_size: asset.file_size,
-      duration_seconds: asset.duration_seconds,
-      thumbnail_url: thumbnailPath || null,
-      signed_url: signedUrl,
-      thumbnail_signed_url: thumbnailSignedUrl,
-      tags: assetTags,
-      tag_ids: tagIds,
-      image_crops: imageCrops ?? undefined,
-    } as Asset
-  }
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -143,7 +129,6 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
 
         if (needingTagsError) {
           console.warn('Error fetching assets needing tags:', needingTagsError)
-          // Continue with the query even if this fails
         } else {
           assetsNeedingTagsIds = new Set((needingTagsData || []).map((item: any) => item.id))
         }
@@ -172,20 +157,11 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         throw error
       }
 
-      // Process assets in chunks to avoid overwhelming the browser with 250+ concurrent signed URL requests
-      const CHUNK_SIZE = 20
-      const allData = data || []
-      const assetsWithUrls: Asset[] = []
-      for (let i = 0; i < allData.length; i += CHUNK_SIZE) {
-        const chunk = allData.slice(i, i + CHUNK_SIZE)
-        const mapped = await Promise.all(chunk.map((asset: AssetFromDB) => mapAsset(asset)))
-        assetsWithUrls.push(...mapped)
-      }
+      const mapped: Asset[] = (data || []).map((asset: AssetFromDB) => mapAsset(asset))
 
-      // Filter out assets that need tags if onlyReady is true
       const filteredAssets = onlyReady
-        ? assetsWithUrls.filter((asset) => !assetsNeedingTagsIds.has(asset.id))
-        : assetsWithUrls
+        ? mapped.filter((asset) => !assetsNeedingTagsIds.has(asset.id))
+        : mapped
 
       setAssets(filteredAssets)
     } catch (err) {
@@ -261,16 +237,7 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         throw error
       }
 
-      // Process in chunks to avoid overwhelming concurrent requests
-      const CHUNK_SIZE_TAGS = 20
-      const allTagData = data || []
-      const assetsWithUrls: Asset[] = []
-      for (let i = 0; i < allTagData.length; i += CHUNK_SIZE_TAGS) {
-        const chunk = allTagData.slice(i, i + CHUNK_SIZE_TAGS)
-        const mapped = await Promise.all(chunk.map((asset: AssetFromDB) => mapAsset(asset)))
-        assetsWithUrls.push(...mapped)
-      }
-      return assetsWithUrls
+      return (data || []).map((asset: AssetFromDB) => mapAsset(asset))
     } catch (err) {
       console.error('Error fetching assets needing tags:', err)
       throw err

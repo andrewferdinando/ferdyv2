@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
+import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import SortableAssetGrid, { type AssetUsageInfo } from '@/components/assets/SortableAssetGrid'
@@ -873,6 +874,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [selectedVisibleCount, setSelectedVisibleCount] = useState(MEDIA_PAGE_SIZE)
 
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
+
+  // Resolve signed URLs only for assets visible on screen (library grid + selected assets)
+  const wizardVisibleAssets = React.useMemo(() => {
+    const seen = new Set<string>()
+    const result: Asset[] = []
+    // Library grid (paginated)
+    for (const a of assets.slice(0, libraryVisibleCount)) {
+      if (!seen.has(a.id)) { seen.add(a.id); result.push(a) }
+    }
+    // Selected assets shown in SortableAssetGrid
+    for (const id of selectedAssetIds) {
+      if (!seen.has(id)) {
+        const a = assets.find(x => x.id === id)
+        if (a) { seen.add(a.id); result.push(a) }
+      }
+    }
+    return result
+  }, [assets, libraryVisibleCount, selectedAssetIds])
+  const { urlMap: wizardUrlMap } = useAssetUrls(wizardVisibleAssets)
+  const resolvedAssets = React.useMemo(() => mergeAssetUrls(assets, wizardUrlMap), [assets, wizardUrlMap])
 
   // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued.
   // NOTE: Only drafts with asset_ids populated are counted. Historical drafts created before
@@ -3719,7 +3740,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           Selected Media ({selectedAssetIds.length})
         </h4>
         <SortableAssetGrid
-          assets={assets}
+          assets={resolvedAssets}
           selectedIds={selectedAssetIds}
           onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
           onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
@@ -3821,7 +3842,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           ) : (
             <>
               <div className="grid grid-cols-4 gap-4">
-                {assets.slice(0, libraryVisibleCount).map(asset => {
+                {resolvedAssets.slice(0, libraryVisibleCount).map(asset => {
                   const isSelected = selectedAssetIds.includes(asset.id)
                   const isVideo = asset.asset_type === 'video'
                   const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url

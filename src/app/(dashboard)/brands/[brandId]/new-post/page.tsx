@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
+import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { localToUtc } from '@/lib/utils/timezone';
@@ -65,13 +66,35 @@ export default function NewPostPage() {
 
   const assetsForActiveTab = assetTab === 'videos' ? videoAssets : imageAssets
 
-  const selectedPreviewUrl = useMemo(() => {
-    if (!selectedAsset) return ''
-    if ((selectedAsset.asset_type ?? 'image') === 'video') {
-      return selectedAsset.thumbnail_signed_url || selectedAsset.signed_url || ''
+  // Resolve signed URLs for visible assets (modal grid + selected inline)
+  const newPostVisibleAssets = useMemo(() => {
+    const result = [...assetsForActiveTab]
+    if (selectedAsset && !result.some(a => a.id === selectedAsset.id)) {
+      result.push(selectedAsset)
     }
-    return selectedAsset.signed_url || ''
-  }, [selectedAsset])
+    return result
+  }, [assetsForActiveTab, selectedAsset])
+  const { urlMap: newPostUrlMap } = useAssetUrls(newPostVisibleAssets)
+  const resolvedAssetsForTab = useMemo(() => mergeAssetUrls(assetsForActiveTab, newPostUrlMap), [assetsForActiveTab, newPostUrlMap])
+
+  const resolvedSelectedAsset = useMemo(() => {
+    if (!selectedAsset) return null
+    const entry = newPostUrlMap.get(selectedAsset.id)
+    if (!entry) return selectedAsset
+    return {
+      ...selectedAsset,
+      signed_url: entry.signedUrl ?? selectedAsset.signed_url,
+      thumbnail_signed_url: entry.thumbnailSignedUrl ?? selectedAsset.thumbnail_signed_url,
+    }
+  }, [selectedAsset, newPostUrlMap])
+
+  const selectedPreviewUrl = useMemo(() => {
+    if (!resolvedSelectedAsset) return ''
+    if ((resolvedSelectedAsset.asset_type ?? 'image') === 'video') {
+      return resolvedSelectedAsset.thumbnail_signed_url || resolvedSelectedAsset.signed_url || ''
+    }
+    return resolvedSelectedAsset.signed_url || ''
+  }, [resolvedSelectedAsset])
 
   const handleHashtagKeyPress = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ',') && newHashtag.trim()) {
@@ -315,20 +338,20 @@ export default function NewPostPage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Existing Image */}
-                      {selectedAsset && (
+                      {resolvedSelectedAsset && (
                         <div className="relative">
-                          {(selectedAsset.asset_type ?? 'image') === 'video' ? (
+                          {(resolvedSelectedAsset.asset_type ?? 'image') === 'video' ? (
                             <video
                               controls
                               preload="metadata"
                               poster={selectedPreviewUrl || undefined}
-                              src={selectedAsset.signed_url || selectedAsset.storage_path}
+                              src={resolvedSelectedAsset.signed_url || resolvedSelectedAsset.storage_path}
                               className="w-full h-32 rounded-lg bg-black object-contain"
                             />
                           ) : (
                             <img
-                              src={selectedPreviewUrl || selectedAsset.signed_url || selectedAsset.storage_path}
-                              alt={selectedAsset.title || 'Selected media'}
+                              src={selectedPreviewUrl || resolvedSelectedAsset.signed_url || resolvedSelectedAsset.storage_path}
+                              alt={resolvedSelectedAsset.title || 'Selected media'}
                               className="w-full h-32 object-cover rounded-lg"
                               onError={(e) => {
                                 console.error('Selected media failed to load:', selectedPreviewUrl)
@@ -640,7 +663,7 @@ export default function NewPostPage() {
                 </p>
               ) : (
                 <div className="grid max-h-96 grid-cols-2 gap-4 overflow-y-auto sm:grid-cols-3">
-                  {assetsForActiveTab.map((asset) => {
+                  {resolvedAssetsForTab.map((asset) => {
                     const isSelected = selectedAssetIds.includes(asset.id);
                     const isVideo = (asset.asset_type ?? 'image') === 'video';
                     const previewUrl = isVideo
