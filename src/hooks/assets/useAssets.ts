@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase-browser'
+import { getSignedUrl } from '@/lib/storage/getSignedUrl'
 
 export interface Asset {
   id: string
@@ -113,8 +114,11 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const fetchIdRef = useRef(0)
 
   const fetchAssets = useCallback(async () => {
+    const currentFetchId = ++fetchIdRef.current
+
     try {
       setLoading(true)
       setError(null)
@@ -134,7 +138,7 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         }
       }
 
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('assets')
         .select(
           `
@@ -153,8 +157,8 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        throw error
+      if (fetchError) {
+        throw fetchError
       }
 
       const mapped: Asset[] = (data || []).map((asset: AssetFromDB) => mapAsset(asset))
@@ -163,12 +167,45 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         ? mapped.filter((asset) => !assetsNeedingTagsIds.has(asset.id))
         : mapped
 
+      // Phase 1: instant render with metadata only (no signed URLs)
       setAssets(filteredAssets)
-    } catch (err) {
-      console.error('Error fetching assets:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch assets')
-    } finally {
       setLoading(false)
+
+      // Phase 2: resolve signed URLs in background, then update state
+      if (filteredAssets.length > 0) {
+        try {
+          const withUrls = await Promise.all(
+            filteredAssets.map(async (asset) => {
+              try {
+                const signedUrl = asset.storage_path
+                  ? await getSignedUrl(asset.storage_path)
+                  : undefined
+                const isVideo = (asset.asset_type ?? 'image') === 'video'
+                const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
+                const thumbnailSignedUrl = thumbPath && thumbPath !== asset.storage_path
+                  ? await getSignedUrl(thumbPath)
+                  : thumbPath === asset.storage_path
+                    ? signedUrl
+                    : undefined
+                return { ...asset, signed_url: signedUrl, thumbnail_signed_url: thumbnailSignedUrl }
+              } catch {
+                return asset
+              }
+            }),
+          )
+          if (currentFetchId === fetchIdRef.current) {
+            setAssets(withUrls)
+          }
+        } catch (urlErr) {
+          console.error('useAssets: URL resolution failed', urlErr)
+        }
+      }
+    } catch (err) {
+      if (currentFetchId === fetchIdRef.current) {
+        console.error('Error fetching assets:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch assets')
+        setLoading(false)
+      }
     }
   }, [brandId, onlyReady])
 
@@ -237,7 +274,30 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         throw error
       }
 
-      return (data || []).map((asset: AssetFromDB) => mapAsset(asset))
+      const mapped: Asset[] = (data || []).map((asset: AssetFromDB) => mapAsset(asset))
+
+      // Resolve signed URLs before returning
+      const withUrls = await Promise.all(
+        mapped.map(async (asset: Asset) => {
+          try {
+            const signedUrl = asset.storage_path
+              ? await getSignedUrl(asset.storage_path)
+              : undefined
+            const isVideo = (asset.asset_type ?? 'image') === 'video'
+            const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
+            const thumbnailSignedUrl = thumbPath && thumbPath !== asset.storage_path
+              ? await getSignedUrl(thumbPath)
+              : thumbPath === asset.storage_path
+                ? signedUrl
+                : undefined
+            return { ...asset, signed_url: signedUrl, thumbnail_signed_url: thumbnailSignedUrl }
+          } catch {
+            return asset
+          }
+        }),
+      )
+
+      return withUrls
     } catch (err) {
       console.error('Error fetching assets needing tags:', err)
       throw err
