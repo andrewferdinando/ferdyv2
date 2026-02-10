@@ -228,11 +228,11 @@ const HASHTAG_STOP_WORDS = new Set([
 ])
 
 /**
- * Clean raw summary text: fix concatenated words, normalise whitespace,
- * and trim to ~500 chars at the nearest sentence boundary.
+ * Clean raw summary text: fix concatenated words and normalise whitespace.
+ * Keeps the full text — more context means better AI-generated copy.
  */
 function cleanSummaryText(raw: string): string {
-  let text = raw
+  const text = raw
     // Insert space where a lowercase letter is immediately followed by an uppercase letter
     // e.g. "trackGet" → "track Get", "timeAges" → "time Ages"
     .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -242,22 +242,6 @@ function cleanSummaryText(raw: string): string {
     // Collapse multiple whitespace chars into a single space
     .replace(/\s+/g, ' ')
     .trim()
-
-  if (!text) return ''
-
-  // Trim to ~500 chars at the nearest sentence-ending punctuation
-  if (text.length > 500) {
-    const chunk = text.slice(0, 550)
-    // Find last sentence-ending punctuation within the chunk
-    const match = chunk.match(/^([\s\S]{80,500}[.!?])(?:\s|$)/)
-    if (match) {
-      text = match[1]
-    } else {
-      // No sentence boundary — truncate at last space within 500 chars
-      const lastSpace = chunk.lastIndexOf(' ', 500)
-      text = chunk.slice(0, lastSpace > 100 ? lastSpace : 500) + '...'
-    }
-  }
 
   return text
 }
@@ -333,7 +317,7 @@ function deriveHashtagsFromSummary(details: Record<string, unknown>): string[] {
     const words = details.title
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .split(/\s+/)
-      .filter(w => w.length > 4 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
+      .filter(w => w.length > 3 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
       .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     candidates.push(...words)
   }
