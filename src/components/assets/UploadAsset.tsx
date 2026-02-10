@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useUploadAsset } from '@/hooks/assets/useUploadAsset'
+import { useFileUpload } from '@/hooks/assets/useFileUpload'
 
 interface UploadAssetProps {
   brandId: string
@@ -13,60 +13,22 @@ interface UploadAssetProps {
 export default function UploadAsset({ brandId, onUploadSuccess, onUploadError, label = 'Upload images/videos' }: UploadAssetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
-  const { uploadAsset, uploading, progress } = useUploadAsset()
+
+  const {
+    processFiles,
+    uploading,
+    completedFiles,
+    totalFiles,
+    progress,
+  } = useFileUpload({
+    brandId,
+    onSuccess: onUploadSuccess,
+    onError: onUploadError,
+  })
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return
-
-    const fileArray = Array.from(files)
-    const uploadedAssetIds: string[] = []
-
-    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-    const maxImageSize = 30 * 1024 * 1024 // 30MB (Meta's limit)
-    const maxVideoSize = 200 * 1024 * 1024 // 200MB
-
-    for (const file of fileArray) {
-      const isVideo = file.type.startsWith('video/')
-
-      if (isVideo) {
-        if (file.type !== 'video/mp4' && file.type !== 'video/quicktime') {
-          onUploadError(`Only .mp4 and .mov videos are supported. Problem file: ${file.name}`)
-          return
-        }
-        if (file.size > maxVideoSize) {
-          onUploadError(`Video files must be smaller than 200MB. Problem file: ${file.name}`)
-          return
-        }
-      } else {
-        if (!allowedImageTypes.includes(file.type)) {
-          onUploadError(`Please select a valid image file. Problem file: ${file.name}`)
-          return
-        }
-        if (file.size > maxImageSize) {
-          onUploadError(`Image files must be smaller than 30MB. Problem file: ${file.name}`)
-          return
-        }
-      }
-    }
-
-    for (const file of fileArray) {
-      try {
-        const assetId = await new Promise<string>((resolve, reject) => {
-          uploadAsset({
-            file,
-            brandId,
-            onSuccess: (id) => resolve(id),
-            onError: (error) => reject(new Error(error)),
-          })
-        })
-        uploadedAssetIds.push(assetId)
-      } catch (error) {
-        onUploadError(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
-        return
-      }
-    }
-
-    onUploadSuccess(uploadedAssetIds)
+    await processFiles(files)
   }
 
   const handleClick = () => {
@@ -121,7 +83,11 @@ export default function UploadAsset({ brandId, onUploadSuccess, onUploadError, l
         {uploading ? (
           <>
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            <span>Uploading... {Math.round(progress)}%</span>
+            <span>
+              {totalFiles > 1
+                ? `Uploading ${completedFiles + 1}/${totalFiles}...`
+                : `Uploading... ${Math.round(progress)}%`}
+            </span>
           </>
         ) : (
           <>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/ToastProvider'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
+import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import SortableAssetGrid, { type AssetUsageInfo } from '@/components/assets/SortableAssetGrid'
 import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
@@ -73,7 +74,7 @@ const STEPS: StepInfo[] = [
   { number: 1, name: 'Type' },
   { number: 2, name: 'Details' },
   { number: 3, name: 'Schedule' },
-  { number: 4, name: 'Images' },
+  { number: 4, name: 'Media' },
 ]
 
 // Type options for Step 1 (Schedules temporarily removed from v1)
@@ -621,6 +622,67 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   // NOTE: Only drafts with asset_ids populated are counted. Historical drafts created before
   // reliable asset selection was implemented may have empty asset_ids and won't appear in counts.
   const [assetUsage, setAssetUsage] = useState<Map<string, AssetUsageInfo>>(new Map())
+
+  // Full-page drag-and-drop for the wizard
+  const wizardDragCounterRef = useRef(0)
+  const [wizardDragOver, setWizardDragOver] = useState(false)
+
+  const handleWizardUploadSuccess = useCallback((assetIds: string[]) => {
+    setSelectedAssetIds(prev => [...prev, ...assetIds])
+    refetchAssets()
+    showToast({
+      title: 'Upload complete',
+      message: `${assetIds.length} file${assetIds.length === 1 ? '' : 's'} uploaded`,
+      type: 'success',
+    })
+  }, [refetchAssets, showToast])
+
+  const handleWizardUploadError = useCallback((error: string) => {
+    showToast({
+      title: 'Upload failed',
+      message: error,
+      type: 'error',
+      duration: 6000,
+    })
+  }, [showToast])
+
+  const {
+    processFiles: processWizardFiles,
+    uploading: wizardPageUploading,
+  } = useFileUpload({
+    brandId,
+    onSuccess: handleWizardUploadSuccess,
+    onError: handleWizardUploadError,
+  })
+
+  const handleWizardDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    wizardDragCounterRef.current++
+    if (wizardDragCounterRef.current === 1) {
+      setWizardDragOver(true)
+    }
+  }, [])
+
+  const handleWizardDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const handleWizardDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    wizardDragCounterRef.current--
+    if (wizardDragCounterRef.current === 0) {
+      setWizardDragOver(false)
+    }
+  }, [])
+
+  const handleWizardDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    wizardDragCounterRef.current = 0
+    setWizardDragOver(false)
+    if (e.dataTransfer.files.length > 0) {
+      processWizardFiles(e.dataTransfer.files)
+    }
+  }, [processWizardFiles])
 
   useEffect(() => {
     if (mode !== 'edit' || !savedSubcategoryId) return
@@ -3335,7 +3397,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     <>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900">
-          Choose images
+          Choose media
         </h3>
         <div className="relative group">
           <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
@@ -3548,7 +3610,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   return (
     <RequireAuth>
       <AppLayout>
-        <div className="flex-1 overflow-auto">
+        <div
+          className="flex-1 overflow-auto relative"
+          onDragEnter={handleWizardDragEnter}
+          onDragOver={handleWizardDragOver}
+          onDragLeave={handleWizardDragLeave}
+          onDrop={handleWizardDrop}
+        >
+          {/* Full-page drop overlay */}
+          {wizardDragOver && !wizardPageUploading && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#6366F1]/10 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#6366F1] bg-white/90 px-12 py-10 shadow-lg">
+                <svg className="h-12 w-12 text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <span className="text-lg font-semibold text-[#6366F1]">Drop files to upload</span>
+                <span className="text-sm text-gray-500">Images and videos, up to 10 files</span>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex items-center justify-between">
@@ -3651,7 +3732,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       scheduleSummary,
                       renderScheduleContent
                     )}
-                    {renderAccordionSection('images', 'Images', imagesSummary, renderImagesContent)}
+                    {renderAccordionSection('images', 'Media', imagesSummary, renderImagesContent)}
                   </div>
 
                   {/* Edit mode: Cancel / Save buttons */}
@@ -3767,7 +3848,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 {currentStep === 4 && (
                   <div>
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
-                      Step 4: Images
+                      Step 4: Media
                     </h2>
                     {renderImagesContent()}
                   </div>

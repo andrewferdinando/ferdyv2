@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
+import { useFileUpload } from '@/hooks/assets/useFileUpload'
+import { useToast } from '@/components/ui/ToastProvider'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import AssetCard from '@/components/assets/AssetCard'
 import TagSelector from '@/components/assets/TagSelector'
@@ -144,6 +146,71 @@ export default function ContentLibraryPage() {
   const [editingAssetData, setEditingAssetData] = useState<Asset | null>(null)
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
   const pendingUploadIdsRef = useRef<string[]>([])
+  const { showToast } = useToast()
+
+  // Full-page drag-and-drop state
+  const dragCounterRef = useRef(0)
+  const [pageDragOver, setPageDragOver] = useState(false)
+
+  const handlePageUploadSuccess = useCallback((assetIds: string[]) => {
+    setActiveTab('needs_attention')
+    pendingUploadIdsRef.current = assetIds
+    refetch()
+    showToast({
+      title: 'Upload complete',
+      message: `${assetIds.length} file${assetIds.length === 1 ? '' : 's'} uploaded`,
+      type: 'success',
+    })
+  }, [refetch, showToast])
+
+  const handlePageUploadError = useCallback((error: string) => {
+    showToast({
+      title: 'Upload failed',
+      message: error,
+      type: 'error',
+      duration: 6000,
+    })
+  }, [showToast])
+
+  const {
+    processFiles: processPageFiles,
+    uploading: pageUploading,
+    completedFiles: pageCompletedFiles,
+    totalFiles: pageTotalFiles,
+  } = useFileUpload({
+    brandId,
+    onSuccess: handlePageUploadSuccess,
+    onError: handlePageUploadError,
+  })
+
+  const handlePageDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current++
+    if (dragCounterRef.current === 1) {
+      setPageDragOver(true)
+    }
+  }, [])
+
+  const handlePageDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const handlePageDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) {
+      setPageDragOver(false)
+    }
+  }, [])
+
+  const handlePageDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current = 0
+    setPageDragOver(false)
+    if (e.dataTransfer.files.length > 0) {
+      processPageFiles(e.dataTransfer.files)
+    }
+  }, [processPageFiles])
 
   // Filter assets based on tab and search
   const filteredAssets = assets.filter(asset => {
@@ -227,16 +294,26 @@ export default function ContentLibraryPage() {
   const handleUploadSuccess = (assetIds: string[]) => {
     // Switch to needs attention tab immediately
     setActiveTab('needs_attention')
-    
+
     // Store asset IDs to watch for them in useEffect
     pendingUploadIdsRef.current = assetIds
-    
+
     // Refetch assets - the useEffect will handle setting the filter once assets are loaded
     refetch()
+    showToast({
+      title: 'Upload complete',
+      message: `${assetIds.length} file${assetIds.length === 1 ? '' : 's'} uploaded`,
+      type: 'success',
+    })
   }
 
   const handleUploadError = (error: string) => {
-    alert(`Upload failed: ${error}`)
+    showToast({
+      title: 'Upload failed',
+      message: error,
+      type: 'error',
+      duration: 6000,
+    })
   }
 
   const handlePreviewAsset = (asset: Asset) => {
@@ -270,7 +347,7 @@ export default function ContentLibraryPage() {
       setActiveTab('needs_attention')
     } catch (error) {
       console.error('Error moving asset to needs attention:', error)
-      alert('Failed to move asset for editing. Please try again.')
+      showToast({ title: 'Edit failed', message: 'Failed to move asset for editing. Please try again.', type: 'error' })
     }
   }
 
@@ -301,7 +378,7 @@ export default function ContentLibraryPage() {
         setShowDeleteConfirm(null)
       },
       onError: (error) => {
-        alert(`Delete failed: ${error}`)
+        showToast({ title: 'Delete failed', message: error, type: 'error' })
       }
     })
   }
@@ -347,7 +424,26 @@ export default function ContentLibraryPage() {
   return (
     <RequireAuth>
       <AppLayout>
-        <div className="flex-1 overflow-auto">
+        <div
+          className="flex-1 overflow-auto relative"
+          onDragEnter={handlePageDragEnter}
+          onDragOver={handlePageDragOver}
+          onDragLeave={handlePageDragLeave}
+          onDrop={handlePageDrop}
+        >
+          {/* Full-page drop overlay */}
+          {pageDragOver && !pageUploading && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#6366F1]/10 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#6366F1] bg-white/90 px-12 py-10 shadow-lg">
+                <svg className="h-12 w-12 text-[#6366F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <span className="text-lg font-semibold text-[#6366F1]">Drop files to upload</span>
+                <span className="text-sm text-gray-500">Images and videos, up to 10 files</span>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -613,6 +709,7 @@ function AssetDetailView({
   saveAssetTags: (assetId: string, tagIds: string[]) => Promise<void>
   onPreviewAsset?: (asset: Asset) => void
 }) {
+  const { showToast } = useToast()
   const displayAsset = originalAssetData || asset
   const isVideo = (displayAsset.asset_type ?? 'image') === 'video'
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(displayAsset.tag_ids || [])
@@ -939,14 +1036,14 @@ function AssetDetailView({
 
   const handleSave = async () => {
     if (selectedTagIds.length === 0) {
-      alert('Please select at least one tag')
+      showToast({ title: 'Tags required', message: 'Please select at least one tag', type: 'warning' })
       return
     }
 
     // Validate selected format
     if (!FORMATS.some(f => f.key === selectedFormat)) {
       console.error('Invalid format selected:', selectedFormat)
-      alert('Invalid format selected. Please try again.')
+      showToast({ title: 'Invalid format', message: 'Invalid format selected. Please try again.', type: 'error' })
       return
     }
 
@@ -994,7 +1091,7 @@ function AssetDetailView({
     } catch (error) {
       console.error('Error saving asset:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to save asset. Please try again.'
-      alert(`Failed to save asset: ${errorMessage}`)
+      showToast({ title: 'Save failed', message: errorMessage, type: 'error' })
     } finally {
       setSaving(false)
     }
