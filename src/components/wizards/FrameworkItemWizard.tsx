@@ -228,45 +228,66 @@ const HASHTAG_STOP_WORDS = new Set([
 ])
 
 /**
- * Build a clean description from the structured details returned by extract-url-summary.
- * Prefers rawSnippet/key_points over raw summary text.
+ * Clean raw summary text: fix concatenated words, normalise whitespace,
+ * and trim to ~500 chars at the nearest sentence boundary.
  */
-function buildDescriptionFromSummary(details: Record<string, unknown>, rawSummary: string): string {
-  // Best: use rawSnippet (a short editorial paragraph about the page)
-  if (typeof details.rawSnippet === 'string' && details.rawSnippet.trim()) {
-    return details.rawSnippet.trim()
+function cleanSummaryText(raw: string): string {
+  let text = raw
+    // Insert space where a lowercase letter is immediately followed by an uppercase letter
+    // e.g. "trackGet" → "track Get", "timeAges" → "time Ages"
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    // Insert space where a digit is immediately followed by an uppercase letter
+    // e.g. "13+Adult" → "13+ Adult"
+    .replace(/(\d)([A-Z])/g, '$1 $2')
+    // Collapse multiple whitespace chars into a single space
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!text) return ''
+
+  // Trim to ~500 chars at the nearest sentence-ending punctuation
+  if (text.length > 500) {
+    const chunk = text.slice(0, 550)
+    // Find last sentence-ending punctuation within the chunk
+    const match = chunk.match(/^([\s\S]{80,500}[.!?])(?:\s|$)/)
+    if (match) {
+      text = match[1]
+    } else {
+      // No sentence boundary — truncate at last space within 500 chars
+      const lastSpace = chunk.lastIndexOf(' ', 500)
+      text = chunk.slice(0, lastSpace > 100 ? lastSpace : 500) + '...'
+    }
   }
 
-  // Good: compose from key_points
-  if (Array.isArray(details.key_points) && details.key_points.length > 0) {
+  return text
+}
+
+/**
+ * Build a clean description from the URL summary response.
+ * Uses the raw summary (actual page content) as primary source with cleanup.
+ * Falls back to structured fields only if summary is empty.
+ */
+function buildDescriptionFromSummary(details: Record<string, unknown>, rawSummary: string): string {
+  // Primary: use the full summary text with cleanup (has the actual page content)
+  if (rawSummary && rawSummary.trim().length > 30) {
+    return cleanSummaryText(rawSummary)
+  }
+
+  // Fallback: compose from key_points if available
+  if (Array.isArray(details.key_points) && details.key_points.length >= 2) {
     const points = details.key_points
       .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
       .slice(0, 4)
-    if (points.length > 0) {
+    if (points.length >= 2) {
       const title = typeof details.title === 'string' ? details.title.trim() : ''
       const prefix = title ? `${title}. ` : ''
       return prefix + points.join('. ') + '.'
     }
   }
 
-  // Fallback: use title + subtitle if available
-  const title = typeof details.title === 'string' ? details.title.trim() : ''
-  const subtitle = typeof details.subtitle === 'string' ? details.subtitle.trim() : ''
-  if (title && subtitle) {
-    return `${title} — ${subtitle}`
-  }
-  if (title) {
-    return title
-  }
-
-  // Last resort: use raw summary but trim to first ~300 chars at a sentence boundary
-  if (rawSummary) {
-    const trimmed = rawSummary.slice(0, 400)
-    const lastSentence = trimmed.search(/[.!?]\s[A-Z]/)
-    if (lastSentence > 50) {
-      return trimmed.slice(0, lastSentence + 1)
-    }
-    return trimmed.length < rawSummary.length ? trimmed + '...' : trimmed
+  // Sparse fallback: rawSnippet if it's more than just a title
+  if (typeof details.rawSnippet === 'string' && details.rawSnippet.trim().length > 60) {
+    return details.rawSnippet.trim()
   }
 
   return ''
@@ -312,7 +333,7 @@ function deriveHashtagsFromSummary(details: Record<string, unknown>): string[] {
     const words = details.title
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .split(/\s+/)
-      .filter(w => w.length > 3 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
+      .filter(w => w.length > 4 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
       .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     candidates.push(...words)
   }
