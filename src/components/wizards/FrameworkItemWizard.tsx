@@ -266,26 +266,52 @@ function cleanSummaryText(raw: string): string {
   return text
 }
 
+/** Patterns that indicate a line is web noise rather than useful content */
+const NOISE_LINE_PATTERNS = [
+  /^no items found/i,
+  /^\s*\d+\s*$/,                                         // Just a number
+  /\b(book|buy|shop|order|grab|sign up|subscribe)\s*(now|today|here)\s*[.!]*$/i,
+  /^(BEST VALUE|NEW|SALE|FREE|HOT DEAL|POPULAR|SPECIAL)\s*[!.\s]*$/i,
+  /^save\s+\$\d/i,                                       // "Save $19"
+  /^Nbook/i,                                              // Garbled artifact from "PERSONbook"
+]
+
+/**
+ * Format cleaned text as bullet points, filtering out web noise.
+ * Each meaningful line becomes a bullet point for easy scanning and editing.
+ */
+function formatAsBullets(text: string): string {
+  const lines = text.split('\n')
+  const bullets: string[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.length < 8) continue
+    if (NOISE_LINE_PATTERNS.some(p => p.test(trimmed))) continue
+    bullets.push('• ' + trimmed)
+  }
+
+  return bullets.join('\n')
+}
+
 /**
  * Build a clean description from the URL summary response.
- * Uses the raw summary (actual page content) as primary source with cleanup.
- * Falls back to structured fields only if summary is empty.
+ * Formats as bullet points for readability — easy to scan, edit, and gives
+ * the AI structured context for copy generation.
  */
 function buildDescriptionFromSummary(details: Record<string, unknown>, rawSummary: string): string {
-  // Primary: use the full summary text with cleanup (has the actual page content)
+  // Primary: use the full summary text, cleaned up and formatted as bullets
   if (rawSummary && rawSummary.trim().length > 30) {
-    return cleanSummaryText(rawSummary)
+    return formatAsBullets(cleanSummaryText(rawSummary))
   }
 
   // Fallback: compose from key_points if available
   if (Array.isArray(details.key_points) && details.key_points.length >= 2) {
     const points = details.key_points
       .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
-      .slice(0, 4)
+      .slice(0, 8)
     if (points.length >= 2) {
-      const title = typeof details.title === 'string' ? details.title.trim() : ''
-      const prefix = title ? `${title}. ` : ''
-      return prefix + points.join('. ') + '.'
+      return points.map(p => '• ' + p.trim()).join('\n')
     }
   }
 
