@@ -210,6 +210,66 @@ const FREQUENCY_LABELS: Record<ScheduleFrequency, { label: string; helper: strin
   }
 }
 
+// Stop words to filter when deriving hashtags from URL summary
+const HASHTAG_STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+  'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall',
+  'not', 'no', 'nor', 'so', 'if', 'then', 'than', 'too', 'very', 'just', 'about', 'up',
+  'out', 'all', 'also', 'as', 'its', 'it', 'this', 'that', 'these', 'those', 'my', 'your',
+  'his', 'her', 'our', 'their', 'we', 'they', 'he', 'she', 'you', 'me', 'him', 'us', 'them',
+])
+
+/**
+ * Derive hashtags from the structured details returned by extract-url-summary.
+ * Picks significant words from title, competition/series, venue, and hosts.
+ */
+function deriveHashtagsFromSummary(details: Record<string, unknown>): string[] {
+  const candidates: string[] = []
+
+  // Extract keywords from title
+  if (typeof details.title === 'string' && details.title) {
+    const words = details.title
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
+    candidates.push(...words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+  }
+
+  // Add competition/series as a single hashtag
+  if (typeof details.competitionOrSeries === 'string' && details.competitionOrSeries) {
+    candidates.push(details.competitionOrSeries.replace(/[^a-zA-Z0-9]/g, ''))
+  }
+
+  // Add venue name as a single hashtag
+  if (typeof details.venueName === 'string' && details.venueName) {
+    candidates.push(details.venueName.replace(/[^a-zA-Z0-9]/g, ''))
+  }
+
+  // Add hosts
+  if (Array.isArray(details.hosts)) {
+    for (const host of details.hosts) {
+      if (typeof host === 'string' && host) {
+        candidates.push(host.replace(/[^a-zA-Z0-9]/g, ''))
+      }
+    }
+  }
+
+  // Deduplicate (case-insensitive) and limit to 5
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const tag of candidates) {
+    if (!tag || tag.length < 2) continue
+    const lower = tag.toLowerCase()
+    if (seen.has(lower)) continue
+    seen.add(lower)
+    result.push(tag)
+    if (result.length >= 5) break
+  }
+
+  return result
+}
+
 type WizardDetails = {
   name: string
   detail: string
@@ -603,6 +663,75 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     })
   }
 
+  // URL auto-fill state
+  const [urlFetching, setUrlFetching] = useState(false)
+  const [urlAutoFilled, setUrlAutoFilled] = useState<{ description: boolean; hashtags: boolean }>({
+    description: false,
+    hashtags: false,
+  })
+  const urlAutoFilledRef = useRef(urlAutoFilled)
+  urlAutoFilledRef.current = urlAutoFilled
+
+  // Debounced URL fetch effect: auto-fill description and hashtags from URL
+  useEffect(() => {
+    const url = details.url.trim()
+    if (!url || !url.startsWith('http')) return
+
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      setUrlFetching(true)
+      try {
+        const res = await fetch(`/api/extract-url-summary?url=${encodeURIComponent(url)}`, {
+          signal: controller.signal,
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const autoFilled = urlAutoFilledRef.current
+
+        setDetails(prev => {
+          const updates: Partial<WizardDetails> = {}
+          let descAutoFilled = false
+          let hashAutoFilled = false
+
+          // Auto-fill description if empty or was previously auto-filled
+          if (data.summary && (!prev.detail.trim() || autoFilled.description)) {
+            updates.detail = data.summary
+            descAutoFilled = true
+          }
+
+          // Auto-fill hashtags if empty or was previously auto-filled
+          if (!prev.defaultHashtags.length || autoFilled.hashtags) {
+            const hashtags = deriveHashtagsFromSummary(data.details || {})
+            if (hashtags.length > 0) {
+              updates.defaultHashtags = hashtags
+              hashAutoFilled = true
+            }
+          }
+
+          if (descAutoFilled || hashAutoFilled) {
+            setUrlAutoFilled({
+              description: descAutoFilled || autoFilled.description,
+              hashtags: hashAutoFilled || autoFilled.hashtags,
+            })
+          }
+
+          if (Object.keys(updates).length === 0) return prev
+          return { ...prev, ...updates }
+        })
+      } catch {
+        // Silently ignore errors — user can still write manually
+      } finally {
+        setUrlFetching(false)
+      }
+    }, 800)
+
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [details.url])
+
   const [isSaving, setIsSaving] = useState(false)
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
     mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
@@ -756,7 +885,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       post_time: defaultPostTime || null,
     })
     setDetailsErrors({})
-    
+    setUrlAutoFilled({ description: false, hashtags: false })
+
     // Reset schedule - use brand default time for new rules
     setSchedule({
       frequency: null,
@@ -2723,23 +2853,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         />
       </FormField>
 
-      {/* Description */}
-      <FormField label="Description" required>
-        <Textarea
-          value={details.detail}
-          onChange={(e) => {
-            setDetails(prev => ({ ...prev, detail: e.target.value }))
-            if (detailsErrors.detail) {
-              setDetailsErrors(prev => ({ ...prev, detail: undefined }))
-            }
-          }}
-          placeholder="What should Ferdy mention?"
-          rows={4}
-          error={detailsErrors.detail}
-        />
-      </FormField>
-
-      {/* URL */}
+      {/* URL (moved above Description so auto-fill can populate fields below) */}
       <FormField label="URL (optional)">
         <Input
           type="url"
@@ -2749,11 +2863,41 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         />
       </FormField>
 
+      {/* Description */}
+      <FormField label="Description" required>
+        <Textarea
+          value={details.detail}
+          onChange={(e) => {
+            setDetails(prev => ({ ...prev, detail: e.target.value }))
+            if (urlAutoFilled.description) {
+              setUrlAutoFilled(prev => ({ ...prev, description: false }))
+            }
+            if (detailsErrors.detail) {
+              setDetailsErrors(prev => ({ ...prev, detail: undefined }))
+            }
+          }}
+          placeholder="What should Ferdy mention?"
+          rows={4}
+          error={detailsErrors.detail}
+        />
+        {urlFetching && (
+          <p className="mt-1 text-xs text-gray-400 animate-pulse">Fetching page details...</p>
+        )}
+        {!urlFetching && urlAutoFilled.description && (
+          <p className="mt-1 text-xs text-gray-400">Auto-filled from URL — feel free to edit</p>
+        )}
+      </FormField>
+
       {/* Default Hashtags */}
       <FormField label="Default hashtags (optional)">
         <HashtagInput
           value={details.defaultHashtags}
-          onChange={(hashtags) => setDetails(prev => ({ ...prev, defaultHashtags: hashtags }))}
+          onChange={(hashtags) => {
+            setDetails(prev => ({ ...prev, defaultHashtags: hashtags }))
+            if (urlAutoFilled.hashtags) {
+              setUrlAutoFilled(prev => ({ ...prev, hashtags: false }))
+            }
+          }}
           placeholder="brandname, event, networking"
           helperText="Press Enter to add a hashtag"
         />
