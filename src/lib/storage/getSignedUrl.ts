@@ -58,13 +58,16 @@ export async function getSignedUrls(paths: string[]): Promise<Map<string, string
     }
 
     if (data) {
-      for (const item of data) {
-        if (item.signedUrl && item.path) {
-          signedUrlCache.set(item.path, {
-            url: item.signedUrl,
+      for (let i = 0; i < data.length; i++) {
+        const item = data[i]
+        const originalPath = uncachedPaths[i]
+        const url = item.signedUrl || (item as any).signedURL
+        if (url && originalPath) {
+          signedUrlCache.set(originalPath, {
+            url,
             expires: now + 9 * 60 * 1000,
           })
-          result.set(item.path, item.signedUrl)
+          result.set(originalPath, url)
         }
       }
     }

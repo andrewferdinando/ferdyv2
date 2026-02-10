@@ -20,7 +20,7 @@ export function useAssetUrls(assets: Asset[]) {
 
   useEffect(() => {
     if (assets.length === 0) {
-      if (urlMap.size > 0) setUrlMap(new Map())
+      setUrlMap(prev => prev.size > 0 ? new Map() : prev)
       return
     }
 
