@@ -20,6 +20,12 @@
 - In edit mode, validation runs on Save and auto-expands the Schedule section on error.
 - Saves schedule_rules with upsert to avoid duplicates and keeps `is_active = true`.
 
+## Media section (Step 4 / Images accordion)
+- Asset metadata loads instantly from `useAssets` (no signed URL generation).
+- Signed URLs are resolved lazily via `useAssetUrls` for only the visible library grid page (12 items) plus selected assets.
+- The wizard passes `resolvedAssets` (with URLs merged in) to both the library grid and `SortableAssetGrid`.
+- Pagination: library grid shows `MEDIA_PAGE_SIZE` (12) items at a time with a "Load more" button.
+
 ## What's out
 - No "push to drafts" button in the wizard.
 - No copy regenerate control; copy is generated automatically by the draft generator.

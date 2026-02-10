@@ -313,6 +313,27 @@ Sharp is used server-side only. It provides:
 - Processed images are cached (stored permanently).
 - No re-processing unless crops change.
 
+### Lazy Asset URL Loading (Signed URLs)
+
+Assets are stored in private Supabase Storage buckets and require signed URLs for browser display. URL resolution uses a two-phase approach:
+
+1. **Fast metadata load** — `useAssets` hook fetches all asset rows from the DB in a single query and returns immediately with `signed_url: undefined`. The page renders instantly with placeholder thumbnails.
+
+2. **Lazy URL resolution** — `useAssetUrls` hook takes only the visible slice of assets (e.g. the current paginated page of 12-30 items), collects their `storage_path` and `thumbnail_url` values, and resolves signed URLs in parallel via `getSignedUrls()`. URLs are merged into assets at render time via `resolveAsset()` or `mergeAssetUrls()`.
+
+**Key files:**
+- `src/lib/storage/getSignedUrl.ts` — `getSignedUrl()` (singular) and `getSignedUrls()` (parallel batch). Both share a 9-minute in-memory cache (`signedUrlCache`).
+- `src/hooks/assets/useAssetUrls.ts` — `useAssetUrls(assets)` hook + `mergeAssetUrls()` helper.
+- `src/hooks/assets/useAssets.ts` — Returns assets with `signed_url: undefined` (no URL generation).
+
+**Consumers that call `useAssetUrls`:**
+- Content Library page — resolves for `visibleAssets` (paginated grid or detail view).
+- Framework Wizard — resolves for library grid + selected assets.
+- Edit Post page — resolves for modal grid + inline selected assets.
+- New Post page — resolves for modal grid + selected asset.
+
+**Performance:** Before this change, loading 125+ assets required 250+ sequential signed URL API calls (seconds of blocking). Now the DB query renders instantly and only 12-30 parallel URL calls are made for visible assets.
+
 ### Future Improvements
 
 - Automatic re-processing when crops change.
