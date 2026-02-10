@@ -210,7 +210,7 @@ const FREQUENCY_LABELS: Record<ScheduleFrequency, { label: string; helper: strin
   }
 }
 
-// Stop words to filter when deriving hashtags from URL summary
+// Stop words to filter when deriving hashtags from URL summary title
 const HASHTAG_STOP_WORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
   'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
@@ -218,41 +218,103 @@ const HASHTAG_STOP_WORDS = new Set([
   'not', 'no', 'nor', 'so', 'if', 'then', 'than', 'too', 'very', 'just', 'about', 'up',
   'out', 'all', 'also', 'as', 'its', 'it', 'this', 'that', 'these', 'those', 'my', 'your',
   'his', 'her', 'our', 'their', 'we', 'they', 'he', 'she', 'you', 'me', 'him', 'us', 'them',
+  'get', 'got', 'go', 'going', 'come', 'coming', 'make', 'made', 'take', 'took', 'give',
+  'new', 'old', 'big', 'top', 'best', 'most', 'more', 'less', 'per', 'each', 'every',
+  'over', 'under', 'near', 'next', 'last', 'first', 'any', 'some', 'only', 'own', 'same',
+  'now', 'here', 'there', 'when', 'where', 'how', 'what', 'which', 'who', 'why',
+  'back', 'well', 'way', 'even', 'still', 'into', 'after', 'before', 'between',
+  'find', 'see', 'look', 'like', 'want', 'need', 'try', 'let', 'keep', 'start',
+  'book', 'save', 'free', 'open', 'join', 'sign', 'click', 'view', 'read', 'learn',
 ])
 
 /**
+ * Build a clean description from the structured details returned by extract-url-summary.
+ * Prefers rawSnippet/key_points over raw summary text.
+ */
+function buildDescriptionFromSummary(details: Record<string, unknown>, rawSummary: string): string {
+  // Best: use rawSnippet (a short editorial paragraph about the page)
+  if (typeof details.rawSnippet === 'string' && details.rawSnippet.trim()) {
+    return details.rawSnippet.trim()
+  }
+
+  // Good: compose from key_points
+  if (Array.isArray(details.key_points) && details.key_points.length > 0) {
+    const points = details.key_points
+      .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+      .slice(0, 4)
+    if (points.length > 0) {
+      const title = typeof details.title === 'string' ? details.title.trim() : ''
+      const prefix = title ? `${title}. ` : ''
+      return prefix + points.join('. ') + '.'
+    }
+  }
+
+  // Fallback: use title + subtitle if available
+  const title = typeof details.title === 'string' ? details.title.trim() : ''
+  const subtitle = typeof details.subtitle === 'string' ? details.subtitle.trim() : ''
+  if (title && subtitle) {
+    return `${title} — ${subtitle}`
+  }
+  if (title) {
+    return title
+  }
+
+  // Last resort: use raw summary but trim to first ~300 chars at a sentence boundary
+  if (rawSummary) {
+    const trimmed = rawSummary.slice(0, 400)
+    const lastSentence = trimmed.search(/[.!?]\s[A-Z]/)
+    if (lastSentence > 50) {
+      return trimmed.slice(0, lastSentence + 1)
+    }
+    return trimmed.length < rawSummary.length ? trimmed + '...' : trimmed
+  }
+
+  return ''
+}
+
+/**
  * Derive hashtags from the structured details returned by extract-url-summary.
- * Picks significant words from title, competition/series, venue, and hosts.
+ * Prioritises compound names (venue, competition, hosts) over individual title words.
  */
 function deriveHashtagsFromSummary(details: Record<string, unknown>): string[] {
   const candidates: string[] = []
 
-  // Extract keywords from title
-  if (typeof details.title === 'string' && details.title) {
-    const words = details.title
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
-    candidates.push(...words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
-  }
-
-  // Add competition/series as a single hashtag
-  if (typeof details.competitionOrSeries === 'string' && details.competitionOrSeries) {
-    candidates.push(details.competitionOrSeries.replace(/[^a-zA-Z0-9]/g, ''))
-  }
-
-  // Add venue name as a single hashtag
+  // Add venue name as a compound hashtag (e.g. "GameOver")
   if (typeof details.venueName === 'string' && details.venueName) {
     candidates.push(details.venueName.replace(/[^a-zA-Z0-9]/g, ''))
   }
 
-  // Add hosts
+  // Add competition/series as a compound hashtag
+  if (typeof details.competitionOrSeries === 'string' && details.competitionOrSeries) {
+    candidates.push(details.competitionOrSeries.replace(/[^a-zA-Z0-9]/g, ''))
+  }
+
+  // Add hosts as compound hashtags
   if (Array.isArray(details.hosts)) {
     for (const host of details.hosts) {
       if (typeof host === 'string' && host) {
         candidates.push(host.replace(/[^a-zA-Z0-9]/g, ''))
       }
     }
+  }
+
+  // Add location if present
+  if (typeof details.locationText === 'string' && details.locationText) {
+    // Take just the city/region (first word or two)
+    const location = details.locationText.replace(/[^a-zA-Z0-9]/g, '')
+    if (location.length > 2) {
+      candidates.push(location)
+    }
+  }
+
+  // Fill remaining slots from title keywords (filtered heavily)
+  if (typeof details.title === 'string' && details.title) {
+    const words = details.title
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !HASHTAG_STOP_WORDS.has(w.toLowerCase()))
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    candidates.push(...words)
   }
 
   // Deduplicate (case-insensitive) and limit to 5
@@ -694,8 +756,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           let hashAutoFilled = false
 
           // Auto-fill description if empty or was previously auto-filled
-          if (data.summary && (!prev.detail.trim() || autoFilled.description)) {
-            updates.detail = data.summary
+          const description = buildDescriptionFromSummary(data.details || {}, data.summary || '')
+          if (description && (!prev.detail.trim() || autoFilled.description)) {
+            updates.detail = description
             descAutoFilled = true
           }
 
