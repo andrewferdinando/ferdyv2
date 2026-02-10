@@ -32,12 +32,9 @@ export async function getSignedUrls(paths: string[]): Promise<Map<string, string
   const result = new Map<string, string>()
   if (paths.length === 0) return result
 
-  if (!supabase) {
-    throw new Error('Supabase client unavailable')
-  }
-
-  const now = Date.now()
+  // Separate cached from uncached
   const uncachedPaths: string[] = []
+  const now = Date.now()
 
   for (const path of paths) {
     const cached = signedUrlCache.get(path)
@@ -49,26 +46,17 @@ export async function getSignedUrls(paths: string[]): Promise<Map<string, string
   }
 
   if (uncachedPaths.length > 0) {
-    const { data, error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .createSignedUrls(uncachedPaths, 600)
+    // Resolve uncached paths in parallel using the proven singular API
+    const settled = await Promise.allSettled(
+      uncachedPaths.map(async (path) => {
+        const url = await getSignedUrl(path)
+        return { path, url }
+      })
+    )
 
-    if (error) {
-      console.error('Batch signed URL error:', error.message)
-    }
-
-    if (data) {
-      for (let i = 0; i < data.length; i++) {
-        const item = data[i]
-        const originalPath = uncachedPaths[i]
-        const url = item.signedUrl || (item as any).signedURL
-        if (url && originalPath) {
-          signedUrlCache.set(originalPath, {
-            url,
-            expires: now + 9 * 60 * 1000,
-          })
-          result.set(originalPath, url)
-        }
+    for (const entry of settled) {
+      if (entry.status === 'fulfilled') {
+        result.set(entry.value.path, entry.value.url)
       }
     }
   }
