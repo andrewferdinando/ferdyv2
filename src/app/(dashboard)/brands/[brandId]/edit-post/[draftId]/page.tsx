@@ -49,6 +49,7 @@ interface Draft {
     target_month: string;
   };
   assets?: Asset[];
+  subcategory_id?: string | null;
 }
 
 export default function EditPostPage() {
@@ -359,7 +360,7 @@ export default function EditPostPage() {
 
       const { data, error } = await supabase
         .from('drafts')
-        .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt, scheduled_for, scheduled_for_nzt, schedule_source, scheduled_by, publish_status, status')
+        .select('id, brand_id, post_job_id, channel, copy, hashtags, asset_ids, tone, generated_by, created_by, created_at, approved, created_at_nzt, scheduled_for, scheduled_for_nzt, schedule_source, scheduled_by, publish_status, status, subcategory_id')
         .eq('id', draftId)
         .eq('brand_id', brandId)
         .single();
@@ -845,7 +846,31 @@ export default function EditPostPage() {
         approved: updatePayload.approved,
         scheduled_for: updatePayload.scheduled_for,
       })
-      
+
+      // Delete any conflicting draft that would violate the unique constraint
+      // (same brand_id, scheduled_for, channel, schedule_source, subcategory_id but different id)
+      let conflictQuery = supabase
+        .from('drafts')
+        .delete()
+        .eq('brand_id', brandId)
+        .eq('scheduled_for', scheduledAt.toISOString())
+        .eq('channel', selectedChannels.join(','))
+        .eq('schedule_source', 'manual')
+        .neq('id', draftId);
+
+      if (draft?.subcategory_id) {
+        conflictQuery = conflictQuery.eq('subcategory_id', draft.subcategory_id);
+      } else {
+        conflictQuery = conflictQuery.is('subcategory_id', null);
+      }
+
+      const { error: deleteConflictError } = await conflictQuery;
+
+      if (deleteConflictError) {
+        console.warn('[approveAndScheduleDraft] Error cleaning up conflicting drafts:', deleteConflictError);
+        // Non-fatal: proceed with the update anyway
+      }
+
       const { data, error } = await supabase
         .from('drafts')
         .update(updatePayload)
