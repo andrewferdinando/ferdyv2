@@ -291,6 +291,14 @@ function formatAsBullets(text: string): string {
     bullets.push('• ' + trimmed)
   }
 
+  // Drop the last bullet if it looks truncated (API caps summary at ~900 chars)
+  if (bullets.length > 1) {
+    const last = bullets[bullets.length - 1]
+    if (!/[.!?:)"']$/.test(last)) {
+      bullets.pop()
+    }
+  }
+
   return bullets.join('\n')
 }
 
