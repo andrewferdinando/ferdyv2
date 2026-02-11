@@ -232,6 +232,26 @@ export async function fetchTeamState(brandId: string) {
     (authUsers.users || []).map((user) => [user.id, user]),
   )
 
+  // Check if a string looks like a real human name (not a username or email prefix)
+  function looksLikeRealName(value: string | null | undefined): value is string {
+    if (!value || !value.trim()) return false
+    const v = value.trim()
+    if (v.includes('@')) return false        // email address
+    if (v.includes('+')) return false         // email alias: "user+tag"
+    if (v.includes('.') && !v.includes(' ')) return false  // "first.last" username
+    if (/^\d+$/.test(v)) return false        // just digits
+    return true
+  }
+
+  // Format an email local part into a readable name: "john.smith+test" → "John Smith"
+  function formatEmailLocal(email: string): string {
+    const local = email.split('@')[0].split('+')[0]  // strip +alias
+    return local
+      .split(/[._-]/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ')
+  }
+
   // Resolve display name from best available source
   function resolveDisplayName(userId: string): { name: string; email: string } {
     const authUser = authUserMap.get(userId)
@@ -239,30 +259,24 @@ export async function fetchTeamState(brandId: string) {
     const profileName = profileMap.get(userId) ?? null
     const meta = authUser?.user_metadata as Record<string, unknown> | undefined
 
-    // Check profile full_name first — skip if it looks like an email
-    if (profileName && !profileName.includes('@') && profileName.trim().length > 0) {
+    // Check profile full_name first
+    if (looksLikeRealName(profileName)) {
       return { name: profileName.trim(), email }
     }
 
     // Try auth user_metadata fields
-    const metaFullName = typeof meta?.full_name === 'string' ? meta.full_name.trim() : ''
-    if (metaFullName && !metaFullName.includes('@')) {
-      return { name: metaFullName, email }
+    const metaFullName = typeof meta?.full_name === 'string' ? meta.full_name : ''
+    if (looksLikeRealName(metaFullName)) {
+      return { name: metaFullName.trim(), email }
     }
-    const metaName = typeof meta?.name === 'string' ? meta.name.trim() : ''
-    if (metaName && !metaName.includes('@')) {
-      return { name: metaName, email }
+    const metaName = typeof meta?.name === 'string' ? meta.name : ''
+    if (looksLikeRealName(metaName)) {
+      return { name: metaName.trim(), email }
     }
 
-    // Fall back to email local part (before @)
+    // Fall back to formatted email local part
     if (email) {
-      const local = email.split('@')[0]
-      // Capitalise and replace dots/underscores with spaces: "john.smith" → "John Smith"
-      const formatted = local
-        .split(/[._-]/)
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(' ')
-      return { name: formatted, email }
+      return { name: formatEmailLocal(email), email }
     }
 
     return { name: 'Unknown', email }
