@@ -529,10 +529,11 @@ export default function ContentLibraryPage() {
                 </button>
               </div>
               <div className="relative group">
-                <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
-                <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 whitespace-nowrap shadow-lg">
-                  Images: JPG or PNG, min 600×600px, max 30 MB<br />
-                  Videos: MP4 or MOV, min 500×500px, max 200 MB
+                <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">How the Library Works</span>
+                <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 w-80 shadow-lg">
+                  <p className="mb-2"><span className="font-bold">Upload</span> – Drag and drop or browse to add images and videos. Images: JPG/PNG, min 600×600px, max 30 MB. Videos: MP4/MOV, min 500×500px, max 200 MB.</p>
+                  <p className="mb-2"><span className="font-bold">Tag</span> – Every file must be tagged to at least one category before it can be used in posts. Untagged files appear in the <span className="font-bold">Needs Attention</span> tab.</p>
+                  <p><span className="font-bold">Rotate</span> – Tagged images rotate automatically through your scheduled posts in a round-robin cycle, so each one gets equal use.</p>
                 </div>
               </div>
             </div>
