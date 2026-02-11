@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Asset } from '@/hooks/assets/useAssets'
 
 const CROP_FORMATS = {
@@ -49,6 +49,7 @@ interface AssetCardProps {
 export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetCardProps) {
   const isVideo = asset.asset_type === 'video'
   const [generatedThumbnail, setGeneratedThumbnail] = useState<string | null>(null)
+  const [mainImgLoaded, setMainImgLoaded] = useState(false)
 
   const formatKey: keyof typeof CROP_FORMATS = !isVideo && (Object.keys(CROP_FORMATS) as Array<keyof typeof CROP_FORMATS>).includes(
     asset.aspect_ratio as keyof typeof CROP_FORMATS,
@@ -120,6 +121,14 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   const previewUrl = isVideo
     ? generatedThumbnail || asset.thumbnail_signed_url || undefined
     : asset.signed_url
+
+  // Reset loaded state when the URL changes (e.g. signed URL resolves)
+  const prevUrlRef = useRef(previewUrl)
+  if (prevUrlRef.current !== previewUrl) {
+    prevUrlRef.current = previewUrl
+    setMainImgLoaded(false)
+  }
+
   const canPreview = isVideo && typeof onPreview === 'function'
 
   const handlePreviewClick = () => {
@@ -160,29 +169,17 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
               </div>
             </div>
           ) : (
-            <img
-              src={previewUrl}
-              alt={asset.title}
-              loading="lazy"
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.style.display = 'none'
-                if (target.parentElement) {
-                  target.parentElement.innerHTML = `
-                    <div class="flex h-full items-center justify-center text-gray-400">
-                      <div class="text-center">
-                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <div class="text-xs">Preview unavailable</div>
-                        <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
-                      </div>
-                    </div>
-                  `
-                }
-              }}
-            />
+            <>
+              {!mainImgLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+              <img
+                src={previewUrl}
+                alt={asset.title}
+                loading="lazy"
+                className={`h-full w-full object-cover transition-opacity duration-300 ${mainImgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={() => setMainImgLoaded(true)}
+                onError={() => setMainImgLoaded(true)}
+              />
+            </>
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#6366F1] shadow">
@@ -264,30 +261,18 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
               </div>
             </div>
           ) : (
-            <img
-              src={previewUrl}
-              alt={asset.title}
-              loading="lazy"
-              className="h-full w-full object-cover"
-              draggable={false}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.style.display = 'none'
-                if (target.parentElement) {
-                  target.parentElement.innerHTML = `
-                    <div class="flex h-full items-center justify-center text-gray-400">
-                      <div class="text-center">
-                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <div class="text-xs">Preview unavailable</div>
-                        <div class="text-xs text-gray-300 break-all px-2">${asset.storage_path}</div>
-                      </div>
-                    </div>
-                  `
-                }
-              }}
-            />
+            <>
+              {!mainImgLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+              <img
+                src={previewUrl}
+                alt={asset.title}
+                loading="lazy"
+                className={`h-full w-full object-cover transition-opacity duration-300 ${mainImgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                draggable={false}
+                onLoad={() => setMainImgLoaded(true)}
+                onError={() => setMainImgLoaded(true)}
+              />
+            </>
           )}
           {isVideo && previewUrl && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">

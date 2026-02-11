@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { getSignedUrls } from '@/lib/storage/getSignedUrl'
+import { getSignedUrls, getSignedUrlsBatch } from '@/lib/storage/getSignedUrl'
 import type { ImageTransform } from '@/lib/storage/getSignedUrl'
 import type { Asset } from './useAssets'
 
@@ -37,26 +37,57 @@ export function useAssetUrls(assets: Asset[], transform?: ImageTransform) {
     async function resolve() {
       setLoading(true)
 
-      // Collect all unique paths that need signing
-      const pathSet = new Set<string>()
+      // Split paths: images need transforms, videos don't
+      const transformPaths = new Set<string>()
+      const plainPaths = new Set<string>()
+
       for (const asset of assets) {
-        if (asset.storage_path) pathSet.add(asset.storage_path)
         const isVideo = (asset.asset_type ?? 'image') === 'video'
+
+        if (asset.storage_path) {
+          if (transform && !isVideo) {
+            // Image main files: sign with transform for grid thumbnails
+            transformPaths.add(asset.storage_path)
+          } else {
+            // Video main files, or no transform requested: batch sign
+            plainPaths.add(asset.storage_path)
+          }
+        }
+
         const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
-        if (thumbPath && thumbPath !== asset.storage_path) pathSet.add(thumbPath)
+        if (thumbPath && thumbPath !== asset.storage_path) {
+          if (transform) {
+            // Thumbnail images: sign with transform
+            transformPaths.add(thumbPath)
+          } else {
+            plainPaths.add(thumbPath)
+          }
+        }
       }
 
       try {
-        const signed = await getSignedUrls(Array.from(pathSet), transform)
+        // Resolve both groups in parallel
+        const [transformedUrls, plainUrls] = await Promise.all([
+          transformPaths.size > 0
+            ? getSignedUrls(Array.from(transformPaths), transform)
+            : new Map<string, string>(),
+          plainPaths.size > 0
+            ? getSignedUrlsBatch(Array.from(plainPaths))
+            : new Map<string, string>(),
+        ])
+
         if (cancelled) return
+
+        // Merge results (transform URLs take priority for shared paths)
+        const allUrls = new Map([...plainUrls, ...transformedUrls])
 
         const next = new Map<string, AssetUrlEntry>()
         for (const asset of assets) {
           const isVideo = (asset.asset_type ?? 'image') === 'video'
           const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
           next.set(asset.id, {
-            signedUrl: signed.get(asset.storage_path),
-            thumbnailSignedUrl: thumbPath ? signed.get(thumbPath) : undefined,
+            signedUrl: allUrls.get(asset.storage_path),
+            thumbnailSignedUrl: thumbPath ? allUrls.get(thumbPath) : undefined,
           })
         }
         setUrlMap(next)

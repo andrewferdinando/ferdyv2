@@ -85,6 +85,49 @@ export async function getSignedUrls(
   return result
 }
 
+/**
+ * Batch-sign multiple paths in a single API call (no transform support).
+ * Uses Supabase's createSignedUrls (plural) endpoint — much faster than
+ * individual calls when transforms are not needed.
+ */
+export async function getSignedUrlsBatch(
+  paths: string[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>()
+  if (paths.length === 0) return result
+  if (!supabase) throw new Error('Supabase client unavailable')
+
+  const uncachedPaths: string[] = []
+  const now = Date.now()
+
+  for (const path of paths) {
+    const cached = signedUrlCache.get(path)
+    if (cached && cached.expires > now) {
+      result.set(path, cached.url)
+    } else {
+      uncachedPaths.push(path)
+    }
+  }
+
+  if (uncachedPaths.length > 0) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .createSignedUrls(uncachedPaths, 600)
+
+    if (!error && data) {
+      const expiresAt = now + 9 * 60 * 1000
+      for (const entry of data) {
+        if (entry.signedUrl && entry.path) {
+          result.set(entry.path, entry.signedUrl)
+          signedUrlCache.set(entry.path, { url: entry.signedUrl, expires: expiresAt })
+        }
+      }
+    }
+  }
+
+  return result
+}
+
 export function clearSignedUrlCache() {
   signedUrlCache.clear()
 }

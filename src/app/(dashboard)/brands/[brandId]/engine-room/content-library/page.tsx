@@ -266,7 +266,7 @@ export default function ContentLibraryPage() {
 
   const groupedVideoAssets = useMemo(() => {
     if (!isVideoFilter) return null
-    return filteredAssets.reduce<Record<VideoGroupKey, Asset[]>>(
+    return paginatedFilteredAssets.reduce<Record<VideoGroupKey, Asset[]>>(
       (acc, asset) => {
         const group = classifyVideoShape(asset)
         acc[group].push(asset)
@@ -278,7 +278,7 @@ export default function ContentLibraryPage() {
         landscape: [],
       },
     )
-  }, [filteredAssets, isVideoFilter])
+  }, [paginatedFilteredAssets, isVideoFilter])
 
   // Resolve signed URLs only for the assets currently visible on screen
   const visibleAssets = useMemo(() => {
@@ -286,10 +286,8 @@ export default function ContentLibraryPage() {
       if (editingAssetData) return [editingAssetData]
       return paginatedNeedsAttention
     }
-    // Ready tab: videos show all (grouped, no pagination), images are paginated
-    if (isVideoFilter) return filteredAssets
     return paginatedFilteredAssets
-  }, [activeTab, editingAssetData, paginatedNeedsAttention, isVideoFilter, filteredAssets, paginatedFilteredAssets])
+  }, [activeTab, editingAssetData, paginatedNeedsAttention, paginatedFilteredAssets])
 
   const { urlMap } = useAssetUrls(visibleAssets, GRID_THUMBNAIL)
 
@@ -671,6 +669,16 @@ export default function ContentLibraryPage() {
                               </div>
                             )
                           })}
+                          {hasMoreFiltered && (
+                            <div className="mt-6 flex justify-center">
+                              <button
+                                onClick={() => setVisibleCount(prev => prev + ASSETS_PER_PAGE)}
+                                className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                              >
+                                Load more ({filteredAssets.length - visibleCount} remaining)
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )
                     })()
