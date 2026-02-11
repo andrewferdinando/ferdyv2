@@ -116,7 +116,7 @@ export default function CategoriesPage() {
         setSubcategoriesLoading(true)
         const { data, error } = await supabase
           .from('subcategories')
-          .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings, setup_complete')
+          .select('*')
           .eq('brand_id', brandId)
           .order('name', { ascending: true })
 
@@ -146,7 +146,7 @@ export default function CategoriesPage() {
         try {
           const { data, error } = await supabase
             .from('subcategories')
-            .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings, setup_complete')
+            .select('*')
             .eq('brand_id', brandId)
             .order('name', { ascending: true })
 

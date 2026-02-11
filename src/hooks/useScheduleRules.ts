@@ -67,7 +67,7 @@ export function useScheduleRules(brandId: string) {
         .from('schedule_rules')
         .select(`
           *,
-          subcategories(name, detail, url, channels, default_hashtags, subcategory_type, settings, setup_complete)
+          subcategories(*)
         `)
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false });
