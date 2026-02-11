@@ -153,6 +153,7 @@ export default function ContentLibraryPage() {
   // Pagination
   const ASSETS_PER_PAGE = 12
   const [visibleCount, setVisibleCount] = useState(ASSETS_PER_PAGE)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   // Full-page drag-and-drop state
   const dragCounterRef = useRef(0)
@@ -257,6 +258,11 @@ export default function ContentLibraryPage() {
     setVisibleCount(ASSETS_PER_PAGE)
   }, [activeTab, searchQuery, mediaFilter])
 
+  const handleLoadMore = () => {
+    setLoadingMore(true)
+    setVisibleCount(prev => prev + ASSETS_PER_PAGE)
+  }
+
   const paginatedFilteredAssets = filteredAssets.slice(0, visibleCount)
   const paginatedNeedsAttention = needsAttentionAssets.slice(0, visibleCount)
   const hasMoreFiltered = filteredAssets.length > visibleCount
@@ -289,7 +295,12 @@ export default function ContentLibraryPage() {
     return paginatedFilteredAssets
   }, [activeTab, editingAssetData, paginatedNeedsAttention, paginatedFilteredAssets])
 
-  const { urlMap } = useAssetUrls(visibleAssets, GRID_THUMBNAIL)
+  const { urlMap, loading: urlsLoading } = useAssetUrls(visibleAssets, GRID_THUMBNAIL)
+
+  // Clear loading-more indicator once URLs finish resolving
+  useEffect(() => {
+    if (loadingMore && !urlsLoading) setLoadingMore(false)
+  }, [loadingMore, urlsLoading])
 
   const resolveAsset = useCallback((asset: Asset): Asset => {
     const entry = urlMap.get(asset.id)
@@ -610,10 +621,11 @@ export default function ContentLibraryPage() {
                     {hasMoreNeedsAttention && (
                       <div className="mt-6 flex justify-center">
                         <button
-                          onClick={() => setVisibleCount(prev => prev + ASSETS_PER_PAGE)}
-                          className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                          onClick={handleLoadMore}
+                          disabled={loadingMore}
+                          className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Load more ({needsAttentionAssets.length - visibleCount} remaining)
+                          {loadingMore ? 'Loading...' : `Load more (${needsAttentionAssets.length - visibleCount} remaining)`}
                         </button>
                       </div>
                     )}
@@ -672,10 +684,11 @@ export default function ContentLibraryPage() {
                           {hasMoreFiltered && (
                             <div className="mt-6 flex justify-center">
                               <button
-                                onClick={() => setVisibleCount(prev => prev + ASSETS_PER_PAGE)}
-                                className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                                onClick={handleLoadMore}
+                                disabled={loadingMore}
+                                className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                Load more ({filteredAssets.length - visibleCount} remaining)
+                                {loadingMore ? 'Loading...' : `Load more (${filteredAssets.length - visibleCount} remaining)`}
                               </button>
                             </div>
                           )}
@@ -699,10 +712,11 @@ export default function ContentLibraryPage() {
                       {hasMoreFiltered && (
                         <div className="mt-6 flex justify-center">
                           <button
-                            onClick={() => setVisibleCount(prev => prev + ASSETS_PER_PAGE)}
-                            className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                            onClick={handleLoadMore}
+                            disabled={loadingMore}
+                            className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Load more ({filteredAssets.length - visibleCount} remaining)
+                            {loadingMore ? 'Loading...' : `Load more (${filteredAssets.length - visibleCount} remaining)`}
                           </button>
                         </div>
                       )}

@@ -81,16 +81,20 @@ export function useAssetUrls(assets: Asset[], transform?: ImageTransform) {
         // Merge results (transform URLs take priority for shared paths)
         const allUrls = new Map([...plainUrls, ...transformedUrls])
 
-        const next = new Map<string, AssetUrlEntry>()
-        for (const asset of assets) {
-          const isVideo = (asset.asset_type ?? 'image') === 'video'
-          const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
-          next.set(asset.id, {
-            signedUrl: allUrls.get(asset.storage_path),
-            thumbnailSignedUrl: thumbPath ? allUrls.get(thumbPath) : undefined,
-          })
-        }
-        setUrlMap(next)
+        // Merge new entries into existing map to prevent previously-resolved
+        // URLs from disappearing during re-renders (e.g. after Load More)
+        setUrlMap(prev => {
+          const merged = new Map(prev)
+          for (const asset of assets) {
+            const isVideo = (asset.asset_type ?? 'image') === 'video'
+            const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
+            merged.set(asset.id, {
+              signedUrl: allUrls.get(asset.storage_path),
+              thumbnailSignedUrl: thumbPath ? allUrls.get(thumbPath) : undefined,
+            })
+          }
+          return merged
+        })
       } catch (err) {
         console.error('useAssetUrls: batch resolve failed', err)
       } finally {

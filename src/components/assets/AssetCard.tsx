@@ -122,11 +122,14 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
     ? generatedThumbnail || asset.thumbnail_signed_url || undefined
     : asset.signed_url
 
-  // Reset loaded state when the URL changes (e.g. signed URL resolves)
+  // Show skeleton while URL is being resolved (has storage_path but no signed URL yet)
+  const isWaitingForUrl = !previewUrl && !!asset.storage_path
+
+  // Reset loaded state when the URL changes to a different value
   const prevUrlRef = useRef(previewUrl)
   if (prevUrlRef.current !== previewUrl) {
     prevUrlRef.current = previewUrl
-    setMainImgLoaded(false)
+    if (previewUrl) setMainImgLoaded(false)
   }
 
   const canPreview = isVideo && typeof onPreview === 'function'
@@ -158,7 +161,9 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
           }
           aria-label={canPreview ? `Preview video ${asset.title}` : undefined}
         >
-          {!previewUrl ? (
+          {isWaitingForUrl ? (
+            <div className="absolute inset-0 skeleton-shimmer" />
+          ) : !previewUrl ? (
             <div className="flex h-full items-center justify-center text-gray-400">
               <div className="text-center">
                 <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,7 +175,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
             </div>
           ) : (
             <>
-              {!mainImgLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+              {!mainImgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
               <img
                 src={previewUrl}
                 alt={asset.title}
@@ -249,8 +254,10 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
         aria-label={`Edit ${asset.title}`}
       >
         {/* Fixed aspect ratio container - use 4:3 for consistent thumbnails */}
-        <div className="aspect-[4/3] w-full">
-          {!previewUrl ? (
+        <div className="aspect-[4/3] w-full relative">
+          {isWaitingForUrl ? (
+            <div className="absolute inset-0 skeleton-shimmer" />
+          ) : !previewUrl ? (
             <div className="flex h-full items-center justify-center text-gray-400">
               <div className="text-center">
                 <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,7 +269,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
             </div>
           ) : (
             <>
-              {!mainImgLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+              {!mainImgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
               <img
                 src={previewUrl}
                 alt={asset.title}

@@ -73,7 +73,7 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
       {/* Thumbnail */}
       {thumbUrl ? (
         <div className="relative w-full h-32">
-          {!imgLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+          {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
           <img
             src={thumbUrl}
             alt={asset.title}
@@ -94,13 +94,7 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
           )}
         </div>
       ) : (
-        <div className="w-full h-32 bg-gray-200 animate-pulse flex items-center justify-center text-xs text-gray-500">
-          {isVideo ? (
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-          ) : null}
-        </div>
+        <div className="w-full h-32 skeleton-shimmer" />
       )}
 
       {/* Usage badges */}
