@@ -2025,8 +2025,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return false
     }
 
-    setIsSaving(true)
-
+    // Note: isSaving is managed by handleFinish(), not here
     try {
       const subcategoryId = savedSubcategoryId
 
@@ -2598,8 +2597,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         type: 'error'
       })
       return false
-    } finally {
-      setIsSaving(false)
     }
   }
 
