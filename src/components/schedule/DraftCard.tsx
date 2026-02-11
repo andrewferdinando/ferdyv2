@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase-browser';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatDateTimeLocal } from '@/lib/utils/timezone';
+import OverdueApprovalModal from '@/components/schedule/OverdueApprovalModal';
+import { usePublishNow } from '@/hooks/usePublishNow';
 import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
 import type { PostJobSummary } from '@/types/postJobs';
 import { canonicalizeChannel, getChannelLabel, SUPPORTED_CHANNELS } from '@/lib/channels';
@@ -292,9 +294,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const [eventWindow, setEventWindow] = useState<{ start: string; end: string } | undefined>(undefined);
   const copyRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts } = useSocialAccounts(draft.brand_id);
   const { brand } = useBrand(draft.brand_id); // Fetch brand for timezone
+  const { publishNow } = usePublishNow();
   
   // Get category/subcategory names from draft (from drafts_with_labels view)
   const categoryName =
@@ -620,6 +624,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   // Allow approval without connected social accounts (APIs will be integrated later)
   const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
 
+  const isOverdue = effectiveStatus === 'draft'
+    && !draft.approved
+    && !!draft.scheduled_for
+    && new Date(draft.scheduled_for) < new Date();
+
   const formatDateTime = (dateString: string) => {
     if (!brand?.timezone) {
       // Fallback to browser local time if brand timezone not loaded
@@ -639,6 +648,13 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const getStatusBadge = () => {
     switch (effectiveStatus) {
       case 'draft':
+        if (isOverdue) {
+          return (
+            <span className="px-3 py-1 text-xs font-medium bg-red-100 text-red-800 border border-red-200 rounded-full">
+              Overdue
+            </span>
+          );
+        }
         return (
           <span className="px-3 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 rounded-full">
             Draft
@@ -775,6 +791,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
 
   const handleApprove = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    // If draft is overdue, show modal instead of approving directly
+    if (draft.scheduled_for && new Date(draft.scheduled_for) < new Date()) {
+      setIsOverdueModalOpen(true);
+      return;
+    }
     try {
       setIsLoading(true);
       await approveDraft(draft.id);
@@ -784,6 +805,27 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOverduePublishNow = async () => {
+    await approveDraft(draft.id);
+    await publishNow(draft.id, {
+      onSuccess: () => {
+        setIsOverdueModalOpen(false);
+        onUpdate();
+      },
+      onError: () => {
+        setIsOverdueModalOpen(false);
+        onUpdate();
+      },
+    });
+  };
+
+  const handleOverdueReschedule = async (newScheduledAtUtc: string) => {
+    await updateDraft(draft.id, { scheduled_at: newScheduledAtUtc });
+    await approveDraft(draft.id);
+    setIsOverdueModalOpen(false);
+    onUpdate();
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -876,10 +918,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
                 {/* Date/Time */}
-                <div className="flex items-center text-gray-500">
+                <div className={`flex items-center ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
                   <ClockIcon className="w-4 h-4" />
                   <span className="text-sm ml-2">
-                    {effectiveStatus === 'published' ? 'Published' : 
+                    {effectiveStatus === 'published' ? 'Published' :
+                     isOverdue ? 'Overdue' :
                      draft.scheduled_for ? 'Scheduled' : 'Created'} • {formatDateTime(
                       effectiveStatus === 'published' 
                         ? (draft.publishes?.published_at || draft.published_at || draft.scheduled_for || draft.post_jobs?.scheduled_at || draft.created_at)
@@ -953,6 +996,18 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
           </div>
         </div>
       </div>
+
+      {/* Overdue Approval Modal */}
+      {isOverdueModalOpen && brand?.timezone && draft.scheduled_for && (
+        <OverdueApprovalModal
+          isOpen={isOverdueModalOpen}
+          onClose={() => setIsOverdueModalOpen(false)}
+          draft={{ id: draft.id, scheduled_for: draft.scheduled_for }}
+          brandTimezone={brand.timezone}
+          onPublishNow={handleOverduePublishNow}
+          onReschedule={handleOverdueReschedule}
+        />
+      )}
 
       {/* Edit Modal */}
       {isEditModalOpen && (
