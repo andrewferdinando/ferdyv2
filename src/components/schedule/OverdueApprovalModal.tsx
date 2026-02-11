@@ -75,6 +75,9 @@ export default function OverdueApprovalModal({
     setIsProcessing(true);
     try {
       await onReschedule(newUtc.toISOString());
+    } catch (err) {
+      console.error('Failed to reschedule draft:', err);
+      setValidationError('Failed to reschedule. Please try again.');
     } finally {
       setIsProcessing(false);
     }

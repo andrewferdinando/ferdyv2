@@ -822,7 +822,21 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   };
 
   const handleOverdueReschedule = async (newScheduledAtUtc: string) => {
-    await updateDraft(draft.id, { scheduled_at: newScheduledAtUtc });
+    // Update drafts.scheduled_for directly (rpc_update_draft doesn't touch this column
+    // and requires copy/hashtags/asset_ids/channel which we don't want to re-send)
+    const { error: draftError } = await supabase
+      .from('drafts')
+      .update({ scheduled_for: newScheduledAtUtc })
+      .eq('id', draft.id);
+    if (draftError) throw draftError;
+
+    // Update all post_jobs for this draft with the new scheduled_at
+    const { error: jobsError } = await supabase
+      .from('post_jobs')
+      .update({ scheduled_at: newScheduledAtUtc })
+      .eq('draft_id', draft.id);
+    if (jobsError) throw jobsError;
+
     await approveDraft(draft.id);
     setIsOverdueModalOpen(false);
     onUpdate();
