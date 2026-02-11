@@ -41,6 +41,7 @@ interface ScheduleRule {
     default_hashtags: string[];
     subcategory_type?: string;
     settings?: any;
+    setup_complete?: boolean;
   } | null;
 }
 
@@ -66,7 +67,7 @@ export function useScheduleRules(brandId: string) {
         .from('schedule_rules')
         .select(`
           *,
-          subcategories(name, detail, url, channels, default_hashtags, subcategory_type, settings)
+          subcategories(name, detail, url, channels, default_hashtags, subcategory_type, settings, setup_complete)
         `)
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false });

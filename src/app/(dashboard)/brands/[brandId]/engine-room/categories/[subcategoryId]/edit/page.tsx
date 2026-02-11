@@ -121,7 +121,8 @@ export default function EditCategoryPage() {
             settings: subcategory.settings || {}
           },
           assets: assetIds,
-          eventOccurrenceType: eventOccurrenceType
+          eventOccurrenceType: eventOccurrenceType,
+          setup_complete: subcategory.setup_complete ?? true
         }
 
         // Add schedule rule data if available

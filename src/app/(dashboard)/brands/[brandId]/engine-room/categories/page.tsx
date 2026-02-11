@@ -103,6 +103,7 @@ export default function CategoriesPage() {
     channels?: string[] | null
     default_hashtags?: string[]
     settings?: any
+    setup_complete?: boolean
   }>>([])
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(true)
 
@@ -115,7 +116,7 @@ export default function CategoriesPage() {
         setSubcategoriesLoading(true)
         const { data, error } = await supabase
           .from('subcategories')
-          .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings')
+          .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings, setup_complete')
           .eq('brand_id', brandId)
           .order('name', { ascending: true })
 
@@ -145,7 +146,7 @@ export default function CategoriesPage() {
         try {
           const { data, error } = await supabase
             .from('subcategories')
-            .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings')
+            .select('id, name, subcategory_type, detail, url, channels, default_hashtags, settings, setup_complete')
             .eq('brand_id', brandId)
             .order('name', { ascending: true })
 
@@ -719,6 +720,7 @@ export default function CategoriesPage() {
                               subcategoryId: string
                               subcategoryName: string
                               isEvent: boolean
+                              setupComplete: boolean
                               eventRules?: typeof eventRules
                               regularRule?: typeof otherRules[0]
                               subcategoryWithoutRule?: typeof allSubcategories[0]
@@ -733,6 +735,7 @@ export default function CategoriesPage() {
                                 subcategoryId,
                                 subcategoryName: firstRule.subcategories?.name || '',
                                 isEvent: true,
+                                setupComplete: firstRule.subcategories?.setup_complete !== false,
                                 eventRules: groupRules
                               })
                             })
@@ -746,6 +749,7 @@ export default function CategoriesPage() {
                                   subcategoryId: rule.subcategory_id,
                                   subcategoryName: rule.subcategories?.name || '',
                                   isEvent: false,
+                                  setupComplete: rule.subcategories?.setup_complete !== false,
                                   regularRule: rule
                                 })
                               }
@@ -759,6 +763,7 @@ export default function CategoriesPage() {
                                   subcategoryId: sub.id,
                                   subcategoryName: sub.name,
                                   isEvent: false,
+                                  setupComplete: sub.setup_complete !== false,
                                   regularRule: undefined,
                                   subcategoryWithoutRule: sub
                                 })
@@ -859,7 +864,11 @@ export default function CategoriesPage() {
                                         </div>
                                       </td>
                                       <td className="px-6 py-4 text-sm">
-                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                        {subcat.setupComplete ? (
+                                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                        ) : (
+                                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">Draft</span>
+                                        )}
                                       </td>
                                       <td className="px-6 py-4 text-sm text-gray-500">
                                         <div className="flex space-x-2">
@@ -943,7 +952,11 @@ export default function CategoriesPage() {
                                         </div>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                        {subcat.setupComplete ? (
+                                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                                        ) : (
+                                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">Draft</span>
+                                        )}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <div className="flex space-x-2">

@@ -469,6 +469,7 @@ export interface WizardInitialData {
   }>
   assets?: string[] // Asset IDs
   eventOccurrenceType?: 'single' | 'range'
+  setup_complete?: boolean
 }
 
 interface WizardProps {
@@ -1470,7 +1471,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               ? `${details.post_time}:00`
               : details.post_time)
           : null,
-        settings: buildSubcategorySettings(details, subcategoryType, eventScheduling, eventOccurrenceType)
+        settings: buildSubcategorySettings(details, subcategoryType, eventScheduling, eventOccurrenceType),
+        setup_complete: false
       }
 
       const { data: subcategoryData, error: subcategoryError } = await supabase
@@ -2689,7 +2691,112 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       setIsSaving(true)
       try {
         const success = await ensureSubcategoryUpdated()
-        if (success) {
+        if (!success) {
+          // Error toast already shown by ensureSubcategoryUpdated
+          return
+        }
+
+        // If setup was incomplete (user abandoned wizard at Step 4), generate drafts now
+        const needsDraftGeneration = initialData?.setup_complete === false
+
+        if (needsDraftGeneration && savedSubcategoryId) {
+          // Link assets to subcategory tag (same logic as create-mode)
+          if (selectedAssetIds.length > 0) {
+            let tagId: string | null = null
+
+            const { data: subcategoryTag } = await supabase
+              .from('tags')
+              .select('id')
+              .eq('brand_id', brandId)
+              .eq('name', details.name.trim())
+              .eq('kind', 'subcategory')
+              .eq('is_active', true)
+              .maybeSingle()
+
+            if (subcategoryTag) {
+              tagId = subcategoryTag.id
+            } else {
+              const { data: newTag, error: createTagError } = await supabase
+                .from('tags')
+                .insert({
+                  brand_id: brandId,
+                  name: details.name.trim(),
+                  kind: 'subcategory',
+                  is_active: true
+                })
+                .select()
+                .single()
+
+              if (!createTagError && newTag) {
+                tagId = newTag.id
+              }
+            }
+
+            if (tagId) {
+              const { error: clearError } = await supabase
+                .from('asset_tags')
+                .delete()
+                .eq('tag_id', tagId)
+
+              if (clearError) {
+                console.error('[Wizard] Error clearing existing asset_tags:', clearError)
+              }
+
+              const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
+                asset_id: assetId,
+                tag_id: tagId,
+                position: index
+              }))
+
+              const { error: linkError } = await supabase
+                .from('asset_tags')
+                .insert(assetTagInserts)
+
+              if (linkError) {
+                console.error('[Wizard] Error linking assets to tag:', linkError)
+              }
+            }
+          }
+
+          // Delay to ensure asset_tags are committed
+          await new Promise(resolve => setTimeout(resolve, 1500))
+
+          // Generate drafts
+          try {
+            const response = await fetch('/api/drafts/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ brandId }),
+            })
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
+            } else {
+              const result = await response.json()
+              console.log('[draftGeneration] Drafts created successfully:', result)
+            }
+          } catch (err) {
+            console.error('[draftGeneration] Failed to generate drafts:', err)
+          }
+
+          // Mark setup as complete
+          const { error: setupCompleteError } = await supabase
+            .from('subcategories')
+            .update({ setup_complete: true })
+            .eq('id', savedSubcategoryId)
+
+          if (setupCompleteError) {
+            console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
+          }
+
+          showToast({
+            title: 'Category updated',
+            message: 'Your changes have been saved and drafts have been generated.',
+            type: 'success'
+          })
+          router.push(`/brands/${brandId}/schedule?tab=drafts`)
+        } else {
           showToast({
             title: 'Category updated',
             message: 'Your changes have been saved successfully.',
@@ -2697,7 +2804,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           })
           router.push(`/brands/${brandId}/engine-room/categories`)
         }
-        // If update failed, error toast already shown by ensureSubcategoryUpdated
       } catch (error) {
         console.error('[Wizard] Unexpected error in edit mode:', error)
         showToast({
@@ -2824,13 +2930,24 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         })
       }
 
+      // Mark setup as complete now that drafts have been generated
+      const { error: setupCompleteError } = await supabase
+        .from('subcategories')
+        .update({ setup_complete: true })
+        .eq('id', subcategoryId)
+
+      if (setupCompleteError) {
+        console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
+        // Non-fatal — category and drafts were created successfully
+      }
+
       // Show success message and redirect to Schedule page (Drafts tab)
       showToast({
         title: 'Category created successfully',
         message: 'Drafts have been generated. Go to the Schedule page (Drafts tab) to view and approve them for publication.',
         type: 'success'
       })
-      
+
       // Redirect to Schedule page (Drafts tab)
       router.push(`/brands/${brandId}/schedule?tab=drafts`)
     } catch (error) {
