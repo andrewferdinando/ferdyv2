@@ -211,7 +211,7 @@ export async function fetchTeamState(brandId: string) {
   }
 
   const profileMap = new Map(
-    (profiles ?? []).map((profile) => [profile.user_id, profile.full_name ?? 'Unknown']),
+    (profiles ?? []).map((profile) => [profile.user_id, profile.full_name ?? null]),
   )
 
   const { data: brand } = await supabaseAdmin
@@ -228,18 +228,57 @@ export async function fetchTeamState(brandId: string) {
     throw new Error('Unable to load team members')
   }
 
-  const emailMap = new Map(
-    (authUsers.users || []).map((user) => [user.id, user.email ?? '']),
+  const authUserMap = new Map(
+    (authUsers.users || []).map((user) => [user.id, user]),
   )
 
-  const members = (memberships || []).map((member) => ({
-    id: member.user_id,
-    email: emailMap.get(member.user_id) || '',
-    role: member.role,
-    created_at: member.created_at,
-    name: profileMap.get(member.user_id) ?? 'Unknown',
-    brand_name: brand?.name ?? '',
-  }))
+  // Resolve display name from best available source
+  function resolveDisplayName(userId: string): { name: string; email: string } {
+    const authUser = authUserMap.get(userId)
+    const email = authUser?.email ?? ''
+    const profileName = profileMap.get(userId) ?? null
+    const meta = authUser?.user_metadata as Record<string, unknown> | undefined
+
+    // Check profile full_name first — skip if it looks like an email
+    if (profileName && !profileName.includes('@') && profileName.trim().length > 0) {
+      return { name: profileName.trim(), email }
+    }
+
+    // Try auth user_metadata fields
+    const metaFullName = typeof meta?.full_name === 'string' ? meta.full_name.trim() : ''
+    if (metaFullName && !metaFullName.includes('@')) {
+      return { name: metaFullName, email }
+    }
+    const metaName = typeof meta?.name === 'string' ? meta.name.trim() : ''
+    if (metaName && !metaName.includes('@')) {
+      return { name: metaName, email }
+    }
+
+    // Fall back to email local part (before @)
+    if (email) {
+      const local = email.split('@')[0]
+      // Capitalise and replace dots/underscores with spaces: "john.smith" → "John Smith"
+      const formatted = local
+        .split(/[._-]/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ')
+      return { name: formatted, email }
+    }
+
+    return { name: 'Unknown', email }
+  }
+
+  const members = (memberships || []).map((member) => {
+    const { name, email } = resolveDisplayName(member.user_id)
+    return {
+      id: member.user_id,
+      email,
+      role: member.role,
+      created_at: member.created_at,
+      name,
+      brand_name: brand?.name ?? '',
+    }
+  })
 
   const { data: invites, error: invitesError } = await supabaseAdmin
     .from('brand_invites')
