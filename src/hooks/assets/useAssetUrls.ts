@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { getSignedUrls } from '@/lib/storage/getSignedUrl'
+import type { ImageTransform } from '@/lib/storage/getSignedUrl'
 import type { Asset } from './useAssets'
 
 export interface AssetUrlEntry {
@@ -7,15 +8,18 @@ export interface AssetUrlEntry {
   thumbnailSignedUrl?: string
 }
 
-export function useAssetUrls(assets: Asset[]) {
+export function useAssetUrls(assets: Asset[], transform?: ImageTransform) {
   const [urlMap, setUrlMap] = useState<Map<string, AssetUrlEntry>>(new Map())
   const [loading, setLoading] = useState(false)
   const prevKeyRef = useRef('')
 
-  // Build a stable key from the asset IDs so we only re-fetch when the set changes
+  // Build a stable key from the asset IDs and transform so we re-fetch when either changes
+  const transformKey = transform
+    ? `::w${transform.width ?? ''}h${transform.height ?? ''}q${transform.quality ?? ''}`
+    : ''
   const assetKey = useMemo(
-    () => assets.map((a) => a.id).join(','),
-    [assets],
+    () => assets.map((a) => a.id).join(',') + transformKey,
+    [assets, transformKey],
   )
 
   useEffect(() => {
@@ -43,7 +47,7 @@ export function useAssetUrls(assets: Asset[]) {
       }
 
       try {
-        const signed = await getSignedUrls(Array.from(pathSet))
+        const signed = await getSignedUrls(Array.from(pathSet), transform)
         if (cancelled) return
 
         const next = new Map<string, AssetUrlEntry>()
@@ -67,7 +71,7 @@ export function useAssetUrls(assets: Asset[]) {
     return () => {
       cancelled = true
     }
-  }, [assetKey, assets])
+  }, [assetKey, assets, transform])
 
   return { urlMap, loading }
 }

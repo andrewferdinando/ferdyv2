@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useAssetUrls } from '@/hooks/assets/useAssetUrls'
+import { GRID_THUMBNAIL } from '@/lib/storage/getSignedUrl'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import { useToast } from '@/components/ui/ToastProvider'
@@ -150,7 +151,7 @@ export default function ContentLibraryPage() {
   const { showToast } = useToast()
 
   // Pagination
-  const ASSETS_PER_PAGE = 30
+  const ASSETS_PER_PAGE = 12
   const [visibleCount, setVisibleCount] = useState(ASSETS_PER_PAGE)
 
   // Full-page drag-and-drop state
@@ -290,7 +291,7 @@ export default function ContentLibraryPage() {
     return paginatedFilteredAssets
   }, [activeTab, editingAssetData, paginatedNeedsAttention, isVideoFilter, filteredAssets, paginatedFilteredAssets])
 
-  const { urlMap } = useAssetUrls(visibleAssets)
+  const { urlMap } = useAssetUrls(visibleAssets, GRID_THUMBNAIL)
 
   const resolveAsset = useCallback((asset: Asset): Asset => {
     const entry = urlMap.get(asset.id)

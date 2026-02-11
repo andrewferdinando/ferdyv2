@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/ToastProvider'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
 import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls'
+import { GRID_THUMBNAIL } from '@/lib/storage/getSignedUrl'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import SortableAssetGrid, { type AssetUsageInfo } from '@/components/assets/SortableAssetGrid'
@@ -903,7 +904,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
     return result
   }, [assets, libraryVisibleCount, selectedAssetIds])
-  const { urlMap: wizardUrlMap } = useAssetUrls(wizardVisibleAssets)
+  const { urlMap: wizardUrlMap } = useAssetUrls(wizardVisibleAssets, GRID_THUMBNAIL)
   const resolvedAssets = React.useMemo(() => mergeAssetUrls(assets, wizardUrlMap), [assets, wizardUrlMap])
 
   // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued.
