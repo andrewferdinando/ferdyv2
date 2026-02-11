@@ -12,9 +12,7 @@ const FACEBOOK_SCOPES = [
   'pages_read_engagement',
   'pages_show_list',
   'instagram_basic',
-  'instagram_manage_insights',
   'instagram_content_publish',
-  'business_management',
 ].join(',')
 
 function getFacebookConfig() {
