@@ -866,6 +866,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [details.url])
 
   const [isSaving, setIsSaving] = useState(false)
+  const [finishStep, setFinishStep] = useState<'linking' | 'preparing' | 'generating' | 'done'>('linking')
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
     mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
   )
@@ -2773,6 +2774,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
     const subcategoryId = saveResult.subcategoryId
 
+    setFinishStep('linking')
     setIsSaving(true)
 
     try {
@@ -2847,8 +2849,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Trigger draft generation and wait for it to complete (shows in modal)
       // Delay to ensure asset_tags are fully committed and visible to RPC queries
       // This ensures rpc_pick_asset_for_rule can find the correctly tagged assets
+      setFinishStep('preparing')
       await new Promise(resolve => setTimeout(resolve, 1500))
 
+      setFinishStep('generating')
       try {
         const response = await fetch('/api/drafts/generate', {
           method: 'POST',
@@ -2888,6 +2892,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
         // Non-fatal — category and drafts were created successfully
       }
+
+      setFinishStep('done')
 
       // Show success message and redirect to Schedule page (Drafts tab)
       showToast({
@@ -4387,12 +4393,36 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           title="Creating category…"
           showCloseButton={false}
         >
-          <div className="flex flex-col items-center justify-center py-8">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#6366F1] border-t-transparent mb-4"></div>
-            <p className="text-gray-600 text-center">
-              Linking images and creating drafts for your category. This can take a few seconds.
-            </p>
-          </div>
+          {(() => {
+            const stepConfig = {
+              linking:    { pct: 15,  label: 'Linking images to category…' },
+              preparing:  { pct: 30,  label: 'Preparing draft generation…' },
+              generating: { pct: 60,  label: 'Generating drafts and writing copy…' },
+              done:       { pct: 100, label: 'Done! Redirecting…' },
+            }
+            const { pct, label } = stepConfig[finishStep]
+            return (
+              <div className="flex flex-col items-center justify-center py-8 px-2">
+                {/* Progress bar */}
+                <div className="w-full max-w-sm mb-5">
+                  <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#6366F1] transition-all duration-700 ease-in-out"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Current step label */}
+                <p className="text-sm font-medium text-gray-900 text-center mb-1">
+                  {label}
+                </p>
+                <p className="text-xs text-gray-500 text-center">
+                  This can take up to 2 minutes — please don't close this page.
+                </p>
+              </div>
+            )
+          })()}
         </Modal>
         
       </AppLayout>
