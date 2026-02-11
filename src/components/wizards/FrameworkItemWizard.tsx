@@ -2696,91 +2696,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           return
         }
 
-        // If setup was incomplete (user abandoned wizard at Step 4), generate drafts now
-        const needsDraftGeneration = initialData?.setup_complete === false
+        // If setup was incomplete (user abandoned wizard at Step 4), generate first drafts
+        const needsFirstDraftGeneration = initialData?.setup_complete === false
 
-        if (needsDraftGeneration && savedSubcategoryId) {
-          // Link assets to subcategory tag (same logic as create-mode)
-          if (selectedAssetIds.length > 0) {
-            let tagId: string | null = null
+        // Delay to ensure asset_tags from ensureSubcategoryUpdated are committed
+        await new Promise(resolve => setTimeout(resolve, 1500))
 
-            const { data: subcategoryTag } = await supabase
-              .from('tags')
-              .select('id')
-              .eq('brand_id', brandId)
-              .eq('name', details.name.trim())
-              .eq('kind', 'subcategory')
-              .eq('is_active', true)
-              .maybeSingle()
+        // Generate/regenerate drafts for all edit saves
+        try {
+          const response = await fetch('/api/drafts/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ brandId }),
+          })
 
-            if (subcategoryTag) {
-              tagId = subcategoryTag.id
-            } else {
-              const { data: newTag, error: createTagError } = await supabase
-                .from('tags')
-                .insert({
-                  brand_id: brandId,
-                  name: details.name.trim(),
-                  kind: 'subcategory',
-                  is_active: true
-                })
-                .select()
-                .single()
-
-              if (!createTagError && newTag) {
-                tagId = newTag.id
-              }
-            }
-
-            if (tagId) {
-              const { error: clearError } = await supabase
-                .from('asset_tags')
-                .delete()
-                .eq('tag_id', tagId)
-
-              if (clearError) {
-                console.error('[Wizard] Error clearing existing asset_tags:', clearError)
-              }
-
-              const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
-                asset_id: assetId,
-                tag_id: tagId,
-                position: index
-              }))
-
-              const { error: linkError } = await supabase
-                .from('asset_tags')
-                .insert(assetTagInserts)
-
-              if (linkError) {
-                console.error('[Wizard] Error linking assets to tag:', linkError)
-              }
-            }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
+          } else {
+            const result = await response.json()
+            console.log('[draftGeneration] Drafts created successfully:', result)
           }
+        } catch (err) {
+          console.error('[draftGeneration] Failed to generate drafts:', err)
+        }
 
-          // Delay to ensure asset_tags are committed
-          await new Promise(resolve => setTimeout(resolve, 1500))
-
-          // Generate drafts
-          try {
-            const response = await fetch('/api/drafts/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ brandId }),
-            })
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}))
-              console.error('[draftGeneration] Failed to generate drafts:', errorData.error || 'Unknown error')
-            } else {
-              const result = await response.json()
-              console.log('[draftGeneration] Drafts created successfully:', result)
-            }
-          } catch (err) {
-            console.error('[draftGeneration] Failed to generate drafts:', err)
-          }
-
-          // Mark setup as complete
+        if (needsFirstDraftGeneration && savedSubcategoryId) {
+          // Mark setup as complete now that drafts have been generated
           const { error: setupCompleteError } = await supabase
             .from('subcategories')
             .update({ setup_complete: true })
@@ -2799,7 +2741,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         } else {
           showToast({
             title: 'Category updated',
-            message: 'Your changes have been saved successfully.',
+            message: 'Your changes have been saved and drafts have been updated.',
             type: 'success'
           })
           router.push(`/brands/${brandId}/engine-room/categories`)
@@ -4241,10 +4183,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       {isSaving ? (
                         <>
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent mr-2" />
-                          Saving...
+                          {initialData?.setup_complete === false ? 'Generating drafts...' : 'Saving...'}
                         </>
                       ) : (
-                        'Save changes'
+                        initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save changes'
                       )}
                     </button>
                   </div>
