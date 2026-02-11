@@ -339,12 +339,20 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       let assetId: string | null = null;
       if (finalScheduleRuleId) {
         try {
-          // Get the subcategory's tag
-          const { data: tags } = await supabaseAdmin
-            .from('tags')
-            .select('id')
-            .eq('subcategory_id', target.subcategory_id)
-            .limit(1);
+          // Get the subcategory's tag via brand_id + name + kind (no subcategory_id column on tags)
+          const subcategoryName = subcategoryNameMap[target.subcategory_id];
+          let tags: { id: string }[] | null = null;
+          if (subcategoryName) {
+            const { data: tagRows } = await supabaseAdmin
+              .from('tags')
+              .select('id')
+              .eq('brand_id', brandId)
+              .eq('name', subcategoryName)
+              .eq('kind', 'subcategory')
+              .eq('is_active', true)
+              .limit(1);
+            tags = tagRows;
+          }
 
           if (tags && tags.length > 0) {
             const tagId = tags[0].id;
@@ -396,7 +404,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
               console.log(`[draftGeneration] Picked asset ${assetId} (position ${pickIndex}/${orderedAssetIds.length}) for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}`);
             }
           } else {
-            console.warn(`[draftGeneration] No tag found for subcategory ${target.subcategory_id}, skipping asset selection`);
+            console.warn(`[draftGeneration] No tag found for subcategory ${target.subcategory_id} (name: ${subcategoryName || 'unknown'}), skipping asset selection`);
           }
         } catch (error) {
           // Catch any errors and continue without asset

@@ -311,7 +311,10 @@ function formatAsBullets(text: string): string {
 function buildDescriptionFromSummary(details: Record<string, unknown>, rawSummary: string): string {
   // Primary: use the full summary text, cleaned up and formatted as bullets
   if (rawSummary && rawSummary.trim().length > 30) {
-    return formatAsBullets(cleanSummaryText(rawSummary))
+    const bulleted = formatAsBullets(cleanSummaryText(rawSummary))
+    if (bulleted) return bulleted
+    // formatAsBullets stripped everything — use raw summary as plain text
+    return rawSummary.trim()
   }
 
   // Fallback: compose from key_points if available
@@ -324,10 +327,16 @@ function buildDescriptionFromSummary(details: Record<string, unknown>, rawSummar
     }
   }
 
-  // Sparse fallback: rawSnippet if it's more than just a title
-  if (typeof details.rawSnippet === 'string' && details.rawSnippet.trim().length > 60) {
+  // Sparse fallback: rawSnippet (lowered threshold from 60 to 20)
+  if (typeof details.rawSnippet === 'string' && details.rawSnippet.trim().length > 20) {
     return details.rawSnippet.trim()
   }
+
+  // Last resort: use title + subtitle if available
+  const title = typeof details.title === 'string' ? details.title.trim() : ''
+  const subtitle = typeof details.subtitle === 'string' ? details.subtitle.trim() : ''
+  if (title && subtitle) return `${title}\n${subtitle}`
+  if (title && title.length > 10) return title
 
   return ''
 }

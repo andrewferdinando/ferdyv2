@@ -1141,17 +1141,12 @@ function applyFallbackExtraction(
     details: { ...currentDetails },
   };
   
-  // Only run fallback if summary is empty/short AND most details are missing
+  // Run fallback when summary is empty/short — even if some details were found.
+  // A page can have date/venue in meta tags but no extractable body text (JS-rendered).
   const isSummaryEmpty = !currentSummary || currentSummary.trim().length < 50;
-  const isMostlyEmpty = !currentDetails.date && 
-                       !currentDetails.dateText &&
-                       !currentDetails.venue && 
-                       !currentDetails.venueName &&
-                       !currentDetails.time &&
-                       !currentDetails.startTime;
-  
-  if (!isSummaryEmpty || !isMostlyEmpty) {
-    return result; // Don't run fallback if we already have good data
+
+  if (!isSummaryEmpty) {
+    return result; // Summary is good enough, skip fallback
   }
   
   // 1. Fallback title/summary from meta tags
