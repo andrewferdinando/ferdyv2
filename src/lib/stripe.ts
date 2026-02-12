@@ -34,3 +34,13 @@ export const STRIPE_CONFIG = {
 }
 
 export const GST_RATE_NZ = 0.15 // 15% GST for New Zealand businesses
+export const GST_COUNTRY_CODE = 'NZ'
+
+/**
+ * Returns the Stripe tax rate ID for NZ GST, or undefined if not configured.
+ * Set STRIPE_GST_TAX_RATE_ID in your environment after running:
+ *   npx tsx scripts/setup-stripe-gst.ts
+ */
+export function getGstTaxRateId(): string | undefined {
+  return process.env.STRIPE_GST_TAX_RATE_ID?.trim() || undefined
+}

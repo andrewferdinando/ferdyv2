@@ -1,4 +1,4 @@
-import { stripe, STRIPE_CONFIG } from './stripe'
+import { stripe, STRIPE_CONFIG, GST_COUNTRY_CODE, getGstTaxRateId } from './stripe'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -28,10 +28,11 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
   const { groupId, groupName, email, countryCode, brandCount = 1, couponCode } = params
 
   try {
-    // Create Stripe customer
+    // Create Stripe customer (include country for tax purposes)
     const customer = await stripe.customers.create({
       email,
       name: groupName,
+      ...(countryCode ? { address: { country: countryCode } } : {}),
       metadata: {
         group_id: groupId,
       },
@@ -54,6 +55,12 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       metadata: {
         group_id: groupId,
       },
+    }
+
+    // Apply NZ GST tax rate if customer is in New Zealand
+    const gstTaxRateId = getGstTaxRateId()
+    if (countryCode?.toUpperCase() === GST_COUNTRY_CODE && gstTaxRateId) {
+      subscriptionParams.default_tax_rates = [gstTaxRateId]
     }
 
     // Add coupon if provided (using discounts array for newer Stripe API)

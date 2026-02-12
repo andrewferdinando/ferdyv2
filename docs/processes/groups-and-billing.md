@@ -62,6 +62,29 @@ Group (Company/Agency)
 - **Proration**: Automatic when brands added/removed
 - **Mode**: Live (`STRIPE_MODE=live`)
 
+### GST (Tax)
+
+Ferdy is GST-registered in New Zealand. Tax handling:
+
+- **Tax Rate**: 15% GST, exclusive (added on top of the base price)
+- **Applied To**: NZ-based customers only (determined by `countryCode` at onboarding)
+- **Stripe Mechanism**: `default_tax_rates` on subscriptions (Stripe Tax Rates API)
+- **Env Variable**: `STRIPE_GST_TAX_RATE_ID` — the Stripe tax rate ID (e.g. `txr_...`)
+
+**How it works:**
+1. During onboarding, the customer's country code is saved on the Stripe customer's address
+2. If `countryCode` is `NZ` and `STRIPE_GST_TAX_RATE_ID` is set, the GST tax rate is added to `default_tax_rates` when creating the subscription
+3. Non-NZ customers get no tax rates applied
+4. GST appears as a separate line item on Stripe invoices
+
+**Setup scripts:**
+- `npx tsx scripts/setup-stripe-gst.ts` — Creates the GST tax rate in Stripe and audits existing subscriptions
+- `npx tsx scripts/apply-stripe-gst.ts <TAX_RATE_ID>` — Applies GST to existing NZ subscriptions that are missing it
+
+**Key files:**
+- `src/lib/stripe.ts` — `getGstTaxRateId()`, `GST_COUNTRY_CODE`
+- `src/lib/stripe-helpers.ts` — GST logic in `createStripeSubscription()`
+
 ### Coupons
 - `group20` - 20% off, forever
 - `agency40` - 40% off, forever
@@ -256,6 +279,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 STRIPE_PRODUCT_ID=prod_TsnRdORd80oMap
 STRIPE_PRICE_ID=price_1Sv1qkK7D1xWdfkZtBcDnXzf
 STRIPE_MODE=live
+STRIPE_GST_TAX_RATE_ID=txr_xxx  # Created by scripts/setup-stripe-gst.ts
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
