@@ -287,11 +287,15 @@ export async function GET(request: NextRequest) {
         socialStatus = statuses.some((s) => s === 'connected') ? 'active' : 'disconnected'
       }
 
-      // Last draft generated
+      // Last draft generated (framework/auto-generated only, not manual posts)
       let lastDraftGenerated: string | null = null
       let lastDraftObj: (typeof brandDrafts)[0] | null = null
       for (const d of brandDrafts) {
-        if (d.created_at && (!lastDraftGenerated || d.created_at > lastDraftGenerated)) {
+        if (
+          d.schedule_source === 'framework' &&
+          d.created_at &&
+          (!lastDraftGenerated || d.created_at > lastDraftGenerated)
+        ) {
           lastDraftGenerated = d.created_at
           lastDraftObj = d
         }
