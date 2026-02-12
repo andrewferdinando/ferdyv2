@@ -3,13 +3,11 @@ const BUCKET_NAME = 'ferdy-assets'
 
 export interface ImageTransform {
   width?: number
-  height?: number
   quality?: number
-  resize?: 'cover' | 'contain' | 'fill'
 }
 
-/** Thumbnail transform used by grid views: 400px wide, 75% quality */
-export const GRID_THUMBNAIL: ImageTransform = { width: 400, quality: 75 }
+/** Thumbnail transform used by grid views: 384px wide, 75% quality */
+export const GRID_THUMBNAIL: ImageTransform = { width: 384, quality: 75 }
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.avi', '.webm', '.mkv', '.m4v'])
 
@@ -19,26 +17,33 @@ function isVideoPath(path: string): boolean {
 }
 
 /**
+ * Build a plain public URL for a file in the ferdy-assets bucket.
+ * Synchronous — zero API calls.
+ */
+function plainPublicUrl(storagePath: string): string {
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${storagePath}`
+}
+
+/**
  * Build a public URL for a file in the ferdy-assets bucket.
  * Synchronous — zero API calls.
  *
- * If `transform` is provided and the path is NOT a video, returns an
- * Image Transforms render URL. Otherwise returns the plain public URL.
+ * If `transform` is provided and the path is NOT a video, returns a
+ * Vercel/Next.js image-optimization URL (/_next/image) that resizes
+ * and caches on the edge. Otherwise returns the plain public URL.
  */
 export function getPublicUrl(storagePath: string, transform?: ImageTransform): string {
   if (!storagePath) return ''
 
+  const plain = plainPublicUrl(storagePath)
+
   if (transform && !isVideoPath(storagePath)) {
-    const params = new URLSearchParams()
-    if (transform.width) params.set('width', String(transform.width))
-    if (transform.height) params.set('height', String(transform.height))
-    if (transform.quality) params.set('quality', String(transform.quality))
-    if (transform.resize) params.set('resize', transform.resize)
-    const qs = params.toString()
-    return `${SUPABASE_URL}/storage/v1/render/image/public/${BUCKET_NAME}/${storagePath}${qs ? `?${qs}` : ''}`
+    const w = transform.width ?? 384
+    const q = transform.quality ?? 75
+    return `/_next/image?url=${encodeURIComponent(plain)}&w=${w}&q=${q}`
   }
 
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${storagePath}`
+  return plain
 }
 
 /**
