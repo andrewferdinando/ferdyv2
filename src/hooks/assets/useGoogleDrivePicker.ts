@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { isGoogleDriveConfigured, getPickerConfig } from '@/lib/google-drive/config'
 import {
   validateGoogleDriveFiles,
@@ -87,10 +87,14 @@ interface UseGoogleDrivePickerOptions {
   onError?: (error: string) => void
 }
 
-// Script loading state
+// Module-level state (survives component remounts within the same page session)
 let gapiLoaded = false
 let gsiLoaded = false
 let pickerApiLoaded = false
+let cachedAccessToken: string | null = null
+let cachedTokenClient: { requestAccessToken: () => void } | null = null
+let pendingTokenResolve: ((token: string) => void) | null = null
+let pendingTokenReject: ((error: Error) => void) | null = null
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -116,8 +120,6 @@ export function useGoogleDrivePicker({
 }: UseGoogleDrivePickerOptions): UseGoogleDrivePickerResult {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const accessTokenRef = useRef<string | null>(null)
-  const tokenClientRef = useRef<{ requestAccessToken: () => void } | null>(null)
   const isConfigured = isGoogleDriveConfigured()
 
   // Initialize GAPI and GSI
@@ -154,7 +156,7 @@ export function useGoogleDrivePicker({
     }
   }, [])
 
-  // Get access token via OAuth
+  // Get access token via OAuth (token cached at module level to survive remounts)
   const getAccessToken = useCallback((): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (!isConfigured) {
@@ -162,33 +164,39 @@ export function useGoogleDrivePicker({
         return
       }
 
+      // Return cached token if available
+      if (cachedAccessToken) {
+        resolve(cachedAccessToken)
+        return
+      }
+
       const config = getPickerConfig()
 
-      if (!tokenClientRef.current) {
-        tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+      if (!cachedTokenClient) {
+        cachedTokenClient = window.google.accounts.oauth2.initTokenClient({
           client_id: config.clientId,
           scope: 'https://www.googleapis.com/auth/drive.file',
           callback: (response) => {
             if (response.error) {
-              reject(new Error(response.error))
+              pendingTokenReject?.(new Error(response.error))
+              pendingTokenResolve = null
+              pendingTokenReject = null
               return
             }
             if (response.access_token) {
-              accessTokenRef.current = response.access_token
-              resolve(response.access_token)
+              cachedAccessToken = response.access_token
+              pendingTokenResolve?.(response.access_token)
+              pendingTokenResolve = null
+              pendingTokenReject = null
             }
           },
         })
       }
 
-      // If we already have a token, use it
-      if (accessTokenRef.current) {
-        resolve(accessTokenRef.current)
-        return
-      }
-
-      // Request a new token
-      tokenClientRef.current.requestAccessToken()
+      // Store current promise's resolve/reject so the callback can find them
+      pendingTokenResolve = resolve
+      pendingTokenReject = reject
+      cachedTokenClient.requestAccessToken()
     })
   }, [isConfigured])
 
@@ -277,13 +285,6 @@ export function useGoogleDrivePicker({
       setLoading(false)
     }
   }, [isConfigured, initializeGoogleApis, getAccessToken, showPicker, onError])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      accessTokenRef.current = null
-    }
-  }, [])
 
   return {
     openPicker,
