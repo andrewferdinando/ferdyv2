@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react'
 import { useUploadAsset } from './useUploadAsset'
 
 const MAX_FILES = 10
+const MAX_CONCURRENT = 3
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 const MAX_IMAGE_SIZE = 30 * 1024 * 1024 // 30MB
@@ -90,10 +91,10 @@ export function useFileUpload({ brandId, onSuccess, onError }: UseFileUploadOpti
 
     const uploadedAssetIds: string[] = []
     const uploadErrors: string[] = [...validationErrors]
+    let completed = 0
 
-    // Sequential upload with skip-on-failure
-    for (let i = 0; i < validFiles.length; i++) {
-      const file = validFiles[i]
+    // Parallel upload with concurrency limit
+    const uploadOne = async (file: File) => {
       try {
         const assetId = await new Promise<string>((resolve, reject) => {
           uploadAsset({
@@ -109,7 +110,14 @@ export function useFileUpload({ brandId, onSuccess, onError }: UseFileUploadOpti
           `${file.name}: ${error instanceof Error ? error.message : 'Upload failed'}`
         )
       }
-      setCompletedFiles(i + 1)
+      completed++
+      setCompletedFiles(completed)
+    }
+
+    // Process files in batches of MAX_CONCURRENT
+    for (let i = 0; i < validFiles.length; i += MAX_CONCURRENT) {
+      const batch = validFiles.slice(i, i + MAX_CONCURRENT)
+      await Promise.all(batch.map(uploadOne))
     }
 
     setUploading(false)
