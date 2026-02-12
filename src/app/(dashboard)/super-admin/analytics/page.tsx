@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { supabase } from '@/lib/supabase-browser';
 import type { BrandHealthRow } from '@/app/api/super-admin/system-health/route';
@@ -16,15 +16,45 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
   draftCount: 'Total posts with "draft" status',
   scheduledCount: 'Total posts with "scheduled" status',
   publishedCount: 'Total posts with "published" status',
-  partialCount: 'Posts published to some channels but not all',
-  failedCount: 'Post jobs that failed to publish',
+  partialCount: 'Posts currently partially published',
+  failedCount: 'Post jobs currently in failed state',
   socialStatus: 'Whether the brand has any connected social account',
-  lastDraftGenerated: 'When the most recent draft was created',
+  lastDraftGenerated: 'When the most recent draft was created — click for details',
+  nextDraftGenerated: 'Furthest-out date with a generated draft — shows pipeline reach',
   nextScheduledPublish: 'Earliest upcoming scheduled post',
   lowMediaCount: 'Categories with fewer than 3 media assets',
   subscriptionStatus: 'Stripe subscription status via group',
   daysActive: 'Days since brand was created',
 };
+
+interface ColumnDef {
+  key: SortKey;
+  label: string;
+  align?: 'left' | 'right';
+}
+
+const ALL_COLUMNS: ColumnDef[] = [
+  { key: 'name', label: 'Brand', align: 'left' },
+  { key: 'draftsGenerated30d', label: 'Drafts 30d', align: 'right' },
+  { key: 'upcoming30d', label: 'Upcoming 30d', align: 'right' },
+  { key: 'draftCount', label: 'Draft', align: 'right' },
+  { key: 'scheduledCount', label: 'Scheduled', align: 'right' },
+  { key: 'publishedCount', label: 'Published', align: 'right' },
+  { key: 'partialCount', label: 'Partial', align: 'right' },
+  { key: 'failedCount', label: 'Failed', align: 'right' },
+  { key: 'socialStatus', label: 'Social', align: 'left' },
+  { key: 'lastDraftGenerated', label: 'Last Draft', align: 'left' },
+  { key: 'nextDraftGenerated', label: 'Next Draft', align: 'left' },
+  { key: 'nextScheduledPublish', label: 'Next Publish', align: 'left' },
+  { key: 'lowMediaCount', label: 'Low Media', align: 'right' },
+  { key: 'subscriptionStatus', label: 'Subscription', align: 'left' },
+  { key: 'daysActive', label: 'Days Active', align: 'right' },
+];
+
+const COLUMN_MAP = Object.fromEntries(ALL_COLUMNS.map((c) => [c.key, c]));
+
+// Default order of moveable columns (everything except Brand)
+const DEFAULT_MOVEABLE_KEYS: SortKey[] = ALL_COLUMNS.slice(1).map((c) => c.key);
 
 function hasIssues(row: BrandHealthRow): boolean {
   const lastDraftMs = row.lastDraftGenerated
@@ -118,69 +148,6 @@ function socialBadge(status: 'active' | 'disconnected' | 'none') {
   return <span className="text-xs text-gray-400">None</span>;
 }
 
-interface ColumnDef {
-  key: SortKey;
-  label: string;
-  align?: 'left' | 'right';
-}
-
-const COLUMNS: ColumnDef[] = [
-  { key: 'name', label: 'Brand', align: 'left' },
-  { key: 'draftsGenerated30d', label: 'Drafts 30d', align: 'right' },
-  { key: 'upcoming30d', label: 'Upcoming 30d', align: 'right' },
-  { key: 'draftCount', label: 'Draft', align: 'right' },
-  { key: 'scheduledCount', label: 'Scheduled', align: 'right' },
-  { key: 'publishedCount', label: 'Published', align: 'right' },
-  { key: 'partialCount', label: 'Partial', align: 'right' },
-  { key: 'failedCount', label: 'Failed', align: 'right' },
-  { key: 'socialStatus', label: 'Social', align: 'left' },
-  { key: 'lastDraftGenerated', label: 'Last Draft', align: 'left' },
-  { key: 'nextScheduledPublish', label: 'Next Publish', align: 'left' },
-  { key: 'lowMediaCount', label: 'Low Media', align: 'right' },
-  { key: 'subscriptionStatus', label: 'Subscription', align: 'left' },
-  { key: 'daysActive', label: 'Days Active', align: 'right' },
-];
-
-function HeaderCell({
-  col,
-  sortKey,
-  sortDir,
-  onSort,
-}: {
-  col: ColumnDef;
-  sortKey: SortKey;
-  sortDir: SortDir;
-  onSort: (key: SortKey) => void;
-}) {
-  const isActive = sortKey === col.key;
-  const tooltip = COLUMN_TOOLTIPS[col.key];
-  return (
-    <th
-      className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer select-none hover:text-gray-900 ${
-        col.align === 'right' ? 'text-right' : 'text-left'
-      }`}
-      onClick={() => onSort(col.key)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {col.label}
-        {tooltip && (
-          <span className="group relative">
-            <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-gray-300 text-[9px] text-gray-400 leading-none">
-              i
-            </span>
-            <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
-              {tooltip}
-            </span>
-          </span>
-        )}
-        {isActive && (
-          <span className="text-[10px]">{sortDir === 'asc' ? '▲' : '▼'}</span>
-        )}
-      </span>
-    </th>
-  );
-}
-
 function numCell(value: number, color?: string) {
   return <span className={color}>{value.toLocaleString()}</span>;
 }
@@ -197,6 +164,26 @@ export default function AnalyticsPage() {
 
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // Column order (moveable columns only — Brand is always first)
+  const [moveableKeys, setMoveableKeys] = useState<SortKey[]>(DEFAULT_MOVEABLE_KEYS);
+
+  // Drag state
+  const dragIdx = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  // Modal state
+  const [modal, setModal] = useState<{
+    title: string;
+    brandName: string;
+    content: React.ReactNode;
+  } | null>(null);
+
+  // Full ordered columns
+  const orderedColumns = useMemo(
+    () => [COLUMN_MAP['name'], ...moveableKeys.map((k) => COLUMN_MAP[k])],
+    [moveableKeys]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -247,6 +234,41 @@ export default function AnalyticsPage() {
     },
     [sortKey]
   );
+
+  // Drag handlers for column reorder
+  const handleDragStart = useCallback((moveIdx: number) => {
+    dragIdx.current = moveIdx;
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, moveIdx: number) => {
+    e.preventDefault();
+    setDragOverIdx(moveIdx);
+  }, []);
+
+  const handleDrop = useCallback(
+    (dropMoveIdx: number) => {
+      const fromIdx = dragIdx.current;
+      if (fromIdx === null || fromIdx === dropMoveIdx) {
+        dragIdx.current = null;
+        setDragOverIdx(null);
+        return;
+      }
+      setMoveableKeys((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(fromIdx, 1);
+        next.splice(dropMoveIdx, 0, moved);
+        return next;
+      });
+      dragIdx.current = null;
+      setDragOverIdx(null);
+    },
+    []
+  );
+
+  const handleDragEnd = useCallback(() => {
+    dragIdx.current = null;
+    setDragOverIdx(null);
+  }, []);
 
   const filtered = useMemo(() => {
     let rows = brands;
@@ -309,8 +331,8 @@ export default function AnalyticsPage() {
       lowMediaCount: 0,
       subIssueCount: 0,
       oldestLastDraft: null as string | null,
+      latestNextDraft: null as string | null,
       earliestNextPublish: null as string | null,
-      totalDaysActive: 0,
     };
 
     for (const r of rows) {
@@ -322,7 +344,6 @@ export default function AnalyticsPage() {
       sum.partialCount += r.partialCount;
       sum.failedCount += r.failedCount;
       sum.lowMediaCount += r.lowMediaCount;
-      sum.totalDaysActive += r.daysActive;
 
       if (r.socialStatus === 'disconnected') sum.disconnectedCount++;
       if (r.subscriptionStatus === 'past_due' || r.subscriptionStatus === 'canceled')
@@ -331,6 +352,11 @@ export default function AnalyticsPage() {
       if (r.lastDraftGenerated) {
         if (!sum.oldestLastDraft || r.lastDraftGenerated < sum.oldestLastDraft) {
           sum.oldestLastDraft = r.lastDraftGenerated;
+        }
+      }
+      if (r.nextDraftGenerated) {
+        if (!sum.latestNextDraft || r.nextDraftGenerated > sum.latestNextDraft) {
+          sum.latestNextDraft = r.nextDraftGenerated;
         }
       }
       if (r.nextScheduledPublish) {
@@ -342,6 +368,305 @@ export default function AnalyticsPage() {
 
     return sum;
   }, [filtered]);
+
+  // Render a summary cell by column key
+  function renderSummaryCell(key: SortKey) {
+    const align = COLUMN_MAP[key]?.align === 'right' ? 'text-right' : 'text-left';
+    const base = `px-3 py-2 text-xs ${align}`;
+
+    switch (key) {
+      case 'name':
+        return <td className={base}>All ({filtered.length})</td>;
+      case 'draftsGenerated30d':
+        return <td className={base}>{summary.draftsGenerated30d.toLocaleString()}</td>;
+      case 'upcoming30d':
+        return <td className={base}>{summary.upcoming30d.toLocaleString()}</td>;
+      case 'draftCount':
+        return <td className={base}>{summary.draftCount.toLocaleString()}</td>;
+      case 'scheduledCount':
+        return <td className={base}>{summary.scheduledCount.toLocaleString()}</td>;
+      case 'publishedCount':
+        return <td className={base}>{summary.publishedCount.toLocaleString()}</td>;
+      case 'partialCount':
+        return (
+          <td className={base}>
+            {summary.partialCount > 0 ? (
+              <span className="text-amber-600">{summary.partialCount}</span>
+            ) : (
+              summary.partialCount
+            )}
+          </td>
+        );
+      case 'failedCount':
+        return (
+          <td className={base}>
+            {summary.failedCount > 0 ? (
+              <span className="text-red-600">{summary.failedCount}</span>
+            ) : (
+              summary.failedCount
+            )}
+          </td>
+        );
+      case 'socialStatus':
+        return (
+          <td className={base}>
+            {summary.disconnectedCount > 0 ? (
+              <span className="text-red-600">{summary.disconnectedCount} disc.</span>
+            ) : (
+              <span className="text-green-600">All OK</span>
+            )}
+          </td>
+        );
+      case 'lastDraftGenerated':
+        return (
+          <td className={base}>
+            {summary.oldestLastDraft ? formatRelativeDate(summary.oldestLastDraft) : '—'}
+          </td>
+        );
+      case 'nextDraftGenerated':
+        return (
+          <td className={base}>
+            {summary.latestNextDraft ? formatFutureDate(summary.latestNextDraft) : '—'}
+          </td>
+        );
+      case 'nextScheduledPublish':
+        return (
+          <td className={base}>
+            {summary.earliestNextPublish ? formatFutureDate(summary.earliestNextPublish) : '—'}
+          </td>
+        );
+      case 'lowMediaCount':
+        return (
+          <td className={base}>
+            {summary.lowMediaCount > 0 ? (
+              <span className="text-amber-600">{summary.lowMediaCount}</span>
+            ) : (
+              summary.lowMediaCount
+            )}
+          </td>
+        );
+      case 'subscriptionStatus':
+        return (
+          <td className={base}>
+            {summary.subIssueCount > 0 ? (
+              <span className="text-red-600">{summary.subIssueCount} issues</span>
+            ) : (
+              <span className="text-green-600">All OK</span>
+            )}
+          </td>
+        );
+      case 'daysActive':
+        return <td className={base}>—</td>;
+      default:
+        return <td className={base}>—</td>;
+    }
+  }
+
+  // Open last draft modal
+  function openLastDraftModal(row: BrandHealthRow) {
+    if (!row.lastDraftInfo) return;
+    const d = row.lastDraftInfo;
+    setModal({
+      title: 'Last Generated Draft',
+      brandName: row.name,
+      content: (
+        <div className="space-y-3 text-sm">
+          <div>
+            <span className="font-medium text-gray-500">Status:</span>{' '}
+            <span className="capitalize">{d.status.replace('_', ' ')}</span>
+          </div>
+          {d.subcategoryName && (
+            <div>
+              <span className="font-medium text-gray-500">Category:</span> {d.subcategoryName}
+            </div>
+          )}
+          {d.scheduledFor && (
+            <div>
+              <span className="font-medium text-gray-500">Scheduled for:</span>{' '}
+              {new Date(d.scheduledFor).toLocaleDateString(undefined, {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          )}
+          <div>
+            <span className="font-medium text-gray-500">Created:</span>{' '}
+            {row.lastDraftGenerated
+              ? new Date(row.lastDraftGenerated).toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '—'}
+          </div>
+          {d.copy && (
+            <div>
+              <span className="font-medium text-gray-500">Copy:</span>
+              <p className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs text-gray-700 max-h-40 overflow-y-auto">
+                {d.copy}
+              </p>
+            </div>
+          )}
+          <div className="pt-2">
+            <Link
+              href={`/brands/${row.id}/edit-post/${d.id}`}
+              className="text-[#6366F1] hover:underline text-xs font-medium"
+              onClick={() => setModal(null)}
+            >
+              Open in editor
+            </Link>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // Open partial/failed modal
+  function openIdsModal(
+    title: string,
+    brandName: string,
+    brandId: string,
+    description: string,
+    ids: string[]
+  ) {
+    setModal({
+      title,
+      brandName,
+      content: (
+        <div className="space-y-2 text-sm">
+          <p className="text-gray-500">{description}</p>
+          <ul className="space-y-1">
+            {ids.map((id) => (
+              <li key={id}>
+                <Link
+                  href={`/brands/${brandId}/edit-post/${id}`}
+                  className="text-[#6366F1] hover:underline text-xs"
+                  onClick={() => setModal(null)}
+                >
+                  View post {id.slice(0, 8)}...
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    });
+  }
+
+  // Render a data cell by column key
+  function renderDataCell(key: SortKey, row: BrandHealthRow) {
+    switch (key) {
+      case 'name':
+        return (
+          <td className="px-3 py-2 text-xs whitespace-nowrap">
+            <Link
+              href={`/brands/${row.id}/schedule`}
+              className="text-[#6366F1] hover:underline font-medium"
+            >
+              {row.name}
+            </Link>
+          </td>
+        );
+      case 'draftsGenerated30d':
+        return (
+          <td className="px-3 py-2 text-right text-xs">
+            {numCell(row.draftsGenerated30d, row.draftsGenerated30d === 0 ? 'text-red-600 font-medium' : '')}
+          </td>
+        );
+      case 'upcoming30d':
+        return (
+          <td className="px-3 py-2 text-right text-xs">
+            {numCell(row.upcoming30d, row.upcoming30d === 0 ? 'text-amber-600 font-medium' : '')}
+          </td>
+        );
+      case 'draftCount':
+        return <td className="px-3 py-2 text-right text-xs">{row.draftCount.toLocaleString()}</td>;
+      case 'scheduledCount':
+        return <td className="px-3 py-2 text-right text-xs">{row.scheduledCount.toLocaleString()}</td>;
+      case 'publishedCount':
+        return <td className="px-3 py-2 text-right text-xs">{row.publishedCount.toLocaleString()}</td>;
+      case 'partialCount':
+        return (
+          <td
+            className={`px-3 py-2 text-right text-xs ${row.partialCount > 0 ? 'cursor-pointer' : ''}`}
+            onClick={() => {
+              if (row.partialCount > 0 && row.partialDraftIds.length > 0) {
+                openIdsModal(
+                  'Partially Published Posts',
+                  row.name,
+                  row.id,
+                  `${row.partialCount} post(s) published to some channels but not all.`,
+                  row.partialDraftIds
+                );
+              }
+            }}
+          >
+            {numCell(row.partialCount, row.partialCount > 0 ? 'text-amber-600 font-medium hover:underline' : '')}
+          </td>
+        );
+      case 'failedCount':
+        return (
+          <td
+            className={`px-3 py-2 text-right text-xs ${row.failedCount > 0 ? 'cursor-pointer' : ''}`}
+            onClick={() => {
+              if (row.failedCount > 0 && row.failedDraftIds.length > 0) {
+                openIdsModal(
+                  'Failed Posts',
+                  row.name,
+                  row.id,
+                  `${row.failedCount} post job(s) currently failed.`,
+                  row.failedDraftIds
+                );
+              }
+            }}
+          >
+            {numCell(row.failedCount, row.failedCount > 0 ? 'text-red-600 font-medium hover:underline' : '')}
+          </td>
+        );
+      case 'socialStatus':
+        return <td className="px-3 py-2 text-xs">{socialBadge(row.socialStatus)}</td>;
+      case 'lastDraftGenerated':
+        return (
+          <td
+            className={`px-3 py-2 text-xs whitespace-nowrap ${lastDraftColor(row.lastDraftGenerated)} ${row.lastDraftInfo ? 'cursor-pointer hover:underline' : ''}`}
+            onClick={() => openLastDraftModal(row)}
+          >
+            {formatRelativeDate(row.lastDraftGenerated)}
+          </td>
+        );
+      case 'nextDraftGenerated':
+        return (
+          <td className="px-3 py-2 text-xs whitespace-nowrap">
+            {formatFutureDate(row.nextDraftGenerated)}
+          </td>
+        );
+      case 'nextScheduledPublish':
+        return (
+          <td className={`px-3 py-2 text-xs whitespace-nowrap ${!row.nextScheduledPublish ? 'text-amber-600' : ''}`}>
+            {formatFutureDate(row.nextScheduledPublish)}
+          </td>
+        );
+      case 'lowMediaCount':
+        return (
+          <td className="px-3 py-2 text-right text-xs">
+            {numCell(row.lowMediaCount, row.lowMediaCount > 0 ? 'text-amber-600 font-medium' : '')}
+          </td>
+        );
+      case 'subscriptionStatus':
+        return <td className="px-3 py-2 text-xs">{subscriptionBadge(row.subscriptionStatus)}</td>;
+      case 'daysActive':
+        return <td className="px-3 py-2 text-right text-xs">{row.daysActive}</td>;
+      default:
+        return <td className="px-3 py-2 text-xs">—</td>;
+    }
+  }
 
   return (
     <AppLayout>
@@ -419,84 +744,59 @@ export default function AnalyticsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    {COLUMNS.map((col) => (
-                      <HeaderCell
-                        key={col.key}
-                        col={col}
-                        sortKey={sortKey}
-                        sortDir={sortDir}
-                        onSort={handleSort}
-                      />
-                    ))}
+                    {orderedColumns.map((col, colIdx) => {
+                      const isActive = sortKey === col.key;
+                      const tooltip = COLUMN_TOOLTIPS[col.key];
+                      const isBrand = col.key === 'name';
+                      // moveableIdx is the index within moveableKeys (colIdx - 1 since Brand is 0)
+                      const moveIdx = colIdx - 1;
+                      const isDragOver = !isBrand && dragOverIdx === moveIdx;
+
+                      return (
+                        <th
+                          key={col.key}
+                          className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer select-none hover:text-gray-900 ${
+                            col.align === 'right' ? 'text-right' : 'text-left'
+                          } ${isDragOver ? 'bg-indigo-50' : ''}`}
+                          onClick={() => handleSort(col.key)}
+                          draggable={!isBrand}
+                          onDragStart={!isBrand ? () => handleDragStart(moveIdx) : undefined}
+                          onDragOver={!isBrand ? (e) => handleDragOver(e, moveIdx) : undefined}
+                          onDrop={!isBrand ? () => handleDrop(moveIdx) : undefined}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {!isBrand && (
+                              <span className="text-gray-300 cursor-grab text-[10px]">⠿</span>
+                            )}
+                            {col.label}
+                            {tooltip && (
+                              <span
+                                title={tooltip}
+                                className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-gray-300 text-[9px] text-gray-400 leading-none cursor-help"
+                              >
+                                i
+                              </span>
+                            )}
+                            {isActive && (
+                              <span className="text-[10px]">
+                                {sortDir === 'asc' ? '▲' : '▼'}
+                              </span>
+                            )}
+                          </span>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {/* Summary row */}
                   <tr className="border-b border-gray-200 bg-gray-100 font-semibold text-gray-800">
-                    <td className="px-3 py-2 text-xs">
-                      All ({filtered.length})
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.draftsGenerated30d.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.upcoming30d.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.draftCount.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.scheduledCount.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.publishedCount.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.partialCount > 0 ? (
-                        <span className="text-amber-600">{summary.partialCount}</span>
-                      ) : (
-                        summary.partialCount
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.failedCount > 0 ? (
-                        <span className="text-red-600">{summary.failedCount}</span>
-                      ) : (
-                        summary.failedCount
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {summary.disconnectedCount > 0 ? (
-                        <span className="text-red-600">{summary.disconnectedCount} disc.</span>
-                      ) : (
-                        <span className="text-green-600">All OK</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {summary.oldestLastDraft
-                        ? formatRelativeDate(summary.oldestLastDraft)
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {summary.earliestNextPublish
-                        ? formatFutureDate(summary.earliestNextPublish)
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      {summary.lowMediaCount > 0 ? (
-                        <span className="text-amber-600">{summary.lowMediaCount}</span>
-                      ) : (
-                        summary.lowMediaCount
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {summary.subIssueCount > 0 ? (
-                        <span className="text-red-600">{summary.subIssueCount} issues</span>
-                      ) : (
-                        <span className="text-green-600">All OK</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">—</td>
+                    {orderedColumns.map((col) => (
+                      <React.Fragment key={col.key}>
+                        {renderSummaryCell(col.key)}
+                      </React.Fragment>
+                    ))}
                   </tr>
 
                   {/* Brand rows */}
@@ -505,64 +805,20 @@ export default function AnalyticsPage() {
                       key={row.id}
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">
-                        <Link
-                          href={`/brands/${row.id}/schedule`}
-                          className="text-[#6366F1] hover:underline font-medium"
-                        >
-                          {row.name}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">
-                        {numCell(
-                          row.draftsGenerated30d,
-                          row.draftsGenerated30d === 0 ? 'text-red-600 font-medium' : ''
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">
-                        {numCell(
-                          row.upcoming30d,
-                          row.upcoming30d === 0 ? 'text-amber-600 font-medium' : ''
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">{row.draftCount.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-xs">{row.scheduledCount.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-xs">{row.publishedCount.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-xs">
-                        {numCell(
-                          row.partialCount,
-                          row.partialCount > 0 ? 'text-amber-600 font-medium' : ''
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">
-                        {numCell(
-                          row.failedCount,
-                          row.failedCount > 0 ? 'text-red-600 font-medium' : ''
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs">{socialBadge(row.socialStatus)}</td>
-                      <td className={`px-3 py-2 text-xs whitespace-nowrap ${lastDraftColor(row.lastDraftGenerated)}`}>
-                        {formatRelativeDate(row.lastDraftGenerated)}
-                      </td>
-                      <td className={`px-3 py-2 text-xs whitespace-nowrap ${!row.nextScheduledPublish ? 'text-amber-600' : ''}`}>
-                        {formatFutureDate(row.nextScheduledPublish)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">
-                        {numCell(
-                          row.lowMediaCount,
-                          row.lowMediaCount > 0 ? 'text-amber-600 font-medium' : ''
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {subscriptionBadge(row.subscriptionStatus)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">{row.daysActive}</td>
+                      {orderedColumns.map((col) => (
+                        <React.Fragment key={col.key}>
+                          {renderDataCell(col.key, row)}
+                        </React.Fragment>
+                      ))}
                     </tr>
                   ))}
 
                   {sorted.length === 0 && (
                     <tr>
-                      <td colSpan={14} className="px-3 py-8 text-center text-sm text-gray-500">
+                      <td
+                        colSpan={orderedColumns.length}
+                        className="px-3 py-8 text-center text-sm text-gray-500"
+                      >
                         No brands match the current filters.
                       </td>
                     </tr>
@@ -573,6 +829,40 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+
+      {/* Detail modal */}
+      {modal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">{modal.title}</h3>
+                <p className="text-xs text-gray-500">{modal.brandName}</p>
+              </div>
+              <button
+                onClick={() => setModal(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            {modal.content}
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

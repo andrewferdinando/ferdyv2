@@ -42,8 +42,18 @@ export interface BrandHealthRow {
   publishedCount: number
   partialCount: number
   failedCount: number
+  failedDraftIds: string[]
+  partialDraftIds: string[]
   socialStatus: 'active' | 'disconnected' | 'none'
   lastDraftGenerated: string | null
+  lastDraftInfo: {
+    id: string
+    copy: string | null
+    status: string
+    scheduledFor: string | null
+    subcategoryName: string | null
+  } | null
+  nextDraftGenerated: string | null
   nextScheduledPublish: string | null
   lowMediaCount: number
   daysActive: number
@@ -68,16 +78,16 @@ export async function GET(request: NextRequest) {
           .select('id, name, group_id, timezone, created_at, groups(subscription_status)')
           .eq('status', 'active'),
 
-        // 2. Non-deleted drafts
+        // 2. Non-deleted drafts (include id/copy/subcategory for last-draft popup)
         supabaseAdmin
           .from('drafts')
-          .select('brand_id, status, created_at, scheduled_for')
+          .select('id, brand_id, status, created_at, scheduled_for, copy, subcategory_id, subcategories(name)')
           .not('status', 'eq', 'deleted'),
 
         // 3. Failed post_jobs
         supabaseAdmin
           .from('post_jobs')
-          .select('brand_id')
+          .select('brand_id, draft_id')
           .eq('status', 'failed'),
 
         // 4. Social accounts
@@ -124,8 +134,14 @@ export async function GET(request: NextRequest) {
     }
 
     const failedByBrand = new Map<string, number>()
+    const failedDraftIdsByBrand = new Map<string, Set<string>>()
     for (const j of failedJobs) {
       failedByBrand.set(j.brand_id, (failedByBrand.get(j.brand_id) ?? 0) + 1)
+      if (j.draft_id) {
+        const set = failedDraftIdsByBrand.get(j.brand_id) ?? new Set()
+        set.add(j.draft_id)
+        failedDraftIdsByBrand.set(j.brand_id, set)
+      }
     }
 
     const socialByBrand = new Map<string, string[]>()
@@ -166,12 +182,16 @@ export async function GET(request: NextRequest) {
       let scheduledCount = 0
       let publishedCount = 0
       let partialCount = 0
+      const partialDraftIds: string[] = []
 
       for (const d of brandDrafts) {
         if (d.status === 'draft') draftCount++
         else if (d.status === 'scheduled') scheduledCount++
         else if (d.status === 'published') publishedCount++
-        else if (d.status === 'partially_published') partialCount++
+        else if (d.status === 'partially_published') {
+          partialCount++
+          partialDraftIds.push(d.id)
+        }
       }
 
       // Failed post_jobs
@@ -186,9 +206,11 @@ export async function GET(request: NextRequest) {
 
       // Last draft generated
       let lastDraftGenerated: string | null = null
+      let lastDraftObj: (typeof brandDrafts)[0] | null = null
       for (const d of brandDrafts) {
         if (d.created_at && (!lastDraftGenerated || d.created_at > lastDraftGenerated)) {
           lastDraftGenerated = d.created_at
+          lastDraftObj = d
         }
       }
 
@@ -203,6 +225,14 @@ export async function GET(request: NextRequest) {
           if (!nextScheduledPublish || d.scheduled_for < nextScheduledPublish) {
             nextScheduledPublish = d.scheduled_for
           }
+        }
+      }
+
+      // Next draft generated: furthest-out scheduled_for from non-deleted drafts
+      let nextDraftGenerated: string | null = null
+      for (const d of brandDrafts) {
+        if (d.scheduled_for && (!nextDraftGenerated || d.scheduled_for > nextDraftGenerated)) {
+          nextDraftGenerated = d.scheduled_for
         }
       }
 
@@ -234,8 +264,20 @@ export async function GET(request: NextRequest) {
         publishedCount,
         partialCount,
         failedCount,
+        failedDraftIds: [...(failedDraftIdsByBrand.get(brand.id) ?? [])],
+        partialDraftIds,
         socialStatus,
         lastDraftGenerated,
+        lastDraftInfo: lastDraftObj
+          ? {
+              id: lastDraftObj.id,
+              copy: (lastDraftObj as any).copy ?? null,
+              status: lastDraftObj.status,
+              scheduledFor: lastDraftObj.scheduled_for,
+              subcategoryName: (lastDraftObj as any).subcategories?.name ?? null,
+            }
+          : null,
+        nextDraftGenerated,
         nextScheduledPublish,
         lowMediaCount,
         daysActive,
