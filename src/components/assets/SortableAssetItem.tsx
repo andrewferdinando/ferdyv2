@@ -30,7 +30,9 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
   }
 
   const isVideo = asset.asset_type === 'video'
-  const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
+  const thumbUrl = isVideo
+    ? asset.thumbnail_signed_url
+    : asset.thumbnail_signed_url || asset.signed_url
 
   const [imgLoaded, setImgLoaded] = useState(false)
   const prevUrlRef = useRef(thumbUrl)

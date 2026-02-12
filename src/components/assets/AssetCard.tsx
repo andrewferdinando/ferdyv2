@@ -120,7 +120,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
 
   const previewUrl = isVideo
     ? generatedThumbnail || asset.thumbnail_signed_url || undefined
-    : asset.signed_url
+    : asset.thumbnail_signed_url || asset.signed_url
 
   // Show skeleton while URL is being resolved (has storage_path but no signed URL yet)
   const isWaitingForUrl = !previewUrl && !!asset.storage_path

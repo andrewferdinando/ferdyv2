@@ -73,7 +73,7 @@ function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
   const isVideo = (asset.asset_type ?? 'image') === 'video';
   const previewUrl = useMemo(() => {
     if (asset.thumbnail_signed_url) return asset.thumbnail_signed_url;
-    if (!isVideo && asset.signed_url) return asset.signed_url;
+    if (!isVideo) return asset.thumbnail_signed_url || asset.signed_url || null;
     return null;
   }, [asset.thumbnail_signed_url, asset.signed_url, isVideo]);
   const fallbackUrl: string | null = null;

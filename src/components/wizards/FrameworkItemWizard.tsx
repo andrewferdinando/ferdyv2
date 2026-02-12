@@ -3897,7 +3897,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 {resolvedAssets.slice(0, libraryVisibleCount).map(asset => {
                   const isSelected = selectedAssetIds.includes(asset.id)
                   const isVideo = asset.asset_type === 'video'
-                  const thumbUrl = isVideo ? asset.thumbnail_signed_url : asset.signed_url
+                  const thumbUrl = asset.thumbnail_signed_url || asset.signed_url
                   return (
                     <button
                       key={asset.id}

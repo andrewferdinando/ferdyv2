@@ -1151,9 +1151,7 @@ export default function EditPostPage() {
                       {resolvedSelectedAssets.length > 0 ? (
                         resolvedSelectedAssets.map((asset) => {
                           const isVideo = (asset.asset_type ?? 'image') === 'video';
-                          const previewUrl = isVideo
-                            ? asset.thumbnail_signed_url || asset.signed_url
-                            : asset.signed_url || asset.thumbnail_signed_url;
+                          const previewUrl = asset.thumbnail_signed_url || asset.signed_url;
 
                           return (
                             <div key={asset.id} className="relative">
