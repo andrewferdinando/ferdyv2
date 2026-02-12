@@ -6,6 +6,8 @@ interface PublishProgressModalProps {
   isOpen: boolean
   message: string
   isComplete?: boolean
+  title?: string
+  completeTitle?: string
   onClose: () => void
 }
 
@@ -40,11 +42,13 @@ function useProgressTimer(isActive: boolean, estimatedMs = 30000) {
   return { progress, setProgress, elapsed }
 }
 
-export default function PublishProgressModal({ 
-  isOpen, 
-  message, 
+export default function PublishProgressModal({
+  isOpen,
+  message,
   isComplete = false,
-  onClose 
+  title,
+  completeTitle,
+  onClose
 }: PublishProgressModalProps) {
   const { progress } = useProgressTimer(isOpen && !isComplete, 30000)
 
@@ -61,7 +65,7 @@ export default function PublishProgressModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold mb-1 text-gray-950">
-          {isComplete ? 'Publishing complete' : 'Publishing your post…'}
+          {isComplete ? (completeTitle ?? 'Publishing complete') : (title ?? 'Publishing your post…')}
         </h2>
         <p className="text-sm text-gray-500 mb-4">
           {message}

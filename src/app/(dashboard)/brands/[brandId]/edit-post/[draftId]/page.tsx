@@ -86,7 +86,10 @@ export default function EditPostPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [postJobs, setPostJobs] = useState<PostJobSummary[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
-  
+  const [retryModalOpen, setRetryModalOpen] = useState(false);
+  const [retryModalMessage, setRetryModalMessage] = useState('');
+  const [retryModalComplete, setRetryModalComplete] = useState(false);
+
   // Use shared publish-now hook
   const {
     isPublishing: isPublishingNow,
@@ -677,6 +680,31 @@ export default function EditPostPage() {
     if (!draftId) return;
     try {
       setIsRetrying(true);
+      setRetryModalOpen(true);
+      setRetryModalComplete(false);
+      setRetryModalMessage('Saving changes and retrying failed channels…');
+
+      // Save current edits to the database first so the retry endpoint uses the latest data
+      const { supabase } = await import('@/lib/supabase-browser');
+      const { error: saveError } = await supabase
+        .from('drafts')
+        .update({
+          asset_ids: selectedAssets.map((a) => a.id),
+          copy: postCopy.trim(),
+          hashtags: normalizeHashtags(hashtags),
+        })
+        .eq('id', draftId)
+        .eq('brand_id', brandId);
+
+      if (saveError) {
+        console.error('Error saving draft before retry:', saveError);
+        setRetryModalMessage(`Failed to save changes: ${saveError.message}`);
+        setRetryModalComplete(true);
+        return;
+      }
+
+      setRetryModalMessage('Retrying failed channels…');
+
       const response = await fetch('/api/publishing/retry', {
         method: 'POST',
         headers: {
@@ -692,7 +720,7 @@ export default function EditPostPage() {
       }
 
       const result = await response.json();
-      
+
       // Update post_jobs state with the returned jobs
       if (result.jobs && Array.isArray(result.jobs)) {
         const normalized = result.jobs
@@ -751,34 +779,28 @@ export default function EditPostPage() {
       await fetchPostJobs();
       await loadDraft();
 
-      // Show success toast
+      // Build result summary for modal
       const successCount = result.jobs?.filter((j: { status: string }) => j.status === 'success').length ?? 0;
       const totalRetried = result.retried ?? 0;
-      if (successCount > 0) {
-        showToast({
-          title: 'Channels retried successfully',
-          message: `${successCount} of ${totalRetried} channel${totalRetried === 1 ? '' : 's'} published successfully.`,
-          type: 'success',
-        });
+      if (successCount > 0 && successCount === totalRetried) {
+        setRetryModalMessage(`All ${totalRetried} channel${totalRetried === 1 ? '' : 's'} published successfully.`);
+      } else if (successCount > 0) {
+        setRetryModalMessage(`${successCount} of ${totalRetried} channel${totalRetried === 1 ? '' : 's'} published successfully. Some channels still failed.`);
       } else if (totalRetried > 0) {
-        showToast({
-          title: 'Retry failed',
-          message: 'All channels failed to publish. Check your social account connections.',
-          type: 'error',
-        });
+        setRetryModalMessage('All channels failed to publish. Check your social account connections.');
+      } else {
+        setRetryModalMessage('No channels were retried.');
       }
+      setRetryModalComplete(true);
     } catch (err) {
       console.error('Failed to retry channels:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to retry channels. Please try again.';
-      showToast({
-        title: 'Retry failed',
-        message: errorMessage,
-        type: 'error',
-      });
+      setRetryModalMessage(errorMessage);
+      setRetryModalComplete(true);
     } finally {
       setIsRetrying(false);
     }
-  }, [draftId, fetchPostJobs, loadDraft, draft]);
+  }, [draftId, brandId, selectedAssets, postCopy, hashtags, fetchPostJobs, loadDraft, draft]);
 
   const approveAndScheduleDraft = async (navigateAfterSuccess = true): Promise<{ success: boolean; data?: Draft | null; error?: Error | unknown }> => {
     if (!postCopy.trim()) {
@@ -1602,6 +1624,16 @@ export default function EditPostPage() {
           message={publishModalMessage}
           isComplete={isPublishModalComplete}
           onClose={closePublishModal}
+        />
+
+        {/* Retry Progress Modal */}
+        <PublishProgressModal
+          isOpen={retryModalOpen}
+          message={retryModalMessage}
+          isComplete={retryModalComplete}
+          title="Retrying failed channels…"
+          completeTitle="Retry complete"
+          onClose={() => setRetryModalOpen(false)}
         />
       </AppLayout>
     </RequireAuth>

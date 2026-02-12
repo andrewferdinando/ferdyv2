@@ -651,7 +651,7 @@ export async function notifyPostPublishedBatched(
   // Get brand details
   const { data: brand, error: brandError } = await supabaseAdmin
     .from('brands')
-    .select('name, group_id, status')
+    .select('name, group_id, status, timezone')
     .eq('id', draft.brand_id)
     .single()
 
@@ -702,8 +702,10 @@ export async function notifyPostPublishedBatched(
 
   console.log(`[notifyPostPublishedBatched] Sending to ${uniqueEmails.length} unique recipients`)
 
-  // Format the published time
-  const publishedAt = new Date().toLocaleDateString('en-US', {
+  // Format the published time in the brand's timezone
+  const brandTz = brand.timezone || 'UTC'
+  const publishedAt = new Date().toLocaleString('en-US', {
+    timeZone: brandTz,
     month: 'short',
     day: 'numeric',
     year: 'numeric',
