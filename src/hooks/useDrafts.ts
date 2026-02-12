@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import type { Asset } from '@/hooks/assets/useAssets';
-import { getSignedUrl } from '@/lib/storage/getSignedUrl';
+import { getPublicUrl } from '@/lib/storage/publicUrl';
 import { fetchJobsByDraftId } from './usePostJobs';
 import type { PostJobSummary } from '@/types/postJobs';
 
@@ -500,10 +500,10 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
     return [];
   }
 
-  return Promise.all(data.map(mapRawAssetToAsset));
+  return data.map(mapRawAssetToAsset);
 }
 
-async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
+function mapRawAssetToAsset(raw: RawAsset): Asset {
   const tags: Tag[] = (raw.asset_tags || [])
     .map((at: any) => {
       const tag = Array.isArray(at.tags) ? at.tags[0] : at.tags;
@@ -519,24 +519,10 @@ async function mapRawAssetToAsset(raw: RawAsset): Promise<Asset> {
 
   const tagIds = tags.map((tag: any) => tag.id);
   const assetType = raw.asset_type === 'video' ? 'video' : 'image';
-
-  let signedUrl: string | undefined;
-  let thumbnailSignedUrl: string | undefined;
-
-  try {
-    signedUrl = await getSignedUrl(raw.storage_path);
-  } catch (err) {
-    console.error('Failed to generate signed url for asset', raw.id, err);
-  }
-
   const thumbnailPath = raw.thumbnail_url || (assetType === 'video' ? undefined : raw.storage_path);
-  if (thumbnailPath) {
-    try {
-      thumbnailSignedUrl = await getSignedUrl(thumbnailPath);
-    } catch (err) {
-      console.error('Failed to generate thumbnail signed url for asset', raw.id, err);
-    }
-  }
+
+  const signedUrl = raw.storage_path ? getPublicUrl(raw.storage_path) : undefined;
+  const thumbnailSignedUrl = thumbnailPath ? getPublicUrl(thumbnailPath) : undefined;
 
   const imageCrops = raw.image_crops
     ? Object.fromEntries(

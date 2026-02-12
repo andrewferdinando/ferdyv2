@@ -6,7 +6,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
-import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { localToUtc } from '@/lib/utils/timezone';
@@ -66,27 +65,9 @@ export default function NewPostPage() {
 
   const assetsForActiveTab = assetTab === 'videos' ? videoAssets : imageAssets
 
-  // Resolve signed URLs for visible assets (modal grid + selected inline)
-  const newPostVisibleAssets = useMemo(() => {
-    const result = [...assetsForActiveTab]
-    if (selectedAsset && !result.some(a => a.id === selectedAsset.id)) {
-      result.push(selectedAsset)
-    }
-    return result
-  }, [assetsForActiveTab, selectedAsset])
-  const { urlMap: newPostUrlMap } = useAssetUrls(newPostVisibleAssets)
-  const resolvedAssetsForTab = useMemo(() => mergeAssetUrls(assetsForActiveTab, newPostUrlMap), [assetsForActiveTab, newPostUrlMap])
-
-  const resolvedSelectedAsset = useMemo(() => {
-    if (!selectedAsset) return null
-    const entry = newPostUrlMap.get(selectedAsset.id)
-    if (!entry) return selectedAsset
-    return {
-      ...selectedAsset,
-      signed_url: entry.signedUrl ?? selectedAsset.signed_url,
-      thumbnail_signed_url: entry.thumbnailSignedUrl ?? selectedAsset.thumbnail_signed_url,
-    }
-  }, [selectedAsset, newPostUrlMap])
+  // Assets already have public URLs populated by useAssets
+  const resolvedAssetsForTab = assetsForActiveTab
+  const resolvedSelectedAsset = selectedAsset
 
   const selectedPreviewUrl = useMemo(() => {
     if (!resolvedSelectedAsset) return ''

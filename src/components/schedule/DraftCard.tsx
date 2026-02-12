@@ -70,19 +70,13 @@ type DraftAsset = {
 };
 
 function DraftAssetPreview({ asset }: { asset: DraftAsset }) {
-  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const isVideo = (asset.asset_type ?? 'image') === 'video';
   const previewUrl = useMemo(() => {
     if (asset.thumbnail_signed_url) return asset.thumbnail_signed_url;
     if (!isVideo && asset.signed_url) return asset.signed_url;
     return null;
   }, [asset.thumbnail_signed_url, asset.signed_url, isVideo]);
-
-  useEffect(() => {
-    if (previewUrl) return;
-    const { data } = supabase.storage.from('ferdy-assets').getPublicUrl(asset.thumbnail_url || asset.storage_path);
-    setFallbackUrl(data.publicUrl);
-  }, [previewUrl, asset.thumbnail_url, asset.storage_path]);
+  const fallbackUrl: string | null = null;
 
   const formatKey = (Object.keys(FORMAT_RATIOS) as Array<keyof typeof FORMAT_RATIOS>).includes(
     asset.aspect_ratio as keyof typeof FORMAT_RATIOS,

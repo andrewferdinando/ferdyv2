@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Asset } from '@/hooks/assets/useAssets';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
-import { getSignedUrl } from '@/lib/storage/getSignedUrl';
+import { getPublicUrl } from '@/lib/storage/publicUrl';
 
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
 
@@ -206,34 +206,27 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
     return [];
   }
 
-  const assets = (data as RawAsset[]).map((raw: any) => ({
-    id: raw.id,
-    brand_id: raw.brand_id,
-    title: raw.title,
-    storage_path: raw.storage_path,
-    aspect_ratio: raw.aspect_ratio,
-    crop_windows: raw.crop_windows,
-    image_crops: raw.image_crops,
-    width: raw.width,
-    height: raw.height,
-    created_at: raw.created_at,
-    asset_type: raw.asset_type,
-    mime_type: raw.mime_type,
-    file_size: raw.file_size,
-    thumbnail_url: raw.thumbnail_url,
-    duration_seconds: raw.duration_seconds,
-  }));
-
-  // Attempt to generate signed URLs for assets
-  const withSignedUrls = await Promise.all(
-    assets.map(async (asset) => {
-      const signedUrl = await getSignedUrl(asset.storage_path);
-      return {
-        ...asset,
-        signed_url: signedUrl,
-      };
-    }),
-  );
-
-  return withSignedUrls as Asset[];
+  return (data as RawAsset[]).map((raw: any) => {
+    const assetType = raw.asset_type === 'video' ? 'video' : 'image';
+    const thumbnailPath = raw.thumbnail_url || (assetType === 'video' ? undefined : raw.storage_path);
+    return {
+      id: raw.id,
+      brand_id: raw.brand_id,
+      title: raw.title,
+      storage_path: raw.storage_path,
+      aspect_ratio: raw.aspect_ratio,
+      crop_windows: raw.crop_windows,
+      image_crops: raw.image_crops,
+      width: raw.width,
+      height: raw.height,
+      created_at: raw.created_at,
+      asset_type: raw.asset_type,
+      mime_type: raw.mime_type,
+      file_size: raw.file_size,
+      thumbnail_url: raw.thumbnail_url,
+      duration_seconds: raw.duration_seconds,
+      signed_url: raw.storage_path ? getPublicUrl(raw.storage_path) : undefined,
+      thumbnail_signed_url: thumbnailPath ? getPublicUrl(thumbnailPath) : undefined,
+    };
+  }) as Asset[];
 }

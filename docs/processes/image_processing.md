@@ -313,20 +313,15 @@ Sharp is used server-side only. It provides:
 - Processed images are cached (stored permanently).
 - No re-processing unless crops change.
 
-### Lazy Asset URL Loading (Signed URLs)
+### Public Asset URLs
 
-Assets are stored in private Supabase Storage buckets and require signed URLs for browser display. `useAssets` uses a two-phase approach internally:
-
-1. **Phase 1 — Fast metadata load** — `useAssets` fetches all asset rows from the DB in a single query, sets state immediately with `signed_url: undefined`, and flips `loading` to `false`. The page renders instantly with placeholder thumbnails.
-
-2. **Phase 2 — Background URL resolution** — In the same `fetchAssets` call (after Phase 1), `useAssets` resolves signed URLs for all assets in parallel via individual `getSignedUrl()` calls, then calls `setAssets(withUrls)` to update state. A `fetchIdRef` counter prevents stale Phase 2 results from overwriting newer data.
+The `ferdy-assets` Supabase Storage bucket is **public**. All asset URLs are constructed synchronously with zero API calls using `getPublicUrl()` from `src/lib/storage/publicUrl.ts`.
 
 **Key files:**
-- `src/lib/storage/getSignedUrl.ts` — `getSignedUrl()` (singular) and `getSignedUrls()` (parallel batch). Both share a 9-minute in-memory cache (`signedUrlCache`).
-- `src/hooks/assets/useAssets.ts` — Two-phase fetch: instant metadata render, then background URL resolution.
-- `src/hooks/assets/useAssetUrls.ts` — Legacy `useAssetUrls(assets)` hook + `mergeAssetUrls()` helper (still imported by some consumers as a pass-through, but URLs are populated by `useAssets` Phase 2).
+- `src/lib/storage/publicUrl.ts` — `getPublicUrl(storagePath, transform?)` builds a public URL synchronously. `resolveAssetUrls(asset, transform?)` populates `signed_url` and `thumbnail_signed_url` on an asset object. Exports `GRID_THUMBNAIL` constant for grid views.
+- `src/hooks/assets/useAssets.ts` — Calls `resolveAssetUrls()` in `mapAsset()` so every asset has URLs immediately on first render. No async resolution, no Phase 2.
 
-**Performance:** Before this change, loading 125+ assets required 250+ sequential signed URL API calls blocking the initial render. Now the DB query renders instantly (Phase 1) and URL resolution happens in parallel in the background (Phase 2).
+**Performance:** URLs are available instantly — zero API calls, zero async state, zero re-renders for URL resolution.
 
 ### Future Improvements
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase-browser'
-import { getSignedUrl } from '@/lib/storage/getSignedUrl'
+import { resolveAssetUrls, GRID_THUMBNAIL } from '@/lib/storage/publicUrl'
 
 export interface Asset {
   id: string
@@ -90,19 +90,19 @@ function mapAsset(asset: AssetFromDB): Asset {
       ]),
     )
 
-  return {
+  const base = {
     ...asset,
     asset_type: assetType,
     mime_type: asset.mime_type,
     file_size: asset.file_size,
     duration_seconds: asset.duration_seconds,
     thumbnail_url: thumbnailPath || null,
-    signed_url: undefined,
-    thumbnail_signed_url: undefined,
     tags: assetTags,
     tag_ids: tagIds,
     image_crops: imageCrops ?? undefined,
-  } as Asset
+  }
+
+  return resolveAssetUrls(base, GRID_THUMBNAIL) as Asset
 }
 
 export interface UseAssetsOptions {
@@ -167,39 +167,8 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
         ? mapped.filter((asset) => !assetsNeedingTagsIds.has(asset.id))
         : mapped
 
-      // Phase 1: instant render with metadata only (no signed URLs)
       setAssets(filteredAssets)
       setLoading(false)
-
-      // Phase 2: resolve signed URLs in background, then update state
-      if (filteredAssets.length > 0) {
-        try {
-          const withUrls = await Promise.all(
-            filteredAssets.map(async (asset) => {
-              try {
-                const signedUrl = asset.storage_path
-                  ? await getSignedUrl(asset.storage_path)
-                  : undefined
-                const isVideo = (asset.asset_type ?? 'image') === 'video'
-                const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
-                const thumbnailSignedUrl = thumbPath && thumbPath !== asset.storage_path
-                  ? await getSignedUrl(thumbPath)
-                  : thumbPath === asset.storage_path
-                    ? signedUrl
-                    : undefined
-                return { ...asset, signed_url: signedUrl, thumbnail_signed_url: thumbnailSignedUrl }
-              } catch {
-                return asset
-              }
-            }),
-          )
-          if (currentFetchId === fetchIdRef.current) {
-            setAssets(withUrls)
-          }
-        } catch (urlErr) {
-          console.error('useAssets: URL resolution failed', urlErr)
-        }
-      }
     } catch (err) {
       if (currentFetchId === fetchIdRef.current) {
         console.error('Error fetching assets:', err)
@@ -276,28 +245,7 @@ export function useAssets(brandId: string, options?: UseAssetsOptions) {
 
       const mapped: Asset[] = (data || []).map((asset: AssetFromDB) => mapAsset(asset))
 
-      // Resolve signed URLs before returning
-      const withUrls = await Promise.all(
-        mapped.map(async (asset: Asset) => {
-          try {
-            const signedUrl = asset.storage_path
-              ? await getSignedUrl(asset.storage_path)
-              : undefined
-            const isVideo = (asset.asset_type ?? 'image') === 'video'
-            const thumbPath = asset.thumbnail_url || (isVideo ? undefined : asset.storage_path)
-            const thumbnailSignedUrl = thumbPath && thumbPath !== asset.storage_path
-              ? await getSignedUrl(thumbPath)
-              : thumbPath === asset.storage_path
-                ? signedUrl
-                : undefined
-            return { ...asset, signed_url: signedUrl, thumbnail_signed_url: thumbnailSignedUrl }
-          } catch {
-            return asset
-          }
-        }),
-      )
-
-      return withUrls
+      return mapped
     } catch (err) {
       console.error('Error fetching assets needing tags:', err)
       throw err

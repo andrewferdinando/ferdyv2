@@ -12,8 +12,6 @@ import { supabase } from '@/lib/supabase-browser'
 import { useToast } from '@/components/ui/ToastProvider'
 import { normalizeHashtags } from '@/lib/utils/hashtags'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
-import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls'
-import { GRID_THUMBNAIL } from '@/lib/storage/getSignedUrl'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import SortableAssetGrid, { type AssetUsageInfo } from '@/components/assets/SortableAssetGrid'
@@ -887,25 +885,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   const { assets, loading: assetsLoading, refetch: refetchAssets } = useAssets(brandId)
 
-  // Resolve signed URLs only for assets visible on screen (library grid + selected assets)
-  const wizardVisibleAssets = React.useMemo(() => {
-    const seen = new Set<string>()
-    const result: Asset[] = []
-    // Library grid (paginated)
-    for (const a of assets.slice(0, libraryVisibleCount)) {
-      if (!seen.has(a.id)) { seen.add(a.id); result.push(a) }
-    }
-    // Selected assets shown in SortableAssetGrid
-    for (const id of selectedAssetIds) {
-      if (!seen.has(id)) {
-        const a = assets.find(x => x.id === id)
-        if (a) { seen.add(a.id); result.push(a) }
-      }
-    }
-    return result
-  }, [assets, libraryVisibleCount, selectedAssetIds])
-  const { urlMap: wizardUrlMap } = useAssetUrls(wizardVisibleAssets, GRID_THUMBNAIL)
-  const resolvedAssets = React.useMemo(() => mergeAssetUrls(assets, wizardUrlMap), [assets, wizardUrlMap])
+  const resolvedAssets = assets
 
   // Asset usage data (edit mode only): tracks how many times each asset has been published or is queued.
   // NOTE: Only drafts with asset_ids populated are counted. Historical drafts created before

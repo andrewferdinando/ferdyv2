@@ -1,5 +1,6 @@
 import { decryptToken } from '@/lib/encryption'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { getPublicUrl } from '@/lib/storage/publicUrl'
 
 const GRAPH_API_VERSION = 'v19.0'
 
@@ -494,21 +495,18 @@ async function getAssetSignedUrl(assetId: string): Promise<{ url: string; assetT
       })
     }
 
-    const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
-      .from('ferdy-assets')
-      .createSignedUrl(storagePath, 3600) // 1 hour expiry
+    const publicUrl = getPublicUrl(storagePath)
 
-    if (urlError || !signedUrlData?.signedUrl) {
-      console.warn('[facebook publish] Failed to create signed URL', {
+    if (!publicUrl) {
+      console.warn('[facebook publish] Failed to build public URL', {
         assetId,
         storagePath,
         usingProcessed,
-        error: urlError,
       })
       return null
     }
 
-    return { url: signedUrlData.signedUrl, assetType }
+    return { url: publicUrl, assetType }
   } catch (error) {
     console.error('[facebook publish] Error getting asset signed URL', {
       assetId,

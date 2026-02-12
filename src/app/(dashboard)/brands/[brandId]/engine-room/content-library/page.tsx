@@ -5,15 +5,13 @@ import { useParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { useAssets, Asset } from '@/hooks/assets/useAssets'
-import { useAssetUrls } from '@/hooks/assets/useAssetUrls'
-import { GRID_THUMBNAIL } from '@/lib/storage/getSignedUrl'
 import { useDeleteAsset } from '@/hooks/assets/useDeleteAsset'
 import { useFileUpload } from '@/hooks/assets/useFileUpload'
 import { useToast } from '@/components/ui/ToastProvider'
 import AssetUploadMenu from '@/components/assets/AssetUploadMenu'
 import AssetCard from '@/components/assets/AssetCard'
 import TagSelector from '@/components/assets/TagSelector'
-import { getSignedUrl } from '@/lib/storage/getSignedUrl'
+import { getPublicUrl } from '@/lib/storage/publicUrl'
 
 // Search Icon Component
 const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -286,31 +284,10 @@ export default function ContentLibraryPage() {
     )
   }, [paginatedFilteredAssets, isVideoFilter])
 
-  // Resolve signed URLs only for the assets currently visible on screen
-  const visibleAssets = useMemo(() => {
-    if (activeTab === 'needs_attention') {
-      if (editingAssetData) return [editingAssetData]
-      return paginatedNeedsAttention
-    }
-    return paginatedFilteredAssets
-  }, [activeTab, editingAssetData, paginatedNeedsAttention, paginatedFilteredAssets])
-
-  const { urlMap, loading: urlsLoading } = useAssetUrls(visibleAssets, GRID_THUMBNAIL)
-
-  // Clear loading-more indicator once URLs finish resolving
+  // Clear loading-more indicator on next render tick
   useEffect(() => {
-    if (loadingMore && !urlsLoading) setLoadingMore(false)
-  }, [loadingMore, urlsLoading])
-
-  const resolveAsset = useCallback((asset: Asset): Asset => {
-    const entry = urlMap.get(asset.id)
-    if (!entry) return asset
-    return {
-      ...asset,
-      signed_url: entry.signedUrl ?? asset.signed_url,
-      thumbnail_signed_url: entry.thumbnailSignedUrl ?? asset.thumbnail_signed_url,
-    }
-  }, [urlMap])
+    if (loadingMore) setLoadingMore(false)
+  }, [loadingMore])
 
   const filterOptions: { key: MediaFilterValue; label: string }[] = [
     { key: 'images', label: 'Images' },
@@ -584,12 +561,11 @@ export default function ContentLibraryPage() {
               (() => {
                 // If editingAssetData is set, show the detail view for that asset
                 if (editingAssetData) {
-                  const resolved = resolveAsset(editingAssetData)
                   return (
                     <AssetDetailView
                       key={editingAssetData.id}
-                      asset={resolved}
-                      originalAssetData={resolved}
+                      asset={editingAssetData}
+                      originalAssetData={editingAssetData}
                       onBack={handleBackToGrid}
                       onUpdate={handleAssetUpdate}
                       brandId={brandId}
@@ -610,7 +586,7 @@ export default function ContentLibraryPage() {
                       {paginatedNeedsAttention.map((asset) => (
                         <div key={asset.id}>
                           <AssetCard
-                            asset={resolveAsset(asset)}
+                            asset={asset}
                             onEdit={handleEditNeedsAttentionAsset}
                             onDelete={handleDeleteAsset}
                             onPreview={handlePreviewAsset}
@@ -670,7 +646,7 @@ export default function ContentLibraryPage() {
                                   {groupAssets.map((asset) => (
                                     <div key={asset.id}>
                                       <AssetCard
-                                        asset={resolveAsset(asset)}
+                                        asset={asset}
                                         onEdit={handleEditAsset}
                                         onDelete={handleDeleteAsset}
                                         onPreview={handlePreviewAsset}
@@ -701,7 +677,7 @@ export default function ContentLibraryPage() {
                         {paginatedFilteredAssets.map((asset) => (
                           <div key={asset.id}>
                             <AssetCard
-                              asset={resolveAsset(asset)}
+                              asset={asset}
                               onEdit={handleEditAsset}
                               onDelete={handleDeleteAsset}
                               onPreview={handlePreviewAsset}
@@ -1469,35 +1445,9 @@ function AssetDetailView({
 }
 
 function VideoPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
-  const [signedUrl, setSignedUrl] = useState<string | null>(asset.signed_url ?? null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const signedUrl = asset.signed_url || getPublicUrl(asset.storage_path)
 
   useEffect(() => {
-    let isActive = true
-
-    const refreshSignedUrl = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const freshUrl = await getSignedUrl(asset.storage_path)
-        if (!isActive) return
-        setSignedUrl(freshUrl ?? asset.signed_url ?? null)
-      } catch (err) {
-        console.error('Error generating signed URL for video preview:', err)
-        if (isActive) {
-          setError('Unable to load this video right now.')
-          setSignedUrl(null)
-        }
-      } finally {
-        if (isActive) {
-          setLoading(false)
-        }
-      }
-    }
-
-    refreshSignedUrl()
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose()
@@ -1507,10 +1457,9 @@ function VideoPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => vo
     window.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      isActive = false
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [asset, onClose])
+  }, [onClose])
 
   const handleOverlayClick = () => {
     onClose()
@@ -1554,15 +1503,7 @@ function VideoPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => vo
           </div>
 
           <div className="flex items-center justify-center bg-black">
-            {loading ? (
-              <div className="flex h-[60vh] w-full items-center justify-center text-white/80">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
-              </div>
-            ) : error ? (
-              <div className="flex h-[60vh] w-full items-center justify-center px-6 text-center text-sm text-red-300">
-                {error}
-              </div>
-            ) : signedUrl ? (
+            {signedUrl ? (
               <video
                 key={signedUrl}
                 controls

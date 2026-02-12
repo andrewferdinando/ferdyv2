@@ -6,7 +6,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import Modal from '@/components/ui/Modal';
 import { useAssets, Asset } from '@/hooks/assets/useAssets';
-import { useAssetUrls, mergeAssetUrls } from '@/hooks/assets/useAssetUrls';
 import { normalizeHashtags } from '@/lib/utils/hashtags';
 import { useBrand } from '@/hooks/useBrand';
 import { utcToLocalDate, utcToLocalTime, localToUtc } from '@/lib/utils/timezone';
@@ -114,21 +113,9 @@ export default function EditPostPage() {
 
   const assetsForActiveTab = assetTab === 'videos' ? videoAssets : imageAssets;
 
-  // Resolve signed URLs for visible assets (modal grid + selected inline)
-  const editPostVisibleAssets = useMemo(() => {
-    const seen = new Set<string>();
-    const result: Asset[] = [];
-    for (const a of assetsForActiveTab) {
-      if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
-    }
-    for (const a of selectedAssets) {
-      if (!seen.has(a.id)) { seen.add(a.id); result.push(a); }
-    }
-    return result;
-  }, [assetsForActiveTab, selectedAssets]);
-  const { urlMap: editPostUrlMap } = useAssetUrls(editPostVisibleAssets);
-  const resolvedAssetsForTab = useMemo(() => mergeAssetUrls(assetsForActiveTab, editPostUrlMap), [assetsForActiveTab, editPostUrlMap]);
-  const resolvedSelectedAssets = useMemo(() => mergeAssetUrls(selectedAssets, editPostUrlMap), [selectedAssets, editPostUrlMap]);
+  // Assets already have public URLs populated by useAssets
+  const resolvedAssetsForTab = assetsForActiveTab;
+  const resolvedSelectedAssets = selectedAssets;
 
   const selectedMediaTypes = useMemo(() => {
     const types = new Set<'image' | 'video'>();
