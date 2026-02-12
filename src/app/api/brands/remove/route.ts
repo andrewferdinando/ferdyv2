@@ -115,11 +115,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Soft-delete the brand in Supabase FIRST
+    const now = new Date().toISOString()
     const { error: updateError } = await supabaseAdmin
       .from('brands')
-      .update({ 
+      .update({
         status: 'inactive',
-        updated_at: new Date().toISOString()
+        deleted_at: now,
+        updated_at: now
       })
       .eq('id', brandId)
 
@@ -129,6 +131,28 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to update brand status' },
         { status: 500 }
       )
+    }
+
+    // 6b. Archive active schedule_rules for the deleted brand
+    const { error: rulesError } = await supabaseAdmin
+      .from('schedule_rules')
+      .update({ archived_at: now })
+      .eq('brand_id', brandId)
+      .is('archived_at', null)
+
+    if (rulesError) {
+      console.error('[remove-brand] Failed to archive schedule_rules:', rulesError)
+    }
+
+    // 6c. Cancel pending post_jobs for the deleted brand
+    const { error: jobsError } = await supabaseAdmin
+      .from('post_jobs')
+      .update({ status: 'canceled' })
+      .eq('brand_id', brandId)
+      .in('status', ['pending', 'ready', 'generated'])
+
+    if (jobsError) {
+      console.error('[remove-brand] Failed to cancel post_jobs:', jobsError)
     }
 
     // 7. Count ACTUAL active brands in Supabase

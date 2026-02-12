@@ -31,6 +31,7 @@ export default function AccountBrandSettingsPage() {
           .from('brands')
           .select('id, name, created_at')
           .eq('group_id', group.id)
+          .eq('status', 'active')
           .order('name')
 
         if (brandsError) throw brandsError

@@ -105,6 +105,7 @@ export default function TeamMemberDetailPage() {
           .from('brands')
           .select('id, name')
           .eq('group_id', group.id)
+          .eq('status', 'active')
           .order('name')
 
         setAllBrands(brandsData || [])

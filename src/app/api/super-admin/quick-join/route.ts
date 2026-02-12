@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     let brandsQuery = supabaseAdmin
       .from('brands')
       .select('id, name, group_id, groups!inner(name)')
+      .eq('status', 'active')
       .order('name')
 
     if (q) {
