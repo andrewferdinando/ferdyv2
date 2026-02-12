@@ -54,6 +54,11 @@ export interface BrandHealthRow {
     subcategoryName: string | null
   } | null
   nextDraftCreation: string | null
+  nextDraftInfo: {
+    targetDate: string
+    frequency: string
+    frontier: string
+  } | null
   nextScheduledPublish: string | null
   lowMediaCount: number
   daysActive: number
@@ -311,6 +316,7 @@ export async function GET(request: NextRequest) {
       // Then compute the next target from schedule rules after the frontier
       // Creation date = max(today, nextTarget - 30 days)
       let nextDraftCreation: string | null = null
+      let nextDraftInfo: BrandHealthRow['nextDraftInfo'] = null
       const brandRules = rulesByBrand.get(brand.id) ?? []
 
       if (brandRules.length > 0) {
@@ -325,10 +331,12 @@ export async function GET(request: NextRequest) {
 
         // Find the earliest next target across all rules
         let earliestNextTarget: Date | null = null
+        let matchedFrequency: string | null = null
         for (const rule of brandRules) {
           const nextTarget = computeNextTargetDate(rule, frontier)
           if (nextTarget && (!earliestNextTarget || nextTarget < earliestNextTarget)) {
             earliestNextTarget = nextTarget
+            matchedFrequency = rule.frequency
           }
         }
 
@@ -339,6 +347,11 @@ export async function GET(request: NextRequest) {
           // If the creation date is in the past or today, the cron will create it on the next run
           const effectiveDate = creationDate < now ? now : creationDate
           nextDraftCreation = effectiveDate.toISOString()
+          nextDraftInfo = {
+            targetDate: earliestNextTarget.toISOString(),
+            frequency: matchedFrequency ?? 'unknown',
+            frontier: frontier.toISOString(),
+          }
         }
       }
 
@@ -384,6 +397,7 @@ export async function GET(request: NextRequest) {
             }
           : null,
         nextDraftCreation,
+        nextDraftInfo,
         nextScheduledPublish,
         lowMediaCount,
         daysActive,

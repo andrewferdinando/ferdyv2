@@ -166,7 +166,31 @@ export default function AnalyticsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   // Column order (moveable columns only — Brand is always first)
-  const [moveableKeys, setMoveableKeys] = useState<SortKey[]>(DEFAULT_MOVEABLE_KEYS);
+  // Persisted to localStorage so it survives refresh
+  const [moveableKeys, setMoveableKeys] = useState<SortKey[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_MOVEABLE_KEYS;
+    try {
+      const saved = localStorage.getItem('systemHealthColumnOrder');
+      if (saved) {
+        const parsed = JSON.parse(saved) as SortKey[];
+        // Validate: must contain exactly the same keys as default
+        if (
+          parsed.length === DEFAULT_MOVEABLE_KEYS.length &&
+          DEFAULT_MOVEABLE_KEYS.every((k) => parsed.includes(k))
+        ) {
+          return parsed;
+        }
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_MOVEABLE_KEYS;
+  });
+
+  // Persist column order
+  useEffect(() => {
+    try {
+      localStorage.setItem('systemHealthColumnOrder', JSON.stringify(moveableKeys));
+    } catch { /* ignore */ }
+  }, [moveableKeys]);
 
   // Drag state
   const dragIdx = useRef<number | null>(null);
@@ -644,8 +668,56 @@ export default function AnalyticsPage() {
       case 'nextDraftCreation': {
         const label = formatFutureDate(row.nextDraftCreation);
         const isOverdue = label === 'Overdue';
+        const hasInfo = !!row.nextDraftInfo;
         return (
-          <td className={`px-3 py-2 text-xs whitespace-nowrap ${isOverdue ? 'text-red-600' : ''}`}>
+          <td
+            className={`px-3 py-2 text-xs whitespace-nowrap ${isOverdue ? 'text-red-600' : ''} ${hasInfo ? 'cursor-pointer hover:underline' : ''}`}
+            onClick={() => {
+              if (!row.nextDraftInfo) return;
+              const info = row.nextDraftInfo;
+              const targetDate = new Date(info.targetDate);
+              const frontierDate = new Date(info.frontier);
+              const creationDate = row.nextDraftCreation ? new Date(row.nextDraftCreation) : null;
+              const fmt = (d: Date) =>
+                d.toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                });
+              setModal({
+                title: 'Next Draft Creation',
+                brandName: row.name,
+                content: (
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-500">Draft will be created:</span>{' '}
+                      {creationDate ? fmt(creationDate) : '—'}
+                      {creationDate && creationDate <= new Date() && (
+                        <span className="ml-1 text-amber-600">(next cron run)</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">For target date:</span>{' '}
+                      {fmt(targetDate)}
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Schedule frequency:</span>{' '}
+                      <span className="capitalize">{info.frequency}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Current frontier:</span>{' '}
+                      {fmt(frontierDate)}
+                    </div>
+                    <p className="text-xs text-gray-400 pt-1">
+                      The draft generation cron creates drafts for targets within a 30-day rolling window.
+                      This target enters the window on the creation date above.
+                    </p>
+                  </div>
+                ),
+              });
+            }}
+          >
             {row.nextDraftCreation ? label : '—'}
           </td>
         );
