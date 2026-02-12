@@ -50,6 +50,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   const isVideo = asset.asset_type === 'video'
   const [generatedThumbnail, setGeneratedThumbnail] = useState<string | null>(null)
   const [mainImgLoaded, setMainImgLoaded] = useState(false)
+  const [thumbFailed, setThumbFailed] = useState(false)
 
   const formatKey: keyof typeof CROP_FORMATS = !isVideo && (Object.keys(CROP_FORMATS) as Array<keyof typeof CROP_FORMATS>).includes(
     asset.aspect_ratio as keyof typeof CROP_FORMATS,
@@ -118,9 +119,12 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
     }
   }, [asset.id, asset.signed_url, asset.thumbnail_signed_url, isVideo])
 
+  // For images: prefer thumbnail (400px transform), fall back to full-size public URL on error
   const previewUrl = isVideo
     ? generatedThumbnail || asset.thumbnail_signed_url || undefined
-    : asset.thumbnail_signed_url || asset.signed_url
+    : thumbFailed
+      ? asset.signed_url
+      : (asset.thumbnail_signed_url || asset.signed_url)
 
   // Show skeleton while URL is being resolved (has storage_path but no signed URL yet)
   const isWaitingForUrl = !previewUrl && !!asset.storage_path
@@ -130,6 +134,22 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   if (prevUrlRef.current !== previewUrl) {
     prevUrlRef.current = previewUrl
     if (previewUrl) setMainImgLoaded(false)
+  }
+
+  // Reset thumbFailed when asset changes
+  const prevAssetIdRef = useRef(asset.id)
+  if (prevAssetIdRef.current !== asset.id) {
+    prevAssetIdRef.current = asset.id
+    setThumbFailed(false)
+  }
+
+  const handleImgError = () => {
+    // If the thumbnail transform URL failed and we have a different fallback, try it
+    if (!thumbFailed && asset.thumbnail_signed_url && asset.signed_url && asset.thumbnail_signed_url !== asset.signed_url) {
+      setThumbFailed(true)
+    } else {
+      setMainImgLoaded(true)
+    }
   }
 
   const canPreview = isVideo && typeof onPreview === 'function'
@@ -182,7 +202,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
                 loading="lazy"
                 className={`h-full w-full object-cover transition-opacity duration-300 ${mainImgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onLoad={() => setMainImgLoaded(true)}
-                onError={() => setMainImgLoaded(true)}
+                onError={handleImgError}
               />
             </>
           )}
@@ -277,7 +297,7 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
                 className={`h-full w-full object-cover transition-opacity duration-300 ${mainImgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 draggable={false}
                 onLoad={() => setMainImgLoaded(true)}
-                onError={() => setMainImgLoaded(true)}
+                onError={handleImgError}
               />
             </>
           )}

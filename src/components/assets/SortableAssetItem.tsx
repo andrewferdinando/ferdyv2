@@ -30,15 +30,27 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
   }
 
   const isVideo = asset.asset_type === 'video'
+  const [thumbFailed, setThumbFailed] = useState(false)
+
   const thumbUrl = isVideo
     ? asset.thumbnail_signed_url
-    : asset.thumbnail_signed_url || asset.signed_url
+    : thumbFailed
+      ? asset.signed_url
+      : (asset.thumbnail_signed_url || asset.signed_url)
 
   const [imgLoaded, setImgLoaded] = useState(false)
   const prevUrlRef = useRef(thumbUrl)
   if (prevUrlRef.current !== thumbUrl) {
     prevUrlRef.current = thumbUrl
     setImgLoaded(false)
+  }
+
+  const handleImgError = () => {
+    if (!thumbFailed && asset.thumbnail_signed_url && asset.signed_url && asset.thumbnail_signed_url !== asset.signed_url) {
+      setThumbFailed(true)
+    } else {
+      setImgLoaded(true)
+    }
   }
 
   return (
@@ -83,7 +95,7 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
             className={`w-full h-32 object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
             draggable={false}
             onLoad={() => setImgLoaded(true)}
-            onError={() => setImgLoaded(true)}
+            onError={handleImgError}
           />
           {isVideo && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
