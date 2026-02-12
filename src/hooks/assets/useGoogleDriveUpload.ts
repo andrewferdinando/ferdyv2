@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react'
 import { useUploadAsset } from './useUploadAsset'
 import { PickerFile } from './useGoogleDrivePicker'
 
+const MAX_CONCURRENT = 3
+
 interface UseGoogleDriveUploadOptions {
   brandId: string
   onUploadSuccess?: (assetIds: string[]) => void
@@ -19,25 +21,20 @@ interface UseGoogleDriveUploadResult {
 }
 
 /**
- * Download a file from Google Drive via our API proxy
+ * Download a file directly from Google Drive using the access token.
+ * Google APIs support CORS for authenticated requests, so no proxy needed.
  */
 async function downloadFromGoogleDrive(file: PickerFile): Promise<File> {
-  const response = await fetch('/api/google-drive/download', {
-    method: 'POST',
+  const downloadUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`
+
+  const response = await fetch(downloadUrl, {
     headers: {
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${file.accessToken}`,
     },
-    body: JSON.stringify({
-      fileId: file.id,
-      accessToken: file.accessToken,
-      fileName: file.name,
-      mimeType: file.mimeType,
-    }),
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Failed to download file' }))
-    throw new Error(error.error || `Failed to download "${file.name}" from Google Drive`)
+    throw new Error(`Failed to download "${file.name}" from Google Drive (${response.status})`)
   }
 
   const blob = await response.blob()
@@ -69,15 +66,14 @@ export function useGoogleDriveUpload({
 
       const uploadedAssetIds: string[] = []
       const errors: string[] = []
+      let completed = 0
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+      const uploadOne = async (file: PickerFile) => {
         setCurrentFile(file.name)
-        setProgress(Math.round((i / files.length) * 100))
-        onProgress?.(i + 1, files.length, file.name)
+        onProgress?.(completed + 1, files.length, file.name)
 
         try {
-          // Download file from Google Drive
+          // Download file directly from Google Drive (no proxy)
           const localFile = await downloadFromGoogleDrive(file)
 
           // Upload to Supabase using existing hook
@@ -91,15 +87,23 @@ export function useGoogleDriveUpload({
           })
 
           uploadedAssetIds.push(assetId)
-          setCompletedFiles(i + 1)
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : `Failed to upload "${file.name}"`
           errors.push(errorMsg)
           console.error(`Error uploading ${file.name} from Google Drive:`, err)
         }
+
+        completed++
+        setCompletedFiles(completed)
+        setProgress(Math.round((completed / files.length) * 100))
       }
 
-      setProgress(100)
+      // Process files in batches of MAX_CONCURRENT
+      for (let i = 0; i < files.length; i += MAX_CONCURRENT) {
+        const batch = files.slice(i, i + MAX_CONCURRENT)
+        await Promise.all(batch.map(uploadOne))
+      }
+
       setCurrentFile(null)
       setUploading(false)
 
@@ -109,7 +113,6 @@ export function useGoogleDriveUpload({
       }
 
       if (errors.length > 0) {
-        // If some succeeded and some failed, report both
         if (uploadedAssetIds.length > 0) {
           onUploadError?.(
             `${uploadedAssetIds.length} file(s) uploaded successfully. ${errors.length} file(s) failed: ${errors[0]}`
