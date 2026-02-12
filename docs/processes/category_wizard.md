@@ -21,8 +21,8 @@
 - Saves schedule_rules with upsert to avoid duplicates and keeps `is_active = true`.
 
 ## Media section (Step 4 / Images accordion)
-- Asset metadata loads instantly from `useAssets` Phase 1 (no signed URLs yet). Signed URLs are resolved in the background by Phase 2 and assets update automatically.
-- The wizard passes `resolvedAssets` (with URLs merged in) to both the library grid and `SortableAssetGrid`.
+- Asset metadata and URLs load instantly from `useAssets` — `resolveAssetUrls()` populates public URLs synchronously with zero API calls. Grid thumbnails use Vercel's `/_next/image` optimizer (384px WebP, CDN-cached).
+- The wizard passes assets (with URLs already populated) to both the library grid and `SortableAssetGrid`.
 - Pagination: library grid shows `MEDIA_PAGE_SIZE` (12) items at a time with a "Load more" button.
 
 ## What's out

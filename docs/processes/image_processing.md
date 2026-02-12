@@ -319,9 +319,16 @@ The `ferdy-assets` Supabase Storage bucket is **public**. All asset URLs are con
 
 **Key files:**
 - `src/lib/storage/publicUrl.ts` — `getPublicUrl(storagePath, transform?)` builds a public URL synchronously. `resolveAssetUrls(asset, transform?)` populates `signed_url` and `thumbnail_signed_url` on an asset object. Exports `GRID_THUMBNAIL` constant for grid views.
-- `src/hooks/assets/useAssets.ts` — Calls `resolveAssetUrls()` in `mapAsset()` so every asset has URLs immediately on first render. No async resolution, no Phase 2.
+- `src/hooks/assets/useAssets.ts` — Calls `resolveAssetUrls()` in `mapAsset()` so every asset has URLs immediately on first render. No async resolution.
 
-**Performance:** URLs are available instantly — zero API calls, zero async state, zero re-renders for URL resolution.
+**URL types:**
+- `signed_url` — Plain public URL to the full-size original: `{SUPABASE_URL}/storage/v1/object/public/ferdy-assets/{path}`
+- `thumbnail_signed_url` — Vercel/Next.js image-optimized URL for grid thumbnails: `/_next/image?url={encoded_public_url}&w=384&q=75`. Vercel fetches the original once, resizes to 384px WebP, and CDN-caches the result globally. Videos skip this (plain public URL instead).
+
+**Why Vercel image optimization (not Supabase Image Transforms):**
+Supabase Image Transforms (`/render/image/public/`) is a paid add-on not enabled on this project. Vercel's built-in `/_next/image` endpoint provides equivalent functionality at zero additional cost. The Supabase domain is allowlisted in `next.config.ts` `images.remotePatterns`.
+
+**Performance:** URLs are available instantly — zero API calls, zero async state, zero re-renders for URL resolution. Grid thumbnails are ~20-50KB (vs ~5MB originals) and CDN-cached after first load.
 
 ### Future Improvements
 
