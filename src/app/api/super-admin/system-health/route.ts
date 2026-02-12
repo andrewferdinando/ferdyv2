@@ -53,10 +53,73 @@ export interface BrandHealthRow {
     scheduledFor: string | null
     subcategoryName: string | null
   } | null
-  nextDraftGenerated: string | null
+  nextDraftCreation: string | null
   nextScheduledPublish: string | null
   lowMediaCount: number
   daysActive: number
+}
+
+/**
+ * Compute the next target date from a schedule rule after a given date.
+ * Returns a Date (start of day UTC) or null if no future target can be computed.
+ */
+function computeNextTargetDate(
+  rule: {
+    frequency: string
+    days_of_week: number[] | null
+    day_of_month: number[] | null
+  },
+  afterDate: Date
+): Date | null {
+  // Normalize to start of day
+  const after = new Date(afterDate)
+  after.setUTCHours(0, 0, 0, 0)
+
+  switch (rule.frequency) {
+    case 'daily': {
+      // Next day after afterDate
+      const next = new Date(after)
+      next.setUTCDate(next.getUTCDate() + 1)
+      return next
+    }
+
+    case 'weekly': {
+      const dow = rule.days_of_week ?? []
+      if (dow.length === 0) return null
+      // days_of_week is ISO (1=Mon, 7=Sun)
+      // JS getUTCDay() returns 0=Sun, 6=Sat — convert to ISO
+      for (let offset = 1; offset <= 7; offset++) {
+        const candidate = new Date(after)
+        candidate.setUTCDate(candidate.getUTCDate() + offset)
+        const jsDay = candidate.getUTCDay() // 0=Sun
+        const isoDay = jsDay === 0 ? 7 : jsDay // convert to ISO (1=Mon, 7=Sun)
+        if (dow.includes(isoDay)) return candidate
+      }
+      return null
+    }
+
+    case 'monthly': {
+      const doms = rule.day_of_month ?? []
+      if (doms.length === 0) return null
+      const sorted = [...doms].sort((a, b) => a - b)
+      // Try current month, then up to 2 months ahead
+      for (let monthOffset = 0; monthOffset <= 2; monthOffset++) {
+        const year = after.getUTCFullYear()
+        const month = after.getUTCMonth() + monthOffset
+        for (const dom of sorted) {
+          const candidate = new Date(Date.UTC(year, month, dom))
+          // Check the day wasn't clamped (e.g. Feb 30 → Mar 2)
+          if (candidate.getUTCDate() !== dom) continue
+          if (candidate > after) return candidate
+        }
+      }
+      return null
+    }
+
+    default:
+      // 'specific' or unknown — can't predict next occurrence
+      return null
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -68,9 +131,10 @@ export async function GET(request: NextRequest) {
 
     const now = new Date()
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const thirtyDaysFromNowISO = thirtyDaysFromNow.toISOString()
 
-    const [brandsRes, draftsRes, failedJobsRes, socialRes, tagsRes, assetTagsRes] =
+    const [brandsRes, draftsRes, failedJobsRes, socialRes, tagsRes, assetTagsRes, rulesRes] =
       await Promise.all([
         // 1. Active brands with group subscription status
         supabaseAdmin
@@ -78,10 +142,10 @@ export async function GET(request: NextRequest) {
           .select('id, name, group_id, timezone, created_at, groups(subscription_status)')
           .eq('status', 'active'),
 
-        // 2. Non-deleted drafts (include id/copy/subcategory for last-draft popup)
+        // 2. Non-deleted drafts (include id/copy/subcategory for last-draft popup + schedule_source for frontier)
         supabaseAdmin
           .from('drafts')
-          .select('id, brand_id, status, created_at, scheduled_for, copy, subcategory_id, subcategories(name)')
+          .select('id, brand_id, status, created_at, scheduled_for, copy, subcategory_id, schedule_source, subcategories(name)')
           .not('status', 'eq', 'deleted'),
 
         // 3. Failed post_jobs
@@ -106,6 +170,12 @@ export async function GET(request: NextRequest) {
         supabaseAdmin
           .from('asset_tags')
           .select('tag_id'),
+
+        // 7. Active schedule rules
+        supabaseAdmin
+          .from('schedule_rules')
+          .select('id, brand_id, frequency, days_of_week, day_of_month')
+          .eq('is_active', true),
       ])
 
     if (brandsRes.error) {
@@ -118,6 +188,7 @@ export async function GET(request: NextRequest) {
     const socialAccounts = socialRes.data ?? []
     const tags = tagsRes.data ?? []
     const assetTags = assetTagsRes.data ?? []
+    const rules = rulesRes.data ?? []
 
     // Build lookup maps
     const assetCountByTag = new Map<string, number>()
@@ -158,6 +229,13 @@ export async function GET(request: NextRequest) {
       tagsByBrand.set(t.brand_id, list)
     }
 
+    const rulesByBrand = new Map<string, typeof rules>()
+    for (const r of rules) {
+      const list = rulesByBrand.get(r.brand_id) ?? []
+      list.push(r)
+      rulesByBrand.set(r.brand_id, list)
+    }
+
     const nowISO = now.toISOString()
 
     const rows: BrandHealthRow[] = brands.map((brand: any) => {
@@ -173,7 +251,7 @@ export async function GET(request: NextRequest) {
         (d) =>
           d.scheduled_for &&
           d.scheduled_for >= nowISO &&
-          d.scheduled_for <= thirtyDaysFromNow &&
+          d.scheduled_for <= thirtyDaysFromNowISO &&
           (d.status === 'draft' || d.status === 'scheduled')
       ).length
 
@@ -228,11 +306,39 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Next draft generated: furthest-out scheduled_for from non-deleted drafts
-      let nextDraftGenerated: string | null = null
-      for (const d of brandDrafts) {
-        if (d.scheduled_for && (!nextDraftGenerated || d.scheduled_for > nextDraftGenerated)) {
-          nextDraftGenerated = d.scheduled_for
+      // Next draft creation: when will the cron next create a new draft for this brand?
+      // Find the frontier = max scheduled_for of framework drafts
+      // Then compute the next target from schedule rules after the frontier
+      // Creation date = max(today, nextTarget - 30 days)
+      let nextDraftCreation: string | null = null
+      const brandRules = rulesByBrand.get(brand.id) ?? []
+
+      if (brandRules.length > 0) {
+        // Find frontier: the furthest-out scheduled_for from framework drafts
+        let frontier: Date = now
+        for (const d of brandDrafts) {
+          if (d.schedule_source === 'framework' && d.scheduled_for) {
+            const sf = new Date(d.scheduled_for)
+            if (sf > frontier) frontier = sf
+          }
+        }
+
+        // Find the earliest next target across all rules
+        let earliestNextTarget: Date | null = null
+        for (const rule of brandRules) {
+          const nextTarget = computeNextTargetDate(rule, frontier)
+          if (nextTarget && (!earliestNextTarget || nextTarget < earliestNextTarget)) {
+            earliestNextTarget = nextTarget
+          }
+        }
+
+        if (earliestNextTarget) {
+          // Draft gets created when this target enters the 30-day window
+          // i.e., when today >= (target - 30 days)
+          const creationDate = new Date(earliestNextTarget.getTime() - 30 * 24 * 60 * 60 * 1000)
+          // If the creation date is in the past or today, the cron will create it on the next run
+          const effectiveDate = creationDate < now ? now : creationDate
+          nextDraftCreation = effectiveDate.toISOString()
         }
       }
 
@@ -277,7 +383,7 @@ export async function GET(request: NextRequest) {
               subcategoryName: (lastDraftObj as any).subcategories?.name ?? null,
             }
           : null,
-        nextDraftGenerated,
+        nextDraftCreation,
         nextScheduledPublish,
         lowMediaCount,
         daysActive,

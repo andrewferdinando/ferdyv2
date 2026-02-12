@@ -20,7 +20,7 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
   failedCount: 'Post jobs currently in failed state',
   socialStatus: 'Whether the brand has any connected social account',
   lastDraftGenerated: 'When the most recent draft was created — click for details',
-  nextDraftGenerated: 'Furthest-out date with a generated draft — shows pipeline reach',
+  nextDraftCreation: 'When the cron will next create a new draft for this brand',
   nextScheduledPublish: 'Earliest upcoming scheduled post',
   lowMediaCount: 'Categories with fewer than 3 media assets',
   subscriptionStatus: 'Stripe subscription status via group',
@@ -44,7 +44,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'failedCount', label: 'Failed', align: 'right' },
   { key: 'socialStatus', label: 'Social', align: 'left' },
   { key: 'lastDraftGenerated', label: 'Last Draft', align: 'left' },
-  { key: 'nextDraftGenerated', label: 'Next Draft', align: 'left' },
+  { key: 'nextDraftCreation', label: 'Next Draft', align: 'left' },
   { key: 'nextScheduledPublish', label: 'Next Publish', align: 'left' },
   { key: 'lowMediaCount', label: 'Low Media', align: 'right' },
   { key: 'subscriptionStatus', label: 'Subscription', align: 'left' },
@@ -354,9 +354,9 @@ export default function AnalyticsPage() {
           sum.oldestLastDraft = r.lastDraftGenerated;
         }
       }
-      if (r.nextDraftGenerated) {
-        if (!sum.latestNextDraft || r.nextDraftGenerated > sum.latestNextDraft) {
-          sum.latestNextDraft = r.nextDraftGenerated;
+      if (r.nextDraftCreation) {
+        if (!sum.latestNextDraft || r.nextDraftCreation > sum.latestNextDraft) {
+          sum.latestNextDraft = r.nextDraftCreation;
         }
       }
       if (r.nextScheduledPublish) {
@@ -423,7 +423,7 @@ export default function AnalyticsPage() {
             {summary.oldestLastDraft ? formatRelativeDate(summary.oldestLastDraft) : '—'}
           </td>
         );
-      case 'nextDraftGenerated':
+      case 'nextDraftCreation':
         return (
           <td className={base}>
             {summary.latestNextDraft ? formatFutureDate(summary.latestNextDraft) : '—'}
@@ -641,12 +641,15 @@ export default function AnalyticsPage() {
             {formatRelativeDate(row.lastDraftGenerated)}
           </td>
         );
-      case 'nextDraftGenerated':
+      case 'nextDraftCreation': {
+        const label = formatFutureDate(row.nextDraftCreation);
+        const isOverdue = label === 'Overdue';
         return (
-          <td className="px-3 py-2 text-xs whitespace-nowrap">
-            {formatFutureDate(row.nextDraftGenerated)}
+          <td className={`px-3 py-2 text-xs whitespace-nowrap ${isOverdue ? 'text-red-600' : ''}`}>
+            {row.nextDraftCreation ? label : '—'}
           </td>
         );
+      }
       case 'nextScheduledPublish':
         return (
           <td className={`px-3 py-2 text-xs whitespace-nowrap ${!row.nextScheduledPublish ? 'text-amber-600' : ''}`}>
