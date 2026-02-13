@@ -17,23 +17,31 @@ sequenceDiagram
     User->>Frontend: Fills in account & brand details
     Frontend->>API: POST /api/onboarding/signup
     API->>Supabase: Create user, profile, group, brand
-    API->>Stripe: Create customer & subscription
-    Stripe-->>API: Return subscription ID
-    API->>Stripe: Create PaymentIntent for invoice
-    Stripe-->>API: Return client_secret
-    API-->>Frontend: Return client_secret
-    
-    Frontend->>Stripe: Mount PaymentElement with client_secret
-    User->>Stripe: Enters payment details & submits
-    Stripe->>Stripe: Processes payment
-    Stripe->>API: Webhook: payment_intent.succeeded
-    
-    API->>Stripe: Pay invoice with PaymentIntent
-    Stripe-->>API: Webhook: invoice.paid
-    API->>Supabase: Update subscription status to 'active'
-    Stripe-->>API: Webhook: customer.subscription.updated
-    API->>Supabase: Update subscription status again
-    
+    API-->>Frontend: Return groupId, groupName
+
+    Note over User,Frontend: User sees pricing summary
+    alt User clicks "Continue to Payment"
+        Frontend->>API: POST /api/stripe/create-subscription
+        API->>Stripe: Create customer & subscription
+        Stripe-->>API: Return subscription ID
+        API->>Stripe: Create PaymentIntent for invoice
+        Stripe-->>API: Return client_secret
+        API-->>Frontend: Return client_secret
+
+        Frontend->>Stripe: Mount PaymentElement with client_secret
+        User->>Stripe: Enters payment details & submits
+        Stripe->>Stripe: Processes payment
+        Stripe->>API: Webhook: payment_intent.succeeded
+
+        API->>Stripe: Pay invoice with PaymentIntent
+        Stripe-->>API: Webhook: invoice.paid
+        API->>Supabase: Update subscription status to 'active'
+        Stripe-->>API: Webhook: customer.subscription.updated
+        API->>Supabase: Update subscription status again
+    else User clicks "Set up payment later"
+        Note over User,Frontend: No Stripe subscription created
+    end
+
     Frontend->>User: Redirect to /brands
 ```
 
@@ -64,39 +72,44 @@ Upon form submission, the frontend sends a `POST` request to the `/api/onboardin
 5.  **Create Brand**: The user's first brand is created in the `brands` table and associated with the group.
 6.  **Create Brand Membership**: The user is also linked to the new brand as an `owner` in the `brand_memberships` table.
 
-After these database operations are complete, the backend initiates the Stripe subscription process by calling the `createStripeSubscription` helper function.
+After these database operations are complete, the frontend signs in the user and advances to Step 2. **No Stripe subscription is created at this point.**
 
-## Step 2: Stripe Subscription and Payment
+## Step 2: Pricing Review & Payment Decision
 
-The second step of the onboarding process is to set up the user's subscription and handle the initial payment. This is managed by the `stripe-helpers.ts` library and the Stripe API.
+After account creation, the user sees a pricing summary screen with two options:
 
-### Subscription Creation
+- **"Continue to Payment"** — Creates the Stripe subscription and shows the payment form.
+- **"Set up payment later"** — Redirects to `/brands` without creating any Stripe objects.
 
-The `createStripeSubscription` function performs the following steps:
+This ensures that skipping payment does **not** leave orphaned incomplete subscriptions in Stripe.
 
-1.  **Create Stripe Customer**: A new customer is created in Stripe using the user's email and group name.
-2.  **Create Stripe Subscription**: A new subscription is created with the `payment_behavior` set to `default_incomplete`. This creates the subscription and an initial invoice but does not charge the user immediately.
-3.  **Create PaymentIntent**: A `PaymentIntent` is created manually for the invoice amount. This is a crucial step that generates a `client_secret` for the payment form.
-4.  **Return Client Secret**: The `client_secret` is returned to the frontend to be used in the payment form.
+### Subscription Creation (on "Continue to Payment")
+
+When the user clicks "Continue to Payment", the frontend calls `/api/stripe/create-subscription` which invokes the `createStripeSubscription` helper:
+
+1.  **Create Stripe Customer**: A new customer is created in Stripe using the user's email, group name, and country code (for tax purposes).
+2.  **Create Stripe Subscription**: A new subscription is created with `payment_behavior: 'default_incomplete'`. For NZ customers, the 15% GST tax rate is applied via `default_tax_rates`.
+3.  **Create PaymentIntent**: A `PaymentIntent` is created for the invoice amount, generating a `client_secret`.
+4.  **Return Client Secret**: The `client_secret` is returned to the frontend for the payment form.
 
 ### Frontend Payment Form
 
-The `OnboardingWizard` component receives the `client_secret` and uses it to mount the Stripe `PaymentElement`. The user then enters their payment details and submits the form directly to Stripe for processing.
+Once the subscription is created, the `OnboardingWizard` mounts the Stripe `PaymentElement` with the `client_secret`. The user enters payment details and submits directly to Stripe.
 
 ### Skipping Payment Setup
 
-Users have the option to skip payment setup during onboarding by clicking the subtle "Set up payment later" link at the bottom of the payment form. This allows for:
+Users can skip payment by clicking "Set up payment later" on the pricing summary screen. This allows for:
 
 - **Manual onboarding**: Admins can create accounts for clients and set up payment later.
 - **Testing**: Development and testing workflows without requiring payment.
-- **Flexible onboarding**: Users can complete account setup and explore the platform before committing to payment.
+- **Flexible onboarding**: Users can explore the platform before committing to payment.
 
 When payment is skipped:
-1. The user is redirected to `/brands` with an incomplete subscription.
-2. The `subscription_status` in the `groups` table remains `incomplete`.
+1. The user is redirected to `/brands` with **no Stripe subscription** (no customer, no incomplete subscription).
+2. The `subscription_status` in the `groups` table remains `NULL` (no subscription exists).
 3. A prominent warning banner appears on the billing page (`/account/billing`) for users with billing permissions.
 4. The banner includes a "Complete Payment Setup" button that redirects to `/onboarding/payment-setup`.
-5. The payment setup page creates a new Stripe subscription session and presents the same payment form.
+5. The payment setup page creates a new Stripe subscription and presents the payment form.
 6. Once payment is completed, the subscription becomes active and the warning banner is hidden.
 
 ## Step 3: Webhook-Driven Payment Handling

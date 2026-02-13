@@ -47,6 +47,7 @@ export function OnboardingWizard() {
   })
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [groupId, setGroupId] = useState<string | null>(null)
+  const [createdGroupName, setCreatedGroupName] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pricing, setPricing] = useState<PricingInfo | null>(null)
@@ -114,10 +115,11 @@ export function OnboardingWizard() {
         throw new Error(errorData.error || 'Failed to create account')
       }
 
-      const { groupId: createdGroupId, groupName: createdGroupName } = await signupResponse.json()
-      
-      // Store group ID for payment step
-      setGroupId(createdGroupId)
+      const { groupId: returnedGroupId, groupName: returnedGroupName } = await signupResponse.json()
+
+      // Store group info for payment step
+      setGroupId(returnedGroupId)
+      setCreatedGroupName(returnedGroupName)
 
       // Log in the user to create a session
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -130,17 +132,31 @@ export function OnboardingWizard() {
         throw new Error('Account created but failed to log in. Please try logging in manually.')
       }
 
-      // Auto-generate group name if single brand
-      const finalGroupName = data.isMultipleBrands 
-        ? data.groupName 
-        : `${data.brandName}'s Account`
+      // Fetch pricing info (with coupon if provided)
+      await fetchPricing(data.couponCode || undefined)
 
-      // Create Stripe subscription
+      // Move to payment step — Stripe subscription is NOT created yet.
+      // It will only be created when the user clicks "Continue to Payment".
+      console.log('Setting step to 2')
+      setStep(2)
+    } catch (err: any) {
+      console.error('Onboarding error:', err)
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleProceedToPayment = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
       const response = await fetch('/api/stripe/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupId: createdGroupId,
+          groupId,
           groupName: createdGroupName,
           email: data.email,
           countryCode: data.countryCode,
@@ -157,22 +173,15 @@ export function OnboardingWizard() {
       const { clientSecret: secret } = await response.json()
       console.log('Got clientSecret:', secret ? 'YES' : 'NO')
       setClientSecret(secret)
-
-      // Fetch pricing info (with coupon if provided)
-      await fetchPricing(data.couponCode || undefined)
-
-      console.log('Setting step to 2')
-      setStep(2)
     } catch (err: any) {
-      console.error('Onboarding error:', err)
-      setError(err.message || 'Something went wrong. Please try again.')
+      console.error('Payment setup error:', err)
+      setError(err.message || 'Failed to set up payment. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleSkipPayment = async () => {
-    // For super admin testing only
     router.push('/brands')
   }
 
@@ -389,9 +398,59 @@ export function OnboardingWizard() {
     return `$${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
   }
 
-  if (step === 2 && clientSecret) {
+  if (step === 2) {
     const hasDiscount = pricing && pricing.discountAmount > 0
 
+    const pricingSummary = pricing ? (
+      <div className="mt-2 text-center">
+        {hasDiscount ? (
+          <>
+            <p className="text-sm text-gray-500 line-through">
+              {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+            </p>
+            <p className="text-lg font-semibold text-green-600">
+              {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
+            </p>
+            <p className="text-sm text-green-600">
+              {pricing.discountPercent}% off
+              {pricing.couponDuration === 'forever' && ' forever'}
+              {pricing.couponDuration === 'once' && ' (first month)'}
+              {pricing.couponDuration === 'repeating' && pricing.couponDurationMonths && ` for ${pricing.couponDurationMonths} months`}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-gray-600">
+            {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+          </p>
+        )}
+      </div>
+    ) : (
+      <p className="mt-2 text-center text-sm text-gray-600">
+        Loading pricing...
+      </p>
+    )
+
+    // Payment form (after subscription is created)
+    if (clientSecret) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-md w-full space-y-8">
+            <div>
+              <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Payment Details
+              </h2>
+              {pricingSummary}
+            </div>
+
+            <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <PaymentForm onSuccess={() => window.location.href = '/brands'} />
+            </Elements>
+          </div>
+        </div>
+      )
+    }
+
+    // Pricing summary + decision (before subscription is created)
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -399,48 +458,36 @@ export function OnboardingWizard() {
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
               Payment Details
             </h2>
-            {pricing ? (
-              <div className="mt-2 text-center">
-                {hasDiscount ? (
-                  <>
-                    <p className="text-sm text-gray-500 line-through">
-                      {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
-                    </p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
-                    </p>
-                    <p className="text-sm text-green-600">
-                      {pricing.discountPercent}% off
-                      {pricing.couponDuration === 'forever' && ' forever'}
-                      {pricing.couponDuration === 'once' && ' (first month)'}
-                      {pricing.couponDuration === 'repeating' && pricing.couponDurationMonths && ` for ${pricing.couponDurationMonths} months`}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-600">
-                    {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="mt-2 text-center text-sm text-gray-600">
-                Loading pricing...
-              </p>
-            )}
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Your account has been created. Set up payment to activate your subscription.
+            </p>
+            {pricingSummary}
           </div>
 
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <PaymentForm onSuccess={() => window.location.href = '/brands'} />
-          </Elements>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
 
-          {/* Skip payment option */}
-          <div className="text-center">
+          <div className="space-y-4">
             <button
-              onClick={handleSkipPayment}
-              className="text-xs text-gray-400 hover:text-gray-600 underline"
+              onClick={handleProceedToPayment}
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              Set up payment later
+              {loading ? 'Setting up payment...' : 'Continue to Payment'}
             </button>
+
+            <div className="text-center">
+              <button
+                onClick={handleSkipPayment}
+                disabled={loading}
+                className="text-xs text-gray-400 hover:text-gray-600 underline"
+              >
+                Set up payment later
+              </button>
+            </div>
           </div>
         </div>
       </div>
