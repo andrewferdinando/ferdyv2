@@ -42,7 +42,7 @@ export function OnboardingWizard() {
     groupName: '',
     brandName: '',
     websiteUrl: 'https://',
-    countryCode: 'US',
+    countryCode: 'NZ',
     couponCode: '',
   })
   const [clientSecret, setClientSecret] = useState<string | null>(null)
