@@ -8,7 +8,7 @@ This folder contains the core architectural documents that explain how Ferdy aut
 
 ### **1. User Onboarding & Initial Setup**
 `onboarding.md`
-Details the 2-step wizard for new user registration, including account creation, brand setup, and Stripe subscription.
+Details the 2-step wizard for new user registration: Step 1 creates the account, group, and brand; Step 2 presents pricing and lets the user pay or skip. Stripe subscription is only created when the user chooses to pay.
 
 ### **2. Sign-In and Authentication**
 `sign-in.md`
@@ -55,7 +55,7 @@ Defines the per-channel publishing mechanism, including job creation, processing
 ## 📂 Process Overview (Quick Reference)
 
 ### **Account Management**
-- **Onboarding**: New users are guided through a 2-step wizard to create an account, a brand, and a subscription.
+- **Onboarding**: New users are guided through a 2-step wizard to create an account and brand, then optionally set up payment (with GST for NZ customers).
 - **Authentication**: Users can sign in with email/password or social logins. Sessions are managed by Supabase Auth.
 - **Team Invitations**: Existing users can invite new or existing users to join a brand. Brand membership is granted upon acceptance.
 - **Password Reset**: A secure process allows users to reset their password via an email link.

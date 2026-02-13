@@ -55,11 +55,12 @@ The user is prompted to provide the following information:
 - **Multiple Brands Question**: Whether the user will manage multiple brands (agency/group) or just one brand.
 - **Company/Agency Name**: The name of the group that will own the brands (if managing multiple brands).
 - **First Brand Name**: The name of the user's first brand.
+- **Brand Website**: The URL of the brand's website.
 - **Full Name**: The user's full name.
 - **Email**: The user's email address, which will be used for login and communication.
-- **Password**: The user's password for account security.
-- **Country Code**: The country where the brand operates.
-- **Password**: A password for the new account.
+- **Password**: A password for the new account (minimum 8 characters).
+- **Country**: The country where the brand operates (defaults to New Zealand).
+- **Coupon Code**: Optional discount code.
 
 ### API Request and Backend Logic
 
@@ -132,15 +133,28 @@ Upon successful completion of the onboarding process, the user is redirected to 
 
 The onboarding flow required the addition of a `subscription_status` column to the `groups` table to cache the Stripe subscription status. The possible values are:
 
-- **`incomplete`**: Payment has not been set up or completed (default for new accounts).
+- **`NULL`**: Payment was skipped during onboarding — no Stripe subscription exists yet.
+- **`incomplete`**: Stripe subscription was created but payment has not been completed.
 - **`active`**: Subscription is active and in good standing.
 - **`past_due`**: Payment failed and needs to be updated.
 - **`canceled`**: Subscription has been canceled.
 
-This field is used to determine whether to show the payment setup warning in the billing page.
+This field is used to determine whether to show the payment setup warning in the billing page. Both `NULL` and `incomplete` statuses trigger the warning banner.
+
+### Key Files
+
+- **Onboarding wizard (frontend):** `src/components/onboarding/OnboardingWizard.tsx`
+- **Signup API:** `src/app/api/onboarding/signup/route.ts`
+- **Subscription creation:** `src/lib/stripe-helpers.ts` → `createStripeSubscription()`
+- **Stripe config & GST:** `src/lib/stripe.ts`
+- **Deferred payment page:** `src/app/onboarding/payment-setup/page.tsx`
+- **Payment setup API:** `src/app/api/stripe/get-or-create-payment-setup/route.ts`
 
 ### Important Notes
 
 -   The use of `payment_behavior: 'default_incomplete'` is a key aspect of this flow, as it allows for the creation of a subscription and invoice without immediate payment. A `PaymentIntent` must be created manually to obtain a `client_secret`.
+-   Stripe subscription creation is **deferred** until the user clicks "Continue to Payment" on Step 2. This prevents orphaned incomplete subscriptions when users skip payment.
+-   For NZ customers, 15% GST is automatically applied to the subscription via `default_tax_rates` (requires `STRIPE_GST_TAX_RATE_ID` env var).
+-   The customer's country code is stored on their Stripe customer address during subscription creation, enabling correct tax handling.
 -   The entire post-payment process is asynchronous and relies on a chain of webhooks. It is crucial to ensure that the webhook endpoint is correctly configured to receive all necessary events.
 -   Failed onboarding attempts can result in orphaned records in the database. A cleanup process should be implemented to identify and remove these records.

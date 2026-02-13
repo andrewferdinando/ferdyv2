@@ -93,7 +93,7 @@ Ferdy is GST-registered in New Zealand. Tax handling:
 ### API Routes
 
 #### `/api/stripe/create-subscription`
-Creates Stripe customer and subscription for a Group.
+Creates Stripe customer and subscription for a Group. The customer's `countryCode` is stored on their Stripe address. If the country is `NZ` and `STRIPE_GST_TAX_RATE_ID` is set, 15% GST is applied via `default_tax_rates`.
 
 **Request:**
 ```json
@@ -101,14 +101,17 @@ Creates Stripe customer and subscription for a Group.
   "groupId": "uuid",
   "groupName": "Company Name",
   "email": "billing@company.com",
-  "countryCode": "US",
-  "brandCount": 1
+  "countryCode": "NZ",
+  "brandCount": 1,
+  "couponCode": "group20"
 }
 ```
 
 **Response:**
 ```json
 {
+  "customerId": "cus_xxx",
+  "subscriptionId": "sub_xxx",
   "clientSecret": "pi_xxx_secret_xxx"
 }
 ```
@@ -174,25 +177,21 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 
 **Route:** `/onboarding/start`
 
-**Steps:**
-1. User enters:
-   - Company/Agency name
-   - First brand name
-   - Billing email
-   - Country
-2. System creates:
-   - Group record
-   - Group membership (user as owner)
-   - Brand record
-   - Brand membership (user as owner)
-   - Stripe customer
-   - Stripe subscription (quantity=1)
-3. User enters payment details (Stripe Payment Element)
-4. Redirect to `/brands`
+**Step 1 — Account Creation:**
+1. User enters name, email, password, brand name, website, country (defaults to NZ), coupon code (optional)
+2. System creates: Group, Group membership (owner), Brand, Brand membership (owner)
+3. User is signed in
+4. **No Stripe subscription is created yet**
 
-**Super Admin Skip:**
-- Super admins can skip payment for testing/invoice customers
-- Group created without Stripe subscription
+**Step 2 — Pricing & Payment Decision:**
+1. User sees pricing summary (with coupon discount if applicable)
+2. Two options:
+   - **"Continue to Payment"** → Creates Stripe customer & subscription, shows payment form
+   - **"Set up payment later"** → Redirects to `/brands` with no Stripe objects created
+
+**NZ customers:** Subscription automatically includes 15% GST via `default_tax_rates` (see GST section above).
+
+**Deferred payment:** Users who skip can complete payment later via `/onboarding/payment-setup` (linked from the billing page warning banner).
 
 ### 2. Adding a Brand
 
