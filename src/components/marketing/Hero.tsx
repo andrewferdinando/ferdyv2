@@ -55,38 +55,9 @@ export default function Hero() {
             </p>
           </div>
 
-          {/* Illustration */}
-          <div className="relative mx-auto max-w-sm sm:max-w-lg md:max-w-4xl">
-            {/* Outer glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl"></div>
-
-            {/* Browser frame */}
-            <div className="relative z-20 transform hover:scale-[1.01] transition-transform duration-500">
-              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200/50">
-                {/* Browser header */}
-                <div className="bg-gray-100 px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-2 border-b border-gray-200">
-                  {/* Traffic lights */}
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-red-400"></div>
-                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-400"></div>
-                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-400"></div>
-                  </div>
-                  {/* URL bar - hidden on mobile */}
-                  <div className="hidden sm:block flex-1 mx-4">
-                    <div className="bg-white rounded-md px-3 py-1 text-xs text-gray-500 flex items-center gap-2 border border-gray-200">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      <span>ferdy.io</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Published post component */}
-                <div className="flex justify-center p-4 md:p-8 bg-gray-50">
-                  <FerdyPublishedPostDesktop />
-                </div>
-              </div>
-            </div>
+          {/* Explainer illustration */}
+          <div className="relative mx-auto max-w-6xl">
+            <FerdyPublishedPostDesktop />
           </div>
         </div>
 
