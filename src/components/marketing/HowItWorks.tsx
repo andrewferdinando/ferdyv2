@@ -65,19 +65,18 @@ export default function HowItWorks() {
             <div className="relative bg-white rounded-2xl p-2 shadow-lg">
               <div className="rounded-xl overflow-hidden aspect-video">
                 <iframe
+                  style={{ border: 0 }}
                   width="100%"
                   height="100%"
-                  src="https://www.youtube.com/embed/EYeDs6awRuU?si=iiRPbIN2DUcaIU6S"
-                  title="YouTube video player"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerPolicy="strict-origin-when-cross-origin"
+                  src="https://www.tella.tv/video/vid_cmlplu08d00md04k37y8y0zq9/embed?b=0&title=0&a=1&loop=0&t=0&muted=0&wt=0"
+                  title="Ferdy Demo Video"
                   allowFullScreen
+                  allowTransparency
                 ></iframe>
               </div>
             </div>
           </div>
-          <p className="text-center text-sm text-gray-500 mt-4">We recommend watching at 1.5x speed</p>
+          <p className="text-center text-sm text-gray-500 mt-4">See how Ferdy automates your social media</p>
         </div>
       </div>
     </section>
