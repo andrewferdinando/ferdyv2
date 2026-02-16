@@ -9,10 +9,9 @@ export default function Comparison() {
             <ul className="space-y-6">
               {[
                 "Not for big creative hero campaigns",
-                "Not for cinematic video content",
-                "Not for viral social moments",
-                "Not a tool that replaces your creative thinking",
-                "Not a blank-canvas AI generator that needs perfect prompts"
+                "Not for thought leadership or opinion pieces",
+                "Not for reactive, in-the-moment posts",
+                "Not a tool that replaces your creative thinking"
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-4">
                   <div className="mt-1 w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 shrink-0">
@@ -33,7 +32,7 @@ export default function Comparison() {
             <h3 className="text-3xl font-bold mb-10 text-blue-600 relative z-10">What Ferdy is</h3>
             <ul className="space-y-6 relative z-10">
               {[
-                "Automates the posts you repeat every week",
+                "Automates the posts you repeat every month",
                 "Handles the 80% so you can focus on the 20%",
                 "Perfect for product & service businesses",
                 "Designed for everyday brands that value reliability"
