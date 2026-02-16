@@ -421,8 +421,8 @@ function CategoryCard({
         <span className="text-gray-300">&middot;</span>
         <span className="text-gray-600 text-[12px]">Weekly</span>
         <span className="text-gray-300">&middot;</span>
-        <span className="text-emerald-600 font-semibold text-[12px]">
-          Fully Automated
+        <span className="text-gray-600 text-[12px]">
+          Every Monday at 7pm
         </span>
       </div>
     </div>
