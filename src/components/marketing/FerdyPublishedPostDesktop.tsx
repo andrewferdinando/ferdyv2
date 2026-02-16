@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 /* ── Callout data ─────────────────────────────────────────── */
 const CALLOUTS = [
@@ -41,7 +41,7 @@ const CALLOUTS = [
   },
 ];
 
-/* ── CalloutCard ──────────────────────────────────────────── */
+/* ── CalloutCard (desktop side callouts) ──────────────────── */
 function CalloutCard({
   icon,
   label,
@@ -83,7 +83,7 @@ function CalloutCard({
   );
 }
 
-/* ── ConnectorLine ────────────────────────────────────────── */
+/* ── ConnectorLine (desktop horizontal) ───────────────────── */
 function ConnectorLine({
   color,
   dotSide,
@@ -119,7 +119,7 @@ function ConnectorLine({
   );
 }
 
-/* ── VerticalConnectorLine ─────────────────────────────────── */
+/* ── VerticalConnectorLine (desktop bottom) ───────────────── */
 function VerticalConnectorLine({
   color,
   visible,
@@ -145,7 +145,42 @@ function VerticalConnectorLine({
   );
 }
 
-/* ── Checkmark icon for platform badges ───────────────────── */
+/* ── InlineAnnotation (mobile — embedded in post) ─────────── */
+function InlineAnnotation({
+  icon,
+  label,
+  description,
+  color,
+  visible,
+}: {
+  icon: string;
+  label: string;
+  description: string;
+  color: string;
+  visible: boolean;
+}) {
+  return (
+    <div
+      className={`mx-4 my-1.5 pl-3 py-1.5 transition-all duration-500 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+      style={{ borderLeft: `2px dashed ${color}` }}
+    >
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-[10px] font-semibold whitespace-nowrap"
+        style={{ backgroundColor: color }}
+      >
+        <span>{icon}</span>
+        {label}
+      </span>
+      <p className="text-[10px] text-gray-400 leading-snug mt-1">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+/* ── Checkmark icon ───────────────────────────────────────── */
 function Check() {
   return (
     <svg
@@ -163,7 +198,16 @@ function Check() {
 }
 
 /* ── FacebookPost ─────────────────────────────────────────── */
-function FacebookPost() {
+function FacebookPost({
+  annotations,
+}: {
+  annotations?: {
+    afterHeader?: React.ReactNode;
+    afterText?: React.ReactNode;
+    afterImage?: React.ReactNode;
+    afterBadges?: React.ReactNode;
+  };
+}) {
   return (
     <div className="bg-white rounded-xl shadow-xl border border-gray-200/80 overflow-hidden">
       {/* Header */}
@@ -192,6 +236,8 @@ function FacebookPost() {
         </div>
       </div>
 
+      {annotations?.afterHeader}
+
       {/* Post copy */}
       <div className="px-4 pb-3">
         <p className="text-[14px] text-gray-900 leading-[1.4]">
@@ -201,6 +247,8 @@ function FacebookPost() {
         </p>
       </div>
 
+      {annotations?.afterText}
+
       {/* Post image */}
       <img
         src="/images/burger-tuesday.jpg"
@@ -208,6 +256,8 @@ function FacebookPost() {
         className="w-full object-cover"
         style={{ maxHeight: '300px' }}
       />
+
+      {annotations?.afterImage}
 
       {/* Engagement row */}
       <div className="px-4 py-2 flex items-center justify-between text-[13px] text-gray-500">
@@ -319,46 +369,72 @@ function FacebookPost() {
           </div>
         </div>
       </div>
+
+      {annotations?.afterBadges}
     </div>
   );
 }
 
-/* ── SummaryBar ───────────────────────────────────────────── */
-function SummaryBar({ visible }: { visible: boolean }) {
+/* ── CategoryCard (merged category callout + summary bar) ─── */
+function CategoryCard({
+  callout,
+  visible,
+}: {
+  callout: { icon: string; label: string; description: string; color: string };
+  visible: boolean;
+}) {
   return (
     <div
-      className={`mt-5 flex items-center justify-center gap-2 sm:gap-3 flex-wrap text-sm transition-all duration-700 delay-500 ${
+      className={`rounded-xl px-4 py-3.5 transition-all duration-700 ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
       }`}
+      style={{
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: callout.color + '30',
+        backgroundColor: callout.color + '08',
+      }}
     >
-      <span className="font-semibold text-amber-800 bg-amber-100 px-3 py-1.5 rounded-md text-[13px]">
-        Burger Tuesday
-      </span>
-      <span className="text-gray-300">&middot;</span>
-      <span className="text-gray-600 text-[13px]">Weekly</span>
-      <span className="text-gray-300">&middot;</span>
-      <span className="text-emerald-600 font-semibold text-[13px]">
-        Fully Automated
-      </span>
+      <div className="flex items-start gap-2.5">
+        <span
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
+          style={{ backgroundColor: callout.color }}
+        >
+          <span>{callout.icon}</span>
+          {callout.label}
+        </span>
+        <p className="text-[11px] text-gray-500 leading-relaxed pt-0.5">
+          {callout.description}
+        </p>
+      </div>
+      <div
+        className="flex items-center gap-2 sm:gap-3 flex-wrap mt-3 pt-3"
+        style={{
+          borderTopWidth: '1px',
+          borderTopStyle: 'dashed',
+          borderTopColor: callout.color + '25',
+        }}
+      >
+        <span className="font-semibold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-md text-[12px]">
+          Burger Tuesday
+        </span>
+        <span className="text-gray-300">&middot;</span>
+        <span className="text-gray-600 text-[12px]">Weekly</span>
+        <span className="text-gray-300">&middot;</span>
+        <span className="text-emerald-600 font-semibold text-[12px]">
+          Fully Automated
+        </span>
+      </div>
     </div>
-  );
-}
-
-/* ── SparkleIcon ──────────────────────────────────────────── */
-function SparkleIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
-    </svg>
   );
 }
 
 /* ── Main component ───────────────────────────────────────── */
 export default function FerdyPublishedPostDesktop() {
-  const [vis, setVis] = useState([false, false, false, false, false, false]);
+  const [vis, setVis] = useState([false, false, false, false, false]);
 
   useEffect(() => {
-    const timers = [0, 1, 2, 3, 4, 5].map((i) =>
+    const timers = [0, 1, 2, 3, 4].map((i) =>
       setTimeout(
         () =>
           setVis((prev) => {
@@ -372,26 +448,15 @@ export default function FerdyPublishedPostDesktop() {
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  const [aiCopy, autoMedia, autoScheduled, autoPublished, categoryBased] = CALLOUTS;
+  const [aiCopy, autoMedia, autoScheduled, autoPublished, categoryBased] =
+    CALLOUTS;
 
   return (
     <div className="w-full">
-      {/* Published on Autopilot banner */}
-      <div className="flex justify-center mb-5">
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-400 px-5 py-2 rounded-full text-white shadow-md">
-          <SparkleIcon size={13} />
-          <span className="text-sm font-semibold tracking-wide">
-            Published on Autopilot
-          </span>
-          <SparkleIcon size={13} />
-        </div>
-      </div>
-
       {/* ── Desktop: 3-column grid ───────────────────────── */}
       <div className="hidden lg:grid lg:grid-cols-[1fr_420px_1fr] items-start">
         {/* Left callouts */}
         <div className="flex flex-col gap-0 pt-[80px]">
-          {/* AI-Generated Copy → aligns with post text */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <CalloutCard {...aiCopy} visible={vis[0]} align="right" />
@@ -402,7 +467,6 @@ export default function FerdyPublishedPostDesktop() {
               visible={vis[0]}
             />
           </div>
-          {/* Auto-Selected Image → aligns with post image */}
           <div className="flex items-center mt-[80px]">
             <div className="flex-shrink-0">
               <CalloutCard {...autoMedia} visible={vis[1]} align="right" />
@@ -415,23 +479,20 @@ export default function FerdyPublishedPostDesktop() {
           </div>
         </div>
 
-        {/* Center: the post + bottom callout */}
+        {/* Center: post + category card */}
         <div>
           <FacebookPost />
-          {/* Category-Based callout below post */}
           <div className="flex flex-col items-center mt-1">
             <VerticalConnectorLine
               color={categoryBased.color}
               visible={vis[4]}
             />
-            <CalloutCard {...categoryBased} visible={vis[4]} align="left" />
           </div>
-          <SummaryBar visible={vis[5]} />
+          <CategoryCard callout={categoryBased} visible={vis[4]} />
         </div>
 
         {/* Right callouts */}
         <div className="flex flex-col pt-[16px]">
-          {/* Auto-Scheduled → aligns with timestamp */}
           <div className="flex items-center">
             <ConnectorLine
               color={autoScheduled.color}
@@ -442,7 +503,6 @@ export default function FerdyPublishedPostDesktop() {
               <CalloutCard {...autoScheduled} visible={vis[2]} />
             </div>
           </div>
-          {/* Auto-Published → aligns with platform badges */}
           <div className="flex items-center mt-[310px]">
             <ConnectorLine
               color={autoPublished.color}
@@ -456,31 +516,29 @@ export default function FerdyPublishedPostDesktop() {
         </div>
       </div>
 
-      {/* ── Mobile/Tablet: stacked ───────────────────────── */}
+      {/* ── Mobile/Tablet: inline annotations ────────────── */}
       <div className="lg:hidden">
-        {/* Top callouts: content creation */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <CalloutCard {...aiCopy} visible={vis[0]} />
-          <CalloutCard {...autoMedia} visible={vis[1]} />
-        </div>
-
-        {/* Post */}
         <div className="max-w-[440px] mx-auto">
-          <FacebookPost />
+          <FacebookPost
+            annotations={{
+              afterHeader: (
+                <InlineAnnotation {...autoScheduled} visible={vis[2]} />
+              ),
+              afterText: (
+                <InlineAnnotation {...aiCopy} visible={vis[0]} />
+              ),
+              afterImage: (
+                <InlineAnnotation {...autoMedia} visible={vis[1]} />
+              ),
+              afterBadges: (
+                <InlineAnnotation {...autoPublished} visible={vis[3]} />
+              ),
+            }}
+          />
+          <div className="mt-4">
+            <CategoryCard callout={categoryBased} visible={vis[4]} />
+          </div>
         </div>
-
-        {/* Bottom callouts: distribution */}
-        <div className="grid grid-cols-2 gap-3 mt-5">
-          <CalloutCard {...autoScheduled} visible={vis[2]} />
-          <CalloutCard {...autoPublished} visible={vis[3]} />
-        </div>
-
-        {/* Category-Based callout */}
-        <div className="mt-4 flex justify-center">
-          <CalloutCard {...categoryBased} visible={vis[4]} />
-        </div>
-
-        <SummaryBar visible={vis[5]} />
       </div>
     </div>
   );

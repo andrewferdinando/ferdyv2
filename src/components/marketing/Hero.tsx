@@ -51,7 +51,7 @@ export default function Hero() {
               Turn recurring posts into a system
             </h2>
             <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-              Define your post categories, frequency, and assets once. Ferdy turns that into a reliable monthly publishing system.
+              Define your post categories, frequency, and assets once. Ferdy turns that into a reliable monthly publishing system on autopilot.
             </p>
           </div>
 
