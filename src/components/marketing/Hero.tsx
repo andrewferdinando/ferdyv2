@@ -56,9 +56,7 @@ export default function Hero() {
           </div>
 
           {/* Explainer illustration */}
-          <div className="relative mx-auto max-w-6xl">
-            <FerdyPublishedPostDesktop />
-          </div>
+          <FerdyPublishedPostDesktop />
         </div>
 
         {/* Video Modal */}
