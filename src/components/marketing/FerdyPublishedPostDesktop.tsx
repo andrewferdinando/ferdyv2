@@ -408,22 +408,22 @@ function CategoryCard({
         </p>
       </div>
       <div
-        className="flex items-center gap-2 sm:gap-3 flex-wrap mt-3 pt-3"
+        className="flex items-center gap-1.5 sm:gap-2 mt-3 pt-3 whitespace-nowrap"
         style={{
           borderTopWidth: '1px',
           borderTopStyle: 'dashed',
           borderTopColor: callout.color + '25',
         }}
       >
-        <span className="font-semibold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-md text-[12px]">
+        <span className="font-semibold text-amber-800 bg-amber-100 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-[12px]">
           Burger Tuesday
         </span>
         <span className="text-gray-300">&middot;</span>
-        <span className="font-semibold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-md text-[12px]">
+        <span className="font-semibold text-amber-800 bg-amber-100 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-[12px]">
           Weekly
         </span>
         <span className="text-gray-300">&middot;</span>
-        <span className="font-semibold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-md text-[12px]">
+        <span className="font-semibold text-amber-800 bg-amber-100 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-[12px]">
           Mondays at 7pm
         </span>
       </div>
