@@ -42,7 +42,111 @@ const CATEGORY_CALLOUT = {
   color: '#8b5cf6',
 };
 
-/* ── CompactCallout ───────────────────────────────────────── */
+/* ── CalloutCard (desktop side callouts) ──────────────────── */
+function CalloutCard({
+  icon,
+  label,
+  description,
+  color,
+  visible,
+  align = 'left',
+}: {
+  icon: string;
+  label: string;
+  description: string;
+  color: string;
+  visible: boolean;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <div
+      className={`flex flex-col transition-all duration-700 ease-out ${
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+      } ${align === 'right' ? 'items-end' : 'items-start'}`}
+    >
+      <div
+        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white text-[11px] font-semibold mb-1.5 whitespace-nowrap"
+        style={{ backgroundColor: color }}
+      >
+        <span>{icon}</span>
+        {label}
+      </div>
+      <div
+        className={`bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 px-3 py-2 max-w-[210px] ${
+          align === 'right' ? 'text-right' : ''
+        }`}
+      >
+        <p className="text-[11px] text-gray-500 leading-relaxed">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── ConnectorLine (desktop horizontal) ───────────────────── */
+function ConnectorLine({
+  color,
+  dotSide,
+  visible,
+}: {
+  color: string;
+  dotSide: 'left' | 'right';
+  visible: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center min-w-[28px] flex-1 transition-opacity duration-500 delay-200 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {dotSide === 'left' && (
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: color }}
+        />
+      )}
+      <div
+        className="flex-1 h-0 border-t-2 border-dashed"
+        style={{ borderColor: color, opacity: 0.35 }}
+      />
+      {dotSide === 'right' && (
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: color }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── VerticalConnectorLine (desktop bottom) ───────────────── */
+function VerticalConnectorLine({
+  color,
+  visible,
+}: {
+  color: string;
+  visible: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col items-center min-h-[24px] h-8 transition-opacity duration-500 delay-200 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div
+        className="w-2 h-2 rounded-full flex-shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <div
+        className="flex-1 w-0 border-l-2 border-dashed"
+        style={{ borderColor: color, opacity: 0.35 }}
+      />
+    </div>
+  );
+}
+
+/* ── CompactCallout (mobile) ──────────────────────────────── */
 function CompactCallout({
   icon,
   label,
@@ -330,21 +434,90 @@ export default function FerdyPublishedPostDesktop() {
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  return (
-    <div className="w-full max-w-[480px] mx-auto">
-      {/* The post */}
-      <FacebookPost />
+  const [aiCopy, autoMedia, autoScheduled, autoPublished] = CALLOUTS;
 
-      {/* Callout grid */}
-      <div className="grid grid-cols-2 gap-3 mt-5">
-        {CALLOUTS.map((callout, i) => (
-          <CompactCallout key={callout.label} {...callout} visible={vis[i]} />
-        ))}
+  return (
+    <div className="w-full">
+      {/* ── Desktop: 3-column grid with side callouts ────── */}
+      <div className="hidden lg:grid lg:grid-cols-[1fr_420px_1fr] items-start max-w-6xl mx-auto">
+        {/* Left callouts */}
+        <div className="flex flex-col gap-0 pt-[80px]">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <CalloutCard {...aiCopy} visible={vis[0]} align="right" />
+            </div>
+            <ConnectorLine
+              color={aiCopy.color}
+              dotSide="right"
+              visible={vis[0]}
+            />
+          </div>
+          <div className="flex items-center mt-[80px]">
+            <div className="flex-shrink-0">
+              <CalloutCard {...autoMedia} visible={vis[1]} align="right" />
+            </div>
+            <ConnectorLine
+              color={autoMedia.color}
+              dotSide="right"
+              visible={vis[1]}
+            />
+          </div>
+        </div>
+
+        {/* Center: post + category card */}
+        <div>
+          <FacebookPost />
+          <div className="flex flex-col items-center mt-1">
+            <VerticalConnectorLine
+              color={CATEGORY_CALLOUT.color}
+              visible={vis[4]}
+            />
+          </div>
+          <CategoryCard callout={CATEGORY_CALLOUT} visible={vis[4]} />
+        </div>
+
+        {/* Right callouts */}
+        <div className="flex flex-col pt-[16px]">
+          <div className="flex items-center">
+            <ConnectorLine
+              color={autoScheduled.color}
+              dotSide="left"
+              visible={vis[2]}
+            />
+            <div className="flex-shrink-0">
+              <CalloutCard {...autoScheduled} visible={vis[2]} />
+            </div>
+          </div>
+          <div className="flex items-center mt-[310px]">
+            <ConnectorLine
+              color={autoPublished.color}
+              dotSide="left"
+              visible={vis[3]}
+            />
+            <div className="flex-shrink-0">
+              <CalloutCard {...autoPublished} visible={vis[3]} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Category card */}
-      <div className="mt-3">
-        <CategoryCard callout={CATEGORY_CALLOUT} visible={vis[4]} />
+      {/* ── Mobile/Tablet: post + grouped callouts below ─── */}
+      <div className="lg:hidden max-w-[480px] mx-auto">
+        <FacebookPost />
+
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          {CALLOUTS.map((callout, i) => (
+            <CompactCallout
+              key={callout.label}
+              {...callout}
+              visible={vis[i]}
+            />
+          ))}
+        </div>
+
+        <div className="mt-3">
+          <CategoryCard callout={CATEGORY_CALLOUT} visible={vis[4]} />
+        </div>
       </div>
     </div>
   );
