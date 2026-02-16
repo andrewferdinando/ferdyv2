@@ -825,11 +825,21 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
     if (draftError) throw draftError;
 
     // Update all post_jobs for this draft with the new scheduled_at
+    // and reset failed jobs back to pending so the publishing engine picks them up
     const { error: jobsError } = await supabase
       .from('post_jobs')
-      .update({ scheduled_at: newScheduledAtUtc })
-      .eq('draft_id', draft.id);
+      .update({ scheduled_at: newScheduledAtUtc, status: 'pending', error: null })
+      .eq('draft_id', draft.id)
+      .in('status', ['failed', 'canceled']);
     if (jobsError) throw jobsError;
+
+    // Also update scheduled_at for non-failed jobs (pending/ready/generated)
+    const { error: otherJobsError } = await supabase
+      .from('post_jobs')
+      .update({ scheduled_at: newScheduledAtUtc })
+      .eq('draft_id', draft.id)
+      .not('status', 'in', '("failed","canceled","success")');
+    if (otherJobsError) throw otherJobsError;
 
     await approveDraft(draft.id);
     setIsOverdueModalOpen(false);
