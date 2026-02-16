@@ -8,14 +8,14 @@ const CALLOUTS = [
     icon: '\u270D\uFE0F',
     label: 'AI-Generated Copy',
     description:
-      "Ferdy writes fresh copy every time, matched to your brand's tone of voice.",
+      "Ferdy writes fresh copy every time using your product info, matched to your brand's tone of voice.",
     color: '#7c3aed',
   },
   {
     icon: '\uD83D\uDDBC\uFE0F',
-    label: 'Auto-Selected Image',
+    label: 'Auto-Selected Media',
     description:
-      'Rotates through your image library so content always looks fresh.',
+      'Rotates through your media library — images or videos — so content always looks fresh.',
     color: '#0ea5e9',
   },
   {
@@ -31,6 +31,13 @@ const CALLOUTS = [
     description:
       'Ferdy publishes to Facebook, Instagram Feed & Stories — all at once.',
     color: '#22c55e',
+  },
+  {
+    icon: '\uD83D\uDCC2',
+    label: 'Category-Based',
+    description:
+      'Each category is a repeating content template — with its own media, schedule, and product info. Set it up once, Ferdy handles the rest.',
+    color: '#8b5cf6',
   },
 ];
 
@@ -108,6 +115,32 @@ function ConnectorLine({
           style={{ backgroundColor: color }}
         />
       )}
+    </div>
+  );
+}
+
+/* ── VerticalConnectorLine ─────────────────────────────────── */
+function VerticalConnectorLine({
+  color,
+  visible,
+}: {
+  color: string;
+  visible: boolean;
+}) {
+  return (
+    <div
+      className={`hidden lg:flex flex-col items-center min-h-[24px] h-8 transition-opacity duration-500 delay-200 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div
+        className="w-2 h-2 rounded-full flex-shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <div
+        className="flex-1 w-0 border-l-2 border-dashed"
+        style={{ borderColor: color, opacity: 0.35 }}
+      />
     </div>
   );
 }
@@ -322,10 +355,10 @@ function SparkleIcon({ size = 14 }: { size?: number }) {
 
 /* ── Main component ───────────────────────────────────────── */
 export default function FerdyPublishedPostDesktop() {
-  const [vis, setVis] = useState([false, false, false, false, false]);
+  const [vis, setVis] = useState([false, false, false, false, false, false]);
 
   useEffect(() => {
-    const timers = [0, 1, 2, 3, 4].map((i) =>
+    const timers = [0, 1, 2, 3, 4, 5].map((i) =>
       setTimeout(
         () =>
           setVis((prev) => {
@@ -339,7 +372,7 @@ export default function FerdyPublishedPostDesktop() {
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  const [aiCopy, autoImage, autoScheduled, autoPublished] = CALLOUTS;
+  const [aiCopy, autoMedia, autoScheduled, autoPublished, categoryBased] = CALLOUTS;
 
   return (
     <div className="w-full">
@@ -372,20 +405,28 @@ export default function FerdyPublishedPostDesktop() {
           {/* Auto-Selected Image → aligns with post image */}
           <div className="flex items-center mt-[80px]">
             <div className="flex-shrink-0">
-              <CalloutCard {...autoImage} visible={vis[1]} align="right" />
+              <CalloutCard {...autoMedia} visible={vis[1]} align="right" />
             </div>
             <ConnectorLine
-              color={autoImage.color}
+              color={autoMedia.color}
               dotSide="right"
               visible={vis[1]}
             />
           </div>
         </div>
 
-        {/* Center: the post */}
+        {/* Center: the post + bottom callout */}
         <div>
           <FacebookPost />
-          <SummaryBar visible={vis[4]} />
+          {/* Category-Based callout below post */}
+          <div className="flex flex-col items-center mt-1">
+            <VerticalConnectorLine
+              color={categoryBased.color}
+              visible={vis[4]}
+            />
+            <CalloutCard {...categoryBased} visible={vis[4]} align="left" />
+          </div>
+          <SummaryBar visible={vis[5]} />
         </div>
 
         {/* Right callouts */}
@@ -420,7 +461,7 @@ export default function FerdyPublishedPostDesktop() {
         {/* Top callouts: content creation */}
         <div className="grid grid-cols-2 gap-3 mb-5">
           <CalloutCard {...aiCopy} visible={vis[0]} />
-          <CalloutCard {...autoImage} visible={vis[1]} />
+          <CalloutCard {...autoMedia} visible={vis[1]} />
         </div>
 
         {/* Post */}
@@ -434,7 +475,12 @@ export default function FerdyPublishedPostDesktop() {
           <CalloutCard {...autoPublished} visible={vis[3]} />
         </div>
 
-        <SummaryBar visible={vis[4]} />
+        {/* Category-Based callout */}
+        <div className="mt-4 flex justify-center">
+          <CalloutCard {...categoryBased} visible={vis[4]} />
+        </div>
+
+        <SummaryBar visible={vis[5]} />
       </div>
     </div>
   );
