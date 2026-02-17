@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import { useSocialAccounts } from '@/hooks/useSocialAccounts'
@@ -183,6 +183,39 @@ export default function IntegrationsPage() {
   const [actionProvider, setActionProvider] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [igProfile, setIgProfile] = useState<{ profilePictureUrl: string | null; accountType: string | null } | null>(null)
+
+  // Fetch Instagram profile data (picture + account type) if connected but missing from metadata
+  const enrichInstagramProfile = useCallback(async () => {
+    const igAccount = accounts.find(a => a.provider === 'instagram' && a.status === 'connected')
+    if (!igAccount) return
+
+    const meta = igAccount.metadata as Record<string, unknown> | null
+    if (meta?.profilePictureUrl) {
+      setIgProfile({ profilePictureUrl: meta.profilePictureUrl as string, accountType: (meta.accountType as string) ?? 'Business' })
+      return
+    }
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) return
+
+      const res = await fetch(`/api/integrations/instagram/profile?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) return
+
+      const data = await res.json()
+      setIgProfile({ profilePictureUrl: data.profilePictureUrl ?? null, accountType: data.accountType ?? 'Business' })
+    } catch {
+      // Non-critical — silently ignore
+    }
+  }, [accounts, brandId])
+
+  useEffect(() => {
+    enrichInstagramProfile()
+  }, [enrichInstagramProfile])
 
   // Handle URL query params from OAuth callback redirects
   useEffect(() => {
@@ -382,13 +415,17 @@ export default function IntegrationsPage() {
                 }
 
                 const profilePictureUrl =
-                  provider.id === 'instagram' && connectedAccount?.metadata
-                    ? (connectedAccount.metadata as Record<string, unknown>).profilePictureUrl as string | undefined
+                  provider.id === 'instagram'
+                    ? ((connectedAccount?.metadata as Record<string, unknown> | null)?.profilePictureUrl as string | undefined)
+                      ?? igProfile?.profilePictureUrl
+                      ?? undefined
                     : undefined
 
                 const accountType =
-                  provider.id === 'instagram' && connectedAccount?.metadata
-                    ? (connectedAccount.metadata as Record<string, unknown>).accountType as string | undefined
+                  provider.id === 'instagram'
+                    ? ((connectedAccount?.metadata as Record<string, unknown> | null)?.accountType as string | undefined)
+                      ?? igProfile?.accountType
+                      ?? undefined
                     : undefined
 
                 const connectionSummary = isConnected ? (
