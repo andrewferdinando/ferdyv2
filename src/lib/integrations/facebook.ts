@@ -213,6 +213,7 @@ interface FacebookPagesResult {
     name: string
     access_token: string
     instagram_business_account?: { id: string }
+    picture?: { data?: { url?: string } }
   }>
   _debug?: {
     userId?: string
@@ -248,7 +249,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   })
 
   const pagesUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
-  pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account')
+  pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account,picture{url}')
   pagesUrl.searchParams.set('access_token', userAccessToken)
 
   logger?.('facebook_pages_request', {
@@ -365,6 +366,8 @@ export async function handleFacebookCallback({
         pageId: primaryPage.id,
         pageName: primaryPage.name,
         instagramBusinessAccountId: primaryPage.instagram_business_account?.id ?? null,
+        profilePictureUrl: primaryPage.picture?.data?.url ?? null,
+        accountType: 'Page',
       },
     },
   ]

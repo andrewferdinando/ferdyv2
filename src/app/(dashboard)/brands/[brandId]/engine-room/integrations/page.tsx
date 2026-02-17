@@ -183,39 +183,53 @@ export default function IntegrationsPage() {
   const [actionProvider, setActionProvider] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [igProfile, setIgProfile] = useState<{ profilePictureUrl: string | null; accountType: string | null } | null>(null)
+  const [enrichedProfiles, setEnrichedProfiles] = useState<Record<string, { profilePictureUrl: string | null; accountType: string | null }>>({})
 
-  // Fetch Instagram profile data (picture + account type) if connected but missing from metadata
-  const enrichInstagramProfile = useCallback(async () => {
-    const igAccount = accounts.find(a => a.provider === 'instagram' && a.status === 'connected')
-    if (!igAccount) return
+  // Fetch profile data (picture + account type) for connected accounts missing it in metadata
+  const enrichProfiles = useCallback(async () => {
+    const providers = ['instagram', 'facebook'] as const
+    const results: Record<string, { profilePictureUrl: string | null; accountType: string | null }> = {}
 
-    const meta = igAccount.metadata as Record<string, unknown> | null
-    if (meta?.profilePictureUrl) {
-      setIgProfile({ profilePictureUrl: meta.profilePictureUrl as string, accountType: (meta.accountType as string) ?? 'Business' })
-      return
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData.session?.access_token
+
+    for (const provider of providers) {
+      const account = accounts.find(a => a.provider === provider && a.status === 'connected')
+      if (!account) continue
+
+      const meta = account.metadata as Record<string, unknown> | null
+      if (meta?.profilePictureUrl) {
+        results[provider] = {
+          profilePictureUrl: meta.profilePictureUrl as string,
+          accountType: (meta.accountType as string) ?? (provider === 'facebook' ? 'Page' : 'Business'),
+        }
+        continue
+      }
+
+      if (!accessToken) continue
+
+      try {
+        const res = await fetch(`/api/integrations/${provider}/profile?brandId=${brandId}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) continue
+
+        const data = await res.json()
+        results[provider] = {
+          profilePictureUrl: data.profilePictureUrl ?? null,
+          accountType: data.accountType ?? (provider === 'facebook' ? 'Page' : 'Business'),
+        }
+      } catch {
+        // Non-critical — silently ignore
+      }
     }
 
-    try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const accessToken = sessionData.session?.access_token
-      if (!accessToken) return
-
-      const res = await fetch(`/api/integrations/instagram/profile?brandId=${brandId}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      if (!res.ok) return
-
-      const data = await res.json()
-      setIgProfile({ profilePictureUrl: data.profilePictureUrl ?? null, accountType: data.accountType ?? 'Business' })
-    } catch {
-      // Non-critical — silently ignore
-    }
+    setEnrichedProfiles(results)
   }, [accounts, brandId])
 
   useEffect(() => {
-    enrichInstagramProfile()
-  }, [enrichInstagramProfile])
+    enrichProfiles()
+  }, [enrichProfiles])
 
   // Handle URL query params from OAuth callback redirects
   useEffect(() => {
@@ -414,19 +428,18 @@ export default function IntegrationsPage() {
                   return `Last verified ${diffDays} days ago`
                 }
 
+                const meta = connectedAccount?.metadata as Record<string, unknown> | null
+                const enriched = enrichedProfiles[provider.id]
+
                 const profilePictureUrl =
-                  provider.id === 'instagram'
-                    ? ((connectedAccount?.metadata as Record<string, unknown> | null)?.profilePictureUrl as string | undefined)
-                      ?? igProfile?.profilePictureUrl
-                      ?? undefined
-                    : undefined
+                  (meta?.profilePictureUrl as string | undefined)
+                    ?? enriched?.profilePictureUrl
+                    ?? undefined
 
                 const accountType =
-                  provider.id === 'instagram'
-                    ? ((connectedAccount?.metadata as Record<string, unknown> | null)?.accountType as string | undefined)
-                      ?? igProfile?.accountType
-                      ?? undefined
-                    : undefined
+                  (meta?.accountType as string | undefined)
+                    ?? enriched?.accountType
+                    ?? undefined
 
                 const connectionSummary = isConnected ? (
                   <div className="flex items-start gap-3">
