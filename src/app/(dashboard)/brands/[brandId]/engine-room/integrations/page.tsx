@@ -381,16 +381,38 @@ export default function IntegrationsPage() {
                   return `Last verified ${diffDays} days ago`
                 }
 
+                const profilePictureUrl =
+                  provider.id === 'instagram' && connectedAccount?.metadata
+                    ? (connectedAccount.metadata as Record<string, unknown>).profilePictureUrl as string | undefined
+                    : undefined
+
+                const accountType =
+                  provider.id === 'instagram' && connectedAccount?.metadata
+                    ? (connectedAccount.metadata as Record<string, unknown>).accountType as string | undefined
+                    : undefined
+
                 const connectionSummary = isConnected ? (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Connected as:</span>
-                      {getTokenStatusBadge()}
-                    </div>
-                    <span className="font-medium text-gray-900">{displayHandle}</span>
-                    {getLastRefreshedText() && (
-                      <span className="text-xs text-gray-500">{getLastRefreshedText()}</span>
+                  <div className="flex items-start gap-3">
+                    {profilePictureUrl && (
+                      <img
+                        src={profilePictureUrl}
+                        alt={displayHandle ?? 'Profile'}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover"
+                      />
                     )}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Connected as:</span>
+                        {getTokenStatusBadge()}
+                      </div>
+                      <span className="truncate font-medium text-gray-900">{displayHandle}</span>
+                      {accountType && (
+                        <span className="text-xs text-gray-500">{accountType} Account</span>
+                      )}
+                      {getLastRefreshedText() && (
+                        <span className="text-xs text-gray-500">{getLastRefreshedText()}</span>
+                      )}
+                    </div>
                   </div>
                 ) : provider.id === 'linkedin' ? (
                   <>Connect LinkedIn Profile</>

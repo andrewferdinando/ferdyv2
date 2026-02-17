@@ -286,7 +286,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 
 async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
   const igUrl = new URL(`https://graph.facebook.com/v19.0/${instagramId}`)
-  igUrl.searchParams.set('fields', 'id,username,name')
+  igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url')
   igUrl.searchParams.set('access_token', pageAccessToken)
 
   logger?.('instagram_account_request', {
@@ -314,6 +314,7 @@ async function fetchInstagramAccount(instagramId: string, pageAccessToken: strin
       id: string
       username?: string
       name?: string
+      profile_picture_url?: string
     }
   } catch (error) {
     logger?.('instagram_account_parse_error', {
@@ -388,6 +389,8 @@ export async function handleFacebookCallback({
         metadata: {
           facebookPageId: primaryPage.id,
           instagramBusinessAccountId: instagramAccount.id,
+          profilePictureUrl: instagramAccount.profile_picture_url ?? null,
+          accountType: 'Business',
         },
       })
     } catch (error) {

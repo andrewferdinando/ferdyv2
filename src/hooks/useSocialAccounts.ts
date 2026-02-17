@@ -14,6 +14,7 @@ export type SocialAccountSummary = {
   last_refreshed_at: string | null
   connected_by_user_id: string | null
   created_at: string
+  metadata: Record<string, unknown> | null
   connected_by?: {
     full_name: string | null
   } | null
@@ -57,7 +58,8 @@ export function useSocialAccounts(brandId: string) {
             token_expires_at,
             last_refreshed_at,
             connected_by_user_id,
-            created_at
+            created_at,
+            metadata
           `,
         )
         .eq('brand_id', brandId)

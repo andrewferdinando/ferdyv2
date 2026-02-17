@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState } from 'react';
+import Link from 'next/link';
 import Sidebar from '@/components/navigation/Sidebar';
 import AppTopNav from '@/components/navigation/AppTopNav';
 
@@ -55,6 +56,15 @@ function AppLayoutInner({ children }: AppLayoutProps) {
           <main className="flex-1 overflow-auto">
             {children}
           </main>
+          <footer className="border-t border-gray-200 bg-gray-50 px-4 py-3 text-center text-xs text-gray-500">
+            <Link href="/privacy" className="hover:text-gray-700 transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="mx-2">·</span>
+            <Link href="/terms" className="hover:text-gray-700 transition-colors">
+              Terms
+            </Link>
+          </footer>
         </div>
       </div>
   );
