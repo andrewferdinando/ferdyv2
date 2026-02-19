@@ -1022,6 +1022,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                   const pic = meta?.profilePictureUrl as string | undefined;
                   return (
                     <div key={a.provider} className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                      {getPlatformIcon(a.provider)}
                       {pic && (
                         <img src={pic} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
                       )}
