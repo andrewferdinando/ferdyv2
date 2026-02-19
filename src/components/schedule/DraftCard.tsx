@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDrafts } from '@/hooks/useDrafts';
-import { useSocialAccounts } from '@/hooks/useSocialAccounts';
+import { useSocialAccounts, type SocialAccountSummary } from '@/hooks/useSocialAccounts';
 import { useBrand } from '@/hooks/useBrand';
 import Modal from '@/components/ui/Modal';
 import { Form, FormField, FormActions } from '@/components/ui/Form';
@@ -274,12 +274,13 @@ interface DraftCardProps {
   onUpdate: () => void;
   status?: DraftStatus;
   jobs?: PostJobSummary[];
+  socialAccounts?: SocialAccountSummary[];
 }
 
 const CHANNEL_ORDER = SUPPORTED_CHANNELS;
 const CHANNEL_ORDER_INDEX = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]));
 
-export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardProps) {
+export default function DraftCard({ draft, onUpdate, status, jobs, socialAccounts }: DraftCardProps) {
   const effectiveStatus: DraftStatus = status ?? draft.status ?? 'draft';
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -290,7 +291,8 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
   const router = useRouter();
   const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
-  const { accounts } = useSocialAccounts(draft.brand_id);
+  const { accounts: hookAccounts } = useSocialAccounts(draft.brand_id);
+  const accounts = socialAccounts ?? hookAccounts;
   const { brand } = useBrand(draft.brand_id); // Fetch brand for timezone
   const { publishNow } = usePublishNow();
   

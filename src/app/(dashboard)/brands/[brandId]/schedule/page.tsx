@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { Asset } from '@/hooks/assets/useAssets';
 import type { PostJobSummary } from '@/types/postJobs';
 import { fetchJobsByDraftId } from '@/hooks/usePostJobs';
+import { useSocialAccounts, type SocialAccountSummary } from '@/hooks/useSocialAccounts';
 
 // Type definitions
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
@@ -146,6 +147,7 @@ export default function SchedulePage() {
   const { scheduled, jobsByDraftId: scheduledJobsByDraftId, loading: scheduledLoading, refetch: refetchScheduled } =
     useScheduled(brandId);
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
+  const { accounts: socialAccounts } = useSocialAccounts(brandId);
 
   const tabs: Tab[] = [
     { id: 'drafts', name: 'Drafts', count: drafts.length },
@@ -197,28 +199,31 @@ export default function SchedulePage() {
     switch (activeTab) {
       case 'drafts':
         return (
-          <DraftsTab 
-            drafts={drafts} 
-            loading={draftsLoading} 
+          <DraftsTab
+            drafts={drafts}
+            loading={draftsLoading}
             onUpdate={handleGlobalUpdate}
             jobsByDraftId={draftsJobsByDraftId}
+            socialAccounts={socialAccounts}
           />
         );
       case 'scheduled':
         return (
-          <ScheduledTab 
-            scheduled={scheduled} 
-            loading={scheduledLoading} 
+          <ScheduledTab
+            scheduled={scheduled}
+            loading={scheduledLoading}
             onUpdate={refetchScheduled}
             jobsByDraftId={scheduledJobsByDraftId}
+            socialAccounts={socialAccounts}
           />
         );
       case 'published':
         return (
-          <PublishedTab 
-            published={published} 
-            loading={publishedLoading} 
+          <PublishedTab
+            published={published}
+            loading={publishedLoading}
             onUpdate={refetchPublished}
+            socialAccounts={socialAccounts}
           />
         );
       default:
@@ -314,9 +319,10 @@ interface DraftsTabProps {
   loading: boolean;
   onUpdate: () => void;
   jobsByDraftId: Record<string, PostJobSummary[]>;
+  socialAccounts: SocialAccountSummary[];
 }
 
-function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps) {
+function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId, socialAccounts }: DraftsTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -357,12 +363,13 @@ function DraftsTab({ drafts, loading, onUpdate, jobsByDraftId }: DraftsTabProps)
         const draftJobs = jobsByDraftId[draft.id] || [];
         
         return (
-          <DraftCard 
-            key={draft.id} 
-            draft={draft} 
-            onUpdate={onUpdate} 
+          <DraftCard
+            key={draft.id}
+            draft={draft}
+            onUpdate={onUpdate}
             status={draft.status}
             jobs={draftJobs}
+            socialAccounts={socialAccounts}
           />
         );
       })}
@@ -376,9 +383,10 @@ interface ScheduledTabProps {
   loading: boolean;
   onUpdate: () => void;
   jobsByDraftId: Record<string, PostJobSummary[]>;
+  socialAccounts: SocialAccountSummary[];
 }
 
-function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: ScheduledTabProps) {
+function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId, socialAccounts }: ScheduledTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -421,6 +429,7 @@ function ScheduledTab({ scheduled, loading, onUpdate, jobsByDraftId }: Scheduled
           onUpdate={onUpdate}
           status={post.status}
           jobs={jobsByDraftId[post.id] || []}
+          socialAccounts={socialAccounts}
         />
       ))}
     </div>
@@ -432,9 +441,10 @@ interface PublishedTabProps {
   published: PublishedPost[];
   loading: boolean;
   onUpdate: () => void;
+  socialAccounts: SocialAccountSummary[];
 }
 
-function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
+function PublishedTab({ published, loading, onUpdate, socialAccounts }: PublishedTabProps) {
   const [publishedJobsByDraftId, setPublishedJobsByDraftId] = useState<Record<string, PostJobSummary[]>>({});
 
   useEffect(() => {
@@ -482,12 +492,13 @@ function PublishedTab({ published, loading, onUpdate }: PublishedTabProps) {
   return (
     <div className="space-y-4">
       {sortedPublished.map((post) => (
-        <DraftCard 
-          key={post.id} 
-          draft={post} 
-          onUpdate={onUpdate} 
+        <DraftCard
+          key={post.id}
+          draft={post}
+          onUpdate={onUpdate}
           status={post.status}
           jobs={publishedJobsByDraftId[post.id] || []}
+          socialAccounts={socialAccounts}
         />
       ))}
     </div>
