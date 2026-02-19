@@ -294,7 +294,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 
 async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
   const igUrl = new URL(`https://graph.facebook.com/v19.0/${instagramId}`)
-  igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website,account_type')
+  igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website')
   igUrl.searchParams.set('access_token', pageAccessToken)
 
   logger?.('instagram_account_request', {
@@ -328,7 +328,6 @@ async function fetchInstagramAccount(instagramId: string, pageAccessToken: strin
       follows_count?: number
       media_count?: number
       website?: string
-      account_type?: string
     }
   } catch (error) {
     logger?.('instagram_account_parse_error', {
@@ -415,7 +414,7 @@ export async function handleFacebookCallback({
           instagramBusinessAccountId: instagramAccount.id,
           igUserId: instagramAccount.id,
           profilePictureUrl: instagramAccount.profile_picture_url ?? null,
-          accountType: instagramAccount.account_type ?? 'Business',
+          accountType: 'Business',
           name: instagramAccount.name ?? null,
           username: instagramAccount.username ?? null,
           biography: instagramAccount.biography ?? null,

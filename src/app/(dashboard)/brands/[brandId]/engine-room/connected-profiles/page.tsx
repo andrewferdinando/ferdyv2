@@ -229,7 +229,32 @@ function InstagramProfileCard({
     )
   }
 
-  if (state.loading || !p) return <CardSkeleton />
+  if (state.loading) return <CardSkeleton />
+
+  if (state.error || !p) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="bg-gradient-to-r from-[#833AB4] via-[#C13584] to-[#F77737] px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <InstagramIcon className="h-8 w-8 text-white" />
+              <h2 className="text-lg font-bold text-white">Instagram</h2>
+            </div>
+            <RefreshButton refreshing={state.refreshing} onClick={onRefresh} />
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Could not load full profile data. Try refreshing, or reconnect from the{' '}
+            <Link href=".." className="font-medium underline">
+              Integrations page
+            </Link>
+            .
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -329,7 +354,32 @@ function FacebookProfileCard({
     )
   }
 
-  if (state.loading || !p) return <CardSkeleton />
+  if (state.loading) return <CardSkeleton />
+
+  if (state.error || !p) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="bg-[#1877F2] px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FacebookIcon className="h-8 w-8 text-white" />
+              <h2 className="text-lg font-bold text-white">Facebook Page</h2>
+            </div>
+            <RefreshButton refreshing={state.refreshing} onClick={onRefresh} />
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Could not load full profile data. Try refreshing, or reconnect from the{' '}
+            <Link href=".." className="font-medium underline">
+              Integrations page
+            </Link>
+            .
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">

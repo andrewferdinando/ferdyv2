@@ -28,7 +28,7 @@ function isTokenExpiredError(errorBody: string): boolean {
 }
 
 const INSTAGRAM_FIELDS =
-  'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website,account_type'
+  'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website'
 
 const FACEBOOK_PAGE_FIELDS =
   'id,name,picture{url},category,about,fan_count,website,link,single_line_address,phone'
@@ -135,7 +135,6 @@ export async function GET(
         follows_count?: number
         media_count?: number
         website?: string
-        account_type?: string
       }
 
       updatedMetadata = {
@@ -149,7 +148,7 @@ export async function GET(
         followsCount: igData.follows_count ?? null,
         mediaCount: igData.media_count ?? null,
         website: igData.website ?? null,
-        accountType: igData.account_type ?? existing.accountType ?? 'Business',
+        accountType: existing.accountType ?? 'Business',
         profileLastFetchedAt: new Date().toISOString(),
       }
     } else {
