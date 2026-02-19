@@ -15,7 +15,7 @@ import OverdueApprovalModal from '@/components/schedule/OverdueApprovalModal';
 import { usePublishNow } from '@/hooks/usePublishNow';
 import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
 import type { PostJobSummary } from '@/types/postJobs';
-import { canonicalizeChannel, getChannelLabel, SUPPORTED_CHANNELS } from '@/lib/channels';
+import { canonicalizeChannel, getChannelLabel, SUPPORTED_CHANNELS, CHANNEL_PROVIDER_MAP } from '@/lib/channels';
 
 const FORMAT_RATIOS: Record<string, number> = {
   '1:1': 1,
@@ -1000,7 +1000,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
               </div>
             </div>
 
-            {/* Post Context Bar - At the very bottom of the card */}
+            {/* Post Context Bar */}
             {brand?.timezone && (
               <PostContextBar
                 categoryName={categoryName}
@@ -1011,6 +1011,35 @@ export default function DraftCard({ draft, onUpdate, status, jobs }: DraftCardPr
                 eventWindow={eventWindow}
               />
             )}
+
+            {/* Connected Account Metadata */}
+            {accounts.length > 0 && normalizedJobs.length > 0 && (() => {
+              const providers = new Set(
+                normalizedJobs.map(j => CHANNEL_PROVIDER_MAP[j.channel]).filter(Boolean)
+              );
+              const matched = accounts.filter(
+                a => providers.has(a.provider) && a.status === 'connected'
+              );
+              if (!matched.length) return null;
+              return (
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-gray-100 pt-2">
+                  {matched.map(a => {
+                    const meta = a.metadata as Record<string, unknown> | null;
+                    const pic = meta?.profilePictureUrl as string | undefined;
+                    return (
+                      <div key={a.provider} className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        {pic && (
+                          <img src={pic} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
+                        )}
+                        <span>{a.handle}</span>
+                        <span className="text-gray-300">·</span>
+                        <span>{a.account_id}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
