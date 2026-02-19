@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/ToastProvider';
 import DraftCard from '@/components/schedule/DraftCard';
 import { resolveActionableMessage, type ActionableMessage } from '@/lib/needsAttention/resolveActionableMessage';
 import { getChannelLabel } from '@/lib/channels';
@@ -114,6 +115,7 @@ interface AttentionCardProps {
 
 function AttentionCard({ post, jobs, message, socialAccounts, onUpdate }: AttentionCardProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [retrying, setRetrying] = useState(false);
 
   const handleRetry = async (e: React.MouseEvent) => {
@@ -125,13 +127,24 @@ function AttentionCard({ post, jobs, message, socialAccounts, onUpdate }: Attent
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ draftId: post.id }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error('[AttentionCard] Retry failed:', data.error);
+        showToast({ title: data.error || 'Retry failed. Please try again.', type: 'error' });
+      } else {
+        const retried = data.retried ?? 0;
+        const succeeded = (data.jobs ?? []).filter((j: any) => j.status === 'success').length;
+        if (succeeded === retried && retried > 0) {
+          showToast({ title: 'Post published successfully.', type: 'success' });
+        } else if (succeeded > 0) {
+          showToast({ title: `Published ${succeeded} of ${retried} channels. Some still need attention.`, type: 'warning' });
+        } else {
+          showToast({ title: 'Retry attempted but publishing still failed.', type: 'error' });
+        }
       }
       onUpdate();
     } catch (err) {
       console.error('[AttentionCard] Retry error:', err);
+      showToast({ title: 'Something went wrong. Please try again.', type: 'error' });
     } finally {
       setRetrying(false);
     }

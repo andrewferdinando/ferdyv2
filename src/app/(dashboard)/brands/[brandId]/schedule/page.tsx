@@ -155,9 +155,9 @@ export default function SchedulePage() {
 
   const tabs: Tab[] = [
     { id: 'drafts', name: 'Drafts', count: drafts.length },
-    { id: 'attention', name: 'Needs Attention', count: needsAttention.length },
     { id: 'scheduled', name: 'Scheduled', count: scheduled.length },
     { id: 'published', name: 'Published', count: published.length },
+    { id: 'attention', name: 'Needs Attention', count: needsAttention.length },
   ];
 
   const handleNewPostClick = () => {
