@@ -1017,6 +1017,9 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
             {/* Connected Account Metadata */}
             {accounts.filter(a => a.status === 'connected').length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-gray-100 pt-2">
+                <span className="text-[11px] text-gray-400">
+                  {effectiveStatus === 'published' ? 'Published from' : 'Will be published from'}
+                </span>
                 {accounts.filter(a => a.status === 'connected').map(a => {
                   const meta = a.metadata as Record<string, unknown> | null;
                   const pic = meta?.profilePictureUrl as string | undefined;
