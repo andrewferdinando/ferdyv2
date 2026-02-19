@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import AppLayout from '@/components/layout/AppLayout'
 import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
@@ -460,16 +459,11 @@ export default function IntegrationsPage() {
                       {accountType && (
                         <span className="text-xs text-gray-500">{accountType} Account</span>
                       )}
+                      {connectedAccount?.account_id && (
+                        <span className="text-xs text-gray-400">ID: {connectedAccount.account_id}</span>
+                      )}
                       {getLastRefreshedText() && (
                         <span className="text-xs text-gray-500">{getLastRefreshedText()}</span>
-                      )}
-                      {isConnected && (
-                        <Link
-                          href={`/brands/${brandId}/engine-room/connected-profiles`}
-                          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                        >
-                          See full profile →
-                        </Link>
                       )}
                     </div>
                   </div>
