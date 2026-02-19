@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-browser'
 
 export type SocialAccountSummary = {
   id: string
@@ -89,12 +89,12 @@ export function useSocialAccounts(brandId: string) {
         if (profileError) {
           console.warn('useSocialAccounts: failed to load profile names', profileError)
         } else {
-          userNameLookup = (profileData ?? []).reduce<Record<string, { full_name: string | null }>>(
-            (acc, profile) => {
+          userNameLookup = (profileData ?? []).reduce(
+            (acc: Record<string, { full_name: string | null }>, profile: any) => {
               acc[profile.user_id] = { full_name: profile.full_name ?? null }
               return acc
             },
-            {},
+            {} as Record<string, { full_name: string | null }>,
           )
         }
       }
