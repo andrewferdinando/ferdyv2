@@ -363,12 +363,12 @@ function FacebookProfileCard({
             {p.category && (
               <p className="text-sm text-gray-500">{p.category}</p>
             )}
+            {p.accountType && (
+              <span className="mt-1 inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                {p.accountType}
+              </span>
+            )}
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-6 flex justify-around rounded-lg bg-gray-50 py-3">
-          <StatItem label="Page Likes" value={formatNumber(p.fanCount)} />
         </div>
 
         {/* Details */}

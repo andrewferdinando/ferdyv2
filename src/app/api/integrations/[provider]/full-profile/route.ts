@@ -14,6 +14,19 @@ function extractToken(request: Request) {
 
 const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour
 
+/**
+ * Check if a Graph API error response indicates an expired/invalid token.
+ * Error code 190 = invalid access token; subcodes 463/467 = expired.
+ */
+function isTokenExpiredError(errorBody: string): boolean {
+  try {
+    const parsed = JSON.parse(errorBody) as { error?: { code?: number } }
+    return parsed?.error?.code === 190
+  } catch {
+    return false
+  }
+}
+
 const INSTAGRAM_FIELDS =
   'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website,account_type'
 
@@ -98,9 +111,13 @@ export async function GET(
 
       if (!igResponse.ok) {
         const errorText = await igResponse.text()
-        // Check for token expiry
-        if (igResponse.status === 190 || errorText.includes('OAuthException')) {
+        console.warn('[full-profile/instagram] Graph API error:', igResponse.status, errorText.slice(0, 300))
+        if (isTokenExpiredError(errorText)) {
           return NextResponse.json({ error: 'token_expired' }, { status: 401 })
+        }
+        // Non-fatal: return cached metadata if available
+        if (existing.profileLastFetchedAt) {
+          return NextResponse.json({ profile: existing, cached: true })
         }
         return NextResponse.json(
           { error: `Instagram Graph API error: ${igResponse.status}` },
@@ -145,8 +162,13 @@ export async function GET(
 
       if (!fbResponse.ok) {
         const errorText = await fbResponse.text()
-        if (fbResponse.status === 190 || errorText.includes('OAuthException')) {
+        console.warn('[full-profile/facebook] Graph API error:', fbResponse.status, errorText.slice(0, 300))
+        if (isTokenExpiredError(errorText)) {
           return NextResponse.json({ error: 'token_expired' }, { status: 401 })
+        }
+        // Non-fatal: return cached metadata if available
+        if (existing.profileLastFetchedAt) {
+          return NextResponse.json({ profile: existing, cached: true })
         }
         return NextResponse.json(
           { error: `Facebook Graph API error: ${fbResponse.status}` },
