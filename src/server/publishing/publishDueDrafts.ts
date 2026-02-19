@@ -5,8 +5,9 @@ import {
   SUPPORTED_CHANNELS,
 } from '@/lib/channels'
 import { publishJob, notifyPostPublishedBatched } from './publishJob'
+import { notifyPublishingFailed } from './notifyPublishingFailed'
 
-type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published'
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published' | 'failed'
 
 type DraftRow = {
   id: string
@@ -86,7 +87,7 @@ export async function getPublishableJobs(
       drafts!post_jobs_draft_id_fkey!inner(id, status)
     `)
     .in('status', statusArray)
-    .in('drafts.status', ['scheduled', 'partially_published'])
+    .in('drafts.status', ['scheduled', 'partially_published', 'failed'])
     .order('scheduled_at', { ascending: true })
     .limit(limit)
 
@@ -159,6 +160,10 @@ export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftS
   else if (pendingCount === total && total > 0) {
     newStatus = 'scheduled'
   }
+  // All failed → failed
+  else if (failedCount === total && total > 0) {
+    newStatus = 'failed'
+  }
   // Otherwise, keep existing status
   else {
     const { data: draft } = await supabaseAdmin
@@ -216,7 +221,7 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
   const { data: dueDrafts, error: dueError } = await supabaseAdmin
     .from('drafts')
     .select('id, brand_id, channel, status, scheduled_for, asset_ids, hashtags, copy, approved')
-    .in('status', ['scheduled', 'partially_published'])
+    .in('status', ['scheduled', 'partially_published', 'failed'])
     .eq('approved', true)
     .lte('scheduled_for', nowIso)
     .order('scheduled_for', { ascending: true })
@@ -242,7 +247,7 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
   for (const draft of dueDrafts) {
     // Defensive guard: double-check draft status before processing
     // This ensures we never process deleted or non-scheduled drafts
-    if (draft.status !== 'scheduled' && draft.status !== 'partially_published') {
+    if (draft.status !== 'scheduled' && draft.status !== 'partially_published' && draft.status !== 'failed') {
       console.warn(`[publishDueDrafts] Skipping draft ${draft.id} with invalid status: ${draft.status}`)
       continue
     }
@@ -254,7 +259,7 @@ export async function publishDueDrafts(limit = 20): Promise<PublishSummary> {
       .eq('id', draft.id)
       .single()
 
-    if (!currentDraft || currentDraft.status !== 'scheduled' && currentDraft.status !== 'partially_published') {
+    if (!currentDraft || (currentDraft.status !== 'scheduled' && currentDraft.status !== 'partially_published' && currentDraft.status !== 'failed')) {
       console.warn(`[publishDueDrafts] Draft ${draft.id} no longer exists or has invalid status, cancelling related jobs`)
       
       // Cancel any pending jobs for this draft
@@ -377,8 +382,8 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
   }
 
   // Defensive guard: verify draft is in a valid status for publishing
-  if (draft.status !== 'scheduled' && draft.status !== 'partially_published') {
-    throw new Error(`Draft has invalid status '${draft.status}'. Expected 'scheduled' or 'partially_published'.`)
+  if (draft.status !== 'scheduled' && draft.status !== 'partially_published' && draft.status !== 'failed') {
+    throw new Error(`Draft has invalid status '${draft.status}'. Expected 'scheduled', 'partially_published', or 'failed'.`)
   }
 
   // Load all post_jobs for this draft
@@ -502,7 +507,7 @@ async function processDraft(
     return false
   }
 
-  if (currentDraft.status !== 'scheduled' && currentDraft.status !== 'partially_published') {
+  if (currentDraft.status !== 'scheduled' && currentDraft.status !== 'partially_published' && currentDraft.status !== 'failed') {
     console.warn(`[processDraft] Draft ${draft.id} has invalid status: ${currentDraft.status}, cancelling related jobs`)
     // Cancel any pending jobs for this invalid draft
     await supabaseAdmin
@@ -543,7 +548,7 @@ async function processDraft(
       drafts!post_jobs_draft_id_fkey!inner(id, status)
     `)
     .eq('draft_id', draft.id)
-    .in('drafts.status', ['scheduled', 'partially_published'])
+    .in('drafts.status', ['scheduled', 'partially_published', 'failed'])
 
   console.log(`[processDraft] Post jobs query result:`, {
     found: existingJobsData?.length || 0,
@@ -717,6 +722,26 @@ async function processDraft(
     } catch (emailError) {
       console.error('[processDraft] Failed to send batched post published email:', emailError)
       // Don't fail the publish if email fails
+    }
+  }
+
+  // Send failure email notification if any jobs failed
+  const failedJobsList = relevantJobs.filter((job) => job.status === 'failed')
+  if (failedJobsList.length > 0) {
+    try {
+      const succeededChannels = relevantJobs
+        .filter((job) => job.status === 'success')
+        .map((job) => canonicalizeChannel(job.channel) ?? job.channel)
+      const failedChannels = failedJobsList.map((job) => canonicalizeChannel(job.channel) ?? job.channel)
+
+      await notifyPublishingFailed({
+        brandId: draft.brand_id,
+        draftId: draft.id,
+        failedChannels,
+        succeededChannels,
+      })
+    } catch (emailError) {
+      console.error('[processDraft] Failed to send publishing failed email:', emailError)
     }
   }
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getChannelLabel } from '@/lib/channels';
 
 // Mirror the type definitions from the schedule page
-type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published' | 'failed';
 
 interface BaseDraft {
   id: string;

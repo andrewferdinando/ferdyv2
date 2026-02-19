@@ -14,6 +14,7 @@ import { SocialConnectionDisconnected } from '@/emails/SocialConnectionDisconnec
 import { TokenExpiringWarning } from '@/emails/TokenExpiringWarning'
 import { PaymentFailed } from '@/emails/PaymentFailed'
 import { SubscriptionCancelled } from '@/emails/SubscriptionCancelled'
+import { PublishingFailed } from '@/emails/PublishingFailed'
 
 // Initialize Resend
 let resendInstance: Resend | null = null
@@ -137,6 +138,15 @@ export interface PaymentFailedData {
 export interface SubscriptionCancelledData {
   to: string
   groupName: string
+}
+
+export interface PublishingFailedData {
+  to: string
+  brandName: string
+  failedChannels: string[]
+  succeededChannels: string[]
+  isAccountDisconnected: boolean
+  viewLink: string
 }
 
 // Email sending functions
@@ -441,6 +451,29 @@ export async function sendSubscriptionCancelled(data: SubscriptionCancelledData)
     from: FROM_EMAIL,
     to: data.to,
     subject: 'Your Ferdy Subscription Has Been Cancelled',
+    html,
+  })
+}
+
+export async function sendPublishingFailed(data: PublishingFailedData) {
+  const resend = getResend()
+
+  const subject = `A scheduled post failed to publish for ${data.brandName}`
+
+  const html = await render(
+    PublishingFailed({
+      brandName: data.brandName,
+      failedChannels: data.failedChannels,
+      succeededChannels: data.succeededChannels,
+      isAccountDisconnected: data.isAccountDisconnected,
+      viewLink: data.viewLink,
+    })
+  )
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.to,
+    subject,
     html,
   })
 }

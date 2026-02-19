@@ -223,7 +223,7 @@ const platformIcons = {
   x: XIcon,
 };
 
-type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published' | 'failed';
 
 interface DraftCardProps {
   draft: {
@@ -672,6 +672,12 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
         return (
           <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 border border-green-200 rounded-full">
             Published
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="px-3 py-1 text-xs font-medium bg-red-100 text-red-800 border border-red-200 rounded-full">
+            Failed
           </span>
         );
       default:

@@ -51,7 +51,7 @@ type RawAsset = {
 
 type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published' | 'failed';
 
-interface ScheduledPost {
+interface NeedsAttentionPost {
   id: string;
   brand_id: string;
   post_job_id: string;
@@ -65,12 +65,11 @@ interface ScheduledPost {
   created_at: string;
   approved: boolean;
   status: DraftStatus;
-  scheduled_for?: string; // UTC timestamp
-  scheduled_for_nzt?: string; // NZT timestamp
+  scheduled_for?: string;
+  scheduled_for_nzt?: string;
   schedule_source?: 'manual' | 'auto';
   scheduled_by?: string;
   publish_status?: string;
-  // From drafts_with_labels view
   category_name?: string;
   subcategory_name?: string;
   post_jobs: {
@@ -84,22 +83,22 @@ interface ScheduledPost {
   assets?: Asset[];
 }
 
-export function useScheduled(brandId: string) {
-  const [scheduled, setScheduled] = useState<ScheduledPost[]>([]);
+export function useNeedsAttention(brandId: string) {
+  const [needsAttention, setNeedsAttention] = useState<NeedsAttentionPost[]>([]);
   const [jobsByDraftId, setJobsByDraftId] = useState<Record<string, PostJobSummary[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadScheduled = useCallback(async () => {
+  const loadNeedsAttention = useCallback(async () => {
     if (!brandId) {
-      setScheduled([]);
+      setNeedsAttention([]);
       setJobsByDraftId({});
       setLoading(false);
       return;
     }
 
     if (!supabase) {
-      console.log('useScheduled: Supabase client not available');
+      console.log('useNeedsAttention: Supabase client not available');
       setLoading(false);
       return;
     }
@@ -112,12 +111,12 @@ export function useScheduled(brandId: string) {
         .from('drafts_with_labels')
         .select('*')
         .eq('brand_id', brandId)
-        .in('status', ['scheduled'])
+        .in('status', ['failed', 'partially_published'])
         .order('scheduled_for', { ascending: true, nullsFirst: false });
 
       if (fetchError) throw fetchError;
 
-      const scheduledWithAssets = await Promise.all((data || []).map(async (draft: any) => {
+      const postsWithAssets = await Promise.all((data || []).map(async (draft: any) => {
         const normalizedDraft = {
           ...draft,
           hashtags: normalizeHashtags(draft.hashtags || []),
@@ -131,28 +130,28 @@ export function useScheduled(brandId: string) {
         return { ...normalizedDraft, assets: [] };
       }));
 
-      setScheduled(scheduledWithAssets);
+      setNeedsAttention(postsWithAssets);
 
       const draftIds = (data || []).map((draft: any) => draft.id).filter((id: any): id is string => Boolean(id));
       const jobsMap = await fetchJobsByDraftId(draftIds);
       setJobsByDraftId(jobsMap);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch scheduled posts');
+      setError(err instanceof Error ? err.message : 'Failed to fetch posts needing attention');
     } finally {
       setLoading(false);
     }
   }, [brandId]);
 
   useEffect(() => {
-    void loadScheduled();
-  }, [loadScheduled]);
+    void loadNeedsAttention();
+  }, [loadNeedsAttention]);
 
   const refetch = useCallback(async () => {
-    await loadScheduled();
-  }, [loadScheduled]);
+    await loadNeedsAttention();
+  }, [loadNeedsAttention]);
 
   return {
-    scheduled,
+    needsAttention,
     jobsByDraftId,
     loading,
     error,
@@ -198,7 +197,7 @@ async function loadAssetsByIds(assetIds: string[]): Promise<Asset[]> {
     .in('id', assetIds);
 
   if (error || !data) {
-    console.error('Error fetching scheduled assets by ids:', error);
+    console.error('Error fetching needs-attention assets by ids:', error);
     return [];
   }
 

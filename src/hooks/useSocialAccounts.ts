@@ -9,7 +9,7 @@ export type SocialAccountSummary = {
   provider: 'facebook' | 'instagram' | 'linkedin' | 'tiktok' | 'x'
   account_id: string
   handle: string
-  status: 'connected' | 'expired' | 'revoked' | 'error'
+  status: 'connected' | 'expired' | 'revoked' | 'error' | 'disconnected'
   token_expires_at: string | null
   last_refreshed_at: string | null
   connected_by_user_id: string | null

@@ -9,6 +9,8 @@ import ScheduleCalendar from '@/components/schedule/ScheduleCalendar';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useScheduled } from '@/hooks/useScheduled';
 import { usePublished } from '@/hooks/usePublished';
+import { useNeedsAttention } from '@/hooks/useNeedsAttention';
+import NeedsAttentionTab from '@/components/schedule/NeedsAttentionTab';
 import { useToast } from '@/components/ui/ToastProvider';
 import { Asset } from '@/hooks/assets/useAssets';
 import type { PostJobSummary } from '@/types/postJobs';
@@ -16,7 +18,7 @@ import { fetchJobsByDraftId } from '@/hooks/usePostJobs';
 import { useSocialAccounts, type SocialAccountSummary } from '@/hooks/useSocialAccounts';
 
 // Type definitions
-type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published';
+type DraftStatus = 'draft' | 'scheduled' | 'partially_published' | 'published' | 'failed';
 
 interface Draft {
   id: string;
@@ -128,15 +130,15 @@ export default function SchedulePage() {
   // Initialize activeTab from URL query parameter, default to 'drafts'
   const [activeTab, setActiveTab] = useState(() => {
     const tabParam = searchParams.get('tab');
-    return tabParam && ['drafts', 'scheduled', 'published'].includes(tabParam) ? tabParam : 'drafts';
+    return tabParam && ['drafts', 'attention', 'scheduled', 'published'].includes(tabParam) ? tabParam : 'drafts';
   });
-  
+
   const [view, setView] = useState<'list' | 'calendar'>('list');
 
   // Update activeTab when URL query parameter changes
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['drafts', 'scheduled', 'published'].includes(tabParam)) {
+    if (tabParam && ['drafts', 'attention', 'scheduled', 'published'].includes(tabParam)) {
       setActiveTab(tabParam);
       setView('list');
     }
@@ -146,13 +148,16 @@ export default function SchedulePage() {
   const { drafts, jobsByDraftId: draftsJobsByDraftId, loading: draftsLoading, refetch: refetchDrafts } = useDrafts(brandId);
   const { scheduled, jobsByDraftId: scheduledJobsByDraftId, loading: scheduledLoading, refetch: refetchScheduled } =
     useScheduled(brandId);
+  const { needsAttention, jobsByDraftId: attentionJobsByDraftId, loading: attentionLoading, refetch: refetchAttention } =
+    useNeedsAttention(brandId);
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
   const { accounts: socialAccounts } = useSocialAccounts(brandId);
 
   const tabs: Tab[] = [
     { id: 'drafts', name: 'Drafts', count: drafts.length },
+    { id: 'attention', name: 'Needs Attention', count: needsAttention.length },
     { id: 'scheduled', name: 'Scheduled', count: scheduled.length },
-    { id: 'published', name: 'Published', count: published.length }
+    { id: 'published', name: 'Published', count: published.length },
   ];
 
   const handleNewPostClick = () => {
@@ -166,6 +171,7 @@ export default function SchedulePage() {
   // Combined update function that refetches all tabs
   const handleGlobalUpdate = () => {
     refetchDrafts();
+    refetchAttention();
     refetchScheduled();
     refetchPublished();
   };
@@ -204,6 +210,16 @@ export default function SchedulePage() {
             loading={draftsLoading}
             onUpdate={handleGlobalUpdate}
             jobsByDraftId={draftsJobsByDraftId}
+            socialAccounts={socialAccounts}
+          />
+        );
+      case 'attention':
+        return (
+          <NeedsAttentionTab
+            posts={needsAttention}
+            loading={attentionLoading}
+            onUpdate={handleGlobalUpdate}
+            jobsByDraftId={attentionJobsByDraftId}
             socialAccounts={socialAccounts}
           />
         );
@@ -253,28 +269,35 @@ export default function SchedulePage() {
             {/* Tabs */}
             <div className="flex items-end justify-between mt-6">
               <div className="flex flex-wrap gap-4 sm:gap-8">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => { setActiveTab(tab.id); setView('list'); }}
-                    className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
-                      view === 'list' && activeTab === tab.id
-                        ? 'border-[#6366F1] text-[#6366F1]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    {tab.name}
-                    {tab.count !== undefined && (
-                      <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
-                        view === 'list' && activeTab === tab.id
-                          ? 'bg-[#6366F1] text-white'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                ))}
+                {tabs.map((tab) => {
+                  const isActive = view === 'list' && activeTab === tab.id;
+                  const isAttentionWithItems = tab.id === 'attention' && (tab.count ?? 0) > 0;
+
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setActiveTab(tab.id); setView('list'); }}
+                      className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
+                        isActive
+                          ? 'border-[#6366F1] text-[#6366F1]'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {tab.name}
+                      {tab.count !== undefined && (
+                        <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                          isAttentionWithItems
+                            ? 'bg-red-500 text-white'
+                            : isActive
+                              ? 'bg-[#6366F1] text-white'
+                              : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               <button
