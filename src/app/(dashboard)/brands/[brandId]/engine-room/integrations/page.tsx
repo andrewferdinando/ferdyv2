@@ -456,6 +456,9 @@ export default function IntegrationsPage() {
                         {getTokenStatusBadge()}
                       </div>
                       <span className="truncate font-medium text-gray-900">{displayHandle}</span>
+                      {typeof meta?.username === 'string' && meta.username && (
+                        <span className="text-xs text-gray-500">@{meta.username}</span>
+                      )}
                       {accountType && (
                         <span className="text-xs text-gray-500">{accountType} Account</span>
                       )}
