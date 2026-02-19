@@ -214,6 +214,13 @@ interface FacebookPagesResult {
     access_token: string
     instagram_business_account?: { id: string }
     picture?: { data?: { url?: string } }
+    category?: string
+    about?: string
+    fan_count?: number
+    website?: string
+    link?: string
+    single_line_address?: string
+    phone?: string
   }>
   _debug?: {
     userId?: string
@@ -249,7 +256,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   })
 
   const pagesUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
-  pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account,picture{url}')
+  pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account,picture{url},category,about,fan_count,website,link,single_line_address,phone')
   pagesUrl.searchParams.set('access_token', userAccessToken)
 
   logger?.('facebook_pages_request', {
@@ -287,7 +294,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 
 async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
   const igUrl = new URL(`https://graph.facebook.com/v19.0/${instagramId}`)
-  igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url')
+  igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website,account_type')
   igUrl.searchParams.set('access_token', pageAccessToken)
 
   logger?.('instagram_account_request', {
@@ -316,6 +323,12 @@ async function fetchInstagramAccount(instagramId: string, pageAccessToken: strin
       username?: string
       name?: string
       profile_picture_url?: string
+      biography?: string
+      followers_count?: number
+      follows_count?: number
+      media_count?: number
+      website?: string
+      account_type?: string
     }
   } catch (error) {
     logger?.('instagram_account_parse_error', {
@@ -368,6 +381,14 @@ export async function handleFacebookCallback({
         instagramBusinessAccountId: primaryPage.instagram_business_account?.id ?? null,
         profilePictureUrl: primaryPage.picture?.data?.url ?? null,
         accountType: 'Page',
+        category: primaryPage.category ?? null,
+        about: primaryPage.about ?? null,
+        fanCount: primaryPage.fan_count ?? null,
+        website: primaryPage.website ?? null,
+        pageLink: primaryPage.link ?? null,
+        singleLineAddress: primaryPage.single_line_address ?? null,
+        phone: primaryPage.phone ?? null,
+        profileLastFetchedAt: new Date().toISOString(),
       },
     },
   ]
@@ -392,8 +413,17 @@ export async function handleFacebookCallback({
         metadata: {
           facebookPageId: primaryPage.id,
           instagramBusinessAccountId: instagramAccount.id,
+          igUserId: instagramAccount.id,
           profilePictureUrl: instagramAccount.profile_picture_url ?? null,
-          accountType: 'Business',
+          accountType: instagramAccount.account_type ?? 'Business',
+          name: instagramAccount.name ?? null,
+          username: instagramAccount.username ?? null,
+          biography: instagramAccount.biography ?? null,
+          followersCount: instagramAccount.followers_count ?? null,
+          followsCount: instagramAccount.follows_count ?? null,
+          mediaCount: instagramAccount.media_count ?? null,
+          website: instagramAccount.website ?? null,
+          profileLastFetchedAt: new Date().toISOString(),
         },
       })
     } catch (error) {
