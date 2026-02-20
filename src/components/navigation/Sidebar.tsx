@@ -298,10 +298,10 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
                 ) : (
                   <>
                   <Link
-                    href="/account"
+                    href={activeBrandId ? `/brands/${activeBrandId}/account` : '/account'}
                     onClick={handleNavigationClick}
                     className={`flex items-center !space-x-6 px-4 py-3 rounded-lg transition-all duration-200 ${
-                      pathname.startsWith('/account')
+                      pathname.includes('/account')
                         ? 'bg-[#EEF2FF] text-[#6366F1]'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
