@@ -78,7 +78,7 @@ export default function AccountSettingsPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         ),
-        href: '/account/add-brand',
+        href: `/brands/${brandId}/account/add-brand`,
         requiresAdmin: true,
       },
     ];
