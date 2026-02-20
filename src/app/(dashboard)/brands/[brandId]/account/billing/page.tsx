@@ -49,6 +49,10 @@ interface Brand {
   name: string
 }
 
+interface AccountAdmin {
+  name: string
+}
+
 export default function BillingPage() {
   const params = useParams()
   const router = useRouter()
@@ -57,6 +61,7 @@ export default function BillingPage() {
 
   const [group, setGroup] = useState<Group | null>(null)
   const [canManageBilling, setCanManageBilling] = useState(false)
+  const [accountAdmin, setAccountAdmin] = useState<AccountAdmin | null>(null)
   const [brandCount, setBrandCount] = useState(0)
   const [brands, setBrands] = useState<Brand[]>([])
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null)
@@ -110,7 +115,24 @@ export default function BillingPage() {
         .eq('user_id', user.id)
         .single()
 
-      setCanManageBilling(membership?.role === 'admin' || membership?.role === 'super_admin')
+      const isGroupAdmin = membership?.role === 'admin' || membership?.role === 'super_admin'
+      setCanManageBilling(isGroupAdmin)
+
+      // If the current user is NOT a group admin, fetch the account owner's name
+      if (!isGroupAdmin) {
+        const { data: adminMemberships } = await supabase
+          .from('group_memberships')
+          .select('user_id, role, profiles(name, full_name)')
+          .eq('group_id', groupData.id)
+          .in('role', ['admin', 'super_admin'])
+          .limit(1)
+
+        if (adminMemberships && adminMemberships.length > 0) {
+          const adminProfile = (adminMemberships[0] as any).profiles
+          const adminName = adminProfile?.name || adminProfile?.full_name || 'your account owner'
+          setAccountAdmin({ name: adminName })
+        }
+      }
 
       // Get active brands in this group
       const { data: brandsData, error: brandsError } = await supabase
@@ -300,9 +322,24 @@ export default function BillingPage() {
               <div className="mb-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Billing & Subscription</h1>
                 <p className="mt-2 text-sm text-gray-600">
-                  Manage your subscription and billing information
+                  {canManageBilling
+                    ? 'Manage your subscription and billing information'
+                    : 'View your subscription details'}
                 </p>
               </div>
+
+              {/* Info banner for non-admins */}
+              {!canManageBilling && (
+                <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-start">
+                  <svg className="h-5 w-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="ml-3 text-sm text-indigo-800">
+                    Billing is managed by <span className="font-medium">{accountAdmin?.name || 'your account owner'}</span>.
+                    Contact your account owner for subscription changes.
+                  </p>
+                </div>
+              )}
 
               {/* Payment Setup Required */}
               {group.subscription_status === 'incomplete' && canManageBilling && (
@@ -447,7 +484,8 @@ export default function BillingPage() {
                       </div>
                     )}
 
-                    {subscription.default_payment_method && (
+                    {/* Payment method — only visible to account admins */}
+                    {canManageBilling && subscription.default_payment_method && (
                       <div>
                         <dt className="text-sm font-medium text-gray-500">Payment Method</dt>
                         <dd className="mt-1 text-sm text-gray-900">
@@ -459,7 +497,7 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Actions */}
+              {/* Manage Billing — only for account admins */}
               {canManageBilling && (
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Manage Billing</h2>
@@ -474,14 +512,6 @@ export default function BillingPage() {
                   >
                     Manage Billing
                   </button>
-                </div>
-              )}
-
-              {!canManageBilling && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                  <p className="text-sm text-gray-600">
-                    You don't have permission to manage billing. Contact your account owner.
-                  </p>
                 </div>
               )}
             </div>

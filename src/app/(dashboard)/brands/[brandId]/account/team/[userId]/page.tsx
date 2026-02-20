@@ -6,6 +6,7 @@ import Link from 'next/link'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
+import { getAccountRoleDisplay } from '@/lib/roles'
 
 interface TeamMember {
   id: string
@@ -188,25 +189,7 @@ export default function TeamMemberDetailPage() {
     }
   }
 
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'Super Admin'
-      case 'admin': return 'Admin'
-      case 'owner': return 'Owner'
-      case 'member': return 'Member'
-      default: return role
-    }
-  }
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800'
-      case 'admin': return 'bg-blue-100 text-blue-800'
-      case 'owner': return 'bg-purple-100 text-purple-800'
-      case 'member': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
+  const accountRole = member ? getAccountRoleDisplay(member.groupRole) : null
 
   return (
     <RequireAuth>
@@ -226,16 +209,19 @@ export default function TeamMemberDetailPage() {
                   Back to Team
                 </Link>
 
-                {member && (
+                {member && accountRole && (
                   <div>
                     <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">
                       {member.name}
                     </h1>
                     <div className="mt-2 flex items-center space-x-3">
                       <p className="text-sm text-gray-600">{member.email}</p>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(member.groupRole)}`}>
-                        {getRoleDisplayName(member.groupRole)}
-                      </span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Account role</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${accountRole.color}`}>
+                          {accountRole.label}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -264,7 +250,7 @@ export default function TeamMemberDetailPage() {
               ) : (
                 <div className="bg-white rounded-xl border border-gray-200">
                   <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-2">
                       <h2 className="text-lg font-semibold text-gray-900">Brand Access</h2>
                       {canManage && (
                         <button
@@ -276,6 +262,9 @@ export default function TeamMemberDetailPage() {
                         </button>
                       )}
                     </div>
+                    <p className="text-sm text-gray-500 mb-4">
+                      This controls what {member.name} can do on each brand.
+                    </p>
 
                     {allBrands.length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-8">No brands available</p>
@@ -324,7 +313,7 @@ export default function TeamMemberDetailPage() {
                   {!canManage && (
                     <div className="border-t border-gray-200 p-6 bg-gray-50">
                       <p className="text-sm text-gray-600">
-                        You don't have permission to modify brand access. Contact an administrator.
+                        You don&apos;t have permission to modify brand access. Contact an administrator.
                       </p>
                     </div>
                   )}
