@@ -315,12 +315,18 @@ export default function BillingPage() {
     ? latestInvoice.total / 100
     : subtotal
 
-  // GST — only for NZ accounts with tax on the invoice
+  // GST — for NZ accounts. Detect NZ from country_code or currency.
   const isNz = group.country_code?.toUpperCase() === 'NZ'
-  const gstAmount = latestInvoice?.tax ? latestInvoice.tax / 100 : 0
+    || stripeCurrency?.toLowerCase() === 'nzd'
+  // Use Stripe invoice tax if available, otherwise calculate 15% of pre-discount subtotal
+  const invoiceTax = latestInvoice?.tax ? latestInvoice.tax / 100 : 0
+  const gstAmount = isNz
+    ? (invoiceTax > 0 ? invoiceTax : subtotal * 0.15)
+    : 0
   const hasGst = isNz && gstAmount > 0
-  // Subtotal excluding tax (what Stripe calls subtotal, after discount)
-  const subtotalExTax = hasGst ? totalMonthly - gstAmount : totalMonthly
+  const totalWithGst = invoiceTax > 0
+    ? totalMonthly  // Stripe total already includes tax
+    : totalMonthly + gstAmount  // GST calculated locally, add to total
 
   return (
     <RequireAuth>
@@ -397,13 +403,13 @@ export default function BillingPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-500">Monthly Total</p>
+                    <p className="text-sm text-gray-500">Monthly Total {hasGst ? '(incl. GST)' : ''}</p>
                     <p className="mt-1 text-2xl font-semibold text-gray-900">
-                      ${totalMonthly.toFixed(2)} <span className="text-sm text-gray-500">{stripeCurrency?.toUpperCase()}</span>
+                      ${totalWithGst.toFixed(2)} <span className="text-sm text-gray-500">{stripeCurrency?.toUpperCase()}</span>
                     </p>
                     {hasGst && (
                       <p className="mt-1 text-sm text-gray-500">
-                        Includes ${gstAmount.toFixed(2)} GST (15%)
+                        ${(totalWithGst - gstAmount).toFixed(2)} + ${gstAmount.toFixed(2)} GST (15%)
                       </p>
                     )}
                     {hasDiscount && discountAmount > 0 && (
@@ -456,7 +462,8 @@ export default function BillingPage() {
                         <span className="text-sm text-gray-900">{brand.name}</span>
                         <div className="flex items-center gap-4">
                           <span className="text-sm text-gray-500">
-                            ${(totalMonthly / brandCount).toFixed(2)}/month
+                            ${(totalWithGst / brandCount).toFixed(2)}/month
+                            {hasGst && <span className="ml-1">(incl. GST)</span>}
                             {hasDiscount && discountAmount > 0 && (
                               <span className="text-green-600 ml-1">(discounted)</span>
                             )}
