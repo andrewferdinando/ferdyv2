@@ -601,41 +601,32 @@ export default function EditPostPage() {
       return;
     }
 
-    // Validate assets have tags before saving
-    if (selectedAssets.length > 0) {
-      const assetsValid = await validateAssetsHaveTags(selectedAssets.map((asset) => asset.id));
-      if (!assetsValid) {
-        return // Validation failed, error message already shown
-      }
-    }
-
     setIsSaving(true);
 
     try {
       const { supabase } = await import('@/lib/supabase-browser');
-      
+
       // Convert local date/time (in brand timezone) to UTC
       if (!brand?.timezone) {
         alert('Brand timezone not configured. Please update brand settings.')
         return
       }
-      
+
       const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
-      
+
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
-      
-      // Update the draft with new scheduling fields
+
+      // Update the draft — preserve original schedule_source to avoid constraint conflicts
       const { data, error } = await supabase
         .from('drafts')
         .update({
           copy: postCopy.trim(),
           hashtags: normalizedHashtags,
           asset_ids: selectedAssets.map((asset) => asset.id),
-          channel: selectedChannels.join(','), // Store as comma-separated string
-          scheduled_for: scheduledAt.toISOString(), // UTC timestamp
-          scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
-          schedule_source: 'manual',
+          channel: selectedChannels.join(','),
+          scheduled_for: scheduledAt.toISOString(),
+          scheduled_for_nzt: scheduledAt.toISOString(),
           scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
         })
         .eq('id', draftId)
@@ -645,7 +636,11 @@ export default function EditPostPage() {
 
       if (error) {
         console.error('Error updating draft:', error);
-        alert(`Failed to update post: ${error.message}`);
+        if (error.message?.includes('drafts_unique_brand_time_channel_source')) {
+          alert('Another post is already scheduled at this date and time. Please choose a different time.');
+        } else {
+          alert(`Failed to update post: ${error.message}`);
+        }
         return;
       }
 
@@ -831,40 +826,31 @@ export default function EditPostPage() {
       }
     }
 
-    // Validate assets have tags before approving
-    if (selectedAssets.length > 0) {
-      const assetsValid = await validateAssetsHaveTags(selectedAssets.map((asset) => asset.id));
-      if (!assetsValid) {
-        return { success: false }; // Validation failed, error message already shown
-      }
-    }
-
     setIsApproving(true);
 
     try {
       const { supabase } = await import('@/lib/supabase-browser');
-      
+
       // Convert local date/time (in brand timezone) to UTC
       if (!brand?.timezone) {
         alert('Brand timezone not configured. Please update brand settings.')
         return { success: false };
       }
-      
+
       const scheduledAt = localToUtc(scheduleDate, scheduleTime, brand.timezone)
-      
+
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
-      
+
       const updatePayload = {
         copy: postCopy.trim(),
         hashtags: normalizedHashtags,
         asset_ids: selectedAssets.map((asset) => asset.id),
         channel: selectedChannels.join(','),
         approved: true, // Mark as approved
-        status: 'scheduled',
-        scheduled_for: scheduledAt.toISOString(), // UTC timestamp
-        scheduled_for_nzt: scheduledAt.toISOString(), // Use UTC timestamp - database will handle timezone conversion
-        schedule_source: 'manual',
+        status: 'scheduled' as const,
+        scheduled_for: scheduledAt.toISOString(),
+        scheduled_for_nzt: scheduledAt.toISOString(),
         scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
       }
       
@@ -878,13 +864,14 @@ export default function EditPostPage() {
 
       // Delete any conflicting draft that would violate the unique constraint
       // (same brand_id, scheduled_for, channel, schedule_source, subcategory_id but different id)
+      const currentSource = draft?.schedule_source || 'manual'
       let conflictQuery = supabase
         .from('drafts')
         .delete()
         .eq('brand_id', brandId)
         .eq('scheduled_for', scheduledAt.toISOString())
         .eq('channel', selectedChannels.join(','))
-        .eq('schedule_source', 'manual')
+        .eq('schedule_source', currentSource)
         .neq('id', draftId);
 
       if (draft?.subcategory_id) {
@@ -910,7 +897,11 @@ export default function EditPostPage() {
 
       if (error) {
         console.error('[approveAndScheduleDraft] Error updating draft:', error);
-        alert(`Failed to approve post: ${error.message}`);
+        if (error.message?.includes('drafts_unique_brand_time_channel_source')) {
+          alert('Another post is already scheduled at this date and time. Please choose a different time.');
+        } else {
+          alert(`Failed to approve post: ${error.message}`);
+        }
         return { success: false, error };
       }
       
