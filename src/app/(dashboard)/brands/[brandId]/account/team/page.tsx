@@ -431,17 +431,10 @@ export default function TeamPage() {
                 <div className="divide-y divide-gray-200">
                   {teamMembers.map((member) => (
                     <div key={`${member.id}-${member.brand_name}`} className="px-6 py-4 flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{member.name}</p>
-                          <p className="text-sm text-gray-500">{member.email}</p>
-                          <p className="text-xs text-gray-400">{member.brand_name}</p>
-                        </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{member.name}</p>
+                        <p className="text-sm text-gray-500">{member.email}</p>
+                        <p className="text-xs text-gray-400">{member.brand_name}</p>
                       </div>
                       
                       <div className="flex items-center space-x-3">
@@ -500,19 +493,12 @@ export default function TeamPage() {
 
                   {pendingInvites.map((invite) => (
                     <div key={`${invite.email}-${invite.created_at}`} className="px-6 py-4 flex items-center justify-between bg-gray-50">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {invite.invitee_name || invite.email}
-                          </p>
-                          <p className="text-sm text-gray-500">{invite.email}</p>
-                          <p className="text-xs text-gray-500">{new Date(invite.created_at).toLocaleString()}</p>
-                        </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {invite.invitee_name || invite.email}
+                        </p>
+                        <p className="text-sm text-gray-500">{invite.email}</p>
+                        <p className="text-xs text-gray-500">{new Date(invite.created_at).toLocaleString()}</p>
                       </div>
                       
                       <div className="flex items-center space-x-3">
