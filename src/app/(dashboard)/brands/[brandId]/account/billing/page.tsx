@@ -16,6 +16,7 @@ interface Group {
   subscription_status: string
   price_per_brand_cents: number
   currency: string
+  country_code: string | null
 }
 
 interface SubscriptionDetails {
@@ -26,6 +27,7 @@ interface SubscriptionDetails {
   latest_invoice?: {
     subtotal: number
     total: number
+    tax: number | null
     currency: string
     total_discount_amounts?: Array<{
       amount: number
@@ -307,11 +309,18 @@ export default function BillingPage() {
     ? latestInvoice.total_discount_amounts[0].amount / 100
     : 0
 
-  // Calculate totals - use invoice total if available (includes discount)
+  // Calculate totals - use invoice total if available (includes discount + tax)
   const subtotal = brandCount * pricePerBrand
   const totalMonthly = latestInvoice
     ? latestInvoice.total / 100
     : subtotal
+
+  // GST — only for NZ accounts with tax on the invoice
+  const isNz = group.country_code?.toUpperCase() === 'NZ'
+  const gstAmount = latestInvoice?.tax ? latestInvoice.tax / 100 : 0
+  const hasGst = isNz && gstAmount > 0
+  // Subtotal excluding tax (what Stripe calls subtotal, after discount)
+  const subtotalExTax = hasGst ? totalMonthly - gstAmount : totalMonthly
 
   return (
     <RequireAuth>
@@ -392,6 +401,11 @@ export default function BillingPage() {
                     <p className="mt-1 text-2xl font-semibold text-gray-900">
                       ${totalMonthly.toFixed(2)} <span className="text-sm text-gray-500">{stripeCurrency?.toUpperCase()}</span>
                     </p>
+                    {hasGst && (
+                      <p className="mt-1 text-sm text-gray-500">
+                        Includes ${gstAmount.toFixed(2)} GST (15%)
+                      </p>
+                    )}
                     {hasDiscount && discountAmount > 0 && (
                       <p className="mt-1 text-sm text-green-600">
                         ${discountAmount.toFixed(2)} discount applied
@@ -408,6 +422,9 @@ export default function BillingPage() {
                         ${pricePerBrand.toFixed(2)} / month × {brandCount} {brandCount === 1 ? 'brand' : 'brands'}
                         {hasDiscount && discountAmount > 0 && (
                           <span className="text-green-600"> - ${discountAmount.toFixed(2)} discount</span>
+                        )}
+                        {hasGst && (
+                          <span> + ${gstAmount.toFixed(2)} GST</span>
                         )}
                       </p>
                     </div>
