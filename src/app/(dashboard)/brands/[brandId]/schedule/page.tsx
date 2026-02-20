@@ -276,7 +276,13 @@ export default function SchedulePage() {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => { setActiveTab(tab.id); setView('list'); }}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setView('list');
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('tab', tab.id);
+                        window.history.replaceState({}, '', url.pathname + url.search);
+                      }}
                       className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
                         isActive
                           ? 'border-[#6366F1] text-[#6366F1]'
