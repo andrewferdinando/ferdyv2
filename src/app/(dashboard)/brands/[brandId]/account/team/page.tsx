@@ -19,6 +19,7 @@ interface TeamMember {
   name: string;
   email: string;
   role: string;
+  groupRole: string;
   created_at: string;
   brand_name: string;
 }
@@ -203,22 +204,11 @@ export default function TeamPage() {
     }
   };
 
-  const getRoleDisplayName = (role: string) => {
-    // On the team page, members are brand-level roles, except super_admin
-    // which is an account owner appearing on the brand team
-    if (role === 'super_admin') return ACCOUNT_ROLES.super_admin.label;
-    return getBrandRoleDisplay(role).label;
-  };
+  const isAccountOwner = (member: TeamMember) =>
+    member.groupRole === 'admin' || member.groupRole === 'super_admin';
 
-  const getRoleColor = (role: string) => {
-    if (role === 'super_admin') return ACCOUNT_ROLES.super_admin.color;
-    return getBrandRoleDisplay(role).color;
-  };
-
-  const getRoleSubtitle = (role: string) => {
-    if (role === 'super_admin') return ACCOUNT_ROLES.super_admin.description;
-    return null;
-  };
+  const getBrandRoleLabel = (role: string) => getBrandRoleDisplay(role).label;
+  const getBrandRoleColor = (role: string) => getBrandRoleDisplay(role).color;
 
   const handleRoleUpdate = async (member: TeamMember, nextRole: 'admin' | 'editor') => {
     if (member.role === nextRole) {
@@ -243,7 +233,7 @@ export default function TeamPage() {
       });
 
       await refreshTeam();
-      setSuccess(`${member.name || member.email} is now ${getRoleDisplayName(nextRole)}.`);
+      setSuccess(`${member.name || member.email} is now ${getBrandRoleLabel(nextRole)}.`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('handleRoleUpdate error', err);
@@ -481,7 +471,8 @@ export default function TeamPage() {
 
                 <div className="divide-y divide-gray-200">
                   {teamMembers.map((member) => {
-                    const subtitle = getRoleSubtitle(member.role);
+                    const ownerFlag = isAccountOwner(member);
+                    const canEditMember = !ownerFlag && member.id !== currentUserId;
                     return (
                       <div key={`${member.id}-${member.brand_name}`} className="px-6 py-4 flex items-center justify-between">
                         <div>
@@ -491,18 +482,20 @@ export default function TeamPage() {
                         </div>
 
                         <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                              {getRoleDisplayName(member.role)}
-                            </span>
-                            {subtitle && (
-                              <p className="mt-1 text-xs text-gray-400">{subtitle}</p>
+                          <div className="flex items-center gap-2">
+                            {ownerFlag && (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${ACCOUNT_ROLES.admin.color}`}>
+                                Account Owner
+                              </span>
                             )}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBrandRoleColor(member.role)}`}>
+                              {getBrandRoleLabel(member.role)}
+                            </span>
                           </div>
                           {member.id === currentUserId && (
                             <span className="text-xs text-gray-400">You</span>
                           )}
-                          {member.role !== 'super_admin' && member.id !== currentUserId ? (
+                          {canEditMember ? (
                             <>
                               <div className="relative">
                                 <select
@@ -558,8 +551,8 @@ export default function TeamPage() {
                       </div>
 
                       <div className="flex items-center space-x-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(invite.role)}`}>
-                          {getRoleDisplayName(invite.role)}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBrandRoleColor(invite.role)}`}>
+                          {getBrandRoleLabel(invite.role)}
                         </span>
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                           Pending

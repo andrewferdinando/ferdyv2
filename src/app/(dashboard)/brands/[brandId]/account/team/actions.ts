@@ -282,12 +282,33 @@ export async function fetchTeamState(brandId: string) {
     return { name: 'Unknown', email }
   }
 
+  // Look up group-level roles so the UI can distinguish account owners
+  const { data: brandGroup } = await supabaseAdmin
+    .from('brands')
+    .select('group_id')
+    .eq('id', brandId)
+    .maybeSingle()
+
+  let groupRoleMap = new Map<string, string>()
+  if (brandGroup?.group_id && userIds.length > 0) {
+    const { data: groupMemberships } = await supabaseAdmin
+      .from('group_memberships')
+      .select('user_id, role')
+      .eq('group_id', brandGroup.group_id)
+      .in('user_id', userIds)
+
+    groupRoleMap = new Map(
+      (groupMemberships ?? []).map((gm) => [gm.user_id, gm.role]),
+    )
+  }
+
   const members = (memberships || []).map((member) => {
     const { name, email } = resolveDisplayName(member.user_id)
     return {
       id: member.user_id,
       email,
       role: member.role,
+      groupRole: groupRoleMap.get(member.user_id) ?? 'member',
       created_at: member.created_at,
       name,
       brand_name: brand?.name ?? '',
