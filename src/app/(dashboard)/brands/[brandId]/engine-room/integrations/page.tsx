@@ -169,16 +169,16 @@ export default function IntegrationsPage() {
 
   // Handle URL query params from OAuth callback redirects
   useEffect(() => {
-    const error = searchParams.get('error')
-    const errorDescription = searchParams.get('error_description')
+    const error = searchParams.get('connect_error')
+    const errorDescription = searchParams.get('connect_error_description')
     const connected = searchParams.get('connected')
 
     if (error || errorDescription) {
       setErrorMessage(errorDescription || error || 'An error occurred during connection.')
       // Clear the URL params without triggering a navigation
       const url = new URL(window.location.href)
-      url.searchParams.delete('error')
-      url.searchParams.delete('error_description')
+      url.searchParams.delete('connect_error')
+      url.searchParams.delete('connect_error_description')
       url.searchParams.delete('reason')
       window.history.replaceState({}, '', url.toString())
     }

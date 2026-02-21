@@ -78,7 +78,7 @@ export async function GET(
 
   if (!provider) {
     const redirect = getRedirectUrl(requestOrigin, '', {
-      error: 'unsupported_provider',
+      connect_error: 'unsupported_provider',
       reason: `provider_${raw || 'missing'}`,
     })
     return NextResponse.redirect(redirect)
@@ -102,8 +102,8 @@ export async function GET(
     }
 
     const errorRedirect = getRedirectUrl(requestOrigin, '', {
-      error: 'linkedin_auth_failed',
-      error_description: message.substring(0, 200),
+      connect_error: 'linkedin_auth_failed',
+      connect_error_description: message.substring(0, 500),
       reason,
     })
     return NextResponse.redirect(errorRedirect)
@@ -111,8 +111,8 @@ export async function GET(
 
   if (!code || !stateParam) {
     const redirect = getRedirectUrl(requestOrigin, '', {
-      error: 'missing_parameters',
-      error_description: 'Missing OAuth parameters.',
+      connect_error: 'missing_parameters',
+      connect_error_description: 'Missing OAuth parameters.',
     })
     return NextResponse.redirect(redirect)
   }
@@ -127,8 +127,8 @@ export async function GET(
 
     const redirectWith = (reason: string, description: string) => {
       const redirect = getRedirectUrl(originForRedirect, state.brandId, {
-        error: 'integration_failed',
-        error_description: description.substring(0, 200),
+        connect_error: 'integration_failed',
+        connect_error_description: description.substring(0, 500),
         reason,
       })
       console.log('OAuth callback redirect ->', redirect.toString())
@@ -314,8 +314,8 @@ export async function GET(
     }
 
     const redirect = getRedirectUrl(originForRedirect, brandIdForRedirect, {
-      error: 'integration_failed',
-      error_description: message.substring(0, 200),
+      connect_error: 'integration_failed',
+      connect_error_description: message.substring(0, 500),
       reason: reason.substring(0, 60),
     })
     console.log('OAuth callback redirect ->', redirect.toString())
