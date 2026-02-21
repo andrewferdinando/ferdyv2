@@ -605,7 +605,7 @@ export async function publishInstagramStory(
       brandId,
       jobId,
       'instagram_story',
-      isVideo ? { maxAttempts: 60, delayMs: 5000 } : undefined,
+      isVideo ? { maxAttempts: 60, delayMs: 5000 } : { maxAttempts: 30, delayMs: 2000 },
     )
 
     if (!waitResult.ready) {

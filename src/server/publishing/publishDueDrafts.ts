@@ -712,6 +712,54 @@ async function processDraft(
     return false
   }
 
+  // Retry timeout failures once before sending notifications
+  // This handles IG Story containers that take longer than the polling window
+  const timeoutFailedJobs = relevantJobs.filter(
+    (job) => job.status === 'failed' && job.error?.includes('still processing after waiting'),
+  )
+
+  if (timeoutFailedJobs.length > 0 && successfulJobs.length > 0) {
+    console.log(`[processDraft] Retrying ${timeoutFailedJobs.length} timeout-failed job(s) for draft ${draft.id}`)
+
+    // Wait before retrying to give Meta more processing time
+    await new Promise((resolve) => setTimeout(resolve, 30_000))
+
+    for (const job of timeoutFailedJobs) {
+      const jobChannel = canonicalizeChannel(job.channel)
+      if (!jobChannel) continue
+
+      const retryResult = await publishJob(job, draft, socialAccounts)
+
+      if (retryResult.success) {
+        console.log(`[processDraft] Retry succeeded for job ${job.id} (${jobChannel})`)
+        summary.jobsFailed -= 1
+        summary.jobsSucceeded += 1
+
+        // Reload job to get updated status
+        const { data: updatedJob } = await supabaseAdmin
+          .from('post_jobs')
+          .select('*')
+          .eq('id', job.id)
+          .single()
+
+        if (updatedJob) {
+          job.status = updatedJob.status
+          job.error = updatedJob.error
+          job.external_post_id = updatedJob.external_post_id
+          job.external_url = updatedJob.external_url
+
+          successfulJobs.push({
+            job: updatedJob as PostJobRow,
+            channel: jobChannel,
+            externalUrl: updatedJob.external_url,
+          })
+        }
+      } else {
+        console.log(`[processDraft] Retry also failed for job ${job.id} (${jobChannel}):`, retryResult.error)
+      }
+    }
+  }
+
   // Update draft status from jobs after processing
   await updateDraftStatusFromJobs(draft.id)
 
