@@ -428,11 +428,20 @@ async function publishVideoPost(
 function buildPostMessage(copy: string | null, hashtags: string[] | null): string {
   let message = copy || ''
   if (hashtags && hashtags.length > 0) {
-    const hashtagString = hashtags.map((tag) => (tag.startsWith('#') ? tag : `#${tag}`)).join(' ')
-    if (message) {
-      message += `\n\n${hashtagString}`
-    } else {
-      message = hashtagString
+    // Deduplicate: skip any hashtags already present in the copy text
+    const existingInCopy = new Set(
+      (message.match(/#[\p{L}\p{N}_]+/gu) || []).map((h) => h.toLowerCase()),
+    )
+    const newTags = hashtags
+      .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`))
+      .filter((tag) => !existingInCopy.has(tag.toLowerCase()))
+    if (newTags.length > 0) {
+      const hashtagString = newTags.join(' ')
+      if (message) {
+        message += `\n\n${hashtagString}`
+      } else {
+        message = hashtagString
+      }
     }
   }
   return message.trim()

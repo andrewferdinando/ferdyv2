@@ -497,10 +497,10 @@ export async function processBatchCopyGeneration(
         normalizedExisting.forEach(addIfNew);
         normalizedDefaults.forEach(addIfNew);
 
-        // Build final copy text with hashtags appended at the end (if any)
-        const hashtagsText = finalHashtags.length > 0 ? finalHashtags.join(" ") : "";
-        const finalCopy =
-          hashtagsText.length > 0 ? `${baseCopy.trim()}\n\n${hashtagsText}` : baseCopy.trim();
+        // Save copy WITHOUT hashtags appended – hashtags live in the
+        // dedicated `hashtags` column and are appended at publish time by
+        // buildPostMessage() in the publishing providers.
+        const finalCopy = baseCopy.trim();
 
         const { error: updateError } = await supabaseAdmin
           .from("drafts")
