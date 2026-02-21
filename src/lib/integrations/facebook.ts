@@ -267,21 +267,6 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   const response = await fetch(pagesUrl, { method: 'GET' })
   const raw = await response.text()
 
-  // TEMPORARY DEBUG LOGGING — remove after diagnosing connection issue
-  console.log('[DEBUG me/accounts] token (first 20 chars):', userAccessToken.slice(0, 20))
-  console.log('[DEBUG me/accounts] full response:', raw)
-
-  try {
-    const { clientId, clientSecret } = getFacebookConfig()
-    const debugTokenUrl = `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(userAccessToken)}&access_token=${encodeURIComponent(clientId + '|' + clientSecret)}`
-    const debugTokenRes = await fetch(debugTokenUrl)
-    const debugTokenRaw = await debugTokenRes.text()
-    console.log('[DEBUG debug_token] response:', debugTokenRaw)
-  } catch (debugErr) {
-    console.error('[DEBUG debug_token] failed:', debugErr)
-  }
-  // END TEMPORARY DEBUG LOGGING
-
   logger?.('facebook_pages_response', {
     provider: 'facebook',
     status: response.status,
@@ -374,9 +359,8 @@ export async function handleFacebookCallback({
       throw new Error('No permissions were granted. Please try connecting again and accept all the requested permissions when prompted by Facebook.')
     }
 
-    // If permissions look fine but no pages, the user likely doesn't have a Page Role
-    // (Facebook Business Suite task-level access is not sufficient — a Page Role like Admin or Editor is required)
-    throw new Error(`No Facebook pages found. The Facebook account "${debug?.userName || 'connected'}" does not have Admin or Editor access to any Facebook Pages. Task-level access granted through Business Suite is not sufficient — you need a Page Role (Admin or Editor) to connect and publish. Ask the page owner to add you as a Page Admin or Editor, or log in with an account that has full page access.`)
+    // Permissions were granted but no pages returned — Facebook's API didn't return any pages for this token
+    throw new Error(`No Facebook Pages were returned for the account "${debug?.userName || 'connected'}". This can happen if the Facebook account doesn't manage any Pages, or if the pages weren't included during the login flow. Please try again and make sure to select the Facebook Page you want to connect when prompted.`)
   }
 
   const primaryPage = pages[0]
