@@ -267,6 +267,21 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   const response = await fetch(pagesUrl, { method: 'GET' })
   const raw = await response.text()
 
+  // TEMPORARY DEBUG LOGGING — remove after diagnosing connection issue
+  console.log('[DEBUG me/accounts] token (first 20 chars):', userAccessToken.slice(0, 20))
+  console.log('[DEBUG me/accounts] full response:', raw)
+
+  try {
+    const { clientId, clientSecret } = getFacebookConfig()
+    const debugTokenUrl = `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(userAccessToken)}&access_token=${encodeURIComponent(clientId + '|' + clientSecret)}`
+    const debugTokenRes = await fetch(debugTokenUrl)
+    const debugTokenRaw = await debugTokenRes.text()
+    console.log('[DEBUG debug_token] response:', debugTokenRaw)
+  } catch (debugErr) {
+    console.error('[DEBUG debug_token] failed:', debugErr)
+  }
+  // END TEMPORARY DEBUG LOGGING
+
   logger?.('facebook_pages_response', {
     provider: 'facebook',
     status: response.status,
