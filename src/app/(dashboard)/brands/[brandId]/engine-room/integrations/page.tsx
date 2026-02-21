@@ -110,70 +110,6 @@ const renderSocialIcon = (iconName: string, className: string = "w-6 h-6") => {
   return <SocialIcon iconName={iconName} className={className} />;
 };
 
-function ClientAuthGate() {
-  const router = useRouter()
-  const [checking, setChecking] = useState(true)
-
-  useEffect(() => {
-    if (!supabase) {
-      return
-    }
-
-    let isActive = true
-    let redirectTimer: ReturnType<typeof setTimeout> | null = null
-
-    const goToSignIn = () => {
-      if (!isActive) return
-      const next = encodeURIComponent(window.location.pathname + window.location.search)
-      router.replace(`/auth/sign-in?next=${next}`)
-    }
-
-    const checkSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession()
-        if (!isActive) return
-
-        if (data.session) {
-          setChecking(false)
-          return
-        }
-
-        redirectTimer = setTimeout(goToSignIn, 2000)
-      } catch (error) {
-        console.error('ClientAuthGate: failed to get session', error)
-        redirectTimer = setTimeout(goToSignIn, 500)
-      }
-    }
-
-    void checkSession()
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      if (!isActive) return
-      if (session) {
-        if (redirectTimer) {
-          clearTimeout(redirectTimer)
-          redirectTimer = null
-        }
-        setChecking(false)
-      }
-    })
-
-    return () => {
-      isActive = false
-      if (redirectTimer) {
-        clearTimeout(redirectTimer)
-      }
-      subscription?.subscription.unsubscribe()
-    }
-  }, [router])
-
-  if (checking) {
-    return null
-  }
-
-  return null
-}
-
 export default function IntegrationsPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -327,7 +263,6 @@ export default function IntegrationsPage() {
   if (loading || roleLoading) {
     return (
       <AppLayout>
-        <ClientAuthGate />
         <div className="flex-1 overflow-auto bg-gray-50">
           <div className="p-4 sm:p-6 lg:p-10">
             <div className="mx-auto flex h-64 max-w-4xl items-center justify-center text-gray-500">
@@ -341,7 +276,6 @@ export default function IntegrationsPage() {
 
   return (
     <AppLayout>
-      <ClientAuthGate />
       <div className="flex-1 overflow-auto bg-gray-50">
         <div className="p-4 sm:p-6 lg:p-10">
           <div className="mx-auto max-w-4xl space-y-6">

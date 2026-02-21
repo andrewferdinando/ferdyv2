@@ -359,8 +359,9 @@ export async function handleFacebookCallback({
       throw new Error('No permissions were granted. Please try connecting again and accept all the requested permissions when prompted by Facebook.')
     }
 
-    // If permissions look fine but no pages, the user likely doesn't manage any pages
-    throw new Error(`No Facebook pages found. The Facebook account "${debug?.userName || 'connected'}" does not appear to manage any Facebook Pages. Please make sure you are an admin of the Facebook Page you want to connect, or try logging into a different Facebook account.`)
+    // If permissions look fine but no pages, the user likely doesn't have a Page Role
+    // (Facebook Business Suite task-level access is not sufficient — a Page Role like Admin or Editor is required)
+    throw new Error(`No Facebook pages found. The Facebook account "${debug?.userName || 'connected'}" does not have Admin or Editor access to any Facebook Pages. Task-level access granted through Business Suite is not sufficient — you need a Page Role (Admin or Editor) to connect and publish. Ask the page owner to add you as a Page Admin or Editor, or log in with an account that has full page access.`)
   }
 
   const primaryPage = pages[0]
