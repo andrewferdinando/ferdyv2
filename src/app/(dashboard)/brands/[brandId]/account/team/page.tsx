@@ -349,20 +349,20 @@ export default function TeamPage() {
                 {roleGuideOpen && (
                   <div className="px-6 pb-4 border-t border-gray-100">
                     <div className="mt-3 space-y-3">
-                      <div className="flex items-start space-x-3">
-                        <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${ACCOUNT_ROLES.admin.color}`}>
+                      <div className="flex items-start space-x-4">
+                        <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${ACCOUNT_ROLES.admin.color}`}>
                           {ACCOUNT_ROLES.admin.label}
                         </span>
                         <span className="text-sm text-gray-600">{ACCOUNT_ROLES.admin.description}</span>
                       </div>
-                      <div className="flex items-start space-x-3">
-                        <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${BRAND_ROLES.admin.color}`}>
+                      <div className="flex items-start space-x-4">
+                        <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${BRAND_ROLES.admin.color}`}>
                           {BRAND_ROLES.admin.label}
                         </span>
                         <span className="text-sm text-gray-600">Can manage this brand&apos;s team and settings.</span>
                       </div>
-                      <div className="flex items-start space-x-3">
-                        <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${BRAND_ROLES.editor.color}`}>
+                      <div className="flex items-start space-x-4">
+                        <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${BRAND_ROLES.editor.color}`}>
                           {BRAND_ROLES.editor.label}
                         </span>
                         <span className="text-sm text-gray-600">{BRAND_ROLES.editor.description}</span>

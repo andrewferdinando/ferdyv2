@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
+import { STRIPE_CONFIG } from '@/lib/stripe'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/ToastProvider'
 
@@ -296,12 +297,12 @@ export default function BillingPage() {
   // Use Stripe subscription/invoice data if available, otherwise fall back to database
   const stripePrice = subscription?.items?.data?.[0]?.price
   const latestInvoice = subscription?.latest_invoice
-  const stripeCurrency = latestInvoice?.currency || stripePrice?.currency || group.currency
+  const stripeCurrency = latestInvoice?.currency || stripePrice?.currency || group.currency || STRIPE_CONFIG.currency
 
   // Get price per brand from Stripe or database
   const pricePerBrand = stripePrice
     ? stripePrice.unit_amount / 100
-    : group.price_per_brand_cents / 100
+    : (group.price_per_brand_cents || STRIPE_CONFIG.pricePerBrand) / 100
 
   // Calculate discount from invoice data (most accurate)
   const hasDiscount = (subscription?.discounts?.length ?? 0) > 0

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { STRIPE_CONFIG } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
   try {
@@ -94,6 +95,8 @@ export async function POST(request: NextRequest) {
       .insert({
         name: finalGroupName,
         country_code: countryCode,
+        currency: STRIPE_CONFIG.currency,
+        price_per_brand_cents: STRIPE_CONFIG.pricePerBrand,
       })
       .select()
       .single()
