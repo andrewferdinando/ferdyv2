@@ -495,23 +495,23 @@ export default function IntegrationsPage() {
                     Important
                   </span>
                 </div>
-                <h3 className="mt-4 text-base font-semibold text-amber-900">2FA Required</h3>
-                <p className="mt-2 text-xs text-amber-800">
+                <h3 className="mt-4 text-lg font-semibold text-amber-900">2FA Required</h3>
+                <p className="mt-2 text-sm text-amber-800">
                   Meta requires two-factor authentication (2FA) on <strong>both</strong> your Facebook Business Manager <strong>and</strong> personal Facebook account.
                 </p>
                 <div className="mt-4 flex-1">
-                  <div className="rounded-lg bg-amber-100/60 px-3 py-2 text-xs text-amber-800">
+                  <div className="rounded-lg bg-amber-100/60 px-3 py-2 text-sm text-amber-800">
                     Without 2FA on both accounts, posts will fail to publish even after connecting.
                   </div>
                 </div>
                 <div className="mt-6">
                   <a
-                    href="https://www.facebook.com/settings?tab=security"
+                    href="/help/meta-2fa"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-200"
                   >
-                    Check 2FA Settings
+                    Setup Guide
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
