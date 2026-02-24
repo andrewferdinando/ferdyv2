@@ -4374,40 +4374,82 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           title="Creating category…"
           showCloseButton={false}
         >
-          {(() => {
-            const stepConfig = {
-              linking:    { pct: 15,  label: 'Linking images to category…' },
-              preparing:  { pct: 30,  label: 'Preparing draft generation…' },
-              generating: { pct: 60,  label: 'Generating drafts and writing copy…' },
-              done:       { pct: 100, label: 'Done! Redirecting…' },
-            }
-            const { pct, label } = stepConfig[finishStep]
-            return (
-              <div className="flex flex-col items-center justify-center py-8 px-2">
-                {/* Progress bar */}
-                <div className="w-full max-w-sm mb-5">
-                  <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[#6366F1] transition-all duration-700 ease-in-out"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Current step label */}
-                <p className="text-sm font-medium text-gray-900 text-center mb-1">
-                  {label}
-                </p>
-                <p className="text-xs text-gray-500 text-center">
-                  This can take up to 2 minutes — please don't close this page.
-                </p>
-              </div>
-            )
-          })()}
+          <WizardFinishProgress finishStep={finishStep} />
         </Modal>
         
       </AppLayout>
     </RequireAuth>
+  )
+}
+
+/**
+ * Animated progress indicator for the wizard finish modal.
+ * During the 'generating' step the bar creeps smoothly from 60 → 90 %
+ * so the UI never looks frozen during the long API call.
+ */
+function WizardFinishProgress({ finishStep }: { finishStep: 'linking' | 'preparing' | 'generating' | 'done' }) {
+  const stepConfig = {
+    linking:    { base: 15,  label: 'Linking images to category…' },
+    preparing:  { base: 30,  label: 'Preparing draft generation…' },
+    generating: { base: 60,  label: 'Generating drafts and writing copy…' },
+    done:       { base: 100, label: 'Done! Redirecting…' },
+  }
+
+  const { base, label } = stepConfig[finishStep]
+
+  // Smoothly animate from `base` toward 90% during the generating step
+  const [pct, setPct] = React.useState(base)
+
+  React.useEffect(() => {
+    if (finishStep !== 'generating') {
+      setPct(base)
+      return
+    }
+
+    setPct(base)
+    const start = Date.now()
+    const estimatedMs = 120_000 // 2 minutes
+
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start
+      const t = Math.min(elapsed / estimatedMs, 1)
+      const eased = 1 - Math.pow(1 - t, 2) // easeOutQuad
+      setPct(Math.min(90, base + Math.floor(eased * (90 - base))))
+    }, 400)
+
+    return () => clearInterval(id)
+  }, [finishStep, base])
+
+  const isDone = finishStep === 'done'
+
+  return (
+    <div className="flex flex-col items-center justify-center py-8 px-2">
+      {/* Progress bar */}
+      <div className="w-full max-w-sm mb-5">
+        <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
+          <div
+            className={`h-full rounded-full bg-[#6366F1] transition-all duration-700 ease-in-out${!isDone ? ' animate-pulse' : ''}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Spinner + label */}
+      <div className="flex items-center gap-2 mb-1">
+        {!isDone && (
+          <svg className="animate-spin h-4 w-4 text-[#6366F1]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        )}
+        <p className="text-sm font-medium text-gray-900 text-center">
+          {label}
+        </p>
+      </div>
+      <p className="text-xs text-gray-500 text-center">
+        {isDone ? 'Taking you to the Schedule page…' : 'This can take up to 2 minutes — please don\'t close this page.'}
+      </p>
+    </div>
   )
 }
 
