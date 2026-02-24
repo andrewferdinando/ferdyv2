@@ -260,6 +260,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 
   const pagesUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
   pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account,picture{url},category,about,fan_count,website,link,single_line_address,phone')
+  pagesUrl.searchParams.set('limit', '100')
   pagesUrl.searchParams.set('access_token', userAccessToken)
 
   logger?.('facebook_pages_request', {
@@ -274,17 +275,17 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
     provider: 'facebook',
     status: response.status,
     ok: response.ok,
-    raw: raw.slice(0, 500),
+    raw: raw.slice(0, 2000),
   })
 
   if (!response.ok) {
     throw new Error(`FACEBOOK_PAGES_FAILED:${response.status}:${raw.slice(0, 200)}`)
   }
 
+  let result: FacebookPagesResult
   try {
-    const result = JSON.parse(raw) as FacebookPagesResult
+    result = JSON.parse(raw) as FacebookPagesResult
     result._debug = debugInfo
-    return result
   } catch (error) {
     logger?.('facebook_pages_parse_error', {
       provider: 'facebook',
@@ -293,6 +294,69 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
     })
     throw new Error('FACEBOOK_PAGES_FAILED:invalid_json')
   }
+
+  // If no pages returned, run diagnostic calls to help debug the issue
+  if (!result.data || result.data.length === 0) {
+    // Try a minimal me/accounts call without fields to rule out field-related issues
+    try {
+      const minimalUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
+      minimalUrl.searchParams.set('access_token', userAccessToken)
+      const minimalRes = await fetch(minimalUrl, { method: 'GET' })
+      const minimalRaw = await minimalRes.text()
+      logger?.('facebook_pages_diagnostic_minimal', {
+        provider: 'facebook',
+        status: minimalRes.status,
+        raw: minimalRaw.slice(0, 2000),
+      })
+    } catch (diagErr) {
+      logger?.('facebook_pages_diagnostic_error', {
+        provider: 'facebook',
+        error: diagErr instanceof Error ? diagErr.message : 'unknown',
+      })
+    }
+
+    // Try fetching via {user-id}/accounts as a cross-check
+    if (debugInfo.userId) {
+      try {
+        const userPagesUrl = new URL(`https://graph.facebook.com/v19.0/${debugInfo.userId}/accounts`)
+        userPagesUrl.searchParams.set('access_token', userAccessToken)
+        const userPagesRes = await fetch(userPagesUrl, { method: 'GET' })
+        const userPagesRaw = await userPagesRes.text()
+        logger?.('facebook_pages_diagnostic_user_id', {
+          provider: 'facebook',
+          userId: debugInfo.userId,
+          status: userPagesRes.status,
+          raw: userPagesRaw.slice(0, 2000),
+        })
+      } catch (diagErr) {
+        logger?.('facebook_pages_diagnostic_user_id_error', {
+          provider: 'facebook',
+          error: diagErr instanceof Error ? diagErr.message : 'unknown',
+        })
+      }
+    }
+
+    // Check if this user has business accounts that manage pages
+    try {
+      const bizUrl = new URL('https://graph.facebook.com/v19.0/me/businesses')
+      bizUrl.searchParams.set('fields', 'id,name')
+      bizUrl.searchParams.set('access_token', userAccessToken)
+      const bizRes = await fetch(bizUrl, { method: 'GET' })
+      const bizRaw = await bizRes.text()
+      logger?.('facebook_pages_diagnostic_businesses', {
+        provider: 'facebook',
+        status: bizRes.status,
+        raw: bizRaw.slice(0, 2000),
+      })
+    } catch (diagErr) {
+      logger?.('facebook_pages_diagnostic_businesses_error', {
+        provider: 'facebook',
+        error: diagErr instanceof Error ? diagErr.message : 'unknown',
+      })
+    }
+  }
+
+  return result
 }
 
 async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
