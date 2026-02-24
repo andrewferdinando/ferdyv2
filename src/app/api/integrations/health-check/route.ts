@@ -21,7 +21,7 @@ interface TokenHealthResult {
  */
 async function validateMetaToken(token: string): Promise<{ valid: boolean; error?: string }> {
   try {
-    const url = new URL('https://graph.facebook.com/v19.0/me')
+    const url = new URL('https://graph.facebook.com/v21.0/me')
     url.searchParams.set('fields', 'id')
     url.searchParams.set('access_token', token)
 

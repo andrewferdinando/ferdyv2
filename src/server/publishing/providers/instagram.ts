@@ -2,7 +2,7 @@ import { decryptToken } from '@/lib/encryption'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { SUPPORTED_ASPECT_RATIOS } from '@/lib/image-processing/processImage'
 
-const GRAPH_API_VERSION = 'v19.0'
+const GRAPH_API_VERSION = 'v21.0'
 
 /**
  * Polls Instagram media container status until it's ready

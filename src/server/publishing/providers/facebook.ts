@@ -2,7 +2,7 @@ import { decryptToken } from '@/lib/encryption'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { getPublicUrl } from '@/lib/storage/publicUrl'
 
-const GRAPH_API_VERSION = 'v19.0'
+const GRAPH_API_VERSION = 'v21.0'
 
 /**
  * Ensure a Facebook permalink is an absolute URL.

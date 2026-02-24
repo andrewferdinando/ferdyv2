@@ -38,15 +38,15 @@ function getFacebookConfig() {
 export function getFacebookAuthorizationUrl({ state, redirectUri }: OAuthStartOptions): OAuthStartResult {
   const { clientId, redirectUri: defaultRedirect } = getFacebookConfig()
   const finalRedirect = redirectUri ?? defaultRedirect
-  const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth')
+  const authUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth')
   authUrl.searchParams.set('client_id', clientId)
   authUrl.searchParams.set('redirect_uri', finalRedirect)
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('scope', FACEBOOK_SCOPES)
-  // Force Facebook to re-show the page/permission selection screens on every
-  // connect attempt, so users who skipped the Page selection can fix it on retry.
-  authUrl.searchParams.set('auth_type', 'rerequest')
+  // Force a fresh login prompt every time, so different users don't inherit
+  // each other's cached Facebook sessions. Also re-shows page/permission selection.
+  authUrl.searchParams.set('auth_type', 'reauthenticate')
 
   return { url: authUrl.toString() }
 }
@@ -58,7 +58,7 @@ async function exchangeFacebookCodeForToken(
 ) {
   const { clientId, clientSecret, redirectUri } = getFacebookConfig()
   const finalRedirect = redirectUriOverride ?? redirectUri
-  const tokenUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
+  const tokenUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token')
   const body = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
@@ -118,7 +118,7 @@ async function exchangeFacebookCodeForToken(
     step: 'starting',
   })
 
-  const longLivedUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
+  const longLivedUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token')
   longLivedUrl.searchParams.set('grant_type', 'fb_exchange_token')
   longLivedUrl.searchParams.set('client_id', clientId)
   longLivedUrl.searchParams.set('client_secret', clientSecret)
@@ -142,6 +142,7 @@ async function exchangeFacebookCodeForToken(
         access_token: longLivedData.access_token,
         token_type: 'bearer',
         expires_in: longLivedData.expires_in,
+        short_lived_token: tokenData.access_token,
       }
     } catch {
       // Fall back to short-lived token if parsing fails
@@ -151,11 +152,11 @@ async function exchangeFacebookCodeForToken(
     console.warn('[facebook] Failed to exchange for long-lived token, using short-lived token')
   }
 
-  return tokenData
+  return { ...tokenData, short_lived_token: null }
 }
 
 async function fetchFacebookUserProfile(userAccessToken: string, logger?: OAuthLogger) {
-  const profileUrl = new URL('https://graph.facebook.com/v19.0/me')
+  const profileUrl = new URL('https://graph.facebook.com/v21.0/me')
   profileUrl.searchParams.set('fields', 'id,name,email')
   profileUrl.searchParams.set('access_token', userAccessToken)
 
@@ -183,7 +184,7 @@ async function fetchFacebookUserProfile(userAccessToken: string, logger?: OAuthL
 }
 
 async function fetchTokenPermissions(userAccessToken: string, logger?: OAuthLogger) {
-  const permissionsUrl = new URL('https://graph.facebook.com/v19.0/me/permissions')
+  const permissionsUrl = new URL('https://graph.facebook.com/v21.0/me/permissions')
   permissionsUrl.searchParams.set('access_token', userAccessToken)
 
   try {
@@ -258,7 +259,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
     ...debugInfo,
   })
 
-  const pagesUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
+  const pagesUrl = new URL('https://graph.facebook.com/v21.0/me/accounts')
   pagesUrl.searchParams.set('fields', 'id,name,access_token,instagram_business_account,picture{url},category,about,fan_count,website,link,single_line_address,phone')
   pagesUrl.searchParams.set('limit', '100')
   pagesUrl.searchParams.set('access_token', userAccessToken)
@@ -299,7 +300,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   if (!result.data || result.data.length === 0) {
     // Try a minimal me/accounts call without fields to rule out field-related issues
     try {
-      const minimalUrl = new URL('https://graph.facebook.com/v19.0/me/accounts')
+      const minimalUrl = new URL('https://graph.facebook.com/v21.0/me/accounts')
       minimalUrl.searchParams.set('access_token', userAccessToken)
       const minimalRes = await fetch(minimalUrl, { method: 'GET' })
       const minimalRaw = await minimalRes.text()
@@ -318,7 +319,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
     // Try fetching via {user-id}/accounts as a cross-check
     if (debugInfo.userId) {
       try {
-        const userPagesUrl = new URL(`https://graph.facebook.com/v19.0/${debugInfo.userId}/accounts`)
+        const userPagesUrl = new URL(`https://graph.facebook.com/v21.0/${debugInfo.userId}/accounts`)
         userPagesUrl.searchParams.set('access_token', userAccessToken)
         const userPagesRes = await fetch(userPagesUrl, { method: 'GET' })
         const userPagesRaw = await userPagesRes.text()
@@ -338,7 +339,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 
     // Check if this user has business accounts that manage pages
     try {
-      const bizUrl = new URL('https://graph.facebook.com/v19.0/me/businesses')
+      const bizUrl = new URL('https://graph.facebook.com/v21.0/me/businesses')
       bizUrl.searchParams.set('fields', 'id,name')
       bizUrl.searchParams.set('access_token', userAccessToken)
       const bizRes = await fetch(bizUrl, { method: 'GET' })
@@ -360,7 +361,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 }
 
 async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
-  const igUrl = new URL(`https://graph.facebook.com/v19.0/${instagramId}`)
+  const igUrl = new URL(`https://graph.facebook.com/v21.0/${instagramId}`)
   igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website')
   igUrl.searchParams.set('access_token', pageAccessToken)
 
@@ -411,7 +412,38 @@ export async function handleFacebookCallback({
   redirectUri,
 }: OAuthCallbackArgs, logger?: OAuthLogger): Promise<OAuthCallbackResult> {
   const tokenResponse = await exchangeFacebookCodeForToken(code, redirectUri, logger)
-  const pagesResponse = await fetchFacebookPages(tokenResponse.access_token, logger)
+  let pagesResponse = await fetchFacebookPages(tokenResponse.access_token, logger)
+
+  // If long-lived token returned no pages, try with the short-lived token as a
+  // diagnostic — this helps determine if the LL token exchange strips page access.
+  let usedShortLivedFallback = false
+  if (
+    (!pagesResponse.data || pagesResponse.data.length === 0) &&
+    tokenResponse.short_lived_token
+  ) {
+    logger?.('facebook_pages_short_lived_fallback', {
+      provider: 'facebook',
+      event: 'trying_short_lived_token',
+    })
+
+    const shortLivedPages = await fetchFacebookPages(tokenResponse.short_lived_token, logger)
+
+    logger?.('facebook_pages_short_lived_result', {
+      provider: 'facebook',
+      pageCount: shortLivedPages.data?.length ?? 0,
+    })
+
+    if (shortLivedPages.data && shortLivedPages.data.length > 0) {
+      // Short-lived token works but long-lived doesn't — use it and log the anomaly
+      logger?.('facebook_pages_short_lived_success', {
+        provider: 'facebook',
+        event: 'long_lived_token_lost_page_access',
+        pageCount: shortLivedPages.data.length,
+      })
+      pagesResponse = shortLivedPages
+      usedShortLivedFallback = true
+    }
+  }
 
   const pages = pagesResponse.data || []
   if (!pages.length) {
@@ -506,7 +538,7 @@ export async function handleFacebookCallback({
 
 export async function revokeFacebookAccess(pageId: string, pageAccessToken: string) {
   try {
-    const revokeUrl = new URL(`https://graph.facebook.com/v19.0/${pageId}/permissions`)
+    const revokeUrl = new URL(`https://graph.facebook.com/v21.0/${pageId}/permissions`)
     revokeUrl.searchParams.set('access_token', pageAccessToken)
     const response = await fetch(revokeUrl, { method: 'DELETE' })
     if (!response.ok) {

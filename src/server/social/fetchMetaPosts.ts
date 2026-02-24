@@ -9,7 +9,7 @@ type SocialAccountInput = {
   metadata: Record<string, unknown> | null
 }
 
-const GRAPH_API_VERSION = 'v19.0'
+const GRAPH_API_VERSION = 'v21.0'
 
 function getMetadataValue<T = unknown>(metadata: Record<string, unknown> | null | undefined, key: string) {
   if (!metadata) return undefined

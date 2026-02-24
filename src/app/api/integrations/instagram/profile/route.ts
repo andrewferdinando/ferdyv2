@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to decrypt token' }, { status: 500 })
     }
 
-    const igUrl = new URL(`https://graph.facebook.com/v19.0/${account.account_id}`)
+    const igUrl = new URL(`https://graph.facebook.com/v21.0/${account.account_id}`)
     igUrl.searchParams.set('fields', 'profile_picture_url')
     igUrl.searchParams.set('access_token', accessToken)
 

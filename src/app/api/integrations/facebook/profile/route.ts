@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Facebook Pages use the picture edge with redirect=false to get a URL
-    const fbUrl = new URL(`https://graph.facebook.com/v19.0/${account.account_id}/picture`)
+    const fbUrl = new URL(`https://graph.facebook.com/v21.0/${account.account_id}/picture`)
     fbUrl.searchParams.set('redirect', 'false')
     fbUrl.searchParams.set('type', 'large')
     fbUrl.searchParams.set('access_token', accessToken)

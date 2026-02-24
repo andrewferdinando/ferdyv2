@@ -103,7 +103,7 @@ export async function GET(
     let updatedMetadata: Record<string, unknown>
 
     if (provider === 'instagram') {
-      const igUrl = new URL(`https://graph.facebook.com/v19.0/${account.account_id}`)
+      const igUrl = new URL(`https://graph.facebook.com/v21.0/${account.account_id}`)
       igUrl.searchParams.set('fields', INSTAGRAM_FIELDS)
       igUrl.searchParams.set('access_token', accessToken)
 
@@ -153,7 +153,7 @@ export async function GET(
       }
     } else {
       // Facebook Page
-      const fbUrl = new URL(`https://graph.facebook.com/v19.0/${account.account_id}`)
+      const fbUrl = new URL(`https://graph.facebook.com/v21.0/${account.account_id}`)
       fbUrl.searchParams.set('fields', FACEBOOK_PAGE_FIELDS)
       fbUrl.searchParams.set('access_token', accessToken)
 
