@@ -238,9 +238,11 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
       console.log(`[draftGeneration] Processing: ${targetName} at ${scheduledAtISO}`);
       
-      // Check if an active (non-published, non-deleted) framework draft already exists.
-      // Published/deleted drafts are ignored so the generator creates replacements
-      // (e.g. when a draft is published early or deleted from the calendar).
+      // Check if ANY framework draft already exists at this slot (regardless of status).
+      // The DB unique constraint (drafts_unique_framework) prevents duplicates at
+      // the same (brand, subcategory, scheduled_for, schedule_source) regardless of
+      // status, so the dedup check must match that scope. Published drafts already
+      // went out for this slot; deleted drafts were intentionally removed by the user.
       const { data: existingDraft, error: checkError } = await supabaseAdmin
         .from('drafts')
         .select('id')
@@ -248,7 +250,6 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         .eq('subcategory_id', target.subcategory_id)
         .eq('scheduled_for', scheduledAtISO)
         .eq('schedule_source', 'framework')
-        .not('status', 'in', '("published","partially_published","deleted")')
         .maybeSingle();
 
       if (checkError) {
