@@ -217,28 +217,19 @@ export async function publishJob(
     // Detect if this is an auth/token error and mark account as disconnected
     if (socialAccount && isAuthError(publishResult.error)) {
       console.warn(`[publishJob] Auth error detected, marking ${provider} account ${socialAccount.id} as disconnected`)
-      
+
       await supabaseAdmin
         .from('social_accounts')
-        .update({ 
+        .update({
           status: 'disconnected',
           last_error: publishResult.error,
           disconnected_at: new Date().toISOString()
         })
         .eq('id', socialAccount.id)
-      
-      // Send disconnection email notification
-      try {
-        const { notifySocialConnectionDisconnected } = await import('@/lib/emails/send')
-        await notifySocialConnectionDisconnected({
-          brandId: draft.brand_id,
-          provider: socialAccount.provider,
-          accountHandle: socialAccount.handle || socialAccount.account_id,
-          error: publishResult.error
-        })
-      } catch (emailError) {
-        console.error('[publishJob] Failed to send disconnection email:', emailError)
-      }
+
+      // Note: Disconnection email is NOT sent here per-job to avoid duplicates.
+      // The consolidated notifyPublishingFailed email (sent after all jobs for a
+      // draft are processed in processDraft) includes isAccountDisconnected context.
     }
 
     return {

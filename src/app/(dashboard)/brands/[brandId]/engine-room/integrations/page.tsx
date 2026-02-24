@@ -484,6 +484,36 @@ export default function IntegrationsPage() {
               })}
             </div>
 
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                  <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-amber-900">Two-Factor Authentication Required</h3>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Meta requires two-factor authentication (2FA) to be enabled on <strong>both</strong> your Facebook Business Manager <strong>and</strong> your personal Facebook account before Ferdy can publish to Facebook or Instagram.
+                  </p>
+                  <p className="mt-2 text-sm text-amber-700">
+                    If 2FA is not enabled on both accounts, your posts will fail to publish even after connecting successfully.
+                  </p>
+                  <a
+                    href="https://www.facebook.com/settings?tab=security"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-amber-900 underline decoration-amber-400 underline-offset-2 hover:text-amber-700"
+                  >
+                    Check your Facebook 2FA settings
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-xl border border-gray-200 bg-white p-6">
               <h3 className="text-xl font-semibold text-gray-950">Connection requirements</h3>
               <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
