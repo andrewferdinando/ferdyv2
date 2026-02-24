@@ -44,6 +44,9 @@ export function getFacebookAuthorizationUrl({ state, redirectUri }: OAuthStartOp
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('scope', FACEBOOK_SCOPES)
+  // Force Facebook to re-show the page/permission selection screens on every
+  // connect attempt, so users who skipped the Page selection can fix it on retry.
+  authUrl.searchParams.set('auth_type', 'rerequest')
 
   return { url: authUrl.toString() }
 }
@@ -359,9 +362,12 @@ export async function handleFacebookCallback({
       throw new Error('No permissions were granted. Please try connecting again and accept all the requested permissions when prompted by Facebook.')
     }
 
-    // Permissions were granted but no pages returned — user likely has Business Suite
-    // access but not a direct Page Role (admin/editor) on the Facebook Page itself.
-    throw new Error(`No Facebook Pages were found for "${debug?.userName || 'this account'}". This usually means the account has Business Suite access but is not an admin or editor of the Facebook Page directly. To fix this: go to the Facebook Page → Settings → Page Access → add this person as a Page admin or editor. Business Suite access alone is not enough.`)
+    // Permissions were granted but no pages returned. Possible causes:
+    // 1. User didn't select a Page during the OAuth "Choose what to share" screen
+    // 2. User's Facebook App access is restricted (e.g. app is in Development Mode
+    //    and user is not an app tester/admin)
+    // 3. Page access is task-based via Business Manager and not visible to me/accounts
+    throw new Error(`No Facebook Pages were found for "${debug?.userName || 'this account'}". All permissions were granted but Facebook returned no Pages. This can happen if: (1) the Page wasn't selected during the login flow — please try again and ensure you select your Page when prompted, (2) Ferdy's Facebook App access is restricted for this user — contact support@ferdy.io for help. If the issue persists after retrying, please reach out to us.`)
   }
 
   const primaryPage = pages[0]
