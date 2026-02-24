@@ -527,12 +527,14 @@ export default function IntegrationsPage() {
                   <h4 className="text-base font-semibold text-gray-950">Facebook &amp; Instagram</h4>
                   <ul className="mt-3 space-y-2 text-sm text-gray-700">
                     <li>
-                      <span className="font-semibold text-gray-900">Facebook:</span> You must be an admin of the
-                      Facebook Page you want to connect.
+                      <span className="font-semibold text-gray-900">Facebook:</span> You must be an <strong>admin or editor of the Facebook Page</strong> itself (not just Business Suite). Go to your Page &rarr; Settings &rarr; Page Access to check.
                     </li>
                     <li>
                       <span className="font-semibold text-gray-900">Instagram:</span> Only Instagram Business or Creator
                       accounts linked to the connected Facebook Page can be used.
+                    </li>
+                    <li>
+                      <span className="font-semibold text-gray-900">Business Suite:</span> Having access to a Page via Business Suite alone is <strong>not enough</strong>. The person connecting must have a direct Page Role (admin or editor).
                     </li>
                   </ul>
                 </div>

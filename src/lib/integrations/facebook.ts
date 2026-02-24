@@ -359,8 +359,9 @@ export async function handleFacebookCallback({
       throw new Error('No permissions were granted. Please try connecting again and accept all the requested permissions when prompted by Facebook.')
     }
 
-    // Permissions were granted but no pages returned — Facebook's API didn't return any pages for this token
-    throw new Error(`No Facebook Pages were returned for the account "${debug?.userName || 'connected'}". This can happen if the Facebook account doesn't manage any Pages, or if the pages weren't included during the login flow. Please try again and make sure to select the Facebook Page you want to connect when prompted.`)
+    // Permissions were granted but no pages returned — user likely has Business Suite
+    // access but not a direct Page Role (admin/editor) on the Facebook Page itself.
+    throw new Error(`No Facebook Pages were found for "${debug?.userName || 'this account'}". This usually means the account has Business Suite access but is not an admin or editor of the Facebook Page directly. To fix this: go to the Facebook Page → Settings → Page Access → add this person as a Page admin or editor. Business Suite access alone is not enough.`)
   }
 
   const primaryPage = pages[0]
