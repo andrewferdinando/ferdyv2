@@ -64,15 +64,15 @@ export default function Meta2FAHelpPage() {
                 <p>
                   Go to{' '}
                   <a
-                    href="https://www.facebook.com/settings?tab=security"
+                    href="https://accountscenter.facebook.com/password_and_security"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-500"
                   >
-                    Facebook Security Settings
+                    Meta Accounts Centre &rarr; Password and Security
                   </a>{' '}
                   (or open Facebook &rarr; Settings &amp; Privacy &rarr; Settings &rarr;
-                  Security and Login).
+                  Accounts Centre &rarr; Password and Security).
                 </p>
               </div>
             </li>
@@ -82,8 +82,8 @@ export default function Meta2FAHelpPage() {
               </span>
               <div>
                 <p>
-                  Scroll down to <strong>Two-factor authentication</strong> and click{' '}
-                  <strong>Edit</strong> or <strong>Use two-factor authentication</strong>.
+                  Click <strong>Two-factor authentication</strong>, then select the
+                  account you want to secure.
                 </p>
               </div>
             </li>
@@ -110,12 +110,12 @@ export default function Meta2FAHelpPage() {
 
           <div className="mt-5">
             <a
-              href="https://www.facebook.com/settings?tab=security"
+              href="https://accountscenter.facebook.com/password_and_security"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
             >
-              Open Personal 2FA Settings
+              Open Password &amp; Security
               <svg
                 className="h-3.5 w-3.5"
                 fill="none"
