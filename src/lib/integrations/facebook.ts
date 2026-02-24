@@ -298,6 +298,27 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
 
   // If no pages returned, run diagnostic calls to help debug the issue
   if (!result.data || result.data.length === 0) {
+    // Use the Debug Token API to see exactly what Facebook thinks this token grants
+    try {
+      const { clientId, clientSecret } = getFacebookConfig()
+      const appToken = `${clientId}|${clientSecret}`
+      const debugUrl = new URL('https://graph.facebook.com/v21.0/debug_token')
+      debugUrl.searchParams.set('input_token', userAccessToken)
+      debugUrl.searchParams.set('access_token', appToken)
+      const debugRes = await fetch(debugUrl, { method: 'GET' })
+      const debugRaw = await debugRes.text()
+      logger?.('facebook_debug_token', {
+        provider: 'facebook',
+        status: debugRes.status,
+        raw: debugRaw.slice(0, 3000),
+      })
+    } catch (diagErr) {
+      logger?.('facebook_debug_token_error', {
+        provider: 'facebook',
+        error: diagErr instanceof Error ? diagErr.message : 'unknown',
+      })
+    }
+
     // Try a minimal me/accounts call without fields to rule out field-related issues
     try {
       const minimalUrl = new URL('https://graph.facebook.com/v21.0/me/accounts')
