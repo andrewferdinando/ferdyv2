@@ -496,15 +496,10 @@ export default function IntegrationsPage() {
                   </span>
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-amber-900">2FA Required</h3>
-                <p className="mt-2 text-sm text-amber-800">
+                <p className="mt-2 min-h-[56px] text-sm text-amber-800">
                   Meta requires two-factor authentication (2FA) on <strong>both</strong> your Facebook Business Manager <strong>and</strong> personal Facebook account.
                 </p>
-                <div className="mt-4 flex-1">
-                  <div className="rounded-lg bg-amber-100/60 px-3 py-2 text-sm text-amber-800">
-                    Without 2FA on both accounts, posts will fail to publish even after connecting.
-                  </div>
-                </div>
-                <div className="mt-6">
+                <div className="mt-4">
                   <a
                     href="/help/meta-2fa"
                     target="_blank"
@@ -516,6 +511,11 @@ export default function IntegrationsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
                   </a>
+                </div>
+                <div className="mt-4 flex-1">
+                  <div className="rounded-lg bg-amber-100/60 px-3 py-2 text-sm text-amber-800">
+                    Without 2FA on both accounts, posts will fail to publish even after connecting.
+                  </div>
                 </div>
               </div>
             </div>
