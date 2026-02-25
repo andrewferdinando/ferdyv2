@@ -399,6 +399,9 @@ export default function IntegrationsPage() {
                       {connectedAccount?.account_id && (
                         <span className="text-xs text-gray-400">ID: {connectedAccount.account_id}</span>
                       )}
+                      {connectedAccount?.connected_by?.full_name && (
+                        <span className="text-xs text-gray-500">Connected by {connectedAccount.connected_by.full_name}</span>
+                      )}
                       {getLastRefreshedText() && (
                         <span className="text-xs text-gray-500">{getLastRefreshedText()}</span>
                       )}
