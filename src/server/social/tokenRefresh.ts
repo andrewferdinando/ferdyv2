@@ -64,7 +64,7 @@ export async function refreshMetaToken(socialAccount: SocialAccount): Promise<{
     }
 
     // Exchange current token for new long-lived token
-    const url = `https://graph.facebook.com/v24.0/oauth/access_token?` +
+    const url = `https://graph.facebook.com/v21.0/oauth/access_token?` +
       `grant_type=fb_exchange_token&` +
       `client_id=${FACEBOOK_APP_ID}&` +
       `client_secret=${FACEBOOK_APP_SECRET}&` +
