@@ -130,11 +130,31 @@ Provider redirects back to Ferdy:
 ### 4. OAuth Callback Processing (Server)
 
 1. Validate state
-2. Exchange auth code for tokens
+2. Exchange auth code for tokens (short-lived → long-lived for Meta)
 3. Fetch provider account metadata
-4. Upsert into `social_accounts`
-5. Run a health check to confirm token validity
-6. Redirect user back to the integrations page
+4. **For Facebook/Instagram:** Fetch pages via `me/accounts`. If empty, fall back to `debug_token` granular_scopes (see below)
+5. Upsert into `social_accounts`
+6. Run a health check to confirm token validity
+7. Redirect user back to the integrations page
+
+#### Facebook Login for Business – `me/accounts` Fallback
+
+**Problem:** When using Facebook Login for Business (FLIB), the `me/accounts` endpoint can return empty `{"data":[]}` even though the user granted page access and all permissions show as granted. This affects non-tester users despite the app being in Live mode with all permissions approved through App Review.
+
+**Root cause:** FLIB grants granular page-level access that is visible in the `debug_token` API response (`granular_scopes` field) but not returned by `me/accounts`.
+
+**Solution (implemented Feb 2025):** When `me/accounts` returns empty:
+
+1. Call the **Debug Token API** (`GET /v21.0/debug_token`) using the App Token to inspect the user's token
+2. Extract page IDs from `granular_scopes` where `scope` is `pages_show_list` or `pages_manage_posts`
+3. Fetch each page directly via `GET /{page-id}?fields=id,name,access_token,...` using the user's access token
+4. Use the directly-fetched page data (including page access tokens) as the result
+
+**Implementation:** `src/lib/integrations/facebook.ts` – `fetchFacebookPages()`
+
+**OAuth URL parameters:**
+- `auth_type=reauthenticate` — Forces fresh login on every connect attempt, preventing cached session issues when multiple users share a browser
+- Graph API version: `v21.0`
 
 ---
 
@@ -176,6 +196,10 @@ Common errors:
 
 - **Missing scopes**
   - Inform user to reconnect with correct permissions.
+
+- **Empty `me/accounts` despite granted permissions (Facebook/Instagram)**
+  - Caused by Facebook Login for Business granular scopes.
+  - Handled automatically by the `debug_token` fallback (see section 4).
 
 - **Provider downtime**
   - Set `status = 'error'` and allow retry.

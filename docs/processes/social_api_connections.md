@@ -125,17 +125,25 @@ Note: For LinkedIn Profiles there is usually only a single option, so selection 
 5.1 Facebook Pages
 User clicks “Connect Facebook” for a given brand.
 
-Ferdy redirects to Facebook/Meta OAuth.
+Ferdy redirects to Facebook/Meta OAuth (v21.0, `auth_type=reauthenticate`).
 
 User chooses which Facebook Pages to grant access to.
 
 After OAuth completes, Ferdy:
 
-Fetches the list of Pages the user has granted.
+1. Exchanges the auth code for an access token, then exchanges for a long-lived token (60 days).
 
-Shows the list in the UI.
+2. Fetches the list of Pages via `me/accounts`.
 
-User selects which Page to connect to this brand.
+3. **If `me/accounts` returns empty** (common with Facebook Login for Business), Ferdy falls back to:
+   - Calling the `debug_token` API to inspect `granular_scopes`
+   - Extracting page IDs from `pages_show_list` / `pages_manage_posts` scopes
+   - Fetching each page directly via `/{page-id}?fields=...`
+   - This recovers the page data and access tokens that `me/accounts` fails to return
+
+4. Shows the list in the UI.
+
+5. User selects which Page to connect to this brand.
 
 Ferdy stores:
 
@@ -309,6 +317,18 @@ When users first connect Facebook or Instagram, Ferdy now automatically:
 3. Page Access Tokens obtained with long-lived user tokens are effectively **never-expiring**
 
 **Implementation:** `/src/lib/integrations/facebook.ts` - `exchangeFacebookCodeForToken()`
+
+### Facebook Login for Business (FLIB) Compatibility
+
+Ferdy's app uses **Facebook Login for Business**, which grants permissions at a granular level (per-page). This means:
+
+- `me/permissions` correctly shows all permissions as granted
+- `debug_token` API shows `granular_scopes` with specific `target_ids` (page/IG account IDs)
+- But `me/accounts` can return empty for non-tester users, even with all permissions approved through App Review
+
+**Workaround (implemented Feb 2025):** When `me/accounts` returns empty, Ferdy uses the `debug_token` granular_scopes to identify granted page IDs and fetches each page directly. See `fetchFacebookPages()` in `/src/lib/integrations/facebook.ts`.
+
+**Graph API version:** v21.0 (upgraded Feb 2025 from v19.0)
 
 ### Daily Token Expiry Check (Cron Job)
 
