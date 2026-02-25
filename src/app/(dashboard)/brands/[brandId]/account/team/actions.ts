@@ -203,7 +203,7 @@ export async function fetchTeamState(brandId: string) {
 
   const { data: profiles, error: profilesError } = await supabaseAdmin
     .from('profiles')
-    .select('user_id, full_name')
+    .select('user_id, full_name, role')
     .in('user_id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000'])
 
   if (profilesError) {
@@ -212,6 +212,13 @@ export async function fetchTeamState(brandId: string) {
 
   const profileMap = new Map(
     (profiles ?? []).map((profile) => [profile.user_id, profile.full_name ?? null]),
+  )
+
+  // Collect super_admin user IDs so they can be hidden from the team list
+  const superAdminUserIds = new Set(
+    (profiles ?? [])
+      .filter((profile) => profile.role === 'super_admin')
+      .map((profile) => profile.user_id),
   )
 
   const { data: brand } = await supabaseAdmin
@@ -302,18 +309,20 @@ export async function fetchTeamState(brandId: string) {
     )
   }
 
-  const members = (memberships || []).map((member) => {
-    const { name, email } = resolveDisplayName(member.user_id)
-    return {
-      id: member.user_id,
-      email,
-      role: member.role,
-      groupRole: groupRoleMap.get(member.user_id) ?? 'member',
-      created_at: member.created_at,
-      name,
-      brand_name: brand?.name ?? '',
-    }
-  })
+  const members = (memberships || [])
+    .filter((member) => !superAdminUserIds.has(member.user_id))
+    .map((member) => {
+      const { name, email } = resolveDisplayName(member.user_id)
+      return {
+        id: member.user_id,
+        email,
+        role: member.role,
+        groupRole: groupRoleMap.get(member.user_id) ?? 'member',
+        created_at: member.created_at,
+        name,
+        brand_name: brand?.name ?? '',
+      }
+    })
 
   const { data: invites, error: invitesError } = await supabaseAdmin
     .from('brand_invites')
