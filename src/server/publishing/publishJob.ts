@@ -40,6 +40,7 @@ type PostJobRow = {
   external_url: string | null
   scheduled_at: string
   target_month: string
+  attempt_count?: number
 }
 
 type SocialAccountRow = {
@@ -73,10 +74,15 @@ export async function publishJob(
     }
   }
 
-  // Update job to 'publishing' status
+  // Update job to 'publishing' status and increment attempt count
+  const newAttemptCount = (job.attempt_count ?? 0) + 1
   await supabaseAdmin
     .from('post_jobs')
-    .update({ status: 'publishing', last_attempt_at: new Date().toISOString() })
+    .update({
+      status: 'publishing',
+      last_attempt_at: new Date().toISOString(),
+      attempt_count: newAttemptCount,
+    })
     .eq('id', job.id)
 
   const provider = CHANNEL_PROVIDER_MAP[jobChannel]

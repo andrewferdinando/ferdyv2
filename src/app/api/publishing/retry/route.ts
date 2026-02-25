@@ -16,6 +16,7 @@ type PostJobRow = {
   scheduled_at: string
   target_month: string
   last_attempt_at: string | null
+  attempt_count?: number
 }
 
 type DraftRow = {
@@ -115,12 +116,23 @@ export async function POST(req: NextRequest) {
                 return acc
               }, {}) ?? {}
 
+    // Reset attempt_count so manual retries get fresh automatic retry attempts
+    await Promise.all(
+      failedJobs.map((job) =>
+        supabaseAdmin
+          .from('post_jobs')
+          .update({ attempt_count: 0 })
+          .eq('id', job.id),
+      ),
+    )
+
     // Retry each failed job
     let retried = 0
     const jobResults: PostJobRow[] = []
 
     for (const job of failedJobs) {
-      const result = await publishJob(job as PostJobRow, draft as DraftRow, socialAccounts)
+      const jobWithReset = { ...job, attempt_count: 0 } as PostJobRow
+      const result = await publishJob(jobWithReset, draft as DraftRow, socialAccounts)
       retried += 1
 
       // Reload the job to get updated status

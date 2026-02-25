@@ -287,7 +287,7 @@ export async function publishInstagramFeedPost(
       brandId,
       jobId,
       'instagram_feed',
-      isVideo ? { maxAttempts: 60, delayMs: 5000 } : undefined,
+      isVideo ? { maxAttempts: 60, delayMs: 5000 } : { maxAttempts: 40, delayMs: 1500 },
     )
 
     if (!waitResult.ready) {
@@ -605,7 +605,7 @@ export async function publishInstagramStory(
       brandId,
       jobId,
       'instagram_story',
-      isVideo ? { maxAttempts: 60, delayMs: 5000 } : { maxAttempts: 30, delayMs: 2000 },
+      isVideo ? { maxAttempts: 60, delayMs: 5000 } : { maxAttempts: 40, delayMs: 2000 },
     )
 
     if (!waitResult.ready) {

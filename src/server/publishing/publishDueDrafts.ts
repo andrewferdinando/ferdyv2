@@ -33,6 +33,7 @@ type PostJobRow = {
   scheduled_at: string
   target_month: string
   last_attempt_at?: string | null
+  attempt_count?: number
 }
 
 type SocialAccountRow = {
@@ -60,6 +61,13 @@ const PENDING_STATUSES = new Set(['pending', 'generated', 'ready', 'publishing']
 const SUCCESS_STATUSES = new Set(['success', 'published'])
 const RETRY_STATUSES = new Set(['failed'])
 const SUPPORTED_CHANNEL_SET = new Set(SUPPORTED_CHANNELS)
+
+/** Max times a post_job will be attempted before declaring terminal failure */
+const MAX_PUBLISH_ATTEMPTS = 3
+/** Delay between in-call retries (ms) */
+const RETRY_BACKOFF_MS = 30_000
+/** Minimum elapsed time before a cron run will retry a failed job (ms) */
+const MIN_RETRY_INTERVAL_MS = 60_000
 
 /**
  * Safely queries post_jobs that are ready to publish.
@@ -113,6 +121,7 @@ export async function getPublishableJobs(
     scheduled_at: job.scheduled_at,
     target_month: job.target_month,
     last_attempt_at: job.last_attempt_at ?? null,
+    attempt_count: job.attempt_count ?? 0,
   })) as PostJobRow[]
 }
 
@@ -124,10 +133,10 @@ export async function getPublishableJobs(
  * Returns the new status
  */
 export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftStatus> {
-  // Load all post_jobs for this draft
+  // Load all post_jobs for this draft (include attempt_count for retry awareness)
   const { data: jobsData, error: jobsError } = await supabaseAdmin
     .from('post_jobs')
-    .select('status')
+    .select('status, attempt_count')
     .eq('draft_id', draftId)
 
   if (jobsError || !jobsData || jobsData.length === 0) {
@@ -142,27 +151,38 @@ export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftS
 
   const statuses = jobsData.map((job) => job.status)
   const successCount = statuses.filter((status) => SUCCESS_STATUSES.has(status)).length
-  const failedCount = statuses.filter((status) => status === 'failed').length
   const pendingCount = statuses.filter((status) => PENDING_STATUSES.has(status)).length
   const total = statuses.length
+
+  // Separate terminal failures (exhausted retries) from retriable failures
+  const terminalFailedCount = jobsData.filter(
+    (job) => job.status === 'failed' && (job.attempt_count ?? 0) >= MAX_PUBLISH_ATTEMPTS,
+  ).length
+  const retriableFailedCount = jobsData.filter(
+    (job) => job.status === 'failed' && (job.attempt_count ?? 0) < MAX_PUBLISH_ATTEMPTS,
+  ).length
 
   let newStatus: DraftStatus
 
   // All jobs are success → published
-  if (successCount === total && total > 0 && failedCount === 0 && pendingCount === 0) {
+  if (successCount === total && total > 0 && terminalFailedCount === 0 && retriableFailedCount === 0 && pendingCount === 0) {
     newStatus = 'published'
   }
-  // Some success + some failed → partially_published
-  else if (successCount > 0 && failedCount > 0) {
+  // Some success + some terminal failures (no retriable left) → partially_published
+  else if (successCount > 0 && terminalFailedCount > 0 && retriableFailedCount === 0 && pendingCount === 0) {
     newStatus = 'partially_published'
+  }
+  // All terminal failures → failed
+  else if (terminalFailedCount === total && total > 0) {
+    newStatus = 'failed'
+  }
+  // Retries still pending (retriable failures or pending jobs exist) → stay scheduled
+  else if (retriableFailedCount > 0 || pendingCount > 0) {
+    newStatus = 'scheduled'
   }
   // All pending/ready/generated → scheduled
   else if (pendingCount === total && total > 0) {
     newStatus = 'scheduled'
-  }
-  // All failed → failed
-  else if (failedCount === total && total > 0) {
-    newStatus = 'failed'
   }
   // Otherwise, keep existing status
   else {
@@ -421,6 +441,7 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
             scheduled_at: nowIso,
             status: job.status === 'failed' ? 'ready' : job.status === 'pending' ? 'ready' : job.status,
             last_attempt_at: null, // Clear previous attempt timestamp
+            attempt_count: 0, // Reset retries for fresh publish
           })
           .eq('id', job.id),
       ),
@@ -643,7 +664,21 @@ async function processDraft(
     }
 
     if (!allowedStatuses.has(job.status)) {
-      continue
+      // Also allow 'failed' jobs that have retries remaining (cron-based retry)
+      const isRetriableFailure =
+        job.status === 'failed' && (job.attempt_count ?? 0) < MAX_PUBLISH_ATTEMPTS
+      if (!isRetriableFailure) {
+        continue
+      }
+      // Ensure enough time has elapsed since last attempt to avoid rapid retry
+      if (job.last_attempt_at) {
+        const elapsed = Date.now() - new Date(job.last_attempt_at).getTime()
+        if (elapsed < MIN_RETRY_INTERVAL_MS) {
+          console.log(`[processDraft] Skipping retriable job ${job.id} (${jobChannel}) - only ${Math.round(elapsed / 1000)}s since last attempt`)
+          continue
+        }
+      }
+      console.log(`[processDraft] Retrying failed job ${job.id} (${jobChannel}) - attempt ${(job.attempt_count ?? 0) + 1}/${MAX_PUBLISH_ATTEMPTS}`)
     }
 
     // Guard against race conditions: skip jobs in 'publishing' status that were
@@ -678,7 +713,8 @@ async function processDraft(
         job.error = updatedJobs.error
         job.external_post_id = updatedJobs.external_post_id
         job.external_url = updatedJobs.external_url
-        
+        job.attempt_count = updatedJobs.attempt_count
+
         // Track successful job for batched email notification
         successfulJobs.push({
           job: updatedJobs as PostJobRow,
@@ -694,7 +730,7 @@ async function processDraft(
         error: result.error || 'Unknown error',
       })
 
-      // Reload job to get updated status
+      // Reload job to get updated status and attempt_count
       const { data: updatedJobs } = await supabaseAdmin
         .from('post_jobs')
         .select('*')
@@ -704,6 +740,7 @@ async function processDraft(
       if (updatedJobs) {
         job.status = updatedJobs.status
         job.error = updatedJobs.error
+        job.attempt_count = updatedJobs.attempt_count
       }
     }
   }
@@ -712,26 +749,27 @@ async function processDraft(
     return false
   }
 
-  // Retry timeout failures once before sending notifications
-  // This handles IG Story containers that take longer than the polling window
-  const timeoutFailedJobs = relevantJobs.filter(
-    (job) => job.status === 'failed' && job.error?.includes('still processing after waiting'),
+  // In-call retry: retry any failed jobs that still have attempts remaining.
+  // This gives slow channels (e.g. Instagram container processing) a second
+  // chance within the same function invocation before deferring to the next cron.
+  const retryableJobs = relevantJobs.filter(
+    (job) => job.status === 'failed' && (job.attempt_count ?? 0) < MAX_PUBLISH_ATTEMPTS,
   )
 
-  if (timeoutFailedJobs.length > 0 && successfulJobs.length > 0) {
-    console.log(`[processDraft] Retrying ${timeoutFailedJobs.length} timeout-failed job(s) for draft ${draft.id}`)
+  if (retryableJobs.length > 0) {
+    console.log(`[processDraft] Retrying ${retryableJobs.length} failed job(s) for draft ${draft.id}`)
 
-    // Wait before retrying to give Meta more processing time
-    await new Promise((resolve) => setTimeout(resolve, 30_000))
+    // Wait before retrying to give external APIs more processing time
+    await new Promise((resolve) => setTimeout(resolve, RETRY_BACKOFF_MS))
 
-    for (const job of timeoutFailedJobs) {
+    for (const job of retryableJobs) {
       const jobChannel = canonicalizeChannel(job.channel)
       if (!jobChannel) continue
 
       const retryResult = await publishJob(job, draft, socialAccounts)
 
       if (retryResult.success) {
-        console.log(`[processDraft] Retry succeeded for job ${job.id} (${jobChannel})`)
+        console.log(`[processDraft] In-call retry succeeded for job ${job.id} (${jobChannel})`)
         summary.jobsFailed -= 1
         summary.jobsSucceeded += 1
 
@@ -747,6 +785,7 @@ async function processDraft(
           job.error = updatedJob.error
           job.external_post_id = updatedJob.external_post_id
           job.external_url = updatedJob.external_url
+          job.attempt_count = updatedJob.attempt_count
 
           successfulJobs.push({
             job: updatedJob as PostJobRow,
@@ -755,7 +794,18 @@ async function processDraft(
           })
         }
       } else {
-        console.log(`[processDraft] Retry also failed for job ${job.id} (${jobChannel}):`, retryResult.error)
+        console.log(`[processDraft] In-call retry failed for job ${job.id} (${jobChannel}):`, retryResult.error)
+        // Reload to get updated attempt_count
+        const { data: updatedJob } = await supabaseAdmin
+          .from('post_jobs')
+          .select('*')
+          .eq('id', job.id)
+          .single()
+        if (updatedJob) {
+          job.status = updatedJob.status
+          job.error = updatedJob.error
+          job.attempt_count = updatedJob.attempt_count
+        }
       }
     }
   }
@@ -763,30 +813,55 @@ async function processDraft(
   // Update draft status from jobs after processing
   await updateDraftStatusFromJobs(draft.id)
 
-  // Send batched email notification if any jobs succeeded
-  if (successfulJobs.length > 0) {
-    try {
-      await notifyPostPublishedBatched(draft, successfulJobs)
-    } catch (emailError) {
-      console.error('[processDraft] Failed to send batched post published email:', emailError)
-      // Don't fail the publish if email fails
-    }
+  // Determine if all jobs have reached a terminal state before sending any email.
+  // Terminal = succeeded OR failed with attempt_count >= MAX_PUBLISH_ATTEMPTS.
+  // If retries are still pending, defer notifications to a later cron run.
+  const { data: finalJobsData } = await supabaseAdmin
+    .from('post_jobs')
+    .select('*')
+    .eq('draft_id', draft.id)
+
+  const finalJobs = (finalJobsData ?? []) as PostJobRow[]
+
+  const allTerminal = finalJobs.every(
+    (job) =>
+      SUCCESS_STATUSES.has(job.status) ||
+      (job.status === 'failed' && (job.attempt_count ?? 0) >= MAX_PUBLISH_ATTEMPTS),
+  )
+
+  if (!allTerminal) {
+    console.log(
+      `[processDraft] Deferring notifications for draft ${draft.id} — retries still pending`,
+      finalJobs.map((j) => ({ id: j.id, ch: j.channel, st: j.status, att: j.attempt_count })),
+    )
+    return true
   }
 
-  // Send failure email notification if any jobs failed
-  const failedJobsList = relevantJobs.filter((job) => job.status === 'failed')
-  if (failedJobsList.length > 0) {
-    try {
-      const succeededChannels = relevantJobs
-        .filter((job) => job.status === 'success')
-        .map((job) => canonicalizeChannel(job.channel) ?? job.channel)
-      const failedChannels = failedJobsList.map((job) => canonicalizeChannel(job.channel) ?? job.channel)
+  // All jobs are terminal — send ONE consolidated notification
+  const allSucceeded = finalJobs.filter((j) => SUCCESS_STATUSES.has(j.status))
+  const allFailed = finalJobs.filter((j) => j.status === 'failed')
 
+  if (allFailed.length === 0 && allSucceeded.length > 0) {
+    // Every channel succeeded — send success email
+    try {
+      const successData = allSucceeded.map((j) => ({
+        job: j,
+        channel: canonicalizeChannel(j.channel) ?? j.channel,
+        externalUrl: j.external_url,
+      }))
+      await notifyPostPublishedBatched(draft, successData)
+    } catch (emailError) {
+      console.error('[processDraft] Failed to send post published email:', emailError)
+    }
+  } else if (allFailed.length > 0) {
+    // Some or all channels failed (terminal) — send failure email which includes
+    // both the failed and succeeded channel lists
+    try {
       await notifyPublishingFailed({
         brandId: draft.brand_id,
         draftId: draft.id,
-        failedChannels,
-        succeededChannels,
+        failedChannels: allFailed.map((j) => canonicalizeChannel(j.channel) ?? j.channel),
+        succeededChannels: allSucceeded.map((j) => canonicalizeChannel(j.channel) ?? j.channel),
       })
     } catch (emailError) {
       console.error('[processDraft] Failed to send publishing failed email:', emailError)
