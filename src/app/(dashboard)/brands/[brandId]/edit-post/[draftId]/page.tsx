@@ -33,7 +33,7 @@ interface Draft {
   created_at: string;
   created_at_nzt: string;
   approved: boolean;
-  status: 'draft' | 'scheduled' | 'partially_published' | 'published';
+  status: 'draft' | 'scheduled' | 'partially_published' | 'published' | 'failed';
   scheduled_for?: string; // UTC timestamp
   scheduled_for_nzt?: string; // NZT timestamp
   schedule_source?: 'manual' | 'auto';
@@ -617,6 +617,10 @@ export default function EditPostPage() {
       // Normalize hashtags before saving
       const normalizedHashtags = normalizeHashtags(hashtags);
 
+      // If the draft was failed/partially_published, reset it to scheduled so
+      // it leaves the Needs Attention tab and gets picked up by the CRON again.
+      const isFailedDraft = draft?.status === 'failed' || draft?.status === 'partially_published';
+
       // Update the draft — preserve original schedule_source to avoid constraint conflicts
       const { data, error } = await supabase
         .from('drafts')
@@ -627,7 +631,8 @@ export default function EditPostPage() {
           channel: selectedChannels.join(','),
           scheduled_for: scheduledAt.toISOString(),
           scheduled_for_nzt: scheduledAt.toISOString(),
-          scheduled_by: (await supabase.auth.getUser()).data.user?.id || null
+          scheduled_by: (await supabase.auth.getUser()).data.user?.id || null,
+          ...(isFailedDraft ? { status: 'scheduled', approved: true } : {}),
         })
         .eq('id', draftId)
         .eq('brand_id', brandId)
@@ -646,16 +651,44 @@ export default function EditPostPage() {
 
       // Update ALL post_jobs for this draft (not just the one referenced by post_job_id)
       // This ensures all channels get the updated scheduled time
-      const { error: postJobError } = await supabase
-        .from('post_jobs')
-        .update({
-          scheduled_at: scheduledAt.toISOString()
-        })
-        .eq('draft_id', draftId);
+      if (isFailedDraft) {
+        // Reset failed jobs to 'ready' so the CRON picks them up again.
+        // Leave successful jobs untouched (for partially_published drafts).
+        const { error: resetError } = await supabase
+          .from('post_jobs')
+          .update({
+            scheduled_at: scheduledAt.toISOString(),
+            status: 'ready',
+            last_attempt_at: null,
+          })
+          .eq('draft_id', draftId)
+          .eq('status', 'failed');
 
-      if (postJobError) {
-        console.error('Error updating post_jobs:', postJobError);
-        // Don't fail the whole operation for this
+        if (resetError) {
+          console.error('Error resetting failed post_jobs:', resetError);
+        }
+
+        // Also update non-failed jobs' scheduled time
+        const { error: otherJobError } = await supabase
+          .from('post_jobs')
+          .update({ scheduled_at: scheduledAt.toISOString() })
+          .eq('draft_id', draftId)
+          .neq('status', 'failed');
+
+        if (otherJobError) {
+          console.error('Error updating non-failed post_jobs:', otherJobError);
+        }
+      } else {
+        const { error: postJobError } = await supabase
+          .from('post_jobs')
+          .update({
+            scheduled_at: scheduledAt.toISOString()
+          })
+          .eq('draft_id', draftId);
+
+        if (postJobError) {
+          console.error('Error updating post_jobs:', postJobError);
+        }
       }
 
       console.log('Post updated successfully:', data);
