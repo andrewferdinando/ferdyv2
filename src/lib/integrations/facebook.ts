@@ -296,9 +296,16 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
     throw new Error('FACEBOOK_PAGES_FAILED:invalid_json')
   }
 
-  // If no pages returned, run diagnostic calls to help debug the issue
+  // If me/accounts returned no pages, fall back to debug_token + direct page fetch.
+  // Facebook Login for Business can grant granular page access (visible in debug_token)
+  // while me/accounts returns empty. We use the page IDs from granular_scopes to fetch
+  // each page directly.
   if (!result.data || result.data.length === 0) {
-    // Use the Debug Token API to see exactly what Facebook thinks this token grants
+    logger?.('facebook_pages_empty_fallback', {
+      provider: 'facebook',
+      event: 'me_accounts_empty_trying_debug_token_fallback',
+    })
+
     try {
       const { clientId, clientSecret } = getFacebookConfig()
       const appToken = `${clientId}|${clientSecret}`
@@ -307,71 +314,91 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
       debugUrl.searchParams.set('access_token', appToken)
       const debugRes = await fetch(debugUrl, { method: 'GET' })
       const debugRaw = await debugRes.text()
+
       logger?.('facebook_debug_token', {
         provider: 'facebook',
         status: debugRes.status,
         raw: debugRaw.slice(0, 3000),
       })
-    } catch (diagErr) {
-      logger?.('facebook_debug_token_error', {
-        provider: 'facebook',
-        error: diagErr instanceof Error ? diagErr.message : 'unknown',
-      })
-    }
 
-    // Try a minimal me/accounts call without fields to rule out field-related issues
-    try {
-      const minimalUrl = new URL('https://graph.facebook.com/v21.0/me/accounts')
-      minimalUrl.searchParams.set('access_token', userAccessToken)
-      const minimalRes = await fetch(minimalUrl, { method: 'GET' })
-      const minimalRaw = await minimalRes.text()
-      logger?.('facebook_pages_diagnostic_minimal', {
-        provider: 'facebook',
-        status: minimalRes.status,
-        raw: minimalRaw.slice(0, 2000),
-      })
-    } catch (diagErr) {
-      logger?.('facebook_pages_diagnostic_error', {
-        provider: 'facebook',
-        error: diagErr instanceof Error ? diagErr.message : 'unknown',
-      })
-    }
+      if (debugRes.ok) {
+        const debugData = JSON.parse(debugRaw) as {
+          data?: {
+            granular_scopes?: Array<{ scope: string; target_ids?: string[] }>
+            scopes?: string[]
+            is_valid?: boolean
+          }
+        }
 
-    // Try fetching via {user-id}/accounts as a cross-check
-    if (debugInfo.userId) {
-      try {
-        const userPagesUrl = new URL(`https://graph.facebook.com/v21.0/${debugInfo.userId}/accounts`)
-        userPagesUrl.searchParams.set('access_token', userAccessToken)
-        const userPagesRes = await fetch(userPagesUrl, { method: 'GET' })
-        const userPagesRaw = await userPagesRes.text()
-        logger?.('facebook_pages_diagnostic_user_id', {
+        // Extract page IDs from granular_scopes (pages_show_list or pages_manage_posts)
+        const pageIds = new Set<string>()
+        for (const gs of debugData.data?.granular_scopes || []) {
+          if (
+            (gs.scope === 'pages_show_list' || gs.scope === 'pages_manage_posts') &&
+            gs.target_ids
+          ) {
+            for (const id of gs.target_ids) pageIds.add(id)
+          }
+        }
+
+        logger?.('facebook_debug_token_page_ids', {
           provider: 'facebook',
-          userId: debugInfo.userId,
-          status: userPagesRes.status,
-          raw: userPagesRaw.slice(0, 2000),
+          pageIds: Array.from(pageIds),
+          count: pageIds.size,
         })
-      } catch (diagErr) {
-        logger?.('facebook_pages_diagnostic_user_id_error', {
-          provider: 'facebook',
-          error: diagErr instanceof Error ? diagErr.message : 'unknown',
-        })
+
+        if (pageIds.size > 0) {
+          // Fetch each page directly using /{page-id}?fields=...
+          const directPages: NonNullable<FacebookPagesResult['data']> = []
+
+          for (const pageId of pageIds) {
+            try {
+              const pageUrl = new URL(`https://graph.facebook.com/v21.0/${pageId}`)
+              pageUrl.searchParams.set(
+                'fields',
+                'id,name,access_token,instagram_business_account,picture{url},category,about,fan_count,website,link,single_line_address,phone',
+              )
+              pageUrl.searchParams.set('access_token', userAccessToken)
+              const pageRes = await fetch(pageUrl, { method: 'GET' })
+              const pageRaw = await pageRes.text()
+
+              logger?.('facebook_direct_page_fetch', {
+                provider: 'facebook',
+                pageId,
+                status: pageRes.status,
+                ok: pageRes.ok,
+                raw: pageRaw.slice(0, 2000),
+              })
+
+              if (pageRes.ok) {
+                const pageData = JSON.parse(pageRaw)
+                if (pageData.id && pageData.access_token) {
+                  directPages.push(pageData)
+                }
+              }
+            } catch (pageErr) {
+              logger?.('facebook_direct_page_fetch_error', {
+                provider: 'facebook',
+                pageId,
+                error: pageErr instanceof Error ? pageErr.message : 'unknown',
+              })
+            }
+          }
+
+          if (directPages.length > 0) {
+            logger?.('facebook_direct_page_fetch_success', {
+              provider: 'facebook',
+              event: 'fallback_recovered_pages',
+              count: directPages.length,
+            })
+            result.data = directPages
+            result._debug = debugInfo
+            return result
+          }
+        }
       }
-    }
-
-    // Check if this user has business accounts that manage pages
-    try {
-      const bizUrl = new URL('https://graph.facebook.com/v21.0/me/businesses')
-      bizUrl.searchParams.set('fields', 'id,name')
-      bizUrl.searchParams.set('access_token', userAccessToken)
-      const bizRes = await fetch(bizUrl, { method: 'GET' })
-      const bizRaw = await bizRes.text()
-      logger?.('facebook_pages_diagnostic_businesses', {
-        provider: 'facebook',
-        status: bizRes.status,
-        raw: bizRaw.slice(0, 2000),
-      })
     } catch (diagErr) {
-      logger?.('facebook_pages_diagnostic_businesses_error', {
+      logger?.('facebook_debug_token_fallback_error', {
         provider: 'facebook',
         error: diagErr instanceof Error ? diagErr.message : 'unknown',
       })
