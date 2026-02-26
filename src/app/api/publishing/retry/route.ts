@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { publishJob, notifyPostPublishedBatched } from '@/server/publishing/publishJob'
-import { updateDraftStatusFromJobs } from '@/server/publishing/publishDueDrafts'
+import { updateDraftStatusFromJobs, MAX_PUBLISH_ATTEMPTS } from '@/server/publishing/publishDueDrafts'
 import { canonicalizeChannel } from '@/lib/channels'
 
 type PostJobRow = {
@@ -116,12 +116,15 @@ export async function POST(req: NextRequest) {
                 return acc
               }, {}) ?? {}
 
-    // Reset attempt_count so manual retries get fresh automatic retry attempts
+    // Reset attempt_count to MAX - 1 so the manual retry gets exactly one shot.
+    // If it fails, attempt_count reaches MAX → terminal failure → draft stays 'failed'
+    // (keeps post in Needs Attention). If the user wants to retry again, they can.
+    const retryAttemptCount = MAX_PUBLISH_ATTEMPTS - 1
     await Promise.all(
       failedJobs.map((job) =>
         supabaseAdmin
           .from('post_jobs')
-          .update({ attempt_count: 0 })
+          .update({ attempt_count: retryAttemptCount })
           .eq('id', job.id),
       ),
     )
@@ -131,7 +134,7 @@ export async function POST(req: NextRequest) {
     const jobResults: PostJobRow[] = []
 
     for (const job of failedJobs) {
-      const jobWithReset = { ...job, attempt_count: 0 } as PostJobRow
+      const jobWithReset = { ...job, attempt_count: retryAttemptCount } as PostJobRow
       const result = await publishJob(jobWithReset, draft as DraftRow, socialAccounts)
       retried += 1
 

@@ -63,7 +63,7 @@ const RETRY_STATUSES = new Set(['failed'])
 const SUPPORTED_CHANNEL_SET = new Set(SUPPORTED_CHANNELS)
 
 /** Max times a post_job will be attempted before declaring terminal failure */
-const MAX_PUBLISH_ATTEMPTS = 3
+export const MAX_PUBLISH_ATTEMPTS = 3
 /** Delay between in-call retries (ms) */
 const RETRY_BACKOFF_MS = 30_000
 /** Minimum elapsed time before a cron run will retry a failed job (ms) */
