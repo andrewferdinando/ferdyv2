@@ -173,6 +173,39 @@ export function isValidAspectRatio(ratio: string): ratio is AspectRatio {
 }
 
 /**
+ * Calculate the best-fit aspect ratio for an image based on its dimensions.
+ * Mirrors the Content Library's bestFormat algorithm:
+ * - Picks the format requiring the least zoom (scale) to fill the frame
+ * - Breaks ties by choosing the format closest to the actual image ratio
+ */
+export function calculateBestFit(width: number, height: number): AspectRatio {
+  const imageRatio = width / height
+  const EPSILON = 1e-6
+
+  const formats: { key: AspectRatio; ratio: number }[] = [
+    { key: '1:1', ratio: 1 },
+    { key: '4:5', ratio: 4 / 5 },
+    { key: '1.91:1', ratio: 1.91 },
+    { key: '9:16', ratio: 9 / 16 },
+  ]
+
+  const computeScale = (formatRatio: number) => Math.max(formatRatio / imageRatio, 1)
+
+  return formats.reduce((best, candidate) => {
+    const bestScale = computeScale(best.ratio)
+    const candidateScale = computeScale(candidate.ratio)
+
+    if (candidateScale < bestScale - EPSILON) return candidate
+    if (Math.abs(candidateScale - bestScale) <= EPSILON) {
+      return Math.abs(candidate.ratio - imageRatio) < Math.abs(best.ratio - imageRatio)
+        ? candidate
+        : best
+    }
+    return best
+  }, formats[0]).key
+}
+
+/**
  * Pick the closest valid aspect ratio for Instagram Feed.
  * IG Feed allows ratios between 4:5 (0.8) and 1.91:1 (1.91).
  * Returns the target ratio if the image is outside range, or null if the original is fine.

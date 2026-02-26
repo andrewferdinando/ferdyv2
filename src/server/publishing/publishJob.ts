@@ -14,6 +14,7 @@ import {
   isValidAspectRatio,
   getDefaultCrop,
   pickClosestFeedRatio,
+  calculateBestFit,
   type AspectRatio,
   type CropCoordinates,
 } from '@/lib/image-processing/processImage'
@@ -299,8 +300,27 @@ async function ensureAssetsProcessed(
       }
 
       // Check if processed image already exists for this aspect ratio
-      const aspectRatio = asset.aspect_ratio
+      let aspectRatio = asset.aspect_ratio
       const processedImages = asset.processed_images as Record<string, unknown> | null
+
+      // If aspect_ratio is 'original' or unset, calculate best fit from dimensions
+      // This mirrors what the Content Library does on save
+      if ((!aspectRatio || !isValidAspectRatio(aspectRatio)) && asset.width && asset.height) {
+        const bestFit = calculateBestFit(asset.width, asset.height)
+        console.log('[ensureAssetsProcessed] No explicit aspect ratio, using best fit:', {
+          assetId,
+          originalAspectRatio: aspectRatio,
+          calculatedBestFit: bestFit,
+          dimensions: `${asset.width}x${asset.height}`,
+        })
+        aspectRatio = bestFit
+
+        // Persist best fit so provider getAssetUrl functions can find the processed image
+        await supabaseAdmin
+          .from('assets')
+          .update({ aspect_ratio: bestFit })
+          .eq('id', assetId)
+      }
 
       if (aspectRatio && isValidAspectRatio(aspectRatio)) {
         if (processedImages && processedImages[aspectRatio]) {
