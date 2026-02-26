@@ -12,8 +12,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID!
-const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET!
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || process.env.FACEBOOK_CLIENT_ID!
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || process.env.FACEBOOK_CLIENT_SECRET!
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID!
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET!
 
@@ -196,6 +196,21 @@ export async function refreshSocialAccountToken(socialAccountId: string): Promis
       }
     }
     
+    // Meta (Facebook/Instagram) tokens stored in social_accounts are PAGE tokens,
+    // obtained via me/accounts with a long-lived user token. These page tokens are
+    // effectively never-expiring and CANNOT be refreshed via fb_exchange_token
+    // (which is designed for USER tokens only). Attempting to refresh a page token
+    // this way corrupts it — replacing it with a user token that can't publish.
+    // If a Meta page token becomes invalid (e.g., user changed password or
+    // deauthorized the app), the user must reconnect via OAuth.
+    if (socialAccount.provider === 'facebook' || socialAccount.provider === 'instagram') {
+      console.log(`[refreshSocialAccountToken] Skipping refresh for ${socialAccount.provider} account ${socialAccountId} — Meta page tokens are long-lived and cannot be refreshed via fb_exchange_token`)
+      return {
+        success: true,
+        refreshed: false
+      }
+    }
+
     // Check if token needs refresh
     if (!shouldRefreshToken(socialAccount.token_expires_at)) {
       console.log(`[refreshSocialAccountToken] Token for ${socialAccount.provider} account ${socialAccountId} does not need refresh yet`)
@@ -204,9 +219,9 @@ export async function refreshSocialAccountToken(socialAccountId: string): Promis
         refreshed: false
       }
     }
-    
+
     console.log(`[refreshSocialAccountToken] Token for ${socialAccount.provider} account ${socialAccountId} expires soon, refreshing...`)
-    
+
     // Refresh based on provider
     let refreshResult: {
       success: boolean

@@ -71,6 +71,37 @@ export async function publishFacebookPost(
     }
 
     const pageId = socialAccount.account_id
+
+    // Debug: validate token before publishing to diagnose 190/492 errors
+    try {
+      const debugUrl = new URL(`https://graph.facebook.com/${GRAPH_API_VERSION}/debug_token`)
+      debugUrl.searchParams.set('input_token', accessToken)
+      debugUrl.searchParams.set('access_token', `${process.env.FACEBOOK_APP_ID || process.env.FACEBOOK_CLIENT_ID}|${process.env.FACEBOOK_APP_SECRET || process.env.FACEBOOK_CLIENT_SECRET}`)
+      const debugRes = await fetch(debugUrl.toString(), { method: 'GET' })
+      const debugData = await debugRes.json()
+      console.log('[facebook publish] Token debug_token check', {
+        brandId,
+        jobId,
+        pageId,
+        isValid: debugData.data?.is_valid,
+        type: debugData.data?.type,
+        appId: debugData.data?.app_id,
+        expiresAt: debugData.data?.expires_at,
+        scopes: debugData.data?.scopes,
+        granularScopes: debugData.data?.granular_scopes?.map((g: { scope: string; target_ids?: string[] }) => ({
+          scope: g.scope,
+          targetIds: g.target_ids,
+        })),
+        profileId: debugData.data?.profile_id,
+        userId: debugData.data?.user_id,
+        error: debugData.data?.error,
+      })
+    } catch (debugErr) {
+      console.warn('[facebook publish] debug_token check failed (non-fatal)', {
+        error: debugErr instanceof Error ? debugErr.message : 'unknown',
+      })
+    }
+
     const message = buildPostMessage(draft.copy, draft.hashtags)
 
     // Get asset info if available

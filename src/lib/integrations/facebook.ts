@@ -522,9 +522,11 @@ export async function handleFacebookCallback({
       handle: primaryPage.name,
       accessToken: primaryPage.access_token,
       refreshToken: null,
-      expiresAt: tokenResponse.expires_in
-        ? new Date(Date.now() + tokenResponse.expires_in * 1000)
-        : undefined,
+      // Page tokens obtained via me/accounts with a long-lived user token are
+      // effectively never-expiring. Do NOT set expiresAt — this prevents
+      // shouldRefreshToken from triggering the broken fb_exchange_token refresh
+      // which would corrupt the page token by replacing it with a user token.
+      expiresAt: undefined,
       metadata: {
         pageId: primaryPage.id,
         pageName: primaryPage.name,
@@ -557,9 +559,8 @@ export async function handleFacebookCallback({
         handle: instagramAccount.username || instagramAccount.name || 'Instagram account',
         accessToken: primaryPage.access_token,
         refreshToken: null,
-        expiresAt: tokenResponse.expires_in
-          ? new Date(Date.now() + tokenResponse.expires_in * 1000)
-          : undefined,
+        // Same as Facebook — page tokens don't expire, don't set expiresAt
+        expiresAt: undefined,
         metadata: {
           facebookPageId: primaryPage.id,
           instagramBusinessAccountId: instagramAccount.id,
