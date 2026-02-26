@@ -749,11 +749,11 @@ async function processDraft(
     return false
   }
 
-  // In-call retry: retry any failed jobs that still have attempts remaining.
+  // In-call retry: retry any jobs that failed but were reset to 'ready' (non-terminal).
   // This gives slow channels (e.g. Instagram container processing) a second
   // chance within the same function invocation before deferring to the next cron.
   const retryableJobs = relevantJobs.filter(
-    (job) => job.status === 'failed' && (job.attempt_count ?? 0) < MAX_PUBLISH_ATTEMPTS,
+    (job) => job.status === 'ready' && (job.attempt_count ?? 0) > 0 && (job.attempt_count ?? 0) < MAX_PUBLISH_ATTEMPTS,
   )
 
   if (retryableJobs.length > 0) {

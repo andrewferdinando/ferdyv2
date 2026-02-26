@@ -58,6 +58,9 @@ type PublishAttemptResult =
   | { success: true; externalId: string; externalUrl: string | null }
   | { success: false; error: string }
 
+/** Max times a post_job will be attempted before declaring terminal failure */
+const MAX_PUBLISH_ATTEMPTS = 3
+
 /**
  * Publishes a single post_job to its channel
  * Updates the job status and returns the result
@@ -207,10 +210,14 @@ export async function publishJob(
 
     return { success: true }
   } else {
+    // Only mark as 'failed' when retries are exhausted (terminal failure).
+    // Otherwise set to 'ready' so the UI shows "Pending" instead of "Failed"
+    // while retries are still in progress.
+    const isTerminalFailure = newAttemptCount >= MAX_PUBLISH_ATTEMPTS
     await supabaseAdmin
       .from('post_jobs')
       .update({
-        status: 'failed',
+        status: isTerminalFailure ? 'failed' : 'ready',
         error: publishResult.error,
       })
       .eq('id', job.id)
@@ -219,6 +226,8 @@ export async function publishJob(
       jobId: job.id,
       channel: jobChannel,
       error: publishResult.error,
+      attemptCount: newAttemptCount,
+      terminal: isTerminalFailure,
     })
 
     // Detect if this is an auth/token error and mark account as disconnected
