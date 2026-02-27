@@ -620,7 +620,9 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
   }, [draft.post_job_id, draft.scheduled_for, brand?.timezone]);
 
   // Allow approval without connected social accounts (APIs will be integrated later)
-  const canApprove = !!draft.copy && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
+  const PLACEHOLDER_COPY = 'Post copy coming soon\u2026';
+  const isCopyPending = !draft.copy || draft.copy === PLACEHOLDER_COPY;
+  const canApprove = !!draft.copy && draft.copy !== PLACEHOLDER_COPY && (draft.asset_ids ? draft.asset_ids.length > 0 : false);
 
   const isOverdue = effectiveStatus === 'draft'
     && !draft.approved
@@ -907,7 +909,17 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                   paddingRight: showSeeMore ? '4rem' : '0',
                 }}
               >
-                {draft.copy || 'Post copy coming soon…'}
+                {isCopyPending ? (
+                  <span className="inline-flex items-center gap-1.5 text-gray-400">
+                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating copy…
+                  </span>
+                ) : (
+                  draft.copy
+                )}
               </div>
               {/* "See more" link - only shown when content exceeds 2 lines */}
               {showSeeMore && (

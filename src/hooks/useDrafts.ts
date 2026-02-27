@@ -446,11 +446,89 @@ export function useDrafts(brandId: string, statuses: DraftStatus[] = ['draft']) 
     }
   };
 
+  // --- Copy polling: auto-refresh drafts that still have placeholder copy ---
+  const PLACEHOLDER_COPY = 'Post copy coming soon\u2026';
+  const POLL_INTERVAL_MS = 4000;
+  const MAX_POLLS = 30; // 30 * 4s = 2 min
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCountRef = useRef(0);
+
+  const copyPending = useMemo(
+    () => drafts.some((d) => !d.copy || d.copy === PLACEHOLDER_COPY),
+    [drafts],
+  );
+
+  useEffect(() => {
+    // Clear any existing interval when drafts change or on unmount
+    const clearPoll = () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+
+    if (!copyPending || !supabase) {
+      clearPoll();
+      pollCountRef.current = 0;
+      return clearPoll;
+    }
+
+    // Start polling
+    pollCountRef.current = 0;
+    pollIntervalRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > MAX_POLLS) {
+        clearPoll();
+        return;
+      }
+
+      // Find draft IDs that still have placeholder copy
+      const pendingIds = drafts
+        .filter((d) => !d.copy || d.copy === PLACEHOLDER_COPY)
+        .map((d) => d.id);
+
+      if (pendingIds.length === 0) {
+        clearPoll();
+        return;
+      }
+
+      try {
+        const { data, error: pollError } = await supabase
+          .from('drafts')
+          .select('id, copy')
+          .in('id', pendingIds);
+
+        if (pollError || !data) return;
+
+        const updated = data.filter(
+          (row: { id: string; copy: string | null }) =>
+            row.copy && row.copy !== PLACEHOLDER_COPY,
+        );
+
+        if (updated.length > 0) {
+          setDrafts((prev) =>
+            prev.map((d) => {
+              const match = updated.find(
+                (u: { id: string; copy: string | null }) => u.id === d.id,
+              );
+              return match ? { ...d, copy: match.copy! } : d;
+            }),
+          );
+        }
+      } catch {
+        // Silently ignore poll errors — next tick will retry
+      }
+    }, POLL_INTERVAL_MS);
+
+    return clearPoll;
+  }, [copyPending, drafts]);
+
   return {
     drafts,
     jobsByDraftId,
     loading,
     error,
+    copyPending,
     updateDraft,
     approveDraft,
     deleteDraft,
