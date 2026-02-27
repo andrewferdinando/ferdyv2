@@ -173,21 +173,44 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
   console.log(`[draftGeneration] Found ${targetsInWindow.length} targets within 30-day window for brand ${brandId}`);
 
-  // Fetch subcategory names for meaningful logging
+  // Fetch subcategory names and setup_complete status for filtering and logging
   const targetSubcategoryIds = [...new Set(targetsInWindow.map((t: any) => t.subcategory_id).filter(Boolean))];
   const subcategoryNameMap: Record<string, string> = {};
+  const incompleteSubcategoryIds = new Set<string>();
   if (targetSubcategoryIds.length > 0) {
     const { data: subcats } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name')
+      .select('id, name, setup_complete')
       .in('id', targetSubcategoryIds);
     if (subcats) {
-      for (const sc of subcats) subcategoryNameMap[sc.id] = sc.name;
+      for (const sc of subcats) {
+        subcategoryNameMap[sc.id] = sc.name;
+        if (sc.setup_complete === false) {
+          incompleteSubcategoryIds.add(sc.id);
+        }
+      }
     }
   }
 
+  // Filter out targets for incomplete subcategories (setup_complete = false)
+  // These categories are still being set up in the wizard and shouldn't have drafts yet
+  const readyTargets = incompleteSubcategoryIds.size > 0
+    ? targetsInWindow.filter((t: any) => {
+        if (incompleteSubcategoryIds.has(t.subcategory_id)) {
+          const name = subcategoryNameMap[t.subcategory_id] || t.subcategory_id;
+          console.log(`[draftGeneration] Skipping target for incomplete category: ${name} (setup_complete=false) [subcategory=${t.subcategory_id}]`);
+          return false;
+        }
+        return true;
+      })
+    : targetsInWindow;
+
+  if (readyTargets.length < targetsInWindow.length) {
+    console.log(`[draftGeneration] Filtered out ${targetsInWindow.length - readyTargets.length} targets for incomplete categories`);
+  }
+
   // Log all targets the generator will attempt to process
-  for (const t of targetsInWindow) {
+  for (const t of readyTargets) {
     const name = subcategoryNameMap[t.subcategory_id] || t.subcategory_id;
     console.log(`[draftGeneration] Target: ${name} (${t.frequency}) at ${t.scheduled_at} [subcategory=${t.subcategory_id}]`);
   }
@@ -230,7 +253,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   const selectedAssetsByRuleId = new Map<string, number>();
 
   // Process each target
-  for (const target of targetsInWindow) {
+  for (const target of readyTargets) {
     const targetName = subcategoryNameMap[target.subcategory_id] || target.subcategory_id;
     try {
       const scheduledAt = new Date(target.scheduled_at);
@@ -626,9 +649,9 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   }
 
   // Detailed summary log
-  const expectedCreated = targetsInWindow.length - draftsSkipped;
+  const expectedCreated = readyTargets.length - draftsSkipped;
   console.log(`[draftGeneration] Summary for brand ${brandId}:`, {
-    targetsFound: targetsInWindow.length,
+    targetsFound: readyTargets.length,
     draftsCreated,
     draftsSkipped,
     errors: generationErrors.length,
@@ -678,7 +701,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   // - Low approved drafts reminder (daily check)
 
   return {
-    targetsFound: targetsInWindow.length,
+    targetsFound: readyTargets.length,
     draftsCreated,
     draftsSkipped,
     copyGenerationCount,

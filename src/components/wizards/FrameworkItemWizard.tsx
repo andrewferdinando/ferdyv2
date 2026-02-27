@@ -2690,6 +2690,19 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         // Delay to ensure asset_tags from ensureSubcategoryUpdated are committed
         await new Promise(resolve => setTimeout(resolve, 1500))
 
+        if (needsFirstDraftGeneration && savedSubcategoryId) {
+          // Mark setup as complete BEFORE triggering draft generation.
+          // The draft generator skips categories with setup_complete=false.
+          const { error: setupCompleteError } = await supabase
+            .from('subcategories')
+            .update({ setup_complete: true })
+            .eq('id', savedSubcategoryId)
+
+          if (setupCompleteError) {
+            console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
+          }
+        }
+
         // Generate/regenerate drafts for all edit saves
         try {
           const response = await fetch('/api/drafts/generate', {
@@ -2710,16 +2723,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         if (needsFirstDraftGeneration && savedSubcategoryId) {
-          // Mark setup as complete now that drafts have been generated
-          const { error: setupCompleteError } = await supabase
-            .from('subcategories')
-            .update({ setup_complete: true })
-            .eq('id', savedSubcategoryId)
-
-          if (setupCompleteError) {
-            console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
-          }
-
           showToast({
             title: 'Category updated',
             message: 'Your changes have been saved and drafts have been generated.',
@@ -2827,12 +2830,25 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
       }
 
-      // Trigger draft generation and wait for it to complete (shows in modal)
       // Delay to ensure asset_tags are fully committed and visible to RPC queries
       // This ensures rpc_pick_asset_for_rule can find the correctly tagged assets
       setFinishStep('preparing')
       await new Promise(resolve => setTimeout(resolve, 1500))
 
+      // Mark setup as complete BEFORE triggering draft generation.
+      // The draft generator skips categories with setup_complete=false to prevent
+      // premature draft creation during wizard setup.
+      const { error: setupCompleteError } = await supabase
+        .from('subcategories')
+        .update({ setup_complete: true })
+        .eq('id', subcategoryId)
+
+      if (setupCompleteError) {
+        console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
+        // Non-fatal — continue with draft generation anyway
+      }
+
+      // Trigger draft generation and wait for it to complete (shows in modal)
       setFinishStep('generating')
       try {
         const response = await fetch('/api/drafts/generate', {
@@ -2840,9 +2856,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ brandId }),
         })
-        
+
         console.log('[draftGeneration] Response status:', response.status, response.statusText)
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           console.error('[draftGeneration] Error response:', errorData)
@@ -2861,17 +2877,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           stack: err instanceof Error ? err.stack : undefined,
           name: err instanceof Error ? err.name : undefined
         })
-      }
-
-      // Mark setup as complete now that drafts have been generated
-      const { error: setupCompleteError } = await supabase
-        .from('subcategories')
-        .update({ setup_complete: true })
-        .eq('id', subcategoryId)
-
-      if (setupCompleteError) {
-        console.error('[Wizard] Failed to set setup_complete:', setupCompleteError)
-        // Non-fatal — category and drafts were created successfully
       }
 
       setFinishStep('done')
@@ -4353,7 +4358,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         </>
                       ) : (
                         <>
-                          Finish
+                          Finish and Generate Drafts
                           <ChevronRightIcon className="w-4 h-4 ml-2" />
                         </>
                       )}
