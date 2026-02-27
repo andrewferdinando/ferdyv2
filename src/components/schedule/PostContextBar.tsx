@@ -13,7 +13,7 @@ const ClockIcon = ({ className = "w-3 h-3" }: { className?: string }) => (
 export type FrequencyInput =
   | { kind: "daily" }
   | { kind: "weekly"; daysOfWeek: number[]; time?: string }
-  | { kind: "monthly"; daysOfMonth: number[]; time?: string }
+  | { kind: "monthly"; daysOfMonth: number[]; nthWeek?: number | null; weekday?: number | null; time?: string }
   | { kind: "offsetDate"; anchorDate: string; offsetDays: number }
   | { kind: "rangeDuring"; start: string; end: string; offsetDays?: number }
   | { kind: "oneOff"; date: string };
@@ -93,6 +93,13 @@ function formatOrdinal(num: number): string {
   return num + (suffix[(v - 20) % 10] || suffix[v] || suffix[0]);
 }
 
+// Utility: Format nth weekday (e.g. "1st Friday", "Last Monday")
+function formatNthWeekday(nthWeek: number, weekday: number): string {
+  const ordinals: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th', 5: 'Last' };
+  const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
+  return `${ordinals[nthWeek] || nthWeek + 'th'} ${dayNames[weekday] || 'day'}`;
+}
+
 // Main frequency formatter
 function formatFrequency(
   frequency: FrequencyInput | undefined,
@@ -168,6 +175,10 @@ function formatFrequency(
             )
           </span>
         );
+      } else if (frequency.nthWeek && frequency.weekday) {
+        const nthLabel = formatNthWeekday(frequency.nthWeek, frequency.weekday);
+        const formattedTime = frequency.time ? ` at ${formatTimeString(frequency.time)}` : '';
+        return `Monthly (${nthLabel}${formattedTime})`;
       } else if (frequency.time) {
         const formattedTime = formatTimeString(frequency.time);
         return `Monthly at ${formattedTime}`;

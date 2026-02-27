@@ -481,7 +481,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
         if (scheduleRuleId) {
           const { data: ruleData } = await supabase
             .from('schedule_rules')
-            .select('frequency, days_of_week, day_of_month, time_of_day, start_date, end_date, days_before, days_during')
+            .select('frequency, days_of_week, day_of_month, nth_week, weekday, time_of_day, start_date, end_date, days_before, days_during')
             .eq('id', scheduleRuleId)
             .single();
 
@@ -514,6 +514,8 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                   return {
                     kind: 'monthly',
                     daysOfMonth,
+                    nthWeek: ruleData.nth_week as number | null | undefined,
+                    weekday: ruleData.weekday as number | null | undefined,
                     time: timeOfDay || undefined,
                   };
                 }
