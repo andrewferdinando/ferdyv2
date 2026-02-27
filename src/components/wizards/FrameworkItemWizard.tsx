@@ -865,6 +865,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [details.url])
 
   const [isSaving, setIsSaving] = useState(false)
+  const isNavigatingRef = useRef(false) // Synchronous lock to prevent double-click on Next/Finish
   const [finishStep, setFinishStep] = useState<'linking' | 'preparing' | 'generating' | 'done'>('linking')
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
     mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
@@ -2592,6 +2593,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }
 
   const handleNext = async () => {
+    // Prevent double-click: if already navigating or saving, ignore
+    if (isNavigatingRef.current || isSaving) return
+    isNavigatingRef.current = true
+
+    try {
     // Validate Step 2 before advancing
     if (currentStep === 2) {
       const newErrors: typeof detailsErrors = {}
@@ -2612,6 +2618,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
     if (currentStep < 4) {
       setCurrentStep((prev) => (prev + 1) as Step)
+    }
+    } finally {
+      isNavigatingRef.current = false
     }
   }
 
@@ -2674,6 +2683,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Handle Step 4 finish - link images to subcategory, then trigger auto-push
   const handleFinish = async () => {
+    // Prevent double-click: if already navigating or saving, ignore
+    if (isNavigatingRef.current || isSaving) return
+    isNavigatingRef.current = true
+
     // In edit mode, update existing records
     if (mode === 'edit') {
       setIsSaving(true)
@@ -2746,6 +2759,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         })
       } finally {
         setIsSaving(false)
+        isNavigatingRef.current = false
       }
       return
     }
@@ -2753,6 +2767,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     // Ensure subcategory is saved (defensive check)
     const saveResult = await ensureSubcategorySaved()
     if (!saveResult) {
+      isNavigatingRef.current = false
       return // Error already shown by ensureSubcategorySaved
     }
 
@@ -2902,6 +2917,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       router.push(`/brands/${brandId}/engine-room/categories`)
     } finally {
       setIsSaving(false)
+      isNavigatingRef.current = false
     }
   }
 
