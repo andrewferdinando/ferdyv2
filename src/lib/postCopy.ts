@@ -500,7 +500,7 @@ export async function generatePostCopyFromContext(
   client: OpenAI,
   payload: PostCopyPayload
 ): Promise<string[]> {
-  const { brandId, prompt, variants = 1, max_tokens = 120, draftId, variation_index, variation_total } = payload;
+  const { brandId, prompt, variants = 1, max_tokens, draftId, variation_index, variation_total } = payload;
 
   // Normalize emoji mode: default to "auto" if not specified
   const emojiMode = payload.emoji ?? "auto";
@@ -675,6 +675,12 @@ export async function generatePostCopyFromContext(
     "medium";
   
   const lengthLabel = effectiveLength;
+
+  // Scale max_tokens by copy length when no explicit override is provided
+  const effectiveMaxTokens = max_tokens ??
+    (effectiveLength === "short" ? 80 :
+     effectiveLength === "medium" ? 250 :
+     400); // long
 
   // Debug log for copy length resolution
   if (draftId) {
@@ -1057,7 +1063,7 @@ Plain text, no headings, no markdown, no explanations.
       model: "gpt-4o",
       temperature: 0.65,
       n: clamp(variants ?? 1, 1, 3),
-      max_tokens: max_tokens ?? 120,
+      max_tokens: effectiveMaxTokens,
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: userPrompt },
