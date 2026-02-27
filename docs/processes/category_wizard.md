@@ -1,6 +1,6 @@
 # Category (Framework Item) Wizard — Scheduling Semantics
 
-> **Updated:** 2026-02-09 — Added note about edit-mode accordion layout.
+> **Updated:** 2026-02-27 — Draft generation on Finish (Step 4), not Step 3. Double-click guard added.
 
 ## Source
 - UI: `src/components/wizards/FrameworkItemWizard.tsx`.
@@ -24,6 +24,13 @@
 - Asset metadata and URLs load instantly from `useAssets` — `resolveAssetUrls()` populates public URLs synchronously with zero API calls. Grid thumbnails use Vercel's `/_next/image` optimizer (384px WebP, CDN-cached).
 - The wizard passes assets (with URLs already populated) to both the library grid and `SortableAssetGrid`.
 - Pagination: library grid shows `MEDIA_PAGE_SIZE` (12) items at a time with a "Load more" button.
+
+## Draft generation timing
+- Draft generation happens on **"Finish and Generate Drafts"** (Step 4), NOT during Step 3 save.
+- `ensureSubcategorySaved()` (Step 3 → 4) creates the subcategory with `setup_complete = false`. No drafts are generated at this point.
+- `handleFinish()` (Step 4) sets `setup_complete = true`, then calls `/api/drafts/generate`.
+- The generator skips all categories with `setup_complete = false`, so only the completed category gets drafts.
+- A **double-click guard** (synchronous ref lock) prevents `handleNext` and `handleFinish` from executing concurrently, avoiding accidental draft generation from rapid clicks.
 
 ## What's out
 - No "push to drafts" button in the wizard.

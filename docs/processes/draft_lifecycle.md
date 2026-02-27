@@ -1,6 +1,6 @@
 # Draft Lifecycle — Ferdy
 
-> **Updated:** 2025-01-XX — Clarified draft ↔ post_jobs relationship, channel handling, and draft generation triggers.
+> **Updated:** 2026-02-27 — Generator skips categories with `setup_complete=false`. Draft generation triggered on wizard Finish, not Step 3.
 
 ## TL;DR (for AI tools)
 
@@ -10,8 +10,10 @@ They are created by:
 
 - **Nightly generator** (`/api/drafts/generate-all`) — automatic draft creation on a rolling 30-day window
 - **Manual generation** (`/api/drafts/generate`) — on-demand generation for a specific brand
-- **Automatic trigger** — after subcategory + schedule_rule creation (via `/api/drafts/generate` API route, not DB trigger)
+- **Wizard trigger** — when user clicks "Finish and Generate Drafts" (Step 4) or "Save & generate drafts" (edit mode)
 - **New Post flow** from the Schedule page — manual post creation
+
+**Important:** The generator **skips categories with `setup_complete=false`**. This prevents drafts from being created for categories still being set up in the wizard.
 
 Key points:
 
@@ -76,14 +78,15 @@ A Vercel Cron job runs nightly (Pacific/Auckland time) and calls `/api/drafts/ge
 - Automatically generates copy for all drafts (new and existing with placeholder copy).
 - Sends email notifications to brand admins/editors when new drafts are created.
 
-#### Automatic Trigger After Subcategory Creation
+#### Wizard Trigger (Finish and Generate Drafts)
 
-When a subcategory + schedule_rule is successfully saved (via the Category Creation wizard):
+When a user completes the Category Creation wizard (Step 4) or saves a draft category in edit mode:
 
-- The wizard calls `/api/drafts/generate` with `{ brandId }` immediately after save succeeds.
-- This ensures drafts are created right away, without waiting for the nightly cron.
-- The trigger happens via API route call (not via database trigger).
+- The wizard sets `setup_complete = true` on the subcategory, then calls `/api/drafts/generate` with `{ brandId }`.
+- The generator only creates drafts for categories with `setup_complete = true` — other in-progress categories are skipped.
+- This ensures drafts are created right away for the completed category, without waiting for the nightly cron.
 - Draft generation is idempotent, so calling it multiple times is safe.
+- **Draft generation does NOT happen during Step 3** (`ensureSubcategorySaved`). Categories are created with `setup_complete = false` at Step 3 and remain incomplete until Step 4.
 
 #### Rolling 30-Day Window
 
@@ -389,7 +392,7 @@ Publishing logic should ignore deleted/cancelled jobs.
   - Channels are represented by post_jobs, not drafts.channel
   - post_jobs.schedule_rule_id is always set (never null)
   - Channel normalization: instagram → instagram_feed, linkedin → linkedin_profile
-  - Draft generation automatically triggered after subcategory + schedule_rule creation (via API route, not DB trigger)
+  - Draft generation triggered on wizard Finish (Step 4), not Step 3 save
   - Publishing operates exclusively on post_jobs
   - UI channel status pills rendered exclusively from post_jobs (grouped by channel, best status wins)
   - Approve & Publish Now flow never inserts new drafts, only updates existing ones

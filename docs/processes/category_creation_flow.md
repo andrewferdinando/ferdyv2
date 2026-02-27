@@ -1,6 +1,6 @@
 # Category / Subcategory Creation Flow — Ferdy
 
-> **Updated:** 2026-02-09 — Documented edit-mode accordion layout (replaces stepped wizard in edit mode). Create mode unchanged.
+> **Updated:** 2026-02-27 — Draft generation now happens on Finish (Step 4), not Step 3. Generator skips categories with `setup_complete=false`. Double-click guard added to wizard buttons.
 
 ## TL;DR (for AI tools)
 
@@ -16,8 +16,12 @@ Both modes:
 - Link selected assets to the category via `tags` and `asset_tags`.
 - Optionally refresh the URL summary for the category URL.
 
-**Create mode:** Saving happens when moving from Step 3 → Step 4 (subcategory + schedule), assets are linked on Finish, and `/api/drafts/generate` is triggered automatically.
-**Edit mode:** A single "Save changes" button calls `handleFinish()` → `ensureSubcategoryUpdated()`, which updates all data (subcategory, schedule, assets) in one pass.
+**Create mode:** Saving the subcategory + schedule happens when moving from Step 3 → Step 4 (via `ensureSubcategorySaved()`). Assets are linked and draft generation is triggered on **"Finish and Generate Drafts"** (Step 4). The category is created with `setup_complete=false` until Step 4 completes.
+**Edit mode:** A single "Save changes" (or "Save & generate drafts" for draft categories) button calls `handleFinish()` → `ensureSubcategoryUpdated()`, which updates all data (subcategory, schedule, assets) in one pass.
+
+**Safety guards:**
+- The draft generator **skips categories with `setup_complete=false`**, preventing premature draft creation during wizard setup.
+- A **double-click guard** (ref lock) prevents `handleNext` and `handleFinish` from running concurrently.
 
 ---
 
@@ -215,7 +219,7 @@ The main implementation lives in:
 
 Key functions:
 
-- **`handleFinish()`** — called when user clicks **"Finish"** (create mode Step 4) or **"Save changes"** (edit mode).
+- **`handleFinish()`** — called when user clicks **"Finish and Generate Drafts"** (create mode Step 4) or **"Save changes"** / **"Save & generate drafts"** (edit mode).
 - **`ensureSubcategorySaved()`** — core save function for create mode (Steps 1–3).
 - **`ensureSubcategoryUpdated()`** — core save function for edit mode (updates all data in one pass).
 
@@ -257,29 +261,35 @@ This call does not block the wizard; if it fails, the category is still created.
 
 ---
 
-### 5.3 `handleFinish()` — Finish / Save changes
+### 5.3 `handleFinish()` — Finish and Generate Drafts / Save changes
 
-**Create mode** — When the user clicks **Finish** on Step 4:
+**Create mode** — When the user clicks **"Finish and Generate Drafts"** on Step 4:
 
 (In edit mode, `handleFinish()` delegates to `ensureSubcategoryUpdated()` — see [Section 5.4](#54-ensuresubcategoryupdated--edit-mode-save) below.)
 
-When the user clicks **Finish**:
+When the user clicks **Finish and Generate Drafts**:
 
 1. **Ensure subcategory exists**
    - If it hasn’t been saved yet, calls `ensureSubcategorySaved()`.
 
 2. **Link images to the category**
    - Using `selectedAssetIds`:
-     - Finds/creates a `tags` row with kind `'subcategory'` + name = category name.
+     - Finds/creates a `tags` row with kind `’subcategory’` + name = category name.
      - Links each selected asset to that tag via `asset_tags`.
      - Skips links that already exist.
 
-3. **Redirect**
-   - Navigates the user back to the **Categories** page.
+3. **Mark setup as complete**
+   - Sets `subcategories.setup_complete = true` BEFORE triggering draft generation.
+   - This is required because the draft generator skips categories with `setup_complete=false`.
 
-**Note:** Draft generation is triggered automatically after subcategory + schedule_rule are successfully saved (in `ensureSubcategorySaved()`, when moving from Step 3 → Step 4), not on Finish. This ensures drafts are created immediately, before the user completes the wizard.
+4. **Trigger draft generation**
+   - Calls `/api/drafts/generate` with `{ brandId }`.
+   - The generator creates drafts only for categories with `setup_complete=true`, so other in-progress categories are not affected.
 
-Net effect: after saving the subcategory and schedule, the brand immediately gets a fresh set of drafts for this category, using the schedule and assets just configured.
+5. **Redirect**
+   - Navigates the user to the **Schedule page (Drafts tab)**.
+
+**Note:** Draft generation is NOT triggered during Step 3 → Step 4 (`ensureSubcategorySaved()`). It only happens here in `handleFinish()` after images are linked and `setup_complete` is set to `true`. This prevents premature draft creation for categories still being configured.
 
 ---
 
@@ -303,13 +313,15 @@ Unlike create mode (where save happens incrementally across steps), edit mode sa
 
 - **When do we write the subcategory and schedule?**
   - On Step 3 completion (moving to Step 4), `ensureSubcategorySaved()` runs:
-    - `subcategories` row created/updated.
+    - `subcategories` row created with `setup_complete = false`.
     - `schedule_rules` and `event_occurrences` created/updated.
-    - **Draft generation is triggered immediately after save succeeds** via `/api/drafts/generate` (API route, not DB trigger).
+    - **Draft generation is NOT triggered here.** The category remains incomplete.
 
-- **When do we link assets?**
-  - On **Finish (Step 4)**:
+- **When do we link assets and generate drafts?**
+  - On **"Finish and Generate Drafts" (Step 4)**, `handleFinish()` runs:
     - Assets are tagged and linked.
+    - `setup_complete` is set to `true`.
+    - `/api/drafts/generate` is called — generates drafts **only** for categories with `setup_complete=true`.
 
 - **Editing existing categories (edit mode — accordion layout)**
   - Uses `ensureSubcategoryUpdated()` instead of `ensureSubcategorySaved()`.
@@ -331,7 +343,8 @@ Category Creation interacts with several other documented processes:
   - Used for event-type categories to represent multiple dates for the same event series.
 
 - **Draft Generation**
-  - Triggered automatically after subcategory + schedule_rule save succeeds (via `/api/drafts/generate` API route, not DB trigger).
+  - Triggered in `handleFinish()` (Step 4) AFTER images are linked and `setup_complete` is set to `true`.
+  - The generator **skips categories with `setup_complete=false`**, preventing premature draft creation.
   - Uses `schedule_rules.channels` (normalized) as the single source of truth for channels.
   - Creates one `post_jobs` row per channel, with `post_jobs.schedule_rule_id` always set.
   - Generates drafts for the next 30 days automatically.
@@ -345,6 +358,7 @@ Category Creation interacts with several other documented processes:
 
 - **2025-12-05** — Category Creation flow documented based on `FrameworkItemWizard.tsx`, `subcategories` schema, and related Supabase functions.
 - **2026-02-09** — Edit mode refactored from stepped wizard to accordion layout. Create mode unchanged. Added `ensureSubcategoryUpdated()` documentation. Event dates description changed to "Input the detail for your event date(s)".
+- **2026-02-27** — Draft generation moved from Step 3 to Step 4 (`handleFinish()`). Generator now skips categories with `setup_complete=false`. Wizard "Finish" button renamed to "Finish and Generate Drafts". Double-click guard added to prevent concurrent `handleNext`/`handleFinish` execution.
 - Behaviour may change if:
   - `subcategory_type` values are standardised (`event`, `promotion`, etc.).
   - Scheduling frequency types are expanded.
@@ -363,14 +377,15 @@ flowchart TD
         S3 --> S4[Step 4: Images\nupload or choose existing]
     end
 
-    S3 -->|Next / auto-save| ENSURE[ensureSubcategorySaved()]
+    S3 -->|Next: Media| ENSURE[ensureSubcategorySaved\nsetup_complete=false]
     ENSURE --> SUBC[(subcategories)]
     ENSURE --> SR[(schedule_rules)]
     ENSURE --> EO[(event_occurrences\nonly for event types)]
 
-    S4 --> FINISH[handleFinish()]
-    S3 -->|After save succeeds| GEN[/api/drafts/generate\n(automatic draft generation\nvia API route)]
+    S4 --> FINISH[handleFinish\nFinish and Generate Drafts]
     FINISH --> TAGS[(asset_tags\nlink assets to subcategory tag)]
+    FINISH --> SETUP[setup_complete = true]
+    SETUP --> GEN[/api/drafts/generate\nskips setup_complete=false]
     FINISH --> URLSUM[/api/subcategories/{id}/refresh-url-summary/]
 ```
 

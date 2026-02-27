@@ -1,12 +1,18 @@
 # Draft Generation — Single Source of Truth
 
-> **Updated:** 2025-01-XX — Clarified draft generation triggers, channel handling via post_jobs, and channel normalization.
+> **Updated:** 2026-02-27 — Generator now skips categories with `setup_complete=false`. Draft generation triggered on wizard Finish (Step 4), not Step 3.
 
 ## What this is
 - Draft creation is owned by the generator in `src/lib/server/draftGeneration.ts`.
 - Runs automatically via Vercel Cron nightly (hits `/api/drafts/generate-all`).
 - Can be triggered manually for testing via `/api/drafts/generate` (single brand) or `/api/drafts/generate-all` (all active brands); both endpoints are cron-secret protected.
-- **Automatically triggered after subcategory + schedule_rule creation** via API route `/api/drafts/generate` (not via database trigger).
+- **Triggered by the Category Wizard** when the user clicks "Finish and Generate Drafts" (Step 4) or "Save & generate drafts" (edit mode). NOT triggered during Step 3 save.
+
+## setup_complete guard
+- The generator **skips subcategories with `setup_complete = false`**.
+- Categories are created with `setup_complete = false` during wizard Step 3 and only set to `true` in Step 4 (`handleFinish()`).
+- This prevents premature draft creation for categories still being set up.
+- The nightly cron also respects this — incomplete categories are skipped until the user finishes setup.
 
 ## Behaviour (current model)
 - Rolling 30-day window; recomputed every run (idempotent, no monthly pushes).
