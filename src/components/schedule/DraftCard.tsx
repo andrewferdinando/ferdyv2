@@ -791,6 +791,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
     ) : null;
 
   const handleCardClick = () => {
+    if (effectiveStatus === 'published') return;
     router.push(`/brands/${draft.brand_id}/edit-post/${draft.id}`);
   };
 
@@ -876,7 +877,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
   return (
     <>
       <div 
-        className="bg-white rounded-xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+        className={`bg-white rounded-xl border border-gray-200 p-5 transition-all duration-200 ${
+          effectiveStatus === 'published'
+            ? ''
+            : 'hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
+        }`}
         onClick={handleCardClick}
       >
         <div className="flex gap-4">
@@ -922,7 +927,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                 )}
               </div>
               {/* "See more" link - only shown when content exceeds 2 lines */}
-              {showSeeMore && (
+              {showSeeMore && effectiveStatus !== 'published' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
