@@ -634,18 +634,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   })
   
-  // Update timeOfDay when brand settings load (only for new schedule rules)
-  // Sync schedule.timeOfDay with details.post_time to ensure they stay in sync
+  // Set initial timeOfDay from brand defaults when they load (create mode only).
+  // Uses a ref to ensure this only runs once — after that, the user's changes are preserved.
+  const timeInitializedRef = useRef(false)
   useEffect(() => {
-    if (mode === 'create') {
-      // Use details.post_time if available (it should have the brand default),
-      // otherwise fall back to defaultPostTime from the hook
+    if (mode === 'create' && !timeInitializedRef.current) {
       const timeToUse = details.post_time || defaultPostTime || ''
-      if (timeToUse && schedule.timeOfDay !== timeToUse) {
+      if (timeToUse) {
+        timeInitializedRef.current = true
         setSchedule(prev => ({ ...prev, timeOfDay: timeToUse }))
       }
     }
-  }, [defaultPostTime, details.post_time, mode, schedule.timeOfDay])
+  }, [defaultPostTime, details.post_time, mode])
   
   const [scheduleErrors, setScheduleErrors] = useState<{
     frequency?: string
