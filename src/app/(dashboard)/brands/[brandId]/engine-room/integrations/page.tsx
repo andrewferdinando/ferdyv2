@@ -446,41 +446,42 @@ export default function IntegrationsPage() {
                     </div>
 
                     <div className="mt-6 flex flex-col gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleConnect(provider.id)}
-                        disabled={!!disabledReason}
-                        className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                          disabledReason
-                            ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
-                            : 'border border-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
-                        }`}
-                        title={disabledReason || connectLabel}
-                      >
-                        {isProcessing ? 'Please wait…' : connectLabel}
-                      </button>
-
-                      <div
-                        className={`flex flex-col gap-2 sm:flex-row ${isConnected ? '' : 'invisible pointer-events-none select-none'}`}
-                        aria-hidden={!isConnected}
-                      >
+                      {!isConnected && (
                         <button
                           type="button"
                           onClick={() => handleConnect(provider.id)}
                           disabled={!!disabledReason}
-                          className="flex-1 rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                          className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                            disabledReason
+                              ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
+                              : 'border border-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
+                          }`}
+                          title={disabledReason || connectLabel}
                         >
-                          Change
+                          {isProcessing ? 'Please wait…' : connectLabel}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDisconnect(provider.id)}
-                          disabled={!!disabledReason}
-                          className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
-                        >
-                          Disconnect
-                        </button>
-                      </div>
+                      )}
+
+                      {isConnected && (
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => handleConnect(provider.id)}
+                            disabled={!!disabledReason}
+                            className="flex-1 rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                          >
+                            Change
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDisconnect(provider.id)}
+                            disabled={!!disabledReason}
+                            className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-400"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
