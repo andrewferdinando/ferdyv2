@@ -473,7 +473,7 @@ export default function ContentLibraryPage() {
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Content Library</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Content Library</h1>
               </div>
               <AssetUploadMenu
                 brandId={brandId}
@@ -1349,7 +1349,7 @@ function AssetDetailView({
                       type="button"
                       onClick={() => handleScaleChange(activeCrop.scale * 0.9)}
                       disabled={activeCrop.scale <= minScale}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label="Zoom out"
                     >
                       <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1369,7 +1369,7 @@ function AssetDetailView({
                       type="button"
                       onClick={() => handleScaleChange(activeCrop.scale * 1.1)}
                       disabled={activeCrop.scale >= maxScale}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label="Zoom in"
                     >
                       <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -274,7 +274,7 @@ export default function AssetUploadMenu({
 
       {/* Dropdown menu */}
       {isOpen && !isUploading && (
-        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50`}>
+        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} mt-2 w-[calc(100vw-2rem)] sm:w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50`}>
           <div className="py-1">
             <button
               onClick={handleDeviceUploadClick}

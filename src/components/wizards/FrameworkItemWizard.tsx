@@ -3600,7 +3600,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         setScheduleErrors(prev => ({ ...prev, daysOfWeek: undefined }))
                       }
                     }}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${
                       schedule.daysOfWeek.includes(day.value)
                         ? 'bg-[#6366F1] text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -3660,7 +3660,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                             setScheduleErrors(prev => ({ ...prev, dayOfMonth: undefined }))
                           }
                         }}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${
                           isSelected
                             ? 'bg-[#6366F1] text-white'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -3914,7 +3914,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             </p>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {resolvedAssets.slice(0, libraryVisibleCount).map(asset => {
                   const isSelected = selectedAssetIds.includes(asset.id)
                   const isVideo = asset.asset_type === 'video'
@@ -4095,7 +4095,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     >
                       <div
                         className={`
-                          w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all
+                          w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all
                           ${
                             isCurrentStep(step.number)
                               ? 'bg-[#6366F1] text-white'
@@ -4115,7 +4115,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       </div>
                       <span
                         className={`
-                          mt-2 text-xs font-medium
+                          mt-2 text-xs font-medium hidden sm:block
                           ${
                             isCurrentStep(step.number)
                               ? 'text-[#6366F1]'
@@ -4298,7 +4298,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               <div className="mt-6 flex items-center justify-between">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -4307,7 +4307,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   {currentStep > 1 && (
                     <button
                       onClick={handleBack}
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <ArrowLeftIcon className="w-4 h-4 mr-2" />
                       Back
@@ -4318,7 +4318,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       onClick={handleNext}
                       disabled={!canGoNext}
                       className={`
-                        inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                        inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
                         ${
                           canGoNext
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
@@ -4334,7 +4334,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       onClick={handleNext}
                       disabled={!canGoNext || isSaving}
                       className={`
-                        inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                        inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
                         ${
                           canGoNext && !isSaving
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
@@ -4359,7 +4359,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       onClick={handleFinish}
                       disabled={isSaving}
                       className={`
-                        inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                        inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
                         ${
                           !isSaving
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'

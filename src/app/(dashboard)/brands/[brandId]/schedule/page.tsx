@@ -268,7 +268,7 @@ export default function SchedulePage() {
 
             {/* Tabs */}
             <div className="flex items-end justify-between mt-6">
-              <div className="flex flex-wrap gap-4 sm:gap-8">
+              <div className="flex flex-wrap gap-2 sm:gap-8">
                 {tabs.map((tab) => {
                   const isActive = view === 'list' && activeTab === tab.id;
                   const isAttentionWithItems = tab.id === 'attention' && (tab.count ?? 0) > 0;
@@ -283,7 +283,7 @@ export default function SchedulePage() {
                         url.searchParams.set('tab', tab.id);
                         window.history.replaceState({}, '', url.pathname + url.search);
                       }}
-                      className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm ${
+                      className={`pb-3 border-b-2 font-medium transition-all duration-200 text-xs sm:text-sm ${
                         isActive
                           ? 'border-[#6366F1] text-[#6366F1]'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -323,7 +323,7 @@ export default function SchedulePage() {
           </div>
 
           {/* Tab Content */}
-          <div className="px-4 sm:px-6 lg:px-10 py-6">
+          <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6">
             {view === 'calendar' ? (
               <ScheduleCalendar
                 drafts={drafts}

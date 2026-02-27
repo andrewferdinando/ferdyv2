@@ -1186,13 +1186,13 @@ export default function EditPostPage() {
           {/* Main Content */}
           <div className="p-4 sm:p-6 lg:p-10">
             <div className="max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                 {/* Left Section - Post Details */}
                 <div className="space-y-6">
                   {/* Media */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Existing media from Draft */}
                       {resolvedSelectedAssets.length > 0 ? (
                         resolvedSelectedAssets.map((asset) => {
@@ -1454,11 +1454,11 @@ export default function EditPostPage() {
         {/* Action Buttons */}
         <div className="bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-10 py-4">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => router.push(`/brands/${brandId}/schedule`)}
-                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                  className="bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 w-full sm:w-auto"
                 >
                   Cancel
                 </button>
@@ -1515,7 +1515,7 @@ export default function EditPostPage() {
                           className="fixed inset-0 z-[100]"
                           onClick={() => setIsDropdownOpen(false)}
                         />
-                        <div className="absolute right-0 bottom-full mb-1 z-[101] w-56 rounded-lg bg-white border border-gray-200 shadow-lg overflow-hidden">
+                        <div className="absolute right-0 bottom-full mb-1 z-[101] w-[calc(100vw-2rem)] sm:w-56 rounded-lg bg-white border border-gray-200 shadow-lg overflow-hidden">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

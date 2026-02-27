@@ -91,7 +91,7 @@ export default function SortableAssetGrid({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={visibleIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {visibleAssets.map((asset, index) => (
               <SortableAssetItem
                 key={asset.id}

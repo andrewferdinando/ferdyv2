@@ -731,7 +731,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
   const channelStatusStrip =
     normalizedJobs.length > 0 ? (
       <div 
-        className="mb-4 flex flex-wrap items-center gap-3 w-full overflow-visible" 
+        className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3 w-full overflow-visible"
         onClick={(e) => e.stopPropagation()}
         style={{ minWidth: 0, overflow: 'visible' }}
       >
@@ -884,15 +884,15 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
         }`}
         onClick={handleCardClick}
       >
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           {/* Image Section */}
           <div className="flex-shrink-0">
             {draft.assets && draft.assets.length > 0 ? (
-              <div className="relative w-20 h-20 aspect-square overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative w-full h-40 sm:w-20 sm:h-20 overflow-hidden rounded-lg bg-gray-100">
                 <DraftAssetPreview asset={draft.assets[0]} />
               </div>
             ) : (
-              <div className="flex h-20 w-20 aspect-square items-center justify-center rounded-lg bg-gray-100">
+              <div className="flex h-40 w-full sm:h-20 sm:w-20 items-center justify-center rounded-lg bg-gray-100">
                 <span className="text-xs text-gray-400">No media</span>
               </div>
             )}
@@ -960,7 +960,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
             {channelStatusStrip}
 
             {/* Footer */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
               <div className="flex items-center space-x-4">
                 {/* Date/Time */}
                 <div className={`flex items-center ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
