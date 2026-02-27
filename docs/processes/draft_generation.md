@@ -1,6 +1,6 @@
 # Draft Generation — Single Source of Truth
 
-> **Updated:** 2026-02-27 — Generator now skips categories with `setup_complete=false`. Draft generation triggered on wizard Finish (Step 4), not Step 3.
+> **Updated:** 2026-02-27 — Generator now skips categories with `setup_complete=false`. Draft generation triggered on wizard Finish (Step 4), not Step 3. Monthly nth-weekday targets now supported in RPC.
 
 ## What this is
 - Draft creation is owned by the generator in `src/lib/server/draftGeneration.ts`.
@@ -40,6 +40,10 @@
 
 ## Scheduling inputs
 - Draft generator consumes targets from `rpc_framework_targets`, which expands `schedule_rules` (daily/weekly/monthly/specific) into future timestamps.
+- For frequency = `monthly`, the RPC supports two modes:
+  - **Mode A — `day_of_month`**: Specific day numbers (e.g. 1st, 15th). Generates one target per day per month.
+  - **Mode B — `nth_week` + `weekday`**: Nth weekday (e.g. "first Friday"). `nth_week` 1–4 for ordinal, 5 for "Last". `weekday` 1–7 ISO (1=Mon, 7=Sun). Finds the correct date by computing the first occurrence of the target weekday in each month and offsetting by (n−1) weeks. For "Last", advances week-by-week until the next jump would exceed the month.
+  - Migration: `supabase/sql/functions/fix_rpc_framework_targets_monthly_nth_weekday.sql`.
 - For frequency = `specific`, the `schedule_rules_specific_chk` constraint requires at least one valid mechanism (start_date + times_of_day/time_of_day, or days_before/days_during).
 - `rpc_framework_targets` uses a unified time source: `times_of_day` preferred, `time_of_day` fallback.
 - For each target, the generator explicitly fetches the active schedule rule using `brand_id + subcategory_id + is_active = true`.

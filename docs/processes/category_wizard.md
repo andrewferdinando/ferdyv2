@@ -1,6 +1,6 @@
 # Category (Framework Item) Wizard — Scheduling Semantics
 
-> **Updated:** 2026-02-27 — Draft generation on Finish (Step 4), not Step 3. Double-click guard added.
+> **Updated:** 2026-02-27 — Draft generation on Finish (Step 4), not Step 3. Double-click guard added. Monthly nth-weekday RPC fix.
 
 ## Source
 - UI: `src/components/wizards/FrameworkItemWizard.tsx`.
@@ -13,6 +13,10 @@
 
 ## Schedule fields (both modes)
 - Frequency selector covers weekly, monthly, and specific.
+- For `frequency = 'monthly'`:
+  - **Mode A — Specific days**: User picks day numbers (1–28). Saved as `day_of_month` array.
+  - **Mode B — Nth weekday**: User picks ordinal (1st/2nd/3rd/4th/Last) + day of week. Saved as `nth_week` (1–4, or 5 for Last) and `weekday` (1=Mon … 7=Sun, ISO). `day_of_month` is null.
+  - Both modes are mutually exclusive in the UI; selecting one clears the other.
 - For `frequency = 'specific'`:
   - Single-date: captures `start_date`, `end_date` (same day), `times_of_day`/`time_of_day`; `days_before` offsets generate posts before the date.
   - Date range (end_date ≠ start_date): shows "Days During" input; saves both `days_before` (before start_date) and `days_during` (offsets from start_date during the range).
