@@ -867,6 +867,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [isSaving, setIsSaving] = useState(false)
   const isNavigatingRef = useRef(false) // Synchronous lock to prevent double-click on Next/Finish
   const [finishStep, setFinishStep] = useState<'linking' | 'preparing' | 'generating' | 'done'>('linking')
+  const [editSaveStep, setEditSaveStep] = useState<'saving' | 'generating' | 'done'>('saving')
   const [savedSubcategoryId, setSavedSubcategoryId] = useState<string | null>(
     mode === 'edit' && initialData?.subcategory?.id ? initialData.subcategory.id : null
   )
@@ -2689,6 +2690,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
     // In edit mode, update existing records
     if (mode === 'edit') {
+      setEditSaveStep('saving')
       setIsSaving(true)
       try {
         const success = await ensureSubcategoryUpdated()
@@ -2702,6 +2704,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         // Delay to ensure asset_tags from ensureSubcategoryUpdated are committed
         await new Promise(resolve => setTimeout(resolve, 1500))
+
+        setEditSaveStep('generating')
 
         if (needsFirstDraftGeneration && savedSubcategoryId) {
           // Mark setup as complete BEFORE triggering draft generation.
@@ -2734,6 +2738,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         } catch (err) {
           console.error('[draftGeneration] Failed to generate drafts:', err)
         }
+
+        setEditSaveStep('done')
 
         if (needsFirstDraftGeneration && savedSubcategoryId) {
           showToast({
@@ -4194,14 +4200,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         }
                       `}
                     >
-                      {isSaving ? (
-                        <>
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent mr-2" />
-                          {initialData?.setup_complete === false ? 'Generating drafts...' : 'Saving...'}
-                        </>
-                      ) : (
-                        initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save changes'
-                      )}
+                      {initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save changes'}
                     </button>
                   </div>
                 </>
@@ -4397,6 +4396,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         >
           <WizardFinishProgress finishStep={finishStep} />
         </Modal>
+
+        {/* Loading Modal - Shows during edit mode save */}
+        <Modal
+          isOpen={mode === 'edit' && isSaving}
+          onClose={() => {}} // Prevent closing during save
+          title={initialData?.setup_complete === false ? 'Saving & generating drafts…' : 'Saving changes…'}
+          showCloseButton={false}
+        >
+          <EditSaveProgress editSaveStep={editSaveStep} />
+        </Modal>
         
       </AppLayout>
     </RequireAuth>
@@ -4469,6 +4478,72 @@ function WizardFinishProgress({ finishStep }: { finishStep: 'linking' | 'prepari
       </div>
       <p className="text-xs text-gray-500 text-center">
         {isDone ? 'Taking you to the Schedule page…' : 'This can take up to 2 minutes — please don\'t close this page.'}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Animated progress indicator for the edit-mode save modal.
+ * During 'generating' the bar creeps smoothly from 40 → 90 %.
+ */
+function EditSaveProgress({ editSaveStep }: { editSaveStep: 'saving' | 'generating' | 'done' }) {
+  const stepConfig = {
+    saving:     { base: 20,  label: 'Saving category changes…' },
+    generating: { base: 40,  label: 'Generating drafts…' },
+    done:       { base: 100, label: 'Done! Redirecting…' },
+  }
+
+  const { base, label } = stepConfig[editSaveStep]
+
+  const [pct, setPct] = React.useState(base)
+
+  React.useEffect(() => {
+    if (editSaveStep !== 'generating') {
+      setPct(base)
+      return
+    }
+
+    setPct(base)
+    const start = Date.now()
+    const estimatedMs = 120_000
+
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start
+      const t = Math.min(elapsed / estimatedMs, 1)
+      const eased = 1 - Math.pow(1 - t, 2)
+      setPct(Math.min(90, base + Math.floor(eased * (90 - base))))
+    }, 400)
+
+    return () => clearInterval(id)
+  }, [editSaveStep, base])
+
+  const isDone = editSaveStep === 'done'
+
+  return (
+    <div className="flex flex-col items-center justify-center py-8 px-2">
+      <div className="w-full max-w-sm mb-5">
+        <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
+          <div
+            className={`h-full rounded-full bg-[#6366F1] transition-all duration-700 ease-in-out${!isDone ? ' animate-pulse' : ''}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-1">
+        {!isDone && (
+          <svg className="animate-spin h-4 w-4 text-[#6366F1]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        )}
+        <p className="text-sm font-medium text-gray-900 text-center">
+          {label}
+        </p>
+      </div>
+      <p className="text-xs text-gray-500 text-center">
+        {isDone ? 'Redirecting…' : 'This can take up to 2 minutes — please don\'t close this page.'}
       </p>
     </div>
   )
