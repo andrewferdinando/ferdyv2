@@ -4,9 +4,10 @@ import { sendLowApprovedDraftsReminder } from '@/lib/emails/send'
 
 /**
  * Low Approved Drafts Reminder Email
- * 
- * Sends daily if a brand has less than 7 days of approved drafts in the schedule
- * 
+ *
+ * Sends daily if a brand has unapproved drafts in the next 7 days.
+ * Shows approved vs unapproved post counts.
+ *
  * This endpoint should be called by a daily cron job
  */
 export async function POST() {
@@ -38,12 +39,11 @@ export async function POST() {
         const sevenDaysFromNow = new Date(now)
         sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
 
-        // Query approved drafts within the next 7 days
-        const { data: approvedDrafts, error: draftsError } = await supabaseAdmin
+        // Query ALL drafts (approved and unapproved) within the next 7 days
+        const { data: allDrafts, error: draftsError } = await supabaseAdmin
           .from('drafts')
-          .select('scheduled_for')
+          .select('approved')
           .eq('brand_id', brand.id)
-          .eq('approved', true)
           .gte('scheduled_for', now.toISOString())
           .lte('scheduled_for', sevenDaysFromNow.toISOString())
           .in('status', ['draft', 'scheduled', 'partially_published'])
@@ -53,21 +53,12 @@ export async function POST() {
           continue
         }
 
-        // Calculate how many days of approved content we have
-        let approvedDaysCount = 0
-        
-        if (approvedDrafts && approvedDrafts.length > 0) {
-          // Group by day and count unique days
-          const uniqueDays = new Set(
-            approvedDrafts.map(d => {
-              const date = new Date(d.scheduled_for)
-              return date.toISOString().split('T')[0] // Get YYYY-MM-DD
-            })
-          )
-          approvedDaysCount = uniqueDays.size
-        }
+        // Count approved vs unapproved posts
+        const approvedCount = allDrafts?.filter(d => d.approved).length ?? 0
+        const unapprovedCount = allDrafts?.filter(d => !d.approved).length ?? 0
 
-        if (approvedDaysCount < 7) {
+        // Only send if there are unapproved drafts needing attention
+        if (unapprovedCount > 0) {
           brandsWithLowApproved++
 
           // Get admin and editor emails for the brand
@@ -111,11 +102,12 @@ export async function POST() {
               await sendLowApprovedDraftsReminder({
                 to: email,
                 brandName: brand.name,
-                approvedDaysCount,
+                approvedCount,
+                unapprovedCount,
                 approvalLink,
               })
               emailsSent++
-              console.log(`[low-approved-reminder] Email sent to ${email} for brand ${brand.name} (${approvedDaysCount} days approved)`)
+              console.log(`[low-approved-reminder] Email sent to ${email} for brand ${brand.name} (${approvedCount} approved, ${unapprovedCount} unapproved)`)
             } catch (err) {
               console.error(`[low-approved-reminder] Failed to send email to ${email}:`, err)
             }

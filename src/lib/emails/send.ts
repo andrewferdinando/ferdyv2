@@ -99,7 +99,8 @@ export interface WeeklyApprovalSummaryData {
 export interface LowApprovedDraftsReminderData {
   to: string
   brandName: string
-  approvedDaysCount: number
+  approvedCount: number
+  unapprovedCount: number
   approvalLink: string
 }
 
@@ -332,7 +333,8 @@ export async function sendLowApprovedDraftsReminder(data: LowApprovedDraftsRemin
   const html = await render(
     LowApprovedDraftsReminder({
       brandName: data.brandName,
-      approvedDaysCount: data.approvedDaysCount,
+      approvedCount: data.approvedCount,
+      unapprovedCount: data.unapprovedCount,
       approvalLink: data.approvalLink,
     })
   )

@@ -4,40 +4,45 @@ import { EmailLayout, emailStyles } from './components/EmailLayout'
 
 interface LowApprovedDraftsReminderProps {
   brandName: string
-  approvedDaysCount: number
+  approvedCount: number
+  unapprovedCount: number
   approvalLink: string
 }
 
 export function LowApprovedDraftsReminder({
   brandName,
-  approvedDaysCount,
+  approvedCount,
+  unapprovedCount,
   approvalLink,
 }: LowApprovedDraftsReminderProps) {
   return (
-    <EmailLayout preview={`Less than a week of approved drafts for ${brandName}`}>
+    <EmailLayout preview={`${unapprovedCount} post${unapprovedCount !== 1 ? 's' : ''} need approval for ${brandName}`}>
       <Text style={emailStyles.h1}>
-        ⚠️ Low Approved Drafts Reminder
+        Drafts Need Approval
       </Text>
-      
+
       <Text style={emailStyles.paragraph}>
         Hi there,
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        We noticed that <strong>{brandName}</strong> currently has less than a week of approved drafts in your schedule.
+        We noticed that <strong>{brandName}</strong> has {unapprovedCount} post{unapprovedCount !== 1 ? 's' : ''} scheduled in the next 7 days that haven't been approved yet.
       </Text>
 
-      <Section style={warningBox}>
-        <Text style={warningText}>
-          You have approximately <strong>{approvedDaysCount} day{approvedDaysCount !== 1 ? 's' : ''}</strong> of approved content scheduled.
-        </Text>
-        <Text style={warningSubtext}>
-          To maintain consistent posting, we recommend having at least 7 days of approved drafts ready.
-        </Text>
+      <Section style={statsContainer}>
+        <Section style={statBox}>
+          <Text style={statNumber}>{approvedCount}</Text>
+          <Text style={statLabel}>Approved</Text>
+        </Section>
+
+        <Section style={statBoxHighlight}>
+          <Text style={statNumberHighlight}>{unapprovedCount}</Text>
+          <Text style={statLabelHighlight}>Need Approval</Text>
+        </Section>
       </Section>
 
       <Text style={emailStyles.paragraph}>
-        Don't worry—this is just a friendly reminder to review and approve your pending drafts.
+        {unapprovedCount} post{unapprovedCount !== 1 ? 's' : ''} scheduled for the next 7 days still need{unapprovedCount === 1 ? 's' : ''} your approval to go live.
       </Text>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
@@ -55,28 +60,59 @@ export function LowApprovedDraftsReminder({
   )
 }
 
-const warningBox = {
-  backgroundColor: '#FEF3C7',
-  border: '1px solid #FCD34D',
-  borderRadius: '8px',
-  padding: '20px',
+const statsContainer = {
+  display: 'flex',
+  gap: '16px',
   margin: '24px 0',
+  flexWrap: 'wrap' as const,
 }
 
-const warningText = {
-  color: '#92400E',
-  fontSize: '16px',
-  fontWeight: '600',
-  lineHeight: '1.5',
+const statBox = {
+  backgroundColor: '#EEF2FF',
+  borderRadius: '12px',
+  padding: '24px',
+  flex: '1',
+  minWidth: '150px',
+  textAlign: 'center' as const,
+}
+
+const statBoxHighlight = {
+  backgroundColor: '#FEF3C7',
+  borderRadius: '12px',
+  padding: '24px',
+  flex: '1',
+  minWidth: '150px',
+  textAlign: 'center' as const,
+}
+
+const statNumber = {
+  color: '#6366F1',
+  fontSize: '36px',
+  fontWeight: '700',
+  lineHeight: '1',
   margin: '0 0 8px 0',
 }
 
-const warningSubtext = {
-  color: '#78350F',
+const statNumberHighlight = {
+  color: '#92400E',
+  fontSize: '36px',
+  fontWeight: '700',
+  lineHeight: '1',
+  margin: '0 0 8px 0',
+}
+
+const statLabel = {
+  color: '#6B7280',
   fontSize: '14px',
-  lineHeight: '1.5',
+  fontWeight: '500',
+  margin: 0,
+}
+
+const statLabelHighlight = {
+  color: '#92400E',
+  fontSize: '14px',
+  fontWeight: '500',
   margin: 0,
 }
 
 export default LowApprovedDraftsReminder
-

@@ -80,15 +80,16 @@ const response = await fetch('/api/auth/reset-password', {
 
 ### 8. Low Approved Drafts Reminder
 **Location:** `/src/app/api/emails/low-approved-reminder/route.ts`
-**Trigger:** Daily check for brands with less than 7 days of approved drafts
+**Trigger:** Daily check for brands with unapproved drafts in the next 7 days
 **When:** Cron job runs daily at 9am UTC
-**Data:** Brand name, approved days count, approval link
+**Data:** Brand name, approved post count, unapproved post count, approval link
 **Status:** ✅ Fully implemented
 **Recipients:** All brand admins and editors
 **Behavior:**
-- Checks if brand has less than 7 days of approved drafts in the schedule
-- Sends reminder email if threshold is not met
-- Calculates approved days by counting unique days with approved drafts
+- Queries all drafts (approved and unapproved) in the next 7 days with status draft/scheduled/partially_published
+- Counts approved posts and unapproved posts separately
+- Only sends reminder email if there are unapproved posts (unapprovedCount > 0)
+- Shows side-by-side approved vs needs-approval post counts
 
 ### 9. Post Published
 **Location:** `/src/server/publishing/publishJob.ts` (batched notification function)
@@ -179,7 +180,7 @@ APP_URL=https://www.ferdy.io
 
 ✅ **Content Workflow (All Implemented):**
 - Weekly Approval Summary - Weekly Monday 11am summary of approved vs needs approval posts
-- Low Approved Drafts Reminder - Daily reminder if less than 7 days of approved drafts
+- Low Approved Drafts Reminder - Daily reminder when unapproved drafts exist in next 7 days
 - Post Published - Notifies admins/editors when a post is successfully published
 
 ✅ **Social Platform Management (All Implemented):**
