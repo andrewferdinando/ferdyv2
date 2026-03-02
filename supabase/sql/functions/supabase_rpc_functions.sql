@@ -269,15 +269,17 @@ DECLARE
     v_old_channel text;
     v_new_status text;
 BEGIN
-    -- Get draft with post job info (RLS will ensure user has access)
-    SELECT d.*, d.post_job_id INTO v_draft, v_post_job_id
+    -- Get draft (RLS will ensure user has access)
+    SELECT d.* INTO v_draft
     FROM drafts d
     WHERE d.id = p_draft_id;
-    
+
     IF v_draft.id IS NULL THEN
         RAISE EXCEPTION 'Draft not found';
     END IF;
-    
+
+    v_post_job_id := v_draft.post_job_id;
+
     -- Get old channel
     SELECT channel INTO v_old_channel FROM post_jobs WHERE id = v_post_job_id;
     
@@ -313,9 +315,14 @@ BEGIN
     ELSE
         v_new_status := 'generated';
     END IF;
-    
-    UPDATE post_jobs SET status = v_new_status WHERE id = v_post_job_id;
-    
+
+    -- Only update status if the job is NOT in a terminal state.
+    -- Terminal states (success, failed, canceled) mean the job has already been
+    -- published or permanently resolved — we must never overwrite them.
+    UPDATE post_jobs SET status = v_new_status
+    WHERE id = v_post_job_id
+      AND status NOT IN ('success', 'failed', 'canceled');
+
     -- Return updated draft
     SELECT * INTO v_draft FROM drafts WHERE id = p_draft_id;
     RETURN v_draft;
@@ -332,15 +339,18 @@ DECLARE
     v_channel text;
     v_social_account_exists boolean;
 BEGIN
-    -- Get draft with post job info (RLS will ensure user has access)
-    SELECT d.*, d.post_job_id, d.brand_id, d.channel 
-    INTO v_draft, v_post_job_id, v_brand_id, v_channel
+    -- Get draft (RLS will ensure user has access)
+    SELECT d.* INTO v_draft
     FROM drafts d
     WHERE d.id = p_draft_id;
-    
+
     IF v_draft.id IS NULL THEN
         RAISE EXCEPTION 'Draft not found';
     END IF;
+
+    v_post_job_id := v_draft.post_job_id;
+    v_brand_id := v_draft.brand_id;
+    v_channel := v_draft.channel;
     
     -- Check if brand has connected social account for this channel
     SELECT EXISTS(
@@ -361,10 +371,13 @@ BEGIN
     
     -- Update draft to approved
     UPDATE drafts SET approved = true WHERE id = p_draft_id;
-    
-    -- Update post job status to ready
-    UPDATE post_jobs SET status = 'ready' WHERE id = v_post_job_id;
-    
+
+    -- Update post job status to ready, but only if NOT in a terminal state.
+    -- Terminal states (success, failed, canceled) must never be overwritten.
+    UPDATE post_jobs SET status = 'ready'
+    WHERE id = v_post_job_id
+      AND status NOT IN ('success', 'failed', 'canceled');
+
     -- Return updated draft
     SELECT * INTO v_draft FROM drafts WHERE id = p_draft_id;
     RETURN v_draft;

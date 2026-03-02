@@ -78,9 +78,37 @@ export async function publishJob(
     }
   }
 
-  // Update job to 'publishing' status and increment attempt count
+  // IDEMPOTENCY GUARD: If external_post_id is already set, this post is live on Meta.
+  // Do NOT re-publish. Fix status back to 'success' if it drifted.
+  if (job.external_post_id) {
+    console.warn('[publishJob] IDEMPOTENCY GUARD: job already has external_post_id, skipping publish', {
+      jobId: job.id,
+      channel: jobChannel,
+      externalPostId: job.external_post_id,
+      currentStatus: job.status,
+    })
+
+    if (job.status !== 'success') {
+      const { error: fixError } = await supabaseAdmin
+        .from('post_jobs')
+        .update({ status: 'success', error: null })
+        .eq('id', job.id)
+
+      if (fixError) {
+        console.error('[publishJob] IDEMPOTENCY GUARD: failed to fix status back to success', {
+          jobId: job.id,
+          fixError,
+        })
+      }
+    }
+
+    return { success: true }
+  }
+
+  // ATOMIC CLAIM: Only transition to 'publishing' if status is in a claimable state.
+  // If another process already claimed it, bail out.
   const newAttemptCount = (job.attempt_count ?? 0) + 1
-  await supabaseAdmin
+  const { data: claimedRows, error: claimError } = await supabaseAdmin
     .from('post_jobs')
     .update({
       status: 'publishing',
@@ -88,6 +116,22 @@ export async function publishJob(
       attempt_count: newAttemptCount,
     })
     .eq('id', job.id)
+    .in('status', ['pending', 'generated', 'ready', 'failed'])
+    .select('id')
+
+  if (claimError) {
+    console.error('[publishJob] Failed to claim job', { jobId: job.id, claimError })
+    return { success: false, error: `Failed to claim job: ${claimError.message}` }
+  }
+
+  if (!claimedRows || claimedRows.length === 0) {
+    console.warn('[publishJob] ATOMIC CLAIM: job already claimed by another process, skipping', {
+      jobId: job.id,
+      channel: jobChannel,
+      currentStatus: job.status,
+    })
+    return { success: true }
+  }
 
   const provider = CHANNEL_PROVIDER_MAP[jobChannel]
   const socialAccount = provider ? socialAccounts[provider] : undefined
@@ -155,10 +199,20 @@ export async function publishJob(
       updateData.published_at = nowIso
     }
 
-    await supabaseAdmin
+    const { error: successUpdateError } = await supabaseAdmin
       .from('post_jobs')
       .update(updateData)
       .eq('id', job.id)
+
+    if (successUpdateError) {
+      // The post IS live on Meta — log the error but still return success to avoid re-publishing
+      console.error('[publishJob] CRITICAL: Failed to update job status to success (post IS live on Meta)', {
+        jobId: job.id,
+        channel: jobChannel,
+        externalId: publishResult.externalId,
+        error: successUpdateError,
+      })
+    }
 
     // Create or update publishes record with published_at
     // First check if a publish record already exists for this job
@@ -214,13 +268,21 @@ export async function publishJob(
     // Otherwise set to 'ready' so the UI shows "Pending" instead of "Failed"
     // while retries are still in progress.
     const isTerminalFailure = newAttemptCount >= MAX_PUBLISH_ATTEMPTS
-    await supabaseAdmin
+    const { error: failUpdateError } = await supabaseAdmin
       .from('post_jobs')
       .update({
         status: isTerminalFailure ? 'failed' : 'ready',
         error: publishResult.error,
       })
       .eq('id', job.id)
+
+    if (failUpdateError) {
+      console.error('[publishJob] Failed to update job status after publish failure', {
+        jobId: job.id,
+        channel: jobChannel,
+        failUpdateError,
+      })
+    }
 
     console.error('[publishJob] Failed', {
       jobId: job.id,

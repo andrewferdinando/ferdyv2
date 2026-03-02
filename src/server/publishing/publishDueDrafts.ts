@@ -213,10 +213,18 @@ export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftS
   }
 
   // Update draft status (and published_at if needed)
-  await supabaseAdmin
+  const { error: draftUpdateError } = await supabaseAdmin
     .from('drafts')
     .update(updateData)
     .eq('id', draftId)
+
+  if (draftUpdateError) {
+    console.error('[updateDraftStatusFromJobs] CRITICAL: Failed to update draft status', {
+      draftId,
+      newStatus,
+      error: draftUpdateError,
+    })
+  }
 
   return newStatus
 }
@@ -655,6 +663,7 @@ async function processDraft(
   }
 
   let attempted = 0
+  let fixedCount = 0
   const successfulJobs: Array<{ job: PostJobRow; channel: string; externalUrl: string | null }> = []
 
   for (const job of relevantJobs) {
@@ -662,6 +671,45 @@ async function processDraft(
     if (!jobChannel) {
       continue
     }
+
+    // FRESH-READ: Re-read job from DB to get the freshest status and external_post_id.
+    // This catches cases where the in-memory job data is stale (e.g., status drifted
+    // between the initial query and now).
+    const { data: freshJob, error: freshJobError } = await supabaseAdmin
+      .from('post_jobs')
+      .select('id, status, external_post_id, external_url, attempt_count, last_attempt_at')
+      .eq('id', job.id)
+      .single()
+
+    if (freshJobError || !freshJob) {
+      console.warn(`[processDraft] Could not re-read job ${job.id}, skipping`, { error: freshJobError })
+      continue
+    }
+
+    // If external_post_id is already set, this post is live — fix status and skip
+    if (freshJob.external_post_id) {
+      console.warn('[processDraft] FRESH-READ GUARD: job already has external_post_id, fixing status', {
+        jobId: job.id,
+        channel: jobChannel,
+        externalPostId: freshJob.external_post_id,
+        currentStatus: freshJob.status,
+      })
+
+      if (freshJob.status !== 'success') {
+        await supabaseAdmin
+          .from('post_jobs')
+          .update({ status: 'success', error: null })
+          .eq('id', job.id)
+      }
+
+      fixedCount += 1
+      continue
+    }
+
+    // Update in-memory job with fresh data
+    job.status = freshJob.status
+    job.attempt_count = freshJob.attempt_count ?? 0
+    job.last_attempt_at = freshJob.last_attempt_at ?? null
 
     if (!allowedStatuses.has(job.status)) {
       // Also allow 'failed' jobs that have retries remaining (cron-based retry)
@@ -745,8 +793,16 @@ async function processDraft(
     }
   }
 
-  if (attempted === 0) {
+  if (attempted === 0 && fixedCount === 0) {
     return false
+  }
+
+  // If we only fixed drifted statuses (no new publishes), update draft status
+  // but skip notifications — they were already sent in the prior run.
+  if (attempted === 0 && fixedCount > 0) {
+    console.log(`[processDraft] Only fixed ${fixedCount} drifted job(s) for draft ${draft.id}, updating draft status without notifications`)
+    await updateDraftStatusFromJobs(draft.id)
+    return true
   }
 
   // In-call retry: retry any jobs that failed but were reset to 'ready' (non-terminal).
