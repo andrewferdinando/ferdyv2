@@ -89,6 +89,8 @@ export default function EditPostPage() {
   const [retryModalOpen, setRetryModalOpen] = useState(false);
   const [retryModalMessage, setRetryModalMessage] = useState('');
   const [retryModalComplete, setRetryModalComplete] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [alternatives, setAlternatives] = useState<string[] | null>(null);
 
   // Use shared publish-now hook
   const {
@@ -982,6 +984,28 @@ export default function EditPostPage() {
     }
   };
 
+  const handleRegenerate = async () => {
+    setIsRegenerating(true);
+    setAlternatives(null);
+    try {
+      const res = await fetch('/api/ai/regenerate-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: postCopy }),
+      });
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.alternatives)) {
+        setAlternatives(data.alternatives);
+      } else {
+        showToast({ title: "Couldn't generate alternatives", message: data.error || 'Please try again', type: 'error' });
+      }
+    } catch {
+      showToast({ title: "Couldn't generate alternatives", message: 'Please try again', type: 'error' });
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const approveAndPublishNow = async () => {
     setIsDropdownOpen(false);
 
@@ -1291,7 +1315,27 @@ export default function EditPostPage() {
 
                   {/* Post Copy */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Post Copy</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Post Copy</h3>
+                      <button
+                        type="button"
+                        onClick={handleRegenerate}
+                        disabled={isRegenerating || !postCopy.trim()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#6366F1] rounded-lg hover:bg-[#5558E6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isRegenerating ? (
+                          <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        )}
+                        Regenerate
+                      </button>
+                    </div>
                     <textarea
                       value={postCopy}
                       onChange={(e) => setPostCopy(e.target.value)}
@@ -1300,6 +1344,38 @@ export default function EditPostPage() {
                       placeholder="Write your post content here..."
                     />
                     <p className="text-sm text-gray-500 mt-2">{postCopy.length} characters</p>
+
+                    {/* Alternatives panel */}
+                    {alternatives && (
+                      <div className="mt-4 rounded-lg border border-[#C7D2FE] bg-[#F5F3FF] p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-medium text-gray-900">Pick an alternative</p>
+                          <button
+                            type="button"
+                            onClick={() => setAlternatives(null)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {alternatives.map((alt, i) => (
+                            <div key={i} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                              <p className="flex-1 text-sm text-gray-700 whitespace-pre-wrap">{alt}</p>
+                              <button
+                                type="button"
+                                onClick={() => { setPostCopy(alt); setAlternatives(null); }}
+                                className="shrink-0 text-sm font-medium text-[#6366F1] hover:text-[#5558E6] transition-colors"
+                              >
+                                Use this
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Hashtags */}
