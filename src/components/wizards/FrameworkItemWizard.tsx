@@ -4200,7 +4200,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         }
                       `}
                     >
-                      {initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save changes'}
+                      {initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save & update drafts'}
                     </button>
                   </div>
                 </>
