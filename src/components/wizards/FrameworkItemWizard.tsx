@@ -3235,7 +3235,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               Event dates
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Input the detail for your event date(s)
+              Add each event with its own URL and details. For example, a sports team could add one entry per match day.
             </p>
 
             {eventScheduling.occurrences.length === 0 ? (
@@ -3260,7 +3260,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   >
                     <div className="flex items-start justify-between">
                       <h4 className="text-sm font-medium text-gray-900">
-                        {eventOccurrenceType === 'single' ? `Date ${index + 1}` : `Range ${index + 1}`}
+                        {eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`}
                       </h4>
                       <button
                         type="button"
@@ -3366,7 +3366,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           updated[index] = { ...updated[index], notes: e.target.value }
                           setEventScheduling(prev => ({ ...prev, occurrences: updated }))
                         }}
-                        placeholder="Additional notes..."
+                        placeholder="e.g. opponent, venue, ticket link, key details..."
                         rows={2}
                       />
                     </FormField>
@@ -3420,7 +3420,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               }}
               className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
             >
-              {eventOccurrenceType === 'single' ? '+ Add date' : '+ Add range'}
+              {eventOccurrenceType === 'single' ? '+ Add event' : '+ Add range'}
             </button>
 
             {eventErrors.occurrences && (
@@ -3434,7 +3434,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               Reminder schedule
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              When should Ferdy post about this event?
+              Ferdy will create a post for each event at these intervals before it happens. Enter the number of days separated by commas.
             </p>
             <FormField label="Days before">
               <Input
