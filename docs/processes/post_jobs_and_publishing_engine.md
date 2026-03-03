@@ -14,10 +14,10 @@
   - Updates `post_jobs.status` and error fields.
   - Rolls the result back up to the parent **Draft** (`status` / `publish_status` / `published_at`).
 
-Two cron systems:
+Two cron systems (both via **cron-job.org**):
 
-- **Vercel Cron** → nightly automatic draft generation (`/api/drafts/generate-all`).  
-- **3rd-party cron (e.g. cron-job.org)** → calls `/api/publishing/run` on Vercel frequently to process `post_jobs`.
+- **Draft generation cron** → daily at 1am NZ time, calls `/api/drafts/generate-all` to keep the next 30 days of drafts generated.
+- **Publishing cron** → every few minutes, calls `/api/publishing/run` to process due `post_jobs`.
 
 ---
 
@@ -322,7 +322,7 @@ Manual API call (`/api/drafts/generate`) for a specific brand.
 
 Draft Generation vs Publishing Cron:
 
-Draft Generation: Vercel Cron runs `/api/drafts/generate-all` nightly (Pacific/Auckland time) to keep the next 30 days of drafts generated.
+Draft Generation: cron-job.org calls `/api/drafts/generate-all` daily at 1am NZ time to keep the next 30 days of drafts generated.
 
 Publishing: 3rd-party cron calls `/api/publishing/run` to process post_jobs.
 

@@ -1,12 +1,20 @@
 # Draft Generation — Single Source of Truth
 
-> **Updated:** 2026-02-27 — Generator now skips categories with `setup_complete=false`. Draft generation triggered on wizard Finish (Step 4), not Step 3. Monthly nth-weekday targets now supported in RPC.
+> **Updated:** 2026-03-04 — Cron trigger moved from Vercel Cron to cron-job.org for reliability. Vercel Cron was found to silently not fire for `/api/drafts/generate-all` despite being configured in `vercel.json`. The publishing cron already used cron-job.org successfully.
 
 ## What this is
 - Draft creation is owned by the generator in `src/lib/server/draftGeneration.ts`.
-- Runs automatically via Vercel Cron nightly (hits `/api/drafts/generate-all`).
+- Runs automatically via **cron-job.org** nightly (hits `/api/drafts/generate-all` with `Authorization: Bearer <CRON_SECRET>` header).
 - Can be triggered manually for testing via `/api/drafts/generate` (single brand) or `/api/drafts/generate-all` (all active brands); both endpoints are cron-secret protected.
 - **Triggered by the Category Wizard** when the user clicks "Finish and Generate Drafts" (Step 4) or "Save & generate drafts" (edit mode). NOT triggered during Step 3 save.
+
+## Cron setup (cron-job.org)
+- **URL:** `https://www.ferdy.io/api/drafts/generate-all`
+- **Method:** GET
+- **Schedule:** Daily at 1:00am NZ time (Pacific/Auckland)
+- **Header:** `Authorization: Bearer <CRON_SECRET>`
+- **Idempotent:** Safe to run multiple times — dedup check + DB unique constraint (`drafts_unique_framework`) prevent duplicate drafts.
+- **Note:** Vercel Cron entry in `vercel.json` is retained but should not be relied upon. cron-job.org is the primary trigger.
 
 ## setup_complete guard
 - The generator **skips subcategories with `setup_complete = false`**.

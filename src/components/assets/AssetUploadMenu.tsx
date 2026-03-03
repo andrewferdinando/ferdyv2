@@ -274,7 +274,7 @@ export default function AssetUploadMenu({
 
       {/* Dropdown menu */}
       {isOpen && !isUploading && (
-        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} bottom-full mb-2 w-[calc(100vw-2rem)] sm:w-[28rem] rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50`}>
+        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} bottom-full mb-2 w-[calc(100vw-2rem)] sm:w-[28rem] rounded-lg bg-white shadow-lg border border-gray-200 z-50`}>
           <div className="flex">
             <div className="flex-1 py-1">
               <button
