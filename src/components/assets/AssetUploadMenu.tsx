@@ -274,29 +274,40 @@ export default function AssetUploadMenu({
 
       {/* Dropdown menu */}
       {isOpen && !isUploading && (
-        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} mt-2 w-[calc(100vw-2rem)] sm:w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50`}>
-          <div className="py-1">
-            <button
-              onClick={handleDeviceUploadClick}
-              className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <DeviceIcon className="w-5 h-5 shrink-0 text-gray-400" />
-              <div className="text-left">
-                <div className="font-medium">Upload from device</div>
-                <div className="text-xs text-gray-500">Select files from your computer</div>
-              </div>
-            </button>
+        <div className={`absolute ${dropdownAlign === 'right' ? 'right-0' : 'left-0'} bottom-full mb-2 w-[calc(100vw-2rem)] sm:w-[28rem] rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50`}>
+          <div className="flex">
+            <div className="flex-1 py-1">
+              <button
+                onClick={handleDeviceUploadClick}
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <DeviceIcon className="w-5 h-5 shrink-0 text-gray-400" />
+                <div className="text-left">
+                  <div className="font-medium">Upload from device</div>
+                  <div className="text-xs text-gray-500">Select files from your computer</div>
+                </div>
+              </button>
 
-            <button
-              onClick={handleGoogleDriveClick}
-              className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <GoogleDriveIcon className="w-5 h-5 shrink-0 text-gray-400" />
-              <div className="text-left">
-                <div className="font-medium">Import from Google Drive</div>
-                <div className="text-xs text-gray-500">Select files from your Drive</div>
-              </div>
-            </button>
+              <button
+                onClick={handleGoogleDriveClick}
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <GoogleDriveIcon className="w-5 h-5 shrink-0 text-gray-400" />
+                <div className="text-left">
+                  <div className="font-medium">Import from Google Drive</div>
+                  <div className="text-xs text-gray-500">Select files from your Drive</div>
+                </div>
+              </button>
+            </div>
+
+            <div className="hidden sm:block border-l border-gray-200" />
+            <div className="hidden sm:block w-40 px-4 py-3">
+              <p className="text-xs font-semibold text-gray-900 mb-2">Requirements</p>
+              <p className="text-xs font-medium text-gray-700 mb-0.5">Images</p>
+              <p className="text-xs text-gray-500 leading-relaxed">JPG or PNG<br />Min 600×600px<br />Max 30 MB</p>
+              <p className="text-xs font-medium text-gray-700 mt-2 mb-0.5">Videos</p>
+              <p className="text-xs text-gray-500 leading-relaxed">MP4 or MOV<br />Min 500×500px<br />Max 200 MB</p>
+            </div>
           </div>
         </div>
       )}

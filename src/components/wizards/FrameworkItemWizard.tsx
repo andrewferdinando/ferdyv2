@@ -3766,17 +3766,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   const renderImagesContent = () => (
     <>
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4">
         <h3 className="text-base font-semibold text-gray-900">
           Choose media
         </h3>
-        <div className="relative group">
-          <span className="text-sm text-gray-400 cursor-default underline decoration-dotted underline-offset-4">Upload requirements</span>
-          <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block bg-gray-900 text-white text-xs rounded-md px-3 py-2 whitespace-nowrap shadow-lg">
-            Images: JPG or PNG, min 600Ã—600px, max 30 MB<br />
-            Videos: MP4 or MOV, min 500Ã—500px, max 200 MB
-          </div>
-        </div>
       </div>
 
       {/* Mode Toggle - Tabs */}
