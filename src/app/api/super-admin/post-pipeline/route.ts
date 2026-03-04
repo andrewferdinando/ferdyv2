@@ -94,11 +94,11 @@ export async function GET(request: NextRequest) {
       supabaseAdmin
         .from('brands')
         .select('id, name, timezone')
-        .eq('deleted', false),
+        .eq('status', 'active'),
       supabaseAdmin
         .from('drafts')
         .select('id, brand_id, subcategory_id, scheduled_for, status, approved, subcategories(name)')
-        .is('deleted_at', null)
+        .not('status', 'eq', 'deleted')
         .gte('scheduled_for', fromDate)
         .lte('scheduled_for', toDate),
       supabaseAdmin
