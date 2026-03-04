@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publishDueDrafts } from '@/server/publishing/publishDueDrafts'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 function parseLimitFromRequest(req: NextRequest): number {
   const url = new URL(req.url)
@@ -43,7 +44,7 @@ function assertCronAuthorized(req: Request) {
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handlePublishRun(req: NextRequest) {
   console.log('[cron] /api/publishing/run called', {
     at: new Date().toISOString(),
     method: req.method,
@@ -53,40 +54,57 @@ export async function GET(req: NextRequest) {
   const unauthorized = assertCronAuthorized(req)
   if (unauthorized) return unauthorized
 
+  let cronLogId: string | null = null
+
   try {
+    // Log cron start
+    const { data: cronLog } = await supabaseAdmin
+      .from('cron_logs')
+      .insert({ cron_path: '/api/publishing/run', status: 'running' })
+      .select('id')
+      .single()
+    cronLogId = cronLog?.id ?? null
+
     const limit = parseLimitFromRequest(req)
     const summary = await publishDueDrafts(limit)
+
+    // Log cron completion
+    if (cronLogId) {
+      await supabaseAdmin.from('cron_logs').update({
+        status: 'success',
+        completed_at: new Date().toISOString(),
+        summary: {
+          jobsAttempted: summary.jobsAttempted,
+          jobsSucceeded: summary.jobsSucceeded,
+          jobsFailed: summary.jobsFailed,
+        },
+      }).eq('id', cronLogId)
+    }
+
     return NextResponse.json({ ok: true, ...summary })
   } catch (error: unknown) {
-    console.error('[cron run GET] error', error)
+    console.error('[cron run] error', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    if (cronLogId) {
+      try {
+        await supabaseAdmin.from('cron_logs').update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error: errorMessage,
+        }).eq('id', cronLogId)
+      } catch { /* ignore logging failure */ }
+    }
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { ok: false, error: errorMessage },
       { status: 500 }
     )
   }
+}
+
+export async function GET(req: NextRequest) {
+  return handlePublishRun(req)
 }
 
 export async function POST(req: NextRequest) {
-  console.log('[cron] /api/publishing/run called', {
-    at: new Date().toISOString(),
-    method: req.method,
-    fromCron: req.headers.get('x-vercel-cron') ?? null,
-  })
-
-  const unauthorized = assertCronAuthorized(req)
-  if (unauthorized) return unauthorized
-
-  try {
-    const limit = parseLimitFromRequest(req)
-    const summary = await publishDueDrafts(limit)
-    return NextResponse.json({ ok: true, ...summary })
-  } catch (error: unknown) {
-    console.error('[cron run POST] error', error)
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
-  }
+  return handlePublishRun(req)
 }
-
-

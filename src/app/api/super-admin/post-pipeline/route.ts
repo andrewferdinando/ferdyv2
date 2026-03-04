@@ -38,6 +38,8 @@ export interface PipelineRow {
   scheduledForLocal: string
   status: 'draft' | 'approved_scheduled' | 'published' | 'needs_attention' | 'not_created'
   draftId: string | null
+  cadence: string | null
+  notCreatedReason: 'setup_incomplete' | 'outside_window' | 'pending_generation' | null
 }
 
 function formatInTimezone(isoString: string, timezone: string): string {
@@ -67,6 +69,62 @@ function mapDraftStatus(
   return 'draft'
 }
 
+// --- Cadence formatting helpers ---
+
+function formatTimeString(timeStr: string): string {
+  let cleaned = timeStr.trim()
+  if (cleaned.startsWith('@')) cleaned = cleaned.substring(1).trim()
+  const parts = cleaned.split(':')
+  if (parts.length >= 2) return `${parts[0]}:${parts[1]}`
+  return cleaned
+}
+
+function formatOrdinal(num: number): string {
+  const suffix = ['th', 'st', 'nd', 'rd']
+  const v = num % 100
+  return num + (suffix[(v - 20) % 10] || suffix[v] || suffix[0])
+}
+
+function formatNthWeekday(nthWeek: number, weekday: number): string {
+  const ordinals: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th', 5: 'Last' }
+  const dayNames: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
+  return `${ordinals[nthWeek] || nthWeek + 'th'} ${dayNames[weekday] || 'day'}`
+}
+
+function buildCadenceString(rule: any): string {
+  const times: string[] = (rule.time_of_day ?? rule.times_of_day ?? [])
+  const timeStr = times.map(formatTimeString).join(' & ')
+
+  switch (rule.frequency) {
+    case 'daily':
+      return `Daily at ${timeStr || '?'}`
+    case 'weekly': {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      const days: number[] = rule.days_of_week ?? []
+      const dayList = days.sort((a: number, b: number) => a - b).map((d: number) => dayNames[d] ?? d).join(', ')
+      return `Weekly on ${dayList || '?'} at ${timeStr || '?'}`
+    }
+    case 'monthly': {
+      if (rule.nth_week && rule.weekday != null) {
+        return `${formatNthWeekday(rule.nth_week, rule.weekday)} of month at ${timeStr || '?'}`
+      }
+      const dom = rule.day_of_month
+      if (Array.isArray(dom)) {
+        const dayList = dom.map((d: number) => formatOrdinal(d)).join(' & ')
+        return `Monthly on ${dayList} at ${timeStr || '?'}`
+      }
+      if (dom != null) {
+        return `Monthly on ${formatOrdinal(dom)} at ${timeStr || '?'}`
+      }
+      return `Monthly at ${timeStr || '?'}`
+    }
+    case 'specific':
+      return 'Specific (event-based)'
+    default:
+      return rule.frequency ?? 'Unknown'
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await authenticateSuperAdmin(request)
@@ -89,8 +147,8 @@ export async function GET(request: NextRequest) {
     const fromDate = `${fromStr}T00:00:00Z`
     const toDate = `${toStr}T23:59:59Z`
 
-    // 3 parallel queries
-    const [brandsResult, draftsResult, subcategoriesResult] = await Promise.all([
+    // 4 parallel queries (added schedule_rules, updated subcategories to include setup_complete)
+    const [brandsResult, draftsResult, subcategoriesResult, rulesResult] = await Promise.all([
       supabaseAdmin
         .from('brands')
         .select('id, name, timezone')
@@ -103,19 +161,36 @@ export async function GET(request: NextRequest) {
         .lte('scheduled_for', toDate),
       supabaseAdmin
         .from('subcategories')
-        .select('id, name'),
+        .select('id, name, setup_complete'),
+      supabaseAdmin
+        .from('schedule_rules')
+        .select('id, brand_id, subcategory_id, frequency, days_of_week, day_of_month, nth_week, weekday, time_of_day, times_of_day')
+        .eq('is_active', true),
     ])
 
     if (brandsResult.error) throw brandsResult.error
     if (draftsResult.error) throw draftsResult.error
     if (subcategoriesResult.error) throw subcategoriesResult.error
+    if (rulesResult.error) throw rulesResult.error
 
     const brands = brandsResult.data ?? []
     const drafts = draftsResult.data ?? []
     const subcategories = subcategoriesResult.data ?? []
+    const rules = rulesResult.data ?? []
 
     const brandMap = new Map(brands.map((b: any) => [b.id, b]))
-    const subcatMap = new Map(subcategories.map((s: any) => [s.id, s.name]))
+    const subcatMap = new Map(subcategories.map((s: any) => [s.id, { name: s.name, setup_complete: s.setup_complete }]))
+
+    // Build cadence lookup: brand_id|subcategory_id -> cadence string
+    const cadenceMap = new Map<string, string>()
+    for (const rule of rules) {
+      const key = `${rule.brand_id}|${rule.subcategory_id}`
+      cadenceMap.set(key, buildCadenceString(rule))
+    }
+
+    // 30-day window boundary for notCreatedReason
+    const thirtyDaysFromNow = new Date(now)
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
 
     // Build rows from actual drafts
     const rows: PipelineRow[] = []
@@ -126,8 +201,10 @@ export async function GET(request: NextRequest) {
 
       const subcatName =
         (draft.subcategories as any)?.name ??
-        subcatMap.get(draft.subcategory_id) ??
+        subcatMap.get(draft.subcategory_id)?.name ??
         'Unknown'
+
+      const cadenceKey = `${draft.brand_id}|${draft.subcategory_id}`
 
       rows.push({
         key: `draft-${draft.id}`,
@@ -139,6 +216,8 @@ export async function GET(request: NextRequest) {
         scheduledForLocal: formatInTimezone(draft.scheduled_for, brand.timezone),
         status: mapDraftStatus(draft),
         draftId: draft.id,
+        cadence: cadenceMap.get(cadenceKey) ?? null,
+        notCreatedReason: null,
       })
     }
 
@@ -178,7 +257,18 @@ export async function GET(request: NextRequest) {
         const dedupKey = `${target.brandId}|${target.subcategory_id}|${normalized}`
 
         if (!existingDraftKeys.has(dedupKey)) {
-          const subcatName = subcatMap.get(target.subcategory_id) ?? 'Unknown'
+          const subcat = subcatMap.get(target.subcategory_id)
+          const subcatName = subcat?.name ?? 'Unknown'
+          const cadenceKey = `${target.brandId}|${target.subcategory_id}`
+          const scheduledDate = new Date(normalized)
+
+          let notCreatedReason: PipelineRow['notCreatedReason'] = 'pending_generation'
+          if (subcat && subcat.setup_complete === false) {
+            notCreatedReason = 'setup_incomplete'
+          } else if (scheduledDate > thirtyDaysFromNow) {
+            notCreatedReason = 'outside_window'
+          }
+
           rows.push({
             key: `target-${target.brandId}-${target.subcategory_id}-${normalized}`,
             brandId: target.brandId,
@@ -189,6 +279,8 @@ export async function GET(request: NextRequest) {
             scheduledForLocal: formatInTimezone(normalized, brand.timezone),
             status: 'not_created',
             draftId: null,
+            cadence: cadenceMap.get(cadenceKey) ?? null,
+            notCreatedReason,
           })
         }
       }

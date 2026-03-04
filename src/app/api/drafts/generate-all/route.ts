@@ -25,16 +25,18 @@ export const dynamic = 'force-dynamic';
  * No manual steps, monthly pushes, or user actions are required.
  */
 async function handleGenerateAll(req: NextRequest) {
+  let cronLogId: string | null = null;
+
   try {
     console.log('[api/drafts/generate-all] Received request');
 
     // Verify CRON_SECRET header
-    const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '') || 
-                      req.headers.get('x-cron-secret') || 
+    const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '') ||
+                      req.headers.get('x-cron-secret') ||
                       req.headers.get('cron-secret');
-    
+
     const expectedSecret = process.env.CRON_SECRET;
-    
+
     if (!expectedSecret) {
       console.error('[api/drafts/generate-all] CRON_SECRET not configured');
       return NextResponse.json(
@@ -51,6 +53,14 @@ async function handleGenerateAll(req: NextRequest) {
       );
     }
 
+    // Log cron start
+    const { data: cronLog } = await supabaseAdmin
+      .from('cron_logs')
+      .insert({ cron_path: '/api/drafts/generate-all', status: 'running' })
+      .select('id')
+      .single();
+    cronLogId = cronLog?.id ?? null;
+
     // Fetch all active brands
     const { data: brands, error: brandsError } = await supabaseAdmin
       .from('brands')
@@ -59,6 +69,9 @@ async function handleGenerateAll(req: NextRequest) {
 
     if (brandsError) {
       console.error('[api/drafts/generate-all] Error fetching brands:', brandsError);
+      if (cronLogId) {
+        await supabaseAdmin.from('cron_logs').update({ status: 'failed', completed_at: new Date().toISOString(), error: brandsError.message }).eq('id', cronLogId);
+      }
       return NextResponse.json(
         { error: "Failed to fetch brands", details: brandsError.message },
         { status: 500 }
@@ -67,6 +80,9 @@ async function handleGenerateAll(req: NextRequest) {
 
     if (!brands || brands.length === 0) {
       console.log('[api/drafts/generate-all] No active brands found');
+      if (cronLogId) {
+        await supabaseAdmin.from('cron_logs').update({ status: 'success', completed_at: new Date().toISOString(), summary: { brandsProcessed: 0, draftsCreated: 0 } }).eq('id', cronLogId);
+      }
       return NextResponse.json({
         brandsProcessed: 0,
         totalTargetsFound: 0,
@@ -124,11 +140,26 @@ async function handleGenerateAll(req: NextRequest) {
     }
     console.log('[api/drafts/generate-all] Summary:', { ...summary, errors: `${allErrors.length} error(s)` });
 
+    // Log cron completion
+    if (cronLogId) {
+      await supabaseAdmin.from('cron_logs').update({
+        status: allErrors.length > 0 ? 'failed' : 'success',
+        completed_at: new Date().toISOString(),
+        summary: { brandsProcessed, draftsCreated: totalDraftsCreated, errors: allErrors.length },
+        error: allErrors.length > 0 ? allErrors.slice(0, 5).join('; ') : null,
+      }).eq('id', cronLogId);
+    }
+
     return NextResponse.json(summary);
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error('[api/drafts/generate-all] Unexpected error:', error);
+    if (cronLogId) {
+      try {
+        await supabaseAdmin.from('cron_logs').update({ status: 'failed', completed_at: new Date().toISOString(), error: errorMessage }).eq('id', cronLogId);
+      } catch { /* ignore logging failure */ }
+    }
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }
