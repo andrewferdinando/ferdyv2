@@ -16,6 +16,7 @@ import { generateDraftsForBrand } from "@/lib/server/draftGeneration";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // Allow up to 5 minutes for processing all brands
 
 /**
  * Generate drafts for all active brands
