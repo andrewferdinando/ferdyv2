@@ -1048,15 +1048,20 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                 {accounts.filter(a => a.status === 'connected').map(a => {
                   const meta = a.metadata as Record<string, unknown> | null;
                   const pic = meta?.profilePictureUrl as string | undefined;
+                  // Prefer readable name from metadata over handle (which may be a numeric page ID)
+                  const displayName =
+                    (meta?.pageName as string | undefined) ||
+                    (meta?.username as string | undefined) ||
+                    (meta?.name as string | undefined) ||
+                    (a.handle && !/^\d+$/.test(a.handle) ? a.handle : null) ||
+                    getChannelLabel(a.provider);
                   return (
                     <div key={a.provider} className="flex items-center gap-1.5 text-[11px] text-gray-400">
                       {getPlatformIcon(a.provider)}
                       {pic && (
                         <img src={pic} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
                       )}
-                      <span>{a.handle}</span>
-                      <span className="text-gray-300">·</span>
-                      <span>{a.account_id}</span>
+                      <span>{displayName}</span>
                     </div>
                   );
                 })}
