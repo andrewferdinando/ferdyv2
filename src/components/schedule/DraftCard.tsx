@@ -1047,7 +1047,11 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                 </span>
                 {accounts.filter(a => a.status === 'connected').map(a => {
                   const meta = a.metadata as Record<string, unknown> | null;
-                  const pic = meta?.profilePictureUrl as string | undefined;
+                  // Use Graph API redirect URL (never expires) instead of cached CDN URL
+                  const fbPageId = (meta?.pageId ?? meta?.facebookPageId) as string | undefined;
+                  const pic = fbPageId
+                    ? `https://graph.facebook.com/v21.0/${fbPageId}/picture?type=small`
+                    : (meta?.profilePictureUrl as string | undefined);
                   // Prefer readable name from metadata over handle (which may be a numeric page ID)
                   const displayName =
                     (meta?.pageName as string | undefined) ||

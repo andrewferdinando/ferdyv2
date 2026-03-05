@@ -365,10 +365,13 @@ export default function IntegrationsPage() {
                 const meta = connectedAccount?.metadata as Record<string, unknown> | null
                 const enriched = enrichedProfiles[provider.id]
 
-                const profilePictureUrl =
-                  (meta?.profilePictureUrl as string | undefined)
+                // Use Graph API redirect URL (never expires) instead of cached CDN URL
+                const fbPageId = (meta?.pageId ?? meta?.facebookPageId) as string | undefined
+                const profilePictureUrl = fbPageId
+                  ? `https://graph.facebook.com/v21.0/${fbPageId}/picture?type=small`
+                  : ((meta?.profilePictureUrl as string | undefined)
                     ?? enriched?.profilePictureUrl
-                    ?? undefined
+                    ?? undefined)
 
                 const accountType =
                   (meta?.accountType as string | undefined)
