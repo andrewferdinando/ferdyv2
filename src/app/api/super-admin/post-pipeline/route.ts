@@ -39,7 +39,7 @@ export interface PipelineRow {
   status: 'draft' | 'approved_scheduled' | 'published' | 'needs_attention' | 'not_created'
   draftId: string | null
   cadence: string | null
-  notCreatedReason: 'setup_incomplete' | 'outside_window' | 'pending_generation' | null
+  notCreatedReason: 'setup_incomplete' | 'outside_window' | 'pending_generation' | 'deleted_by_user' | null
 }
 
 function formatInTimezone(isoString: string, timezone: string): string {
@@ -147,8 +147,8 @@ export async function GET(request: NextRequest) {
     const fromDate = `${fromStr}T00:00:00Z`
     const toDate = `${toStr}T23:59:59Z`
 
-    // 4 parallel queries (added schedule_rules, updated subcategories to include setup_complete)
-    const [brandsResult, draftsResult, subcategoriesResult, rulesResult] = await Promise.all([
+    // 5 parallel queries (added schedule_rules, updated subcategories to include setup_complete)
+    const [brandsResult, draftsResult, deletedDraftsResult, subcategoriesResult, rulesResult] = await Promise.all([
       supabaseAdmin
         .from('brands')
         .select('id, name, timezone')
@@ -157,6 +157,13 @@ export async function GET(request: NextRequest) {
         .from('drafts')
         .select('id, brand_id, subcategory_id, scheduled_for, status, approved, subcategories(name)')
         .not('status', 'eq', 'deleted')
+        .gte('scheduled_for', fromDate)
+        .lte('scheduled_for', toDate),
+      supabaseAdmin
+        .from('drafts')
+        .select('brand_id, subcategory_id, scheduled_for')
+        .eq('status', 'deleted')
+        .eq('schedule_source', 'framework')
         .gte('scheduled_for', fromDate)
         .lte('scheduled_for', toDate),
       supabaseAdmin
@@ -170,13 +177,23 @@ export async function GET(request: NextRequest) {
 
     if (brandsResult.error) throw brandsResult.error
     if (draftsResult.error) throw draftsResult.error
+    if (deletedDraftsResult.error) throw deletedDraftsResult.error
     if (subcategoriesResult.error) throw subcategoriesResult.error
     if (rulesResult.error) throw rulesResult.error
 
     const brands = brandsResult.data ?? []
     const drafts = draftsResult.data ?? []
+    const deletedDrafts = deletedDraftsResult.data ?? []
     const subcategories = subcategoriesResult.data ?? []
     const rules = rulesResult.data ?? []
+
+    // Build a set of deleted draft keys to identify targets where the user deleted the draft
+    const deletedDraftKeys = new Set(
+      deletedDrafts.map((d: any) => {
+        const normalized = new Date(d.scheduled_for).toISOString()
+        return `${d.brand_id}|${d.subcategory_id}|${normalized}`
+      })
+    )
 
     const brandMap = new Map(brands.map((b: any) => [b.id, b]))
     const subcatMap = new Map(subcategories.map((s: any) => [s.id, { name: s.name, setup_complete: s.setup_complete }]))
@@ -263,7 +280,9 @@ export async function GET(request: NextRequest) {
           const scheduledDate = new Date(normalized)
 
           let notCreatedReason: PipelineRow['notCreatedReason'] = 'pending_generation'
-          if (subcat && subcat.setup_complete === false) {
+          if (deletedDraftKeys.has(dedupKey)) {
+            notCreatedReason = 'deleted_by_user'
+          } else if (subcat && subcat.setup_complete === false) {
             notCreatedReason = 'setup_incomplete'
           } else if (scheduledDate > thirtyDaysFromNow) {
             notCreatedReason = 'outside_window'

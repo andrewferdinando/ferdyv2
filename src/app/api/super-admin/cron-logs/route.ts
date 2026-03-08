@@ -59,27 +59,44 @@ export async function GET(request: NextRequest) {
     since.setDate(since.getDate() - days)
     since.setHours(0, 0, 0, 0)
 
-    const { data: logs, error } = await supabaseAdmin
-      .from('cron_logs')
-      .select('*')
-      .gte('started_at', since.toISOString())
-      .order('started_at', { ascending: false })
+    // Fetch generation and publishing logs separately.
+    // Publishing fires every few minutes, so a single unfiltered query
+    // hits Supabase's default 1000-row limit, hiding older days.
+    const sinceISO = since.toISOString()
 
-    if (error) throw error
+    const [genResult, pubResult] = await Promise.all([
+      supabaseAdmin
+        .from('cron_logs')
+        .select('*')
+        .eq('cron_path', '/api/drafts/generate-all')
+        .gte('started_at', sinceISO)
+        .order('started_at', { ascending: false })
+        .limit(days), // At most 1 generation run per day
+      supabaseAdmin
+        .from('cron_logs')
+        .select('started_at, status, summary')
+        .eq('cron_path', '/api/publishing/run')
+        .gte('started_at', sinceISO)
+        .order('started_at', { ascending: false })
+        .limit(days * 1000), // Publishing fires frequently
+    ])
+
+    if (genResult.error) throw genResult.error
+    if (pubResult.error) throw pubResult.error
 
     // Group by date
     const dayMap = new Map<string, { generation: any[], publishing: any[] }>()
 
-    for (const log of (logs ?? [])) {
+    for (const log of (genResult.data ?? [])) {
       const date = new Date(log.started_at).toISOString().slice(0, 10)
       if (!dayMap.has(date)) dayMap.set(date, { generation: [], publishing: [] })
-      const day = dayMap.get(date)!
+      dayMap.get(date)!.generation.push(log)
+    }
 
-      if (log.cron_path === '/api/drafts/generate-all') {
-        day.generation.push(log)
-      } else if (log.cron_path === '/api/publishing/run') {
-        day.publishing.push(log)
-      }
+    for (const log of (pubResult.data ?? [])) {
+      const date = new Date(log.started_at).toISOString().slice(0, 10)
+      if (!dayMap.has(date)) dayMap.set(date, { generation: [], publishing: [] })
+      dayMap.get(date)!.publishing.push(log)
     }
 
     // Fill in missing days

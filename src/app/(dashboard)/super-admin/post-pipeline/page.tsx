@@ -15,7 +15,7 @@ interface PipelineRow {
   status: 'draft' | 'approved_scheduled' | 'published' | 'needs_attention' | 'not_created'
   draftId: string | null
   cadence: string | null
-  notCreatedReason: 'setup_incomplete' | 'outside_window' | 'pending_generation' | null
+  notCreatedReason: 'setup_incomplete' | 'outside_window' | 'pending_generation' | 'deleted_by_user' | null
 }
 
 interface CronDaySummary {
@@ -51,6 +51,7 @@ const NOT_CREATED_REASONS = {
   setup_incomplete: '(Setup incomplete)',
   outside_window: '(Outside 30-day window)',
   pending_generation: '(Pending generation)',
+  deleted_by_user: '(Deleted by user)',
 } as const
 
 const STATUS_ORDER = ['needs_attention', 'not_created', 'draft', 'approved_scheduled', 'published'] as const
