@@ -64,25 +64,36 @@ export async function GET(request: NextRequest) {
     // hits Supabase's default 1000-row limit, hiding older days.
     const sinceISO = since.toISOString()
 
-    const [genResult, pubResult] = await Promise.all([
-      supabaseAdmin
-        .from('cron_logs')
-        .select('*')
-        .eq('cron_path', '/api/drafts/generate-all')
-        .gte('started_at', sinceISO)
-        .order('started_at', { ascending: false })
-        .limit(days), // At most 1 generation run per day
-      supabaseAdmin
+    // Generation logs: small volume (1 per day), single fetch is fine
+    const genResult = await supabaseAdmin
+      .from('cron_logs')
+      .select('*')
+      .eq('cron_path', '/api/drafts/generate-all')
+      .gte('started_at', sinceISO)
+      .order('started_at', { ascending: false })
+      .limit(days)
+
+    if (genResult.error) throw genResult.error
+
+    // Publishing logs: high volume (fires every few minutes), must paginate
+    // since Supabase caps responses at max_rows (default 1000)
+    const pageSize = 1000
+    let allPubLogs: any[] = []
+    let page = 0
+    while (true) {
+      const { data, error } = await supabaseAdmin
         .from('cron_logs')
         .select('started_at, status, summary')
         .eq('cron_path', '/api/publishing/run')
         .gte('started_at', sinceISO)
         .order('started_at', { ascending: false })
-        .limit(days * 1000), // Publishing fires frequently
-    ])
+        .range(page * pageSize, (page + 1) * pageSize - 1)
 
-    if (genResult.error) throw genResult.error
-    if (pubResult.error) throw pubResult.error
+      if (error) throw error
+      allPubLogs.push(...(data ?? []))
+      if (!data || data.length < pageSize) break
+      page++
+    }
 
     // Group by date
     const dayMap = new Map<string, { generation: any[], publishing: any[] }>()
@@ -93,7 +104,7 @@ export async function GET(request: NextRequest) {
       dayMap.get(date)!.generation.push(log)
     }
 
-    for (const log of (pubResult.data ?? [])) {
+    for (const log of allPubLogs) {
       const date = new Date(log.started_at).toISOString().slice(0, 10)
       if (!dayMap.has(date)) dayMap.set(date, { generation: [], publishing: [] })
       dayMap.get(date)!.publishing.push(log)
