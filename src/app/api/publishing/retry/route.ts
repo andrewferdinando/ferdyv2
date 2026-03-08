@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { publishJob, notifyPostPublishedBatched } from '@/server/publishing/publishJob'
-import { updateDraftStatusFromJobs, MAX_PUBLISH_ATTEMPTS } from '@/server/publishing/publishDueDrafts'
+import { updateDraftStatusFromJobs, MAX_PUBLISH_ATTEMPTS, claimNotificationSend, resetNotificationClaim } from '@/server/publishing/publishDueDrafts'
 import { canonicalizeChannel } from '@/lib/channels'
 
 type PostJobRow = {
@@ -116,6 +116,9 @@ export async function POST(req: NextRequest) {
                 return acc
               }, {}) ?? {}
 
+    // Reset notification claim so retry can send a fresh notification
+    await resetNotificationClaim(draftId)
+
     // Reset attempt_count to MAX - 1 so the manual retry gets exactly one shot.
     // If it fails, attempt_count reaches MAX → terminal failure → draft stays 'failed'
     // (keeps post in Needs Attention). If the user wants to retry again, they can.
@@ -160,11 +163,17 @@ export async function POST(req: NextRequest) {
       }))
 
     if (successfulJobs.length > 0) {
-      try {
-        await notifyPostPublishedBatched(draft as DraftRow, successfulJobs)
-      } catch (emailError) {
-        console.error('[retry] Failed to send post published email:', emailError)
-        // Don't fail the retry if email fails
+      // Atomic guard: only send if no other process already sent for this draft
+      const claimed = await claimNotificationSend(draftId)
+      if (claimed) {
+        try {
+          await notifyPostPublishedBatched(draft as DraftRow, successfulJobs)
+        } catch (emailError) {
+          console.error('[retry] Failed to send post published email:', emailError)
+          // Don't fail the retry if email fails
+        }
+      } else {
+        console.log('[retry] Notification already sent for draft, skipping')
       }
     }
 

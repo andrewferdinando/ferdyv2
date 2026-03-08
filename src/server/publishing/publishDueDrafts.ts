@@ -229,6 +229,38 @@ export async function updateDraftStatusFromJobs(draftId: string): Promise<DraftS
   return newStatus
 }
 
+/**
+ * Atomically claim the right to send a notification for a draft.
+ * Returns true if this caller won the claim (notification_sent_at was NULL
+ * and is now set). Returns false if another process already sent it.
+ */
+export async function claimNotificationSend(draftId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('drafts')
+    .update({ notification_sent_at: new Date().toISOString() })
+    .eq('id', draftId)
+    .is('notification_sent_at', null)
+    .select('id')
+
+  if (error) {
+    console.error('[claimNotificationSend] Error claiming notification:', error)
+    return false
+  }
+
+  return (data?.length ?? 0) > 0
+}
+
+/**
+ * Reset notification_sent_at so a new notification can be sent
+ * (e.g. after manual retry or Publish Now).
+ */
+export async function resetNotificationClaim(draftId: string): Promise<void> {
+  await supabaseAdmin
+    .from('drafts')
+    .update({ notification_sent_at: null })
+    .eq('id', draftId)
+}
+
 function createEmptySummary(): PublishSummary {
   return {
     draftsConsidered: 0,
@@ -455,6 +487,9 @@ export async function publishDraftNow(draftId: string): Promise<PublishDraftNowR
       ),
     )
   }
+
+  // Reset notification claim so Publish Now can send a fresh notification
+  await resetNotificationClaim(draftId)
 
   // Use processDraft to publish the jobs
   const summary = createEmptySummary()
@@ -893,7 +928,14 @@ async function processDraft(
     return true
   }
 
-  // All jobs are terminal — send ONE consolidated notification
+  // All jobs are terminal — send ONE consolidated notification.
+  // Use atomic claim to prevent duplicate emails from concurrent cron runs.
+  const claimed = await claimNotificationSend(draft.id)
+  if (!claimed) {
+    console.log(`[processDraft] Notification already sent for draft ${draft.id} by another process, skipping`)
+    return true
+  }
+
   const allSucceeded = finalJobs.filter((j) => SUCCESS_STATUSES.has(j.status))
   const allFailed = finalJobs.filter((j) => j.status === 'failed')
 
