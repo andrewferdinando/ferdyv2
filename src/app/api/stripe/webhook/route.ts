@@ -311,9 +311,9 @@ async function ensurePaymentMethodSaved(invoice: Stripe.Invoice, customerId: str
   console.log(`Saved payment method ${paymentMethodId} as default on customer ${customerId}`)
 
   // Also ensure it's set on the subscription
-  const subscriptionId = typeof invoice.subscription === 'string'
-    ? invoice.subscription
-    : (invoice.subscription as any)?.id
+  const subscriptionId = typeof (invoice as any).subscription === 'string'
+    ? (invoice as any).subscription
+    : (invoice as any).subscription?.id
 
   if (subscriptionId) {
     try {
