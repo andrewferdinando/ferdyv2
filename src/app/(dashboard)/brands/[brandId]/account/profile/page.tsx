@@ -94,13 +94,14 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      // Update user profile
+      // Update user profile (profiles table, not user_profiles view)
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({
           name: formData.name,
+          full_name: formData.name,
         })
-        .eq('id', profile.id);
+        .eq('user_id', profile.id);
 
       if (profileError) throw profileError;
 

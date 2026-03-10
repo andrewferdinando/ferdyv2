@@ -203,14 +203,15 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      // Update user profile
+      // Update user profile (profiles table, not user_profiles view)
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({
           name: formData.name,
+          full_name: formData.name,
           profile_image_url: formData.profile_image_url
         })
-        .eq('id', profile.id);
+        .eq('user_id', profile.id);
 
       if (profileError) throw profileError;
 
