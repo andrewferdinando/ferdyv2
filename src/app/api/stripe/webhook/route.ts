@@ -151,9 +151,18 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     return
   }
 
+  // Ensure payment method is saved on the customer for future renewals and portal visibility.
+  // save_default_payment_method: 'on_subscription' only saves to the subscription object,
+  // not the customer — so the portal shows "no payment method" and renewals can fail.
+  try {
+    await ensurePaymentMethodSaved(invoice, customerId)
+  } catch (pmError) {
+    console.error('Failed to save payment method on customer:', pmError)
+  }
+
   // Send email receipt
   console.log(`Invoice paid for group ${group.name}:`, invoice.id)
-  
+
   try {
     const customer = await stripe.customers.retrieve(customerId)
     const email = (customer as Stripe.Customer).email
@@ -253,6 +262,68 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     // to avoid duplicate emails
   } catch (error: any) {
     console.error('Error processing PaymentIntent success:', error)
+  }
+}
+
+/**
+ * Ensure the payment method from a paid invoice is saved on both the customer
+ * and the subscription, so that renewals can auto-charge and the billing portal
+ * shows the correct payment method.
+ */
+async function ensurePaymentMethodSaved(invoice: Stripe.Invoice, customerId: string) {
+  // Get the PaymentIntent from the invoice to find the payment method used
+  const paymentIntentId = typeof (invoice as any).payment_intent === 'string'
+    ? (invoice as any).payment_intent
+    : (invoice as any).payment_intent?.id
+
+  if (!paymentIntentId) {
+    console.log('No PaymentIntent on paid invoice, skipping payment method save')
+    return
+  }
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+  const paymentMethodId = typeof paymentIntent.payment_method === 'string'
+    ? paymentIntent.payment_method
+    : paymentIntent.payment_method?.id
+
+  if (!paymentMethodId) {
+    console.log('No payment method on PaymentIntent, skipping')
+    return
+  }
+
+  // Check if customer already has this as their default payment method
+  const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
+  const currentDefault = typeof customer.invoice_settings?.default_payment_method === 'string'
+    ? customer.invoice_settings.default_payment_method
+    : (customer.invoice_settings?.default_payment_method as any)?.id
+
+  if (currentDefault === paymentMethodId) {
+    console.log('Payment method already set as customer default')
+    return
+  }
+
+  // Save payment method as customer's default for invoices
+  await stripe.customers.update(customerId, {
+    invoice_settings: {
+      default_payment_method: paymentMethodId,
+    },
+  })
+  console.log(`Saved payment method ${paymentMethodId} as default on customer ${customerId}`)
+
+  // Also ensure it's set on the subscription
+  const subscriptionId = typeof invoice.subscription === 'string'
+    ? invoice.subscription
+    : (invoice.subscription as any)?.id
+
+  if (subscriptionId) {
+    try {
+      await stripe.subscriptions.update(subscriptionId, {
+        default_payment_method: paymentMethodId,
+      })
+      console.log(`Saved payment method ${paymentMethodId} as default on subscription ${subscriptionId}`)
+    } catch (subError) {
+      console.error('Failed to update subscription default payment method:', subError)
+    }
   }
 }
 
