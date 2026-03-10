@@ -50,7 +50,6 @@ export async function createStripeSubscription(params: CreateSubscriptionParams)
       payment_behavior: 'default_incomplete',
       payment_settings: {
         save_default_payment_method: 'on_subscription',
-        payment_method_types: ['card']
       },
       metadata: {
         group_id: groupId,
