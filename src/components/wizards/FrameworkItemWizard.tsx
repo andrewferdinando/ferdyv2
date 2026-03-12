@@ -1927,7 +1927,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Helper function to update subcategory in edit mode
   const ensureSubcategoryUpdated = async (): Promise<boolean> => {
-    console.warn('[Wizard] ensureSubcategoryUpdated called, subcategoryId:', savedSubcategoryId)
     if (!savedSubcategoryId) {
       showToast({
         title: 'Error',
@@ -2496,20 +2495,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Save image_mode setting — fetch fresh settings from DB to avoid overwriting the merge done above
       const isPerOccurrence = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
       const previousImageMode = initialData?.subcategory?.settings?.image_mode
-      // Write debug info to localStorage for cross-navigation debugging
-      const _saveDebug: Record<string, unknown> = {
-        eventImageMode,
-        subcategoryType,
-        occurrenceCount: eventScheduling.occurrences.length,
-        isPerOccurrence,
-        previousImageMode,
-        perOccurrenceAssetIds: JSON.parse(JSON.stringify(perOccurrenceAssetIds)),
-        selectedAssetIds: [...selectedAssetIds],
-        occurrenceNames: eventScheduling.occurrences.map(o => (o.name || '').trim()),
-        timestamp: new Date().toISOString()
-      }
-      try { localStorage.setItem('_wizardSaveDebug', JSON.stringify(_saveDebug)) } catch {}
-      console.warn('[Wizard] Asset save debug:', _saveDebug)
       if (isPerOccurrence !== (previousImageMode === 'per_occurrence')) {
         const { data: freshSubcat } = await supabase
           .from('subcategories')
@@ -2552,20 +2537,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         // Create/update tags for each occurrence
-        const _tagResults: Record<string, unknown>[] = []
         for (let idx = 0; idx < eventScheduling.occurrences.length; idx++) {
           const occ = eventScheduling.occurrences[idx]
           const occAssets = perOccurrenceAssetIds[idx] || []
           const occName = (occ.name || '').trim()
-          if (!occName) { _tagResults.push({ idx, skipped: 'no name' }); continue }
+          if (!occName) continue
 
           const occTagName = `${categoryName} :: ${occName}`
-          const tagResult: Record<string, unknown> = { idx, name: occName, tagName: occTagName, assetCount: occAssets.length }
 
           let occTagId: string | null = null
 
           // First try to find an active tag
-          const { data: existingOccTag, error: findErr } = await supabase
+          const { data: existingOccTag } = await supabase
             .from('tags')
             .select('id')
             .eq('brand_id', brandId)
@@ -2574,15 +2557,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .eq('is_active', true)
             .maybeSingle()
 
-          tagResult.findActiveResult = existingOccTag?.id || null
-          tagResult.findActiveError = findErr?.message || null
-
           if (existingOccTag) {
             occTagId = existingOccTag.id
-            tagResult.action = 'reused_active'
           } else {
             // Check for an inactive tag with the same name and reactivate it
-            const { data: inactiveTag, error: findInactiveErr } = await supabase
+            const { data: inactiveTag } = await supabase
               .from('tags')
               .select('id')
               .eq('brand_id', brandId)
@@ -2591,42 +2570,29 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .eq('is_active', false)
               .maybeSingle()
 
-            tagResult.findInactiveResult = inactiveTag?.id || null
-            tagResult.findInactiveError = findInactiveErr?.message || null
-
             if (inactiveTag) {
-              const { error: reactivateErr } = await supabase.from('tags').update({ is_active: true }).eq('id', inactiveTag.id)
+              await supabase.from('tags').update({ is_active: true }).eq('id', inactiveTag.id)
               occTagId = inactiveTag.id
-              tagResult.action = 'reactivated'
-              tagResult.reactivateError = reactivateErr?.message || null
             } else {
-              const { data: newOccTag, error: tagCreateErr } = await supabase
+              const { data: newOccTag } = await supabase
                 .from('tags')
                 .insert({ brand_id: brandId, name: occTagName, kind: 'occurrence', is_active: true })
                 .select('id')
                 .single()
-              tagResult.action = 'insert_new'
-              tagResult.insertError = tagCreateErr ? { message: tagCreateErr.message, code: tagCreateErr.code, details: tagCreateErr.details, hint: tagCreateErr.hint } : null
-              tagResult.insertResult = newOccTag?.id || null
               if (newOccTag) occTagId = newOccTag.id
             }
           }
 
-          tagResult.finalTagId = occTagId
           if (occTagId && occAssets.length > 0) {
-            const { error: deleteErr } = await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
-            tagResult.deleteError = deleteErr?.message || null
+            await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
             const inserts = occAssets.map((assetId, position) => ({
               asset_id: assetId,
               tag_id: occTagId!,
               position
             }))
-            const { error: insertErr } = await supabase.from('asset_tags').insert(inserts)
-            tagResult.assetLinkError = insertErr?.message || null
+            await supabase.from('asset_tags').insert(inserts)
           }
-          _tagResults.push(tagResult)
         }
-        try { localStorage.setItem('_wizardSaveDebug', JSON.stringify({ ..._saveDebug, tagCreationReached: true, tagResults: _tagResults })) } catch {}
 
         // Also clear category-level tag assets (switching from shared to per-occurrence)
         const { data: subcategoryTag } = await supabase
@@ -2642,7 +2608,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
       } else {
         // SHARED MODE: existing behavior
-        try { localStorage.setItem('_wizardSaveDebug', JSON.stringify({ ..._saveDebug, enteredBlock: 'SHARED_MODE' })) } catch {}
         // If switching from per-occurrence to shared, clean up occurrence tags
         if (previousImageMode === 'per_occurrence') {
           const categoryName = details.name.trim()
@@ -2839,7 +2804,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
     // In edit mode, update existing records
     if (mode === 'edit') {
-      console.warn('[Wizard] handleFinish EDIT mode triggered')
       setEditSaveStep('saving')
       setIsSaving(true)
       try {

@@ -16,7 +16,6 @@ export default function EditCategoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [initialData, setInitialData] = useState<WizardInitialData | null>(null)
-  const [debugInfo, setDebugInfo] = useState<string>('')
 
   useEffect(() => {
     const loadCategoryData = async () => {
@@ -86,21 +85,14 @@ export default function EditCategoryPage() {
         let perOccurrenceAssets: Record<string, string[]> | undefined = undefined
         const isPerOccurrenceMode = subcategory.settings?.image_mode === 'per_occurrence'
 
-        console.log('[EditPage] Media load debug:', {
-          isPerOccurrenceMode,
-          imageMode: subcategory.settings?.image_mode,
-          occurrenceCount: eventOccurrences?.length,
-          settings: subcategory.settings
-        })
         if (isPerOccurrenceMode && eventOccurrences && eventOccurrences.length > 0) {
           // PER-OCCURRENCE MODE: fetch occurrence-specific tags
           perOccurrenceAssets = {}
           for (const occ of eventOccurrences) {
             const occName = occ.name?.trim()
-            if (!occName) { console.log('[EditPage] Skipping occurrence with no name:', occ.id); continue }
+            if (!occName) continue
 
             const occTagName = `${subcategory.name} :: ${occName}`
-            console.log(`[EditPage] Looking for tag: "${occTagName}"`)
             const { data: occTag } = await supabase
               .from('tags')
               .select('id')
@@ -111,7 +103,6 @@ export default function EditCategoryPage() {
               .maybeSingle()
 
             if (occTag) {
-              console.log(`[EditPage] Found tag for "${occName}": ${occTag.id}`)
               const { data: occAssetTags } = await supabase
                 .from('asset_tags')
                 .select('asset_id')
@@ -120,10 +111,7 @@ export default function EditCategoryPage() {
 
               if (occAssetTags) {
                 perOccurrenceAssets[occName] = occAssetTags.map((at: any) => at.asset_id)
-                console.log(`[EditPage] Assets for "${occName}":`, perOccurrenceAssets[occName])
               }
-            } else {
-              console.log(`[EditPage] No tag found for "${occTagName}"`)
             }
           }
         } else {
@@ -151,24 +139,6 @@ export default function EditCategoryPage() {
             }
           }
         }
-
-        // TEMPORARY DEBUG: Collect debug info for display
-        const debugLines: string[] = [
-          `settings.image_mode: ${subcategory.settings?.image_mode || 'NOT SET'}`,
-          `isPerOccurrenceMode: ${isPerOccurrenceMode}`,
-          `occurrences: ${eventOccurrences?.length || 0}`,
-          `sharedAssets: ${assetIds.length}`,
-          `perOccAssets: ${perOccurrenceAssets ? JSON.stringify(Object.fromEntries(Object.entries(perOccurrenceAssets).map(([k, v]) => [k, (v as string[]).length]))) : 'N/A'}`,
-        ]
-        // Also check: do any occurrence tags exist in the DB for this category?
-        const { data: allOccTags } = await supabase
-          .from('tags')
-          .select('id, name, is_active')
-          .eq('brand_id', brandId)
-          .eq('kind', 'occurrence')
-          .like('name', `${subcategory.name} :: %`)
-        debugLines.push(`occTags in DB: ${allOccTags?.length || 0} → ${allOccTags?.map((t: any) => `${t.name} (active=${t.is_active})`).join(', ') || 'none'}`)
-        setDebugInfo(debugLines.join(' | '))
 
         // Shape the data for the wizard
         const wizardData: WizardInitialData = {
@@ -263,12 +233,6 @@ export default function EditCategoryPage() {
 
   return (
     <RequireAuth>
-      {debugInfo && (
-        <div className="bg-yellow-50 border border-yellow-300 text-yellow-900 text-xs p-2 font-mono break-all space-y-1">
-          <div>LOAD: {debugInfo}</div>
-          <div>LAST SAVE: {typeof window !== 'undefined' ? (localStorage.getItem('_wizardSaveDebug') || 'no save debug found') : 'SSR'}</div>
-        </div>
-      )}
       <FrameworkItemWizard mode="edit" initialData={initialData} />
     </RequireAuth>
   )
