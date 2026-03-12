@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
@@ -134,6 +134,7 @@ export default function SchedulePage() {
   });
 
   const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   // Update activeTab when URL query parameter changes
   useEffect(() => {
@@ -153,11 +154,56 @@ export default function SchedulePage() {
   const { published, loading: publishedLoading, refetch: refetchPublished } = usePublished(brandId);
   const { accounts: socialAccounts } = useSocialAccounts(brandId);
 
+  // Extract unique category names from the current tab's data
+  const currentTabData = useMemo(() => {
+    switch (activeTab) {
+      case 'drafts': return drafts;
+      case 'scheduled': return scheduled;
+      case 'published': return published;
+      case 'attention': return needsAttention;
+      default: return [];
+    }
+  }, [activeTab, drafts, scheduled, published, needsAttention]);
+
+  const categoryNames = useMemo(() => {
+    const names = new Set<string>();
+    currentTabData.forEach((item: any) => {
+      const name = item.subcategory_name;
+      if (name) names.add(name);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [currentTabData]);
+
+  // Clear filter if current category doesn't exist in the new tab
+  useEffect(() => {
+    if (categoryFilter && !categoryNames.includes(categoryFilter)) {
+      setCategoryFilter(null);
+    }
+  }, [categoryNames, categoryFilter]);
+
+  // Filter data for each tab
+  const filteredDrafts = useMemo(() =>
+    categoryFilter ? drafts.filter((d: any) => d.subcategory_name === categoryFilter) : drafts,
+    [drafts, categoryFilter]
+  );
+  const filteredScheduled = useMemo(() =>
+    categoryFilter ? scheduled.filter((d: any) => d.subcategory_name === categoryFilter) : scheduled,
+    [scheduled, categoryFilter]
+  );
+  const filteredPublished = useMemo(() =>
+    categoryFilter ? published.filter((d: any) => d.subcategory_name === categoryFilter) : published,
+    [published, categoryFilter]
+  );
+  const filteredAttention = useMemo(() =>
+    categoryFilter ? needsAttention.filter((d: any) => d.subcategory_name === categoryFilter) : needsAttention,
+    [needsAttention, categoryFilter]
+  );
+
   const tabs: Tab[] = [
-    { id: 'drafts', name: 'Drafts', count: drafts.length },
-    { id: 'scheduled', name: 'Scheduled', count: scheduled.length },
-    { id: 'published', name: 'Published', count: published.length },
-    { id: 'attention', name: 'Needs Attention', count: needsAttention.length },
+    { id: 'drafts', name: 'Drafts', count: filteredDrafts.length },
+    { id: 'scheduled', name: 'Scheduled', count: filteredScheduled.length },
+    { id: 'published', name: 'Published', count: filteredPublished.length },
+    { id: 'attention', name: 'Needs Attention', count: filteredAttention.length },
   ];
 
   const handleNewPostClick = () => {
@@ -206,7 +252,7 @@ export default function SchedulePage() {
       case 'drafts':
         return (
           <DraftsTab
-            drafts={drafts}
+            drafts={filteredDrafts}
             loading={draftsLoading}
             onUpdate={handleGlobalUpdate}
             jobsByDraftId={draftsJobsByDraftId}
@@ -216,7 +262,7 @@ export default function SchedulePage() {
       case 'attention':
         return (
           <NeedsAttentionTab
-            posts={needsAttention}
+            posts={filteredAttention}
             loading={attentionLoading}
             onUpdate={handleGlobalUpdate}
             jobsByDraftId={attentionJobsByDraftId}
@@ -226,7 +272,7 @@ export default function SchedulePage() {
       case 'scheduled':
         return (
           <ScheduledTab
-            scheduled={scheduled}
+            scheduled={filteredScheduled}
             loading={scheduledLoading}
             onUpdate={refetchScheduled}
             jobsByDraftId={scheduledJobsByDraftId}
@@ -236,7 +282,7 @@ export default function SchedulePage() {
       case 'published':
         return (
           <PublishedTab
-            published={published}
+            published={filteredPublished}
             loading={publishedLoading}
             onUpdate={refetchPublished}
             socialAccounts={socialAccounts}
@@ -321,6 +367,38 @@ export default function SchedulePage() {
               </button>
             </div>
           </div>
+
+          {/* Category Filter */}
+          {view === 'list' && categoryNames.length > 1 && (
+            <div className="px-4 sm:px-6 lg:px-10 pt-4 sm:pt-5 pb-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-gray-500 mr-1">Category:</span>
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+                    categoryFilter === null
+                      ? 'bg-[#6366F1] text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                {categoryNames.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setCategoryFilter(categoryFilter === name ? null : name)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+                      categoryFilter === name
+                        ? 'bg-[#6366F1] text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tab Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6">
