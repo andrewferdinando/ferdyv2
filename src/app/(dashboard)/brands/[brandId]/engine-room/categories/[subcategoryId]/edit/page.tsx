@@ -16,6 +16,7 @@ export default function EditCategoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [initialData, setInitialData] = useState<WizardInitialData | null>(null)
+  const [debugInfo, setDebugInfo] = useState<string>('')
 
   useEffect(() => {
     const loadCategoryData = async () => {
@@ -151,6 +152,24 @@ export default function EditCategoryPage() {
           }
         }
 
+        // TEMPORARY DEBUG: Collect debug info for display
+        const debugLines: string[] = [
+          `settings.image_mode: ${subcategory.settings?.image_mode || 'NOT SET'}`,
+          `isPerOccurrenceMode: ${isPerOccurrenceMode}`,
+          `occurrences: ${eventOccurrences?.length || 0}`,
+          `sharedAssets: ${assetIds.length}`,
+          `perOccAssets: ${perOccurrenceAssets ? JSON.stringify(Object.fromEntries(Object.entries(perOccurrenceAssets).map(([k, v]) => [k, (v as string[]).length]))) : 'N/A'}`,
+        ]
+        // Also check: do any occurrence tags exist in the DB for this category?
+        const { data: allOccTags } = await supabase
+          .from('tags')
+          .select('id, name, is_active')
+          .eq('brand_id', brandId)
+          .eq('kind', 'occurrence')
+          .like('name', `${subcategory.name} :: %`)
+        debugLines.push(`occTags in DB: ${allOccTags?.length || 0} → ${allOccTags?.map((t: any) => `${t.name} (active=${t.is_active})`).join(', ') || 'none'}`)
+        setDebugInfo(debugLines.join(' | '))
+
         // Shape the data for the wizard
         const wizardData: WizardInitialData = {
           subcategory: {
@@ -244,6 +263,11 @@ export default function EditCategoryPage() {
 
   return (
     <RequireAuth>
+      {debugInfo && (
+        <div className="bg-yellow-50 border border-yellow-300 text-yellow-900 text-xs p-2 font-mono break-all">
+          DEBUG: {debugInfo}
+        </div>
+      )}
       <FrameworkItemWizard mode="edit" initialData={initialData} />
     </RequireAuth>
   )
