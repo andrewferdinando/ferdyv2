@@ -85,14 +85,21 @@ export default function EditCategoryPage() {
         let perOccurrenceAssets: Record<string, string[]> | undefined = undefined
         const isPerOccurrenceMode = subcategory.settings?.image_mode === 'per_occurrence'
 
+        console.log('[EditPage] Media load debug:', {
+          isPerOccurrenceMode,
+          imageMode: subcategory.settings?.image_mode,
+          occurrenceCount: eventOccurrences?.length,
+          settings: subcategory.settings
+        })
         if (isPerOccurrenceMode && eventOccurrences && eventOccurrences.length > 0) {
           // PER-OCCURRENCE MODE: fetch occurrence-specific tags
           perOccurrenceAssets = {}
           for (const occ of eventOccurrences) {
             const occName = occ.name?.trim()
-            if (!occName) continue
+            if (!occName) { console.log('[EditPage] Skipping occurrence with no name:', occ.id); continue }
 
             const occTagName = `${subcategory.name} :: ${occName}`
+            console.log(`[EditPage] Looking for tag: "${occTagName}"`)
             const { data: occTag } = await supabase
               .from('tags')
               .select('id')
@@ -103,6 +110,7 @@ export default function EditCategoryPage() {
               .maybeSingle()
 
             if (occTag) {
+              console.log(`[EditPage] Found tag for "${occName}": ${occTag.id}`)
               const { data: occAssetTags } = await supabase
                 .from('asset_tags')
                 .select('asset_id')
@@ -111,7 +119,10 @@ export default function EditCategoryPage() {
 
               if (occAssetTags) {
                 perOccurrenceAssets[occName] = occAssetTags.map((at: any) => at.asset_id)
+                console.log(`[EditPage] Assets for "${occName}":`, perOccurrenceAssets[occName])
               }
+            } else {
+              console.log(`[EditPage] No tag found for "${occTagName}"`)
             }
           }
         } else {
