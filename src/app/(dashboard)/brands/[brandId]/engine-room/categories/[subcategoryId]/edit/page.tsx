@@ -146,6 +146,7 @@ export default function EditCategoryPage() {
         if (eventOccurrences && eventOccurrences.length > 0) {
           wizardData.eventOccurrences = eventOccurrences.map(occ => ({
             id: occ.id,
+            name: occ.name,
             starts_at: occ.starts_at,
             end_at: occ.end_at,
             url: occ.url,

@@ -423,6 +423,7 @@ type WizardSchedule = {
 
 type EventOccurrenceInput = {
   id?: string
+  name?: string // Optional label e.g. "Round 1 - Blues v Chiefs"
   // Single date mode
   date?: string // 'YYYY-MM-DD'
   time?: string // 'HH:mm' or ''
@@ -469,6 +470,7 @@ export interface WizardInitialData {
   }
   eventOccurrences?: Array<{
     id: string
+    name?: string | null
     starts_at: string
     end_at?: string | null
     url?: string | null
@@ -687,6 +689,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             
             occurrences.push({
               id: occ.id,
+              name: occ.name || undefined,
               date: dateStr,
               time: timeStr,
               url: occ.url || undefined,
@@ -697,15 +700,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Range mode: extract start_date and end_date
             const startsAtDate = new Date(occ.starts_at)
             const startDateStr = startsAtDate.toISOString().split('T')[0] // YYYY-MM-DD
-            
+
             let endDateStr: string | undefined
             if (occ.end_at) {
               const endAtDate = new Date(occ.end_at)
               endDateStr = endAtDate.toISOString().split('T')[0] // YYYY-MM-DD
             }
-            
+
             occurrences.push({
               id: occ.id,
+              name: occ.name || undefined,
               start_date: startDateStr,
               end_date: endDateStr,
               url: occ.url || undefined,
@@ -1641,6 +1645,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
             occurrencesToInsert.push({
               subcategory_id: subcategoryId,
+              name: occurrence.name?.trim() || null,
               starts_at: startsAt,
               end_at: endAt,
               url: finalUrl,
@@ -2203,6 +2208,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             occurrencesToUpsert.push({
               id: occurrence.id,
               subcategory_id: subcategoryId,
+              name: occurrence.name?.trim() || null,
               starts_at: startsAt,
               end_at: endAt,
               url: finalUrl,
@@ -3213,7 +3219,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 >
                   <div className="flex items-start justify-between">
                     <h4 className="text-sm font-medium text-gray-900">
-                      {eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`}
+                      {occurrence.name?.trim()
+                        ? occurrence.name.trim()
+                        : (eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`)
+                      }
                       {isPast && <span className="ml-2 text-xs font-normal text-gray-400">(past)</span>}
                     </h4>
                     {!isPast && (
@@ -3232,6 +3241,20 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       </button>
                     )}
                   </div>
+
+                    <FormField label="Name (optional)">
+                      <Input
+                        type="text"
+                        value={occurrence.name || ''}
+                        disabled={isPast}
+                        onChange={(e) => {
+                          const updated = [...eventScheduling.occurrences]
+                          updated[index] = { ...updated[index], name: e.target.value }
+                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                        }}
+                        placeholder="e.g. Round 1 - Blues v Chiefs"
+                      />
+                    </FormField>
 
                     {eventOccurrenceType === 'single' ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3385,8 +3408,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               type="button"
               onClick={() => {
                 const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
-                  ? { date: '', time: '', url: '', notes: '' }
-                  : { start_date: '', end_date: '', url: '', notes: '' }
+                  ? { name: '', date: '', time: '', url: '', notes: '' }
+                  : { name: '', start_date: '', end_date: '', url: '', notes: '' }
                 const newIndex = eventScheduling.occurrences.length
                 setEventScheduling(prev => ({
                   ...prev,
