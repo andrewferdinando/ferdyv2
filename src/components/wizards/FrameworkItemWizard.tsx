@@ -2496,7 +2496,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Save image_mode setting — fetch fresh settings from DB to avoid overwriting the merge done above
       const isPerOccurrence = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
       const previousImageMode = initialData?.subcategory?.settings?.image_mode
-      console.warn('[Wizard] Asset save debug:', {
+      // Write debug info to localStorage for cross-navigation debugging
+      const _saveDebug: Record<string, unknown> = {
         eventImageMode,
         subcategoryType,
         occurrenceCount: eventScheduling.occurrences.length,
@@ -2504,8 +2505,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         previousImageMode,
         perOccurrenceAssetIds: JSON.parse(JSON.stringify(perOccurrenceAssetIds)),
         selectedAssetIds: [...selectedAssetIds],
-        occurrenceNames: eventScheduling.occurrences.map(o => (o.name || '').trim())
-      })
+        occurrenceNames: eventScheduling.occurrences.map(o => (o.name || '').trim()),
+        timestamp: new Date().toISOString()
+      }
+      try { localStorage.setItem('_wizardSaveDebug', JSON.stringify(_saveDebug)) } catch {}
+      console.warn('[Wizard] Asset save debug:', _saveDebug)
       if (isPerOccurrence !== (previousImageMode === 'per_occurrence')) {
         const { data: freshSubcat } = await supabase
           .from('subcategories')
@@ -2614,6 +2618,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           }
         }
 
+        // Update localStorage debug with tag creation results
+        try { localStorage.setItem('_wizardSaveDebug', JSON.stringify({ ..._saveDebug, tagCreationReached: true })) } catch {}
+
         // Also clear category-level tag assets (switching from shared to per-occurrence)
         const { data: subcategoryTag } = await supabase
           .from('tags')
@@ -2628,6 +2635,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
       } else {
         // SHARED MODE: existing behavior
+        try { localStorage.setItem('_wizardSaveDebug', JSON.stringify({ ..._saveDebug, enteredBlock: 'SHARED_MODE' })) } catch {}
         // If switching from per-occurrence to shared, clean up occurrence tags
         if (previousImageMode === 'per_occurrence') {
           const categoryName = details.name.trim()

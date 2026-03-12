@@ -264,8 +264,9 @@ export default function EditCategoryPage() {
   return (
     <RequireAuth>
       {debugInfo && (
-        <div className="bg-yellow-50 border border-yellow-300 text-yellow-900 text-xs p-2 font-mono break-all">
-          DEBUG: {debugInfo}
+        <div className="bg-yellow-50 border border-yellow-300 text-yellow-900 text-xs p-2 font-mono break-all space-y-1">
+          <div>LOAD: {debugInfo}</div>
+          <div>LAST SAVE: {typeof window !== 'undefined' ? (localStorage.getItem('_wizardSaveDebug') || 'no save debug found') : 'SSR'}</div>
         </div>
       )}
       <FrameworkItemWizard mode="edit" initialData={initialData} />
