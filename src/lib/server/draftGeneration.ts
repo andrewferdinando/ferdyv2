@@ -177,16 +177,18 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   const targetSubcategoryIds = [...new Set(targetsInWindow.map((t: any) => t.subcategory_id).filter(Boolean))];
   const subcategoryNameMap: Record<string, string> = {};
   const subcategorySettingsMap: Record<string, any> = {};
+  const subcategoryTypeMap: Record<string, string> = {};
   const incompleteSubcategoryIds = new Set<string>();
   if (targetSubcategoryIds.length > 0) {
     const { data: subcats } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, setup_complete, settings')
+      .select('id, name, setup_complete, settings, subcategory_type')
       .in('id', targetSubcategoryIds);
     if (subcats) {
       for (const sc of subcats) {
         subcategoryNameMap[sc.id] = sc.name;
         subcategorySettingsMap[sc.id] = sc.settings || {};
+        if (sc.subcategory_type) subcategoryTypeMap[sc.id] = sc.subcategory_type;
         if (sc.setup_complete === false) {
           incompleteSubcategoryIds.add(sc.id);
         }
@@ -273,6 +275,27 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         }
         const dateKey = new Date(occ.starts_at).toISOString().split('T')[0];
         occurrenceNamesByDate.get(occ.subcategory_id)!.set(dateKey, occ.name.trim());
+      }
+    }
+  }
+
+  // Pre-fetch event occurrence IDs for event_series subcategories
+  // Map: subcategory_id -> Map<date_string, occurrence_id>
+  const occurrenceIdsByDate = new Map<string, Map<string, string>>();
+  const eventSeriesTargetIds = targetSubcategoryIds.filter(id => subcategoryTypeMap[id] === 'event_series');
+  if (eventSeriesTargetIds.length > 0) {
+    const { data: occIdRows } = await supabaseAdmin
+      .from('event_occurrences')
+      .select('id, subcategory_id, starts_at')
+      .in('subcategory_id', eventSeriesTargetIds);
+    if (occIdRows) {
+      for (const occ of occIdRows) {
+        if (!occ.starts_at) continue;
+        if (!occurrenceIdsByDate.has(occ.subcategory_id)) {
+          occurrenceIdsByDate.set(occ.subcategory_id, new Map());
+        }
+        const dateKey = new Date(occ.starts_at).toISOString().split('T')[0];
+        occurrenceIdsByDate.get(occ.subcategory_id)!.set(dateKey, occ.id);
       }
     }
   }
@@ -561,7 +584,14 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
           publish_status: 'draft', // Always 'draft', never 'pending'
           approved: false, // User must approve before scheduling
           subcategory_id: target.subcategory_id,
-          asset_ids: assetId ? [assetId] : [] // May be empty - this is acceptable
+          asset_ids: assetId ? [assetId] : [], // May be empty - this is acceptable
+          // Link to event occurrence if this is an event_series draft
+          ...(subcategoryTypeMap[target.subcategory_id] === 'event_series' && scheduleRule.start_date ? {
+            event_occurrence_id: (() => {
+              const ruleDateKey = new Date(scheduleRule.start_date).toISOString().split('T')[0];
+              return occurrenceIdsByDate.get(target.subcategory_id)?.get(ruleDateKey) || null;
+            })()
+          } : {})
         })
         .select()
         .single();

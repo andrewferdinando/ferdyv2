@@ -252,6 +252,7 @@ interface DraftCardProps {
     // From drafts_with_labels view
     category_name?: string;
     subcategory_name?: string;
+    event_occurrence_name?: string;
     post_jobs?: {
       id: string;
       scheduled_at: string;
@@ -302,6 +303,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
       ? 'Manually created'
       : draft.category_name || 'Uncategorized';
   const subcategoryName = draft.subcategory_name;
+  const occurrenceName = draft.event_occurrence_name;
 
   // Check if content exceeds 2 lines
   useEffect(() => {
@@ -1032,6 +1034,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
               <PostContextBar
                 categoryName={categoryName}
                 subcategoryName={subcategoryName}
+                occurrenceName={occurrenceName}
                 frequency={frequency}
                 brandTimezone={brand.timezone}
                 scheduledFor={draft.scheduled_for || draft.post_jobs?.scheduled_at}

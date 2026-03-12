@@ -77,6 +77,7 @@ interface Draft {
   // From drafts_with_labels view
   category_name?: string;
   subcategory_name?: string;
+  event_occurrence_name?: string;
   post_jobs: {
     id: string;
     scheduled_at: string;

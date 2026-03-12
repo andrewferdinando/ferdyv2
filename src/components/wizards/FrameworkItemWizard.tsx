@@ -1736,7 +1736,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // Create schedule rule if needed (based on type + frequency rules) - for non-Events
       // ALWAYS create a schedule_rule for all subcategory types if frequency is set
-      const shouldCreateRule = !!schedule.frequency
+      const shouldCreateRule = subcategoryType !== 'event_series' && !!schedule.frequency
 
       if (shouldCreateRule && schedule.frequency) {
         // Normalize channels before saving to schedule_rules
@@ -3673,7 +3673,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               updated[index] = { ...updated[index], notes: e.target.value }
                               setEventScheduling(prev => ({ ...prev, occurrences: updated }))
                             }}
-                            placeholder="e.g. opponent, venue, ticket link, key details..."
+                            placeholder="Add event details here (opponent, venue, pricing, time, etc.) — especially important if the URL is a ticketing site where info can't be auto-extracted"
                             rows={2}
                           />
                         </FormField>

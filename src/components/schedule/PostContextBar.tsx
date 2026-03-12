@@ -21,6 +21,7 @@ export type FrequencyInput =
 export interface PostContextBarProps {
   categoryName?: string; // Optional - no longer displayed, kept for backward compatibility
   subcategoryName?: string;
+  occurrenceName?: string;
   frequency?: FrequencyInput;
   brandTimezone: string;
   scheduledFor?: string;
@@ -192,13 +193,14 @@ function formatFrequency(
     }
 
     case "offsetDate": {
-      const { offsetDays } = frequency;
+      const { offsetDays, anchorDate } = frequency;
+      const anchorStr = anchorDate ? ` ${formatDateInTimezone(anchorDate, brandTimezone)}` : '';
       if (offsetDays < 0) {
-        return `${Math.abs(offsetDays)} ${Math.abs(offsetDays) === 1 ? 'day' : 'days'} before`;
+        return `${Math.abs(offsetDays)} ${Math.abs(offsetDays) === 1 ? 'day' : 'days'} before${anchorStr}`;
       } else if (offsetDays > 0) {
-        return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} after`;
+        return `${offsetDays} ${offsetDays === 1 ? 'day' : 'days'} after${anchorStr}`;
       } else {
-        return "On the day";
+        return anchorDate ? `On ${formatDateInTimezone(anchorDate, brandTimezone)}` : "On the day";
       }
     }
 
@@ -211,24 +213,29 @@ function formatFrequency(
         const scheduledDateStr = new Date(scheduledFor).toLocaleDateString('en-CA', { timeZone: brandTimezone });
         const startDateStr = new Date(eventWindow.start).toLocaleDateString('en-CA', { timeZone: brandTimezone });
         const endDateStr = new Date(eventWindow.end).toLocaleDateString('en-CA', { timeZone: brandTimezone });
-        
+
         // Parse as dates for comparison (year, month, day only)
         const [sy, sm, sd] = scheduledDateStr.split('-').map(Number);
         const [sty, stm, std] = startDateStr.split('-').map(Number);
         const [edy, edm, edd] = endDateStr.split('-').map(Number);
-        
+
         const scheduledDay = new Date(sy, sm - 1, sd);
         const startDay = new Date(sty, stm - 1, std);
         const endDay = new Date(edy, edm - 1, edd);
-        
+
+        const eventStartFormatted = formatDateInTimezone(eventWindow.start, brandTimezone);
+        const eventEndFormatted = formatDateInTimezone(eventWindow.end, brandTimezone);
+        const isSingleDay = startDateStr === endDateStr;
+        const eventDateStr = isSingleDay ? eventStartFormatted : `${eventStartFormatted}`;
+
         if (scheduledDay < startDay) {
           // Before window - calculate days before
           const daysBefore = diffDays(scheduledFor, eventWindow.start, brandTimezone);
-          return `${daysBefore} ${daysBefore === 1 ? 'day' : 'days'} before`;
+          return `${daysBefore} ${daysBefore === 1 ? 'day' : 'days'} before ${eventDateStr}`;
         } else if (scheduledDay > endDay) {
           // After window - calculate days after
           const daysAfter = diffDays(eventWindow.end, scheduledFor, brandTimezone);
-          return `${daysAfter} ${daysAfter === 1 ? 'day' : 'days'} after`;
+          return `${daysAfter} ${daysAfter === 1 ? 'day' : 'days'} after ${isSingleDay ? eventDateStr : eventEndFormatted}`;
         } else {
           // Inside window - calculate which day of the range this is (1-based)
           // For example, if range is Dec 20-25 and post is Dec 22, it's day 3 of 6
@@ -259,6 +266,7 @@ function formatFrequency(
 export default function PostContextBar({
   categoryName,
   subcategoryName,
+  occurrenceName,
   frequency,
   brandTimezone,
   scheduledFor,
@@ -276,10 +284,10 @@ export default function PostContextBar({
         {/* Subcategory Pill */}
         {subcategoryName && (
           <span
-            className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full truncate max-w-[200px]"
-            title={subcategoryName}
+            className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full truncate max-w-[280px]"
+            title={occurrenceName ? `${subcategoryName} :: ${occurrenceName}` : subcategoryName}
           >
-            {subcategoryName}
+            {occurrenceName ? `${subcategoryName} :: ${occurrenceName}` : subcategoryName}
           </span>
         )}
 
