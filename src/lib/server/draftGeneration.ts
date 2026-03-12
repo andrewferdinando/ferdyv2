@@ -768,7 +768,7 @@ async function triggerCopyGeneration(
     if (eventSeriesSubcategoryIds.length > 0) {
       const { data: eventOccurrences } = await supabaseAdmin
         .from('event_occurrences')
-        .select('id, subcategory_id, starts_at, url, summary')
+        .select('id, subcategory_id, starts_at, url, summary, notes')
         .in('subcategory_id', eventSeriesSubcategoryIds);
       
       if (eventOccurrences) {
@@ -828,7 +828,7 @@ async function triggerCopyGeneration(
 
         // Build schedule object
         const isEvent = frequencyType === 'date' || frequencyType === 'date_range';
-        let schedule: { frequency: string; event_date?: string; start_date?: string; end_date?: string } = {
+        let schedule: { frequency: string; event_date?: string; start_date?: string; end_date?: string; days_until_event?: number } = {
           frequency: rule?.frequency ?? "weekly",
         };
 
@@ -841,11 +841,13 @@ async function triggerCopyGeneration(
           }
         }
 
-        // For event_series with frequency='specific', try to match draft to event_occurrence
-        // This allows us to use occurrence-specific URLs and summaries
+        // For event_series with frequency='specific', match draft to its event_occurrence
+        // Each schedule_rule now maps 1:1 to an occurrence (matched by rule.start_date)
         let occurrenceUrl: string | null = null;
         let occurrenceSummary: string | null = null;
-        
+        let occurrenceNotes: string | null = null;
+        let occurrenceStartsAt: string | null = null;
+
         if (
           subcategory?.subcategory_type === 'event_series' &&
           rule?.frequency === 'specific' &&
@@ -854,34 +856,61 @@ async function triggerCopyGeneration(
         ) {
           const occurrences = eventOccurrencesBySubcategory.get(d.subcategory_id) || [];
           if (occurrences.length > 0) {
-            // Match draft.scheduled_for to event_occurrence.starts_at
-            // Find the occurrence where starts_at is closest to scheduled_for
-            const draftScheduledAt = new Date(d.scheduled_for).getTime();
             let bestMatch: any = null;
-            let smallestDiff = Infinity;
-            
-            for (const occ of occurrences) {
-              if (occ.starts_at) {
-                const occStartsAt = new Date(occ.starts_at).getTime();
-                const diff = Math.abs(draftScheduledAt - occStartsAt);
-                // Match if within 24 hours (to account for time-of-day differences)
-                if (diff < 24 * 60 * 60 * 1000 && diff < smallestDiff) {
-                  smallestDiff = diff;
-                  bestMatch = occ;
+
+            // Primary match: by rule.start_date (1:1 mapping since each rule = one occurrence)
+            if (rule?.start_date) {
+              const ruleDate = new Date(rule.start_date).toISOString().split('T')[0];
+              bestMatch = occurrences.find((occ: any) => {
+                if (!occ.starts_at) return false;
+                const occDate = new Date(occ.starts_at).toISOString().split('T')[0];
+                return occDate === ruleDate;
+              }) || null;
+            }
+
+            // Fallback: proximity match for legacy data (drafts created before multi-rule fix)
+            if (!bestMatch) {
+              const draftScheduledAt = new Date(d.scheduled_for).getTime();
+              let smallestDiff = Infinity;
+              for (const occ of occurrences) {
+                if (occ.starts_at) {
+                  const occStartsAt = new Date(occ.starts_at).getTime();
+                  const diff = Math.abs(draftScheduledAt - occStartsAt);
+                  if (diff < smallestDiff) {
+                    smallestDiff = diff;
+                    bestMatch = occ;
+                  }
                 }
               }
             }
-            
+
             if (bestMatch) {
-              // Use occurrence URL if available
               if (bestMatch.url && bestMatch.url.trim().length > 0) {
                 occurrenceUrl = bestMatch.url.trim();
               }
-              // Use occurrence summary if available (it's stored as JSON string)
               if (bestMatch.summary && bestMatch.summary.trim().length > 0) {
                 occurrenceSummary = bestMatch.summary.trim();
               }
+              if (bestMatch.notes && bestMatch.notes.trim().length > 0) {
+                occurrenceNotes = bestMatch.notes.trim();
+              }
+              if (bestMatch.starts_at) {
+                occurrenceStartsAt = bestMatch.starts_at;
+              }
             }
+          }
+        }
+
+        // Override event_date with the matched occurrence date (more accurate than rule.start_date for legacy data)
+        if (occurrenceStartsAt) {
+          const occDate = new Date(occurrenceStartsAt).toISOString().split('T')[0];
+          schedule.event_date = occDate;
+          // Compute days_until_event from draft's scheduled_for to occurrence starts_at
+          if (d.scheduled_for) {
+            const draftDate = new Date(d.scheduled_for);
+            const eventDate = new Date(occurrenceStartsAt);
+            const diffMs = eventDate.getTime() - draftDate.getTime();
+            schedule.days_until_event = Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
           }
         }
 
@@ -912,6 +941,7 @@ async function triggerCopyGeneration(
           subcategory_settings: subcategory?.settings ?? null,
           schedule,
           scheduledFor: d.scheduled_for ?? undefined,
+          occurrenceNotes: occurrenceNotes ?? undefined,
           prompt: `Write copy for this post`,
           options: {
             hashtags: { mode: "auto" as const },

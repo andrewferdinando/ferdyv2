@@ -1495,7 +1495,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         })
       }
 
-      // Handle Events: Create schedule rule with frequency='specific' and days_before
+      // Handle Events: Create one schedule_rules row PER occurrence + event_occurrences rows
       if (subcategoryType === 'event_series') {
         // Normalize channels before saving to schedule_rules
         // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
@@ -1508,198 +1508,139 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           ? details.channels.map(normalizeChannelForSave)
           : null;
 
-        // Upsert schedule rule for Events - ALWAYS ensure exactly one rule per subcategory
-        const eventRuleData: Record<string, unknown> = {
+        // Delete any existing rules for this subcategory (clean slate for create mode)
+        await supabase
+          .from('schedule_rules')
+          .delete()
+          .eq('subcategory_id', subcategoryId)
+          .eq('brand_id', brandId)
+
+        // Shared fields for all schedule_rules rows
+        const sharedRuleFields: Record<string, unknown> = {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
-          days_during: eventOccurrenceType === 'range' ? null : null, // Can be set in future, but null for now
-          channels: normalizedEventChannels, // Use normalized channels - this is the single source of truth
+          channels: normalizedEventChannels,
           is_active: true,
           tone: null,
           hashtag_rule: null,
           image_tag_rule: null,
-          // Set default timezone (will be overridden if occurrences exist)
           timezone: brand?.timezone || 'Pacific/Auckland'
         }
 
-        // Extract date and time from first occurrence for event_series with frequency='specific'
-        // Note: occurrences should always exist due to validation, but we handle empty case defensively
-        const times: string[] = []
-        if (eventScheduling.occurrences.length > 0) {
-          const firstOccurrence = eventScheduling.occurrences[0]
-          
-          // For single occurrence mode, set start_date and end_date
-          if (eventOccurrenceType === 'single' && firstOccurrence.date) {
-            // Set start_date and end_date to the same date (YYYY-MM-DD)
-            eventRuleData.start_date = firstOccurrence.date.trim()
-            eventRuleData.end_date = firstOccurrence.date.trim()
-            
-            // Extract time if available
-            if (firstOccurrence.time && firstOccurrence.time.trim()) {
-              times.push(firstOccurrence.time.trim())
-            }
-          }
-          
-          // Handle date range mode
-          if (eventOccurrenceType === 'range' && firstOccurrence.start_date && firstOccurrence.end_date) {
-            eventRuleData.start_date = firstOccurrence.start_date.trim()
-            eventRuleData.end_date = firstOccurrence.end_date.trim()
-            
-            // Use schedule.timeOfDay as the time source for ranges
-            if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-              times.push(schedule.timeOfDay.trim())
-            }
-          }
-          
-          // Set timezone (use brand timezone or default to Pacific/Auckland)
-          eventRuleData.timezone = brand?.timezone || 'Pacific/Auckland'
-        }
+        // Create one schedule_rules row per occurrence AND one event_occurrences row per occurrence
+        const rulesToInsert: Record<string, unknown>[] = []
+        const occurrencesToInsert: Record<string, unknown>[] = []
 
-        // Set time fields using helper (single time uses time_of_day, multiple uses times_of_day)
-        setTimeFields(eventRuleData, times.length > 0 ? times : null)
-
-        // Ensure constraint satisfaction: Either (start_date + time_of_day/times_of_day) OR (days_before OR days_during)
-        // If we have start_date and time, constraint is satisfied
-        // Otherwise, ensure days_before is set to satisfy the constraint
-        const hasStartDateAndTime = eventRuleData.start_date && 
-          ((eventRuleData.time_of_day && Array.isArray(eventRuleData.time_of_day) && eventRuleData.time_of_day.length > 0) ||
-           (eventRuleData.times_of_day && Array.isArray(eventRuleData.times_of_day) && eventRuleData.times_of_day.length > 0))
-        
-        if (!hasStartDateAndTime) {
-          // Constraint not satisfied by start_date + times_of_day, so use days_before
-          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
-            ? eventScheduling.daysBefore 
-            : [0] // Fallback to [0] to satisfy constraint
-        } else {
-          // Constraint satisfied by start_date + times_of_day, but still set days_before if available
-          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
-            ? eventScheduling.daysBefore 
-            : null
-        }
-
-        // Set days_during only for valid date ranges
-        eventRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
-          ? eventScheduling.daysDuring
-          : null
-
-        // Check for existing rule to avoid duplicates
-        const { data: existingEventRule } = await supabase
-          .from('schedule_rules')
-          .select('id')
-          .eq('subcategory_id', subcategoryId)
-          .eq('brand_id', brandId)
-          .maybeSingle()
-
-        if (existingEventRule) {
-          const { error: eventRuleUpdateError } = await supabase
-            .from('schedule_rules')
-            .update(eventRuleData)
-            .eq('id', existingEventRule.id)
-
-          if (eventRuleUpdateError) {
-            console.error('[Wizard] Schedule rule update error for Events:', eventRuleUpdateError)
-            throw new Error(`Failed to update schedule rule: ${eventRuleUpdateError.message}`)
-          }
-
-        } else {
-          const { error: eventRuleInsertError } = await supabase
-            .from('schedule_rules')
-            .insert(eventRuleData)
-
-          if (eventRuleInsertError) {
-            console.error('[Wizard] Schedule rule insert error for Events:', eventRuleInsertError)
-            throw new Error(`Failed to create schedule rule: ${eventRuleInsertError.message}`)
-          }
-
-        }
-
-        // Verify the created schedule_rule has start_date and time populated
-        if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
-          const { data: createdRule, error: verifyError } = await supabase
-            .from('schedule_rules')
-            .select('start_date, end_date, time_of_day, times_of_day, timezone')
-            .eq('subcategory_id', subcategoryId)
-            .eq('is_active', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-
-          if (!verifyError && createdRule) {
-            const hasTime = (createdRule.time_of_day && Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0) ||
-                            (createdRule.times_of_day && Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0)
-            if (!createdRule.start_date || !hasTime) {
-              console.error('[Wizard] âš ï¸ Schedule rule verification failed: start_date or time is missing')
-            }
-          }
-        }
-
-        // Create event_occurrences for each occurrence
-        const occurrencesToInsert = await Promise.all(
+        await Promise.all(
           eventScheduling.occurrences.map(async (occurrence) => {
+            // --- Build schedule_rules row for this occurrence ---
+            const ruleData = { ...sharedRuleFields }
+            const times: string[] = []
+
+            if (eventOccurrenceType === 'single' && occurrence.date) {
+              ruleData.start_date = occurrence.date.trim()
+              ruleData.end_date = occurrence.date.trim()
+              if (occurrence.time?.trim()) {
+                times.push(occurrence.time.trim())
+              }
+            } else if (eventOccurrenceType === 'range' && occurrence.start_date && occurrence.end_date) {
+              ruleData.start_date = occurrence.start_date.trim()
+              ruleData.end_date = occurrence.end_date.trim()
+              if (schedule.timeOfDay?.trim()) {
+                times.push(schedule.timeOfDay.trim())
+              }
+            }
+
+            setTimeFields(ruleData, times.length > 0 ? times : null)
+
+            // Constraint satisfaction: need (start_date + time) OR (days_before OR days_during)
+            const ruleHasTime = ruleData.start_date &&
+              ((ruleData.time_of_day && Array.isArray(ruleData.time_of_day) && ruleData.time_of_day.length > 0) ||
+               (ruleData.times_of_day && Array.isArray(ruleData.times_of_day) && ruleData.times_of_day.length > 0))
+
+            if (!ruleHasTime) {
+              ruleData.days_before = eventScheduling.daysBefore.length > 0
+                ? eventScheduling.daysBefore
+                : [0]
+            } else {
+              ruleData.days_before = eventScheduling.daysBefore.length > 0
+                ? eventScheduling.daysBefore
+                : null
+            }
+
+            const isRange = eventOccurrenceType === 'range' && occurrence.start_date && occurrence.end_date &&
+              occurrence.start_date.trim() !== occurrence.end_date.trim()
+            ruleData.days_during = isRange && eventScheduling.daysDuring.length > 0
+              ? eventScheduling.daysDuring
+              : null
+
+            rulesToInsert.push(ruleData)
+
+            // --- Build event_occurrences row for this occurrence ---
             let startsAt: string
             let endAt: string | null = null
-            
+
             if (eventOccurrenceType === 'single') {
-              // Single mode: date + time into starts_at, end_at = null
               const dateStr = occurrence.date!.trim()
-              const timeStr = occurrence.time!.trim() // Required, validated
-              const dateTimeStr = `${dateStr}T${timeStr}:00`
-              startsAt = new Date(dateTimeStr).toISOString()
-              // end_at remains null for single dates
+              const timeStr = occurrence.time!.trim()
+              startsAt = new Date(`${dateStr}T${timeStr}:00`).toISOString()
             } else {
-              // Range mode: start_date at 00:00, end_date at 23:59
               const startDateStr = occurrence.start_date!.trim()
               const endDateStr = occurrence.end_date!.trim()
-              
-              // Start at 00:00 local time
-              const startDateTimeStr = `${startDateStr}T00:00:00`
-              startsAt = new Date(startDateTimeStr).toISOString()
-              
-              // End at 23:59:59 local time
-              const endDateTimeStr = `${endDateStr}T23:59:59`
-              endAt = new Date(endDateTimeStr).toISOString()
+              startsAt = new Date(`${startDateStr}T00:00:00`).toISOString()
+              endAt = new Date(`${endDateStr}T23:59:59`).toISOString()
             }
 
-            // Determine URL: use occurrence URL if provided, else fallback to category URL
             const finalUrl = occurrence.url?.trim() || details.url.trim() || null
 
-            // Extract URL summary if URL exists
-            // We'll fetch summaries in parallel but don't block on failures
             let summary: any = null
             if (finalUrl) {
               try {
                 const summaryResponse = await fetch(`/api/extract-url-summary?url=${encodeURIComponent(finalUrl)}`)
                 if (summaryResponse.ok) {
-                  const summaryData = await summaryResponse.json()
-                  summary = summaryData
+                  summary = await summaryResponse.json()
                 }
               } catch (err) {
                 console.error('[Wizard] Error extracting URL summary for occurrence:', err)
-                // Continue without summary if extraction fails
               }
             }
 
-            return {
+            occurrencesToInsert.push({
               subcategory_id: subcategoryId,
               starts_at: startsAt,
               end_at: endAt,
               url: finalUrl,
               notes: occurrence.notes?.trim() || null,
               summary: summary ? JSON.stringify(summary) : null
-            }
+            })
           })
         )
 
-        const { error: occurrencesError } = await supabase
-          .from('event_occurrences')
-          .insert(occurrencesToInsert)
+        // Insert all schedule_rules rows (one per occurrence)
+        if (rulesToInsert.length > 0) {
+          const { error: rulesError } = await supabase
+            .from('schedule_rules')
+            .insert(rulesToInsert)
 
-        if (occurrencesError) {
-          console.error('[Wizard] Event occurrences insert error:', occurrencesError)
-          throw new Error(`Failed to create event occurrences: ${occurrencesError.message}`)
+          if (rulesError) {
+            console.error('[Wizard] Schedule rules insert error for Events:', rulesError)
+            throw new Error(`Failed to create schedule rules: ${rulesError.message}`)
+          }
+        }
+
+        // Insert all event_occurrences rows
+        if (occurrencesToInsert.length > 0) {
+          const { error: occurrencesError } = await supabase
+            .from('event_occurrences')
+            .insert(occurrencesToInsert)
+
+          if (occurrencesError) {
+            console.error('[Wizard] Event occurrences insert error:', occurrencesError)
+            throw new Error(`Failed to create event occurrences: ${occurrencesError.message}`)
+          }
         }
       }
 
@@ -2083,148 +2024,40 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // 2. Upsert schedule_rules
       if (subcategoryType === 'event_series') {
-        // Events: upsert schedule rule with frequency='specific' and days_before
-        const eventRuleData: Record<string, unknown> = {
+        // Events: create one schedule_rules row PER occurrence + upsert event_occurrences
+        // Normalize channels for event rules
+        const normalizeChannelForSave = (ch: string): string => {
+          if (ch === 'instagram') return 'instagram_feed';
+          if (ch === 'linkedin') return 'linkedin_profile';
+          return ch;
+        };
+        const normalizedEventChannels = details.channels.length > 0
+          ? details.channels.map(normalizeChannelForSave)
+          : null;
+
+        // Shared fields for all schedule_rules rows
+        const sharedRuleFields: Record<string, unknown> = {
           brand_id: brandId,
           subcategory_id: subcategoryId,
           category_id: null,
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
-          days_during: null,
-          channels: details.channels.length > 0 ? details.channels : null,
+          channels: normalizedEventChannels,
           is_active: true,
           tone: null,
           hashtag_rule: null,
           image_tag_rule: null,
-          // Set default timezone first
           timezone: brand?.timezone || 'Pacific/Auckland'
         }
 
-        // Extract date and time from first occurrence for event_series with frequency='specific'
-        // Note: occurrences should always exist due to validation, but we handle empty case defensively
-        const times: string[] = []
-        if (eventScheduling.occurrences.length > 0) {
-          const firstOccurrence = eventScheduling.occurrences[0]
-          
-          // For single occurrence mode, set start_date and end_date
-          if (eventOccurrenceType === 'single' && firstOccurrence.date) {
-            // Set start_date and end_date to the same date (YYYY-MM-DD)
-            eventRuleData.start_date = firstOccurrence.date.trim()
-            eventRuleData.end_date = firstOccurrence.date.trim()
-            
-            // Extract time if available
-            if (firstOccurrence.time && firstOccurrence.time.trim()) {
-              times.push(firstOccurrence.time.trim())
-            }
-          }
-          
-          // Handle date range mode
-          if (eventOccurrenceType === 'range' && firstOccurrence.start_date && firstOccurrence.end_date) {
-            eventRuleData.start_date = firstOccurrence.start_date.trim()
-            eventRuleData.end_date = firstOccurrence.end_date.trim()
-            
-            // Use schedule.timeOfDay as the time source for ranges
-            if (schedule.timeOfDay && schedule.timeOfDay.trim()) {
-              times.push(schedule.timeOfDay.trim())
-            }
-          }
-        }
-
-        // Set time fields using helper (single time uses time_of_day, multiple uses times_of_day)
-        setTimeFields(eventRuleData, times.length > 0 ? times : null)
-
-        // Ensure constraint satisfaction: Either (start_date + time_of_day/times_of_day) OR (days_before OR days_during)
-        // If we have start_date and time, constraint is satisfied
-        // Otherwise, ensure days_before is set to satisfy the constraint
-        const hasStartDateAndTime = eventRuleData.start_date && 
-          ((eventRuleData.time_of_day && Array.isArray(eventRuleData.time_of_day) && eventRuleData.time_of_day.length > 0) ||
-           (eventRuleData.times_of_day && Array.isArray(eventRuleData.times_of_day) && eventRuleData.times_of_day.length > 0))
-        
-        if (!hasStartDateAndTime) {
-          // Constraint not satisfied by start_date + times_of_day, so use days_before
-          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
-            ? eventScheduling.daysBefore 
-            : [0] // Fallback to [0] to satisfy constraint
-        } else {
-          // Constraint satisfied by start_date + times_of_day, but still set days_before if available
-          eventRuleData.days_before = eventScheduling.daysBefore.length > 0 
-            ? eventScheduling.daysBefore 
-            : null
-        }
-
-        // Set days_during only for valid date ranges
-        eventRuleData.days_during = hasDateRangeSelection && eventScheduling.daysDuring.length > 0
-          ? eventScheduling.daysDuring
-          : null
-
-        // Check if schedule rule exists
-        const { data: existingRule } = await supabase
+        // Load existing schedule rules and occurrences for reconciliation
+        const { data: existingEventRules } = await supabase
           .from('schedule_rules')
           .select('id')
           .eq('subcategory_id', subcategoryId)
-          .eq('is_active', true)
-          .maybeSingle()
+          .eq('brand_id', brandId)
+          .eq('frequency', 'specific')
 
-        if (existingRule) {
-          // Update existing rule
-          const { error: updateError } = await supabase
-            .from('schedule_rules')
-            .update(eventRuleData)
-            .eq('id', existingRule.id)
-
-          if (updateError) {
-            console.error('[Wizard] Schedule rule update error for Events:', updateError)
-            throw new Error(`Failed to update schedule rule: ${updateError.message}`)
-          }
-          // Verify the updated schedule_rule has start_date and time populated
-          if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
-            const { data: updatedRule, error: verifyError } = await supabase
-              .from('schedule_rules')
-              .select('start_date, end_date, time_of_day, times_of_day, timezone')
-              .eq('id', existingRule.id)
-              .single()
-
-            if (!verifyError && updatedRule) {
-              const hasTime = (updatedRule.time_of_day && Array.isArray(updatedRule.time_of_day) && updatedRule.time_of_day.length > 0) ||
-                              (updatedRule.times_of_day && Array.isArray(updatedRule.times_of_day) && updatedRule.times_of_day.length > 0)
-              if (!updatedRule.start_date || !hasTime) {
-                console.error('[Wizard] âš ï¸ Schedule rule verification failed: start_date or time is missing')
-              }
-            }
-          }
-        } else {
-          // Insert new rule
-          const { error: insertError } = await supabase
-            .from('schedule_rules')
-            .insert(eventRuleData)
-
-          if (insertError) {
-            console.error('[Wizard] Schedule rule insert error for Events:', insertError)
-            throw new Error(`Failed to create schedule rule: ${insertError.message}`)
-          }
-          // Verify the created schedule_rule has start_date and time populated
-          if (eventOccurrenceType === 'single' && eventScheduling.occurrences.length > 0) {
-            const { data: createdRule, error: verifyError } = await supabase
-              .from('schedule_rules')
-              .select('start_date, end_date, time_of_day, times_of_day, timezone')
-              .eq('subcategory_id', subcategoryId)
-              .eq('is_active', true)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single()
-
-            if (!verifyError && createdRule) {
-              const hasTime = (createdRule.time_of_day && Array.isArray(createdRule.time_of_day) && createdRule.time_of_day.length > 0) ||
-                              (createdRule.times_of_day && Array.isArray(createdRule.times_of_day) && createdRule.times_of_day.length > 0)
-              if (!createdRule.start_date || !hasTime) {
-                console.error('[Wizard] âš ï¸ Schedule rule verification failed: start_date or time is missing')
-              }
-            }
-          }
-        }
-
-        // 3. Upsert event_occurrences
-        // Load existing occurrences to compare
         const { data: existingOccurrences } = await supabase
           .from('event_occurrences')
           .select('id')
@@ -2232,24 +2065,83 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         const existingOccurrenceIds = new Set(existingOccurrences?.map((occ: any) => occ.id) || [])
 
-        // Build desired occurrences from wizard state
-        const occurrencesToUpsert = await Promise.all(
+        // Delete all existing schedule rules for this event subcategory
+        // (we recreate one per occurrence below)
+        if (existingEventRules && existingEventRules.length > 0) {
+          const { error: deleteRulesError } = await supabase
+            .from('schedule_rules')
+            .delete()
+            .eq('subcategory_id', subcategoryId)
+            .eq('brand_id', brandId)
+            .eq('frequency', 'specific')
+
+          if (deleteRulesError) {
+            console.error('[Wizard] Error deleting old event schedule rules:', deleteRulesError)
+            throw new Error(`Failed to delete old schedule rules: ${deleteRulesError.message}`)
+          }
+        }
+
+        // Build new schedule_rules and event_occurrences from wizard state
+        const rulesToInsert: Record<string, unknown>[] = []
+        const occurrencesToUpsert: Array<Record<string, unknown> & { _wizardId?: string }> = []
+
+        await Promise.all(
           eventScheduling.occurrences.map(async (occurrence) => {
+            // --- Build schedule_rules row for this occurrence ---
+            const ruleData = { ...sharedRuleFields }
+            const times: string[] = []
+
+            if (eventOccurrenceType === 'single' && occurrence.date) {
+              ruleData.start_date = occurrence.date.trim()
+              ruleData.end_date = occurrence.date.trim()
+              if (occurrence.time?.trim()) {
+                times.push(occurrence.time.trim())
+              }
+            } else if (eventOccurrenceType === 'range' && occurrence.start_date && occurrence.end_date) {
+              ruleData.start_date = occurrence.start_date.trim()
+              ruleData.end_date = occurrence.end_date.trim()
+              if (schedule.timeOfDay?.trim()) {
+                times.push(schedule.timeOfDay.trim())
+              }
+            }
+
+            setTimeFields(ruleData, times.length > 0 ? times : null)
+
+            const ruleHasTime = ruleData.start_date &&
+              ((ruleData.time_of_day && Array.isArray(ruleData.time_of_day) && ruleData.time_of_day.length > 0) ||
+               (ruleData.times_of_day && Array.isArray(ruleData.times_of_day) && ruleData.times_of_day.length > 0))
+
+            if (!ruleHasTime) {
+              ruleData.days_before = eventScheduling.daysBefore.length > 0
+                ? eventScheduling.daysBefore
+                : [0]
+            } else {
+              ruleData.days_before = eventScheduling.daysBefore.length > 0
+                ? eventScheduling.daysBefore
+                : null
+            }
+
+            const isRange = eventOccurrenceType === 'range' && occurrence.start_date && occurrence.end_date &&
+              occurrence.start_date.trim() !== occurrence.end_date.trim()
+            ruleData.days_during = isRange && eventScheduling.daysDuring.length > 0
+              ? eventScheduling.daysDuring
+              : null
+
+            rulesToInsert.push(ruleData)
+
+            // --- Build event_occurrences row for this occurrence ---
             let startsAt: string
             let endAt: string | null = null
-            
+
             if (eventOccurrenceType === 'single') {
               const dateStr = occurrence.date!.trim()
               const timeStr = occurrence.time!.trim()
-              const dateTimeStr = `${dateStr}T${timeStr}:00`
-              startsAt = new Date(dateTimeStr).toISOString()
+              startsAt = new Date(`${dateStr}T${timeStr}:00`).toISOString()
             } else {
               const startDateStr = occurrence.start_date!.trim()
               const endDateStr = occurrence.end_date!.trim()
-              const startDateTimeStr = `${startDateStr}T00:00:00`
-              startsAt = new Date(startDateTimeStr).toISOString()
-              const endDateTimeStr = `${endDateStr}T23:59:59`
-              endAt = new Date(endDateTimeStr).toISOString()
+              startsAt = new Date(`${startDateStr}T00:00:00`).toISOString()
+              endAt = new Date(`${endDateStr}T23:59:59`).toISOString()
             }
 
             const finalUrl = occurrence.url?.trim() || details.url.trim() || null
@@ -2257,42 +2149,49 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Handle summary: keep existing if available, otherwise extract for new occurrences
             let summary: any = null
             if (occurrence.summary) {
-              // Keep existing summary if available (already parsed in edit mode initialization)
               summary = occurrence.summary
             } else if (finalUrl && !occurrence.id) {
-              // Extract summary only for new occurrences (not updating existing ones)
               try {
                 const summaryResponse = await fetch(`/api/extract-url-summary?url=${encodeURIComponent(finalUrl)}`)
                 if (summaryResponse.ok) {
-                  const summaryData = await summaryResponse.json()
-                  summary = summaryData
+                  summary = await summaryResponse.json()
                 }
               } catch (err) {
                 console.error('[Wizard] Error extracting URL summary for occurrence:', err)
-                // Continue without summary if extraction fails
               }
             }
 
-            return {
-              id: occurrence.id, // May be undefined for new occurrences
+            occurrencesToUpsert.push({
+              id: occurrence.id,
               subcategory_id: subcategoryId,
               starts_at: startsAt,
               end_at: endAt,
               url: finalUrl,
               notes: occurrence.notes?.trim() || null,
               summary: summary ? JSON.stringify(summary) : null
-            }
+            })
           })
         )
 
-        // Process each occurrence
+        // Insert all schedule_rules rows (one per occurrence)
+        if (rulesToInsert.length > 0) {
+          const { error: rulesError } = await supabase
+            .from('schedule_rules')
+            .insert(rulesToInsert)
+
+          if (rulesError) {
+            console.error('[Wizard] Schedule rules insert error for Events:', rulesError)
+            throw new Error(`Failed to create schedule rules: ${rulesError.message}`)
+          }
+        }
+
+        // Upsert event_occurrences (update existing, insert new, delete removed)
         for (const occurrence of occurrencesToUpsert) {
-          if (occurrence.id && existingOccurrenceIds.has(occurrence.id)) {
-            // Update existing occurrence
-            const { id, ...updateData } = occurrence
+          const { id, ...data } = occurrence
+          if (id && existingOccurrenceIds.has(id as string)) {
             const { error: updateError } = await supabase
               .from('event_occurrences')
-              .update(updateData)
+              .update(data)
               .eq('id', id)
 
             if (updateError) {
@@ -2300,11 +2199,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               throw new Error(`Failed to update event occurrence: ${updateError.message}`)
             }
           } else {
-            // Insert new occurrence
-            const { id, ...insertData } = occurrence
             const { error: insertError } = await supabase
               .from('event_occurrences')
-              .insert(insertData)
+              .insert(data)
 
             if (insertError) {
               console.error('[Wizard] Error inserting event occurrence:', insertError)

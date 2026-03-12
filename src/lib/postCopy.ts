@@ -57,6 +57,7 @@ export type PostCopyPayload = {
   variation_index?: number; // 0-based index for this post when multiple posts exist for same subcategory
   variation_total?: number; // Total number of posts for this subcategory (used with variation_index)
   previous_copies?: string[]; // Last 2-3 generated copies for this subcategory (used to avoid repetition)
+  occurrenceNotes?: string; // Notes from the matched event occurrence (user-provided context for this specific date)
 };
 
 // Helper functions
@@ -911,6 +912,10 @@ ${isEvent && eventTiming ? `### EVENT TIMING
 
 ${eventTiming}
 
+` : ""}${payload.occurrenceNotes ? `### ADDITIONAL CONTEXT FOR THIS EVENT
+
+${payload.occurrenceNotes}
+
 ` : ""}### POST OBJECTIVE
 
 ${payload.prompt}
@@ -920,7 +925,8 @@ ${payload.prompt}
 - Use ONLY details from:
   - the subcategory description, and
   - the extracted URL summary (if provided), and
-  - EVENT TIMING (if provided for date/date_range).
+  - EVENT TIMING (if provided for date/date_range), and
+  - ADDITIONAL CONTEXT FOR THIS EVENT (if provided).
 - Never use the scheduled post date in the copy.
 - Never reference another brand or subcategory.
 - Do not invent extra facilities, capacities, or features.

@@ -33,8 +33,10 @@ export type DraftCopyInput = {
   schedule?: {
     frequency: string;
     event_date?: string;
+    days_until_event?: number;
   };
   scheduledFor?: string; // UTC timestamp when the post is scheduled
+  occurrenceNotes?: string; // Notes from the matched event occurrence
   prompt: string;
   options?: {
     tone_override?: string;
@@ -434,6 +436,7 @@ export async function processBatchCopyGeneration(
         variation_index: variationIndex, // 0-based index within subcategory
         variation_total: variationTotal, // Total drafts for this subcategory
         previous_copies: previousCopies.length > 0 ? previousCopies : undefined,
+        occurrenceNotes: draft.occurrenceNotes,
       };
 
       // Log payload before calling generatePostCopyFromContext (for debugging)
