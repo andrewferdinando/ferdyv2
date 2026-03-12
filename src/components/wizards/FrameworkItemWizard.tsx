@@ -1191,12 +1191,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Helper to check if an occurrence date is in the past
   const isOccurrencePast = React.useCallback((occurrence: EventOccurrenceInput): boolean => {
+    // Only consider complete dates (4-digit year) — while the user is typing
+    // a year like "2026", partial values like "0002" should not be treated as past
+    const isCompleteDate = (d: string) => /^\d{4}-/.test(d) && parseInt(d.slice(0, 4), 10) >= 1900
     if (eventOccurrenceType === 'single') {
-      if (!occurrence.date) return false
+      if (!occurrence.date || !isCompleteDate(occurrence.date)) return false
       return occurrence.date < todayDateStr
     } else {
       const endDate = occurrence.end_date || occurrence.start_date
-      if (!endDate) return false
+      if (!endDate || !isCompleteDate(endDate)) return false
       return endDate < todayDateStr
     }
   }, [eventOccurrenceType, todayDateStr])
@@ -4163,7 +4166,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           <div className="mb-4 flex flex-wrap gap-2">
             {eventScheduling.occurrences.map((occ, idx) => {
               const occDate = eventOccurrenceType === 'single' ? occ.date : occ.start_date
-              const isPast = occDate ? occDate < todayDateStr : false
+              const isPast = occDate && /^\d{4}-/.test(occDate) && parseInt(occDate.slice(0, 4), 10) >= 1900 ? occDate < todayDateStr : false
               const occAssetCount = (perOccurrenceAssetIds[idx] || []).length
               const isActive = activeOccurrenceIndex === idx
               return (
