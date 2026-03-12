@@ -1145,6 +1145,24 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
   }
 
+  // Today's date string for min date validation on occurrence inputs
+  const todayDateStr = React.useMemo(() => {
+    const now = new Date()
+    return now.toISOString().split('T')[0]
+  }, [])
+
+  // Helper to check if an occurrence date is in the past
+  const isOccurrencePast = React.useCallback((occurrence: EventOccurrenceInput): boolean => {
+    if (eventOccurrenceType === 'single') {
+      if (!occurrence.date) return false
+      return occurrence.date < todayDateStr
+    } else {
+      const endDate = occurrence.end_date || occurrence.start_date
+      if (!endDate) return false
+      return endDate < todayDateStr
+    }
+  }, [eventOccurrenceType, todayDateStr])
+
   const hasDateRangeSelection = React.useMemo(() => {
     if (eventOccurrenceType !== 'range') return false
     return eventScheduling.occurrences.some(occ => {
@@ -1198,15 +1216,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       
       // Validate based on occurrence type
       if (eventOccurrenceType === 'single') {
-        // Single mode: date + time required (no days_before fallback)
-        return eventScheduling.occurrences.every(
-          occ => occ.date && occ.date.trim().length > 0 && occ.time && occ.time.trim().length > 0
-        )
+        // Single mode: date + time required, new occurrences must not be in the past
+        return eventScheduling.occurrences.every(occ => {
+          if (!occ.date || !occ.date.trim() || !occ.time || !occ.time.trim()) return false
+          // Allow past dates only for existing occurrences (already in DB)
+          if (!occ.id && occ.date < todayDateStr) return false
+          return true
+        })
       } else {
-        // Range mode: start_date + end_date required, plus a time (from schedule.timeOfDay)
-        const hasValidDates = eventScheduling.occurrences.every(
-          occ => occ.start_date && occ.start_date.trim().length > 0 && occ.end_date && occ.end_date.trim().length > 0
-        )
+        // Range mode: start_date + end_date required, plus a time, new occurrences must not be in the past
+        const hasValidDates = eventScheduling.occurrences.every(occ => {
+          if (!occ.start_date || !occ.start_date.trim() || !occ.end_date || !occ.end_date.trim()) return false
+          // Allow past dates only for existing occurrences (already in DB)
+          if (!occ.id && occ.end_date < todayDateStr) return false
+          return true
+        })
         const hasTime = schedule.timeOfDay && schedule.timeOfDay.trim().length > 0
         return hasValidDates && !!hasTime
       }
@@ -1383,20 +1407,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             if (eventOccurrenceType === 'single') {
               const missingDates = eventScheduling.occurrences.filter(occ => !occ.date || !occ.date.trim())
               const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
+              const pastDates = eventScheduling.occurrences.filter(occ => !occ.id && occ.date && occ.date < todayDateStr)
               if (missingDates.length > 0) {
                 newErrors.occurrences = 'All dates must have a date.'
               } else if (missingTimes.length > 0) {
                 newErrors.occurrences = 'All dates must have a time.'
+              } else if (pastDates.length > 0) {
+                newErrors.occurrences = 'Event dates cannot be in the past.'
               }
             } else {
               // Range mode
               const missingStartDates = eventScheduling.occurrences.filter(occ => !occ.start_date || !occ.start_date.trim())
               const missingEndDates = eventScheduling.occurrences.filter(occ => !occ.end_date || !occ.end_date.trim())
+              const pastDates = eventScheduling.occurrences.filter(occ => !occ.id && occ.end_date && occ.end_date < todayDateStr)
               const missingTime = !schedule.timeOfDay || !schedule.timeOfDay.trim()
               if (missingStartDates.length > 0) {
                 newErrors.occurrences = 'All date ranges must have a start date.'
               } else if (missingEndDates.length > 0) {
                 newErrors.occurrences = 'All date ranges must have an end date.'
+              } else if (pastDates.length > 0) {
+                newErrors.occurrences = 'Event dates cannot be in the past.'
               } else if (missingTime) {
                 newErrors.timeOfDay = 'Please select a time for the range.'
               }
@@ -1907,18 +1937,24 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             if (eventOccurrenceType === 'single') {
               const missingDates = eventScheduling.occurrences.filter(occ => !occ.date || !occ.date.trim())
               const missingTimes = eventScheduling.occurrences.filter(occ => !occ.time || !occ.time.trim())
+              const pastDates = eventScheduling.occurrences.filter(occ => !occ.id && occ.date && occ.date < todayDateStr)
               if (missingDates.length > 0) {
                 newErrors.occurrences = 'All occurrences must have a date.'
               } else if (missingTimes.length > 0) {
                 newErrors.occurrences = 'All occurrences must have a time.'
+              } else if (pastDates.length > 0) {
+                newErrors.occurrences = 'Event dates cannot be in the past.'
               }
             } else {
               const missingStartDates = eventScheduling.occurrences.filter(occ => !occ.start_date || !occ.start_date.trim())
               const missingEndDates = eventScheduling.occurrences.filter(occ => !occ.end_date || !occ.end_date.trim())
+              const pastDates = eventScheduling.occurrences.filter(occ => !occ.id && occ.end_date && occ.end_date < todayDateStr)
               if (missingStartDates.length > 0) {
                 newErrors.occurrences = 'All occurrences must have a start date.'
               } else if (missingEndDates.length > 0) {
                 newErrors.occurrences = 'All occurrences must have an end date.'
+              } else if (pastDates.length > 0) {
+                newErrors.occurrences = 'Event dates cannot be in the past.'
               }
             }
           }
@@ -3138,30 +3174,49 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               Add each event with its own URL and details. For example, a sports team could add one entry per match day.
             </p>
 
-            {eventScheduling.occurrences.length === 0 ? (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center mb-4">
-                <p className="text-sm text-gray-600">
-                  No dates added yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {eventScheduling.occurrences.map((occurrence, index) => (
-                  <div
-                    key={occurrence.id || index}
-                    ref={(el) => {
-                      if (el) {
-                        occurrenceRefs.current.set(index, el)
-                      } else {
-                        occurrenceRefs.current.delete(index)
-                      }
-                    }}
-                    className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <h4 className="text-sm font-medium text-gray-900">
-                        {eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`}
-                      </h4>
+            {(() => {
+              // Split occurrences into upcoming and past
+              const upcomingIndices: number[] = []
+              const pastIndices: number[] = []
+              eventScheduling.occurrences.forEach((occ, idx) => {
+                if (isOccurrencePast(occ)) {
+                  pastIndices.push(idx)
+                } else {
+                  upcomingIndices.push(idx)
+                }
+              })
+
+              if (eventScheduling.occurrences.length === 0) {
+                return (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center mb-4">
+                    <p className="text-sm text-gray-600">
+                      No dates added yet.
+                    </p>
+                  </div>
+                )
+              }
+
+              const renderOccurrenceCard = (occurrence: EventOccurrenceInput, index: number, isPast: boolean) => (
+                <div
+                  key={occurrence.id || index}
+                  ref={(el) => {
+                    if (el) {
+                      occurrenceRefs.current.set(index, el)
+                    } else {
+                      occurrenceRefs.current.delete(index)
+                    }
+                  }}
+                  className={isPast
+                    ? "bg-gray-100 border border-gray-200 rounded-lg p-3 space-y-3 opacity-60"
+                    : "bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3"
+                  }
+                >
+                  <div className="flex items-start justify-between">
+                    <h4 className="text-sm font-medium text-gray-900">
+                      {eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`}
+                      {isPast && <span className="ml-2 text-xs font-normal text-gray-400">(past)</span>}
+                    </h4>
+                    {!isPast && (
                       <button
                         type="button"
                         onClick={() => {
@@ -3175,7 +3230,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       >
                         <XMarkIcon className="w-5 h-5" />
                       </button>
-                    </div>
+                    )}
+                  </div>
 
                     {eventOccurrenceType === 'single' ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3183,6 +3239,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           <Input
                             type="date"
                             value={occurrence.date || ''}
+                            min={!isPast ? todayDateStr : undefined}
+                            disabled={isPast}
                             onChange={(e) => {
                               const updated = [...eventScheduling.occurrences]
                               updated[index] = { ...updated[index], date: e.target.value }
@@ -3198,6 +3256,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           <Input
                             type="time"
                             value={occurrence.time || ''}
+                            disabled={isPast}
                             onChange={(e) => {
                               const updated = [...eventScheduling.occurrences]
                               updated[index] = { ...updated[index], time: e.target.value }
@@ -3216,6 +3275,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           <Input
                             type="date"
                             value={occurrence.start_date || ''}
+                            min={!isPast ? todayDateStr : undefined}
+                            disabled={isPast}
                             onChange={(e) => {
                               const updated = [...eventScheduling.occurrences]
                               updated[index] = { ...updated[index], start_date: e.target.value }
@@ -3231,6 +3292,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           <Input
                             type="date"
                             value={occurrence.end_date || ''}
+                            min={!isPast ? todayDateStr : undefined}
+                            disabled={isPast}
                             onChange={(e) => {
                               const updated = [...eventScheduling.occurrences]
                               updated[index] = { ...updated[index], end_date: e.target.value }
@@ -3249,6 +3312,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       <Input
                         type="url"
                         value={occurrence.url || ''}
+                        disabled={isPast}
                         onChange={(e) => {
                           const updated = [...eventScheduling.occurrences]
                           updated[index] = { ...updated[index], url: e.target.value }
@@ -3261,6 +3325,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     <FormField label="Notes (optional)">
                       <Textarea
                         value={occurrence.notes || ''}
+                        disabled={isPast}
                         onChange={(e) => {
                           const updated = [...eventScheduling.occurrences]
                           updated[index] = { ...updated[index], notes: e.target.value }
@@ -3291,9 +3356,30 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                )
+
+              return (
+                <>
+                  {/* Upcoming occurrences */}
+                  <div className="max-h-[500px] overflow-y-auto space-y-4 pr-1">
+                    {upcomingIndices.map(idx => renderOccurrenceCard(eventScheduling.occurrences[idx], idx, false))}
+                  </div>
+
+                  {/* Past occurrences - collapsed by default */}
+                  {pastIndices.length > 0 && (
+                    <details className="mt-4">
+                      <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 py-2">
+                        <ChevronRightIcon className="w-4 h-4 transition-transform details-open:rotate-90" />
+                        Past events ({pastIndices.length})
+                      </summary>
+                      <div className="mt-2 space-y-3">
+                        {pastIndices.map(idx => renderOccurrenceCard(eventScheduling.occurrences[idx], idx, true))}
+                      </div>
+                    </details>
+                  )}
+                </>
+              )
+            })()}
 
             <button
               type="button"
