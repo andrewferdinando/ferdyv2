@@ -4183,11 +4183,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     </button>
                     <button
                       onClick={handleFinish}
-                      disabled={isSaving}
+                      disabled={isSaving || selectedAssetIds.length === 0}
                       className={`
                         inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
                         ${
-                          !isSaving
+                          !isSaving && selectedAssetIds.length > 0
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }
@@ -4195,6 +4195,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     >
                       {initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save & update drafts'}
                     </button>
+                    {selectedAssetIds.length === 0 && !isSaving && (
+                      <p className="text-xs text-amber-600 mt-1 text-right">Add at least one image to save</p>
+                    )}
                   </div>
                 </>
               )}
@@ -4349,11 +4352,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   ) : (
                     <button
                       onClick={handleFinish}
-                      disabled={isSaving}
+                      disabled={isSaving || selectedAssetIds.length === 0}
                       className={`
                         inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
                         ${
-                          !isSaving
+                          !isSaving && selectedAssetIds.length > 0
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }
@@ -4371,6 +4374,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         </>
                       )}
                     </button>
+                  )}
+                  {currentStep === 4 && selectedAssetIds.length === 0 && !isSaving && (
+                    <p className="text-xs text-amber-600 mt-1">Add at least one image to generate drafts</p>
                   )}
                 </div>
               </div>
