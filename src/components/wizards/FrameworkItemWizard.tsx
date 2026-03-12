@@ -1927,6 +1927,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
   // Helper function to update subcategory in edit mode
   const ensureSubcategoryUpdated = async (): Promise<boolean> => {
+    console.warn('[Wizard] ensureSubcategoryUpdated called, subcategoryId:', savedSubcategoryId)
     if (!savedSubcategoryId) {
       showToast({
         title: 'Error',
@@ -2495,7 +2496,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Save image_mode setting — fetch fresh settings from DB to avoid overwriting the merge done above
       const isPerOccurrence = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
       const previousImageMode = initialData?.subcategory?.settings?.image_mode
-      console.log('[Wizard] Asset save debug:', {
+      console.warn('[Wizard] Asset save debug:', {
         eventImageMode,
         subcategoryType,
         occurrenceCount: eventScheduling.occurrences.length,
@@ -2551,8 +2552,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           const occ = eventScheduling.occurrences[idx]
           const occAssets = perOccurrenceAssetIds[idx] || []
           const occName = (occ.name || '').trim()
-          console.log(`[Wizard] Processing occurrence ${idx}: name="${occName}", assets=${occAssets.length}`, occAssets)
-          if (!occName) { console.log(`[Wizard] Skipping occurrence ${idx}: no name`); continue }
+          console.warn(`[Wizard] Processing occurrence ${idx}: name="${occName}", assets=${occAssets.length}`, occAssets)
+          if (!occName) { console.warn(`[Wizard] Skipping occurrence ${idx}: no name`); continue }
 
           const occTagName = `${categoryName} :: ${occName}`
 
@@ -2597,7 +2598,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             }
           }
 
-          console.log(`[Wizard] Tag resolution for "${occTagName}": tagId=${occTagId}`)
+          console.warn(`[Wizard] Tag resolution for "${occTagName}": tagId=${occTagId}`)
           if (occTagId) {
             const { error: deleteErr } = await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
             if (deleteErr) console.error(`[Wizard] Error clearing asset_tags for tag ${occTagId}:`, deleteErr)
@@ -2823,6 +2824,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
     // In edit mode, update existing records
     if (mode === 'edit') {
+      console.warn('[Wizard] handleFinish EDIT mode triggered')
       setEditSaveStep('saving')
       setIsSaving(true)
       try {
