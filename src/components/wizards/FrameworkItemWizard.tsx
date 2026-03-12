@@ -2546,6 +2546,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           const occTagName = `${categoryName} :: ${occName}`
 
           let occTagId: string | null = null
+
+          // First try to find an active tag
           const { data: existingOccTag } = await supabase
             .from('tags')
             .select('id')
@@ -2558,23 +2560,43 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (existingOccTag) {
             occTagId = existingOccTag.id
           } else {
-            const { data: newOccTag } = await supabase
+            // Check for an inactive tag with the same name and reactivate it
+            const { data: inactiveTag } = await supabase
               .from('tags')
-              .insert({ brand_id: brandId, name: occTagName, kind: 'occurrence', is_active: true })
               .select('id')
-              .single()
-            if (newOccTag) occTagId = newOccTag.id
+              .eq('brand_id', brandId)
+              .eq('name', occTagName)
+              .eq('kind', 'occurrence')
+              .eq('is_active', false)
+              .maybeSingle()
+
+            if (inactiveTag) {
+              await supabase.from('tags').update({ is_active: true }).eq('id', inactiveTag.id)
+              occTagId = inactiveTag.id
+            } else {
+              const { data: newOccTag, error: tagCreateErr } = await supabase
+                .from('tags')
+                .insert({ brand_id: brandId, name: occTagName, kind: 'occurrence', is_active: true })
+                .select('id')
+                .single()
+              if (tagCreateErr) {
+                console.error(`[Wizard] Error creating occurrence tag "${occTagName}":`, tagCreateErr)
+              }
+              if (newOccTag) occTagId = newOccTag.id
+            }
           }
 
           if (occTagId) {
-            await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
+            const { error: deleteErr } = await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
+            if (deleteErr) console.error(`[Wizard] Error clearing asset_tags for tag ${occTagId}:`, deleteErr)
             if (occAssets.length > 0) {
               const inserts = occAssets.map((assetId, position) => ({
                 asset_id: assetId,
                 tag_id: occTagId!,
                 position
               }))
-              await supabase.from('asset_tags').insert(inserts)
+              const { error: insertErr } = await supabase.from('asset_tags').insert(inserts)
+              if (insertErr) console.error(`[Wizard] Error linking assets to occurrence tag "${occTagName}":`, insertErr)
             }
           }
         }
@@ -2923,17 +2945,33 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (existingOccTag) {
             occTagId = existingOccTag.id
           } else {
-            const { data: newOccTag } = await supabase
+            // Check for inactive tag and reactivate
+            const { data: inactiveTag } = await supabase
               .from('tags')
-              .insert({
-                brand_id: brandId,
-                name: occTagName,
-                kind: 'occurrence',
-                is_active: true
-              })
               .select('id')
-              .single()
-            if (newOccTag) occTagId = newOccTag.id
+              .eq('brand_id', brandId)
+              .eq('name', occTagName)
+              .eq('kind', 'occurrence')
+              .eq('is_active', false)
+              .maybeSingle()
+
+            if (inactiveTag) {
+              await supabase.from('tags').update({ is_active: true }).eq('id', inactiveTag.id)
+              occTagId = inactiveTag.id
+            } else {
+              const { data: newOccTag, error: tagCreateErr } = await supabase
+                .from('tags')
+                .insert({
+                  brand_id: brandId,
+                  name: occTagName,
+                  kind: 'occurrence',
+                  is_active: true
+                })
+                .select('id')
+                .single()
+              if (tagCreateErr) console.error(`[Wizard] Error creating occurrence tag "${occTagName}":`, tagCreateErr)
+              if (newOccTag) occTagId = newOccTag.id
+            }
           }
 
           if (occTagId) {
@@ -3393,9 +3431,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         <div className="space-y-6">
           {/* Occurrences List */}
           <div>
-            <h3 className="text-base font-semibold text-gray-900 mb-2">
-              Event dates
-            </h3>
             <p className="text-sm text-gray-600 mb-4">
               Add each event with its own URL and details. For example, a sports team could add one entry per match day.
             </p>
@@ -3665,7 +3700,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   }
                 }, 100)
               }}
-              className="px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
+              className="mt-4 px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
             >
               {eventOccurrenceType === 'single' ? '+ Add event' : '+ Add range'}
             </button>
