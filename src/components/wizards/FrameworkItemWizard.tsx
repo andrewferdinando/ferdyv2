@@ -1508,10 +1508,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           ? details.channels.map(normalizeChannelForSave)
           : null;
 
-        // Delete any existing rules for this subcategory (clean slate for create mode)
+        // Deactivate any existing rules for this subcategory (clean slate for create mode)
+        // Use soft-delete in case post_jobs reference them via FK
         await supabase
           .from('schedule_rules')
-          .delete()
+          .update({ is_active: false })
           .eq('subcategory_id', subcategoryId)
           .eq('brand_id', brandId)
 
@@ -2065,19 +2066,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
         const existingOccurrenceIds = new Set(existingOccurrences?.map((occ: any) => occ.id) || [])
 
-        // Delete all existing schedule rules for this event subcategory
+        // Deactivate all existing schedule rules for this event subcategory
         // (we recreate one per occurrence below)
+        // We use soft-delete (is_active=false) rather than hard delete because
+        // existing post_jobs may reference these rules via schedule_rule_id FK.
         if (existingEventRules && existingEventRules.length > 0) {
-          const { error: deleteRulesError } = await supabase
+          const { error: deactivateRulesError } = await supabase
             .from('schedule_rules')
-            .delete()
+            .update({ is_active: false })
             .eq('subcategory_id', subcategoryId)
             .eq('brand_id', brandId)
             .eq('frequency', 'specific')
 
-          if (deleteRulesError) {
-            console.error('[Wizard] Error deleting old event schedule rules:', deleteRulesError)
-            throw new Error(`Failed to delete old schedule rules: ${deleteRulesError.message}`)
+          if (deactivateRulesError) {
+            console.error('[Wizard] Error deactivating old event schedule rules:', deactivateRulesError)
+            throw new Error(`Failed to deactivate old schedule rules: ${deactivateRulesError.message}`)
           }
         }
 
