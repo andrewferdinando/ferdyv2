@@ -477,7 +477,8 @@ export interface WizardInitialData {
     notes?: string | null
     summary?: any
   }>
-  assets?: string[] // Asset IDs
+  assets?: string[] // Asset IDs (shared mode)
+  perOccurrenceAssets?: Record<string, string[]> // occurrence name → asset IDs (per-occurrence mode)
   eventOccurrenceType?: 'single' | 'range'
   setup_complete?: boolean
 }
@@ -879,6 +880,29 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(
     mode === 'edit' && initialData?.assets ? initialData.assets : []
   )
+  // Per-occurrence media mode (only for event_series with multiple occurrences)
+  const [eventImageMode, setEventImageMode] = useState<'shared' | 'per_occurrence'>(() => {
+    if (mode === 'edit' && initialData?.subcategory?.settings?.image_mode === 'per_occurrence') {
+      return 'per_occurrence'
+    }
+    return 'shared'
+  })
+  // Per-occurrence asset selection (keyed by occurrence index)
+  const [perOccurrenceAssetIds, setPerOccurrenceAssetIds] = useState<Record<number, string[]>>(() => {
+    if (mode === 'edit' && initialData?.perOccurrenceAssets && initialData?.eventOccurrences) {
+      const result: Record<number, string[]> = {}
+      initialData.eventOccurrences.forEach((occ, idx) => {
+        const name = occ.name || ''
+        if (name && initialData.perOccurrenceAssets?.[name]) {
+          result[idx] = initialData.perOccurrenceAssets[name]
+        }
+      })
+      return result
+    }
+    return {}
+  })
+  // Which occurrence is currently being managed in per-occurrence mode
+  const [activeOccurrenceIndex, setActiveOccurrenceIndex] = useState(0)
   const [imageMode, setImageMode] = useState<'upload' | 'existing'>(() => {
     // Always default to 'upload' mode
     return 'upload'
@@ -1299,10 +1323,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [schedule.frequency, schedule.daysOfWeek, schedule.timeOfDay, eventScheduling.occurrences.length])
 
   const imagesSummary = React.useMemo(() => {
+    const isPerOcc = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
+    if (isPerOcc) {
+      const totalCount = Object.values(perOccurrenceAssetIds).reduce((sum, ids) => sum + ids.length, 0)
+      const occCount = Object.values(perOccurrenceAssetIds).filter(ids => ids.length > 0).length
+      if (totalCount === 0) return 'No images selected (per-event)'
+      return `${totalCount} images across ${occCount} events`
+    }
     const count = selectedAssetIds.length
     if (count === 0) return 'No images selected'
     return count === 1 ? '1 image selected' : `${count} images selected`
-  }, [selectedAssetIds.length])
+  }, [selectedAssetIds.length, eventImageMode, subcategoryType, eventScheduling.occurrences.length, perOccurrenceAssetIds])
 
   // Helper function to build subcategory settings based on type
   const buildSubcategorySettings = (
@@ -2451,74 +2482,184 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
 
       // 4. Update asset associations
-      // Find the subcategory's tag
-      const { data: subcategoryTag } = await supabase
-        .from('tags')
-        .select('id')
-        .eq('brand_id', brandId)
-        .eq('name', details.name.trim())
-        .eq('kind', 'subcategory')
-        .eq('is_active', true)
-        .maybeSingle()
+      // Save image_mode setting
+      const currentSettings = initialData?.subcategory?.settings || {}
+      const isPerOccurrence = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
+      if (isPerOccurrence !== (currentSettings.image_mode === 'per_occurrence')) {
+        const newSettings = { ...currentSettings, image_mode: isPerOccurrence ? 'per_occurrence' : 'shared' }
+        await supabase.from('subcategories').update({ settings: newSettings }).eq('id', subcategoryId)
+      }
 
-      if (subcategoryTag) {
-        const tagId = subcategoryTag.id
+      if (isPerOccurrence) {
+        // PER-OCCURRENCE MODE: create/update occurrence-specific tags
+        const categoryName = details.name.trim()
 
-        // Delete all existing asset_tags for this tag, then re-insert with positions.
-        // This is simpler than diffing and ensures position order is always correct.
-        const { error: deleteError } = await supabase
-          .from('asset_tags')
-          .delete()
-          .eq('tag_id', tagId)
+        // Clean up old occurrence tags that no longer apply
+        const { data: oldOccTags } = await supabase
+          .from('tags')
+          .select('id, name')
+          .eq('brand_id', brandId)
+          .eq('kind', 'occurrence')
+          .eq('is_active', true)
+          .like('name', `${categoryName} :: %`)
 
-        if (deleteError) {
-          console.error('[Wizard] Error clearing asset associations:', deleteError)
-          throw new Error(`Failed to update image associations: ${deleteError.message}`)
+        // Build set of current occurrence tag names
+        const currentOccTagNames = new Set<string>()
+        for (let idx = 0; idx < eventScheduling.occurrences.length; idx++) {
+          const occName = (eventScheduling.occurrences[idx].name || '').trim()
+          if (occName) currentOccTagNames.add(`${categoryName} :: ${occName}`)
         }
 
-        if (selectedAssetIds.length > 0) {
-          const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
-            asset_id: assetId,
-            tag_id: tagId,
-            position: index
-          }))
-
-          const { error: insertError } = await supabase
-            .from('asset_tags')
-            .insert(assetTagInserts)
-
-          if (insertError) {
-            console.error('[Wizard] Error adding asset associations:', insertError)
-            throw new Error(`Failed to update image associations: ${insertError.message}`)
+        // Deactivate old occurrence tags that are no longer in the list
+        if (oldOccTags) {
+          for (const oldTag of oldOccTags) {
+            if (!currentOccTagNames.has(oldTag.name)) {
+              await supabase.from('asset_tags').delete().eq('tag_id', oldTag.id)
+              await supabase.from('tags').update({ is_active: false }).eq('id', oldTag.id)
+            }
           }
         }
 
-      } else {
-        // Tag doesn't exist - create it and link assets
-        const { data: newTag, error: createTagError } = await supabase
+        // Create/update tags for each occurrence
+        for (let idx = 0; idx < eventScheduling.occurrences.length; idx++) {
+          const occ = eventScheduling.occurrences[idx]
+          const occAssets = perOccurrenceAssetIds[idx] || []
+          const occName = (occ.name || '').trim()
+          if (!occName) continue
+
+          const occTagName = `${categoryName} :: ${occName}`
+
+          let occTagId: string | null = null
+          const { data: existingOccTag } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('name', occTagName)
+            .eq('kind', 'occurrence')
+            .eq('is_active', true)
+            .maybeSingle()
+
+          if (existingOccTag) {
+            occTagId = existingOccTag.id
+          } else {
+            const { data: newOccTag } = await supabase
+              .from('tags')
+              .insert({ brand_id: brandId, name: occTagName, kind: 'occurrence', is_active: true })
+              .select('id')
+              .single()
+            if (newOccTag) occTagId = newOccTag.id
+          }
+
+          if (occTagId) {
+            await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
+            if (occAssets.length > 0) {
+              const inserts = occAssets.map((assetId, position) => ({
+                asset_id: assetId,
+                tag_id: occTagId!,
+                position
+              }))
+              await supabase.from('asset_tags').insert(inserts)
+            }
+          }
+        }
+
+        // Also clear category-level tag assets (switching from shared to per-occurrence)
+        const { data: subcategoryTag } = await supabase
           .from('tags')
-          .insert({
-            brand_id: brandId,
-            name: details.name.trim(),
-            kind: 'subcategory',
-            is_active: true
-          })
-          .select()
-          .single()
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('name', categoryName)
+          .eq('kind', 'subcategory')
+          .eq('is_active', true)
+          .maybeSingle()
+        if (subcategoryTag) {
+          await supabase.from('asset_tags').delete().eq('tag_id', subcategoryTag.id)
+        }
+      } else {
+        // SHARED MODE: existing behavior
+        // If switching from per-occurrence to shared, clean up occurrence tags
+        if (currentSettings.image_mode === 'per_occurrence') {
+          const categoryName = details.name.trim()
+          const { data: occTags } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('kind', 'occurrence')
+            .eq('is_active', true)
+            .like('name', `${categoryName} :: %`)
+          if (occTags) {
+            for (const tag of occTags) {
+              await supabase.from('asset_tags').delete().eq('tag_id', tag.id)
+              await supabase.from('tags').update({ is_active: false }).eq('id', tag.id)
+            }
+          }
+        }
 
-        if (!createTagError && newTag && selectedAssetIds.length > 0) {
-          const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
-            asset_id: assetId,
-            tag_id: newTag.id,
-            position: index
-          }))
+        // Find the subcategory's tag
+        const { data: subcategoryTag } = await supabase
+          .from('tags')
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('name', details.name.trim())
+          .eq('kind', 'subcategory')
+          .eq('is_active', true)
+          .maybeSingle()
 
-          const { error: linkError } = await supabase
+        if (subcategoryTag) {
+          const tagId = subcategoryTag.id
+          const { error: deleteError } = await supabase
             .from('asset_tags')
-            .insert(assetTagInserts)
+            .delete()
+            .eq('tag_id', tagId)
 
-          if (linkError) {
-            // Don't throw - asset associations are optional
+          if (deleteError) {
+            console.error('[Wizard] Error clearing asset associations:', deleteError)
+            throw new Error(`Failed to update image associations: ${deleteError.message}`)
+          }
+
+          if (selectedAssetIds.length > 0) {
+            const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
+              asset_id: assetId,
+              tag_id: tagId,
+              position: index
+            }))
+
+            const { error: insertError } = await supabase
+              .from('asset_tags')
+              .insert(assetTagInserts)
+
+            if (insertError) {
+              console.error('[Wizard] Error adding asset associations:', insertError)
+              throw new Error(`Failed to update image associations: ${insertError.message}`)
+            }
+          }
+        } else {
+          // Tag doesn't exist - create it and link assets
+          const { data: newTag, error: createTagError } = await supabase
+            .from('tags')
+            .insert({
+              brand_id: brandId,
+              name: details.name.trim(),
+              kind: 'subcategory',
+              is_active: true
+            })
+            .select()
+            .single()
+
+          if (!createTagError && newTag && selectedAssetIds.length > 0) {
+            const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
+              asset_id: assetId,
+              tag_id: newTag.id,
+              position: index
+            }))
+
+            const { error: linkError } = await supabase
+              .from('asset_tags')
+              .insert(assetTagInserts)
+
+            if (linkError) {
+              // Don't throw - asset associations are optional
+            }
           }
         }
       }
@@ -2725,12 +2866,70 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     setIsSaving(true)
 
     try {
-      // Save images if any are selected
-      if (selectedAssetIds.length > 0) {
+      // Save image_mode setting if using per-occurrence
+      if (eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1) {
+        await supabase
+          .from('subcategories')
+          .update({ settings: { ...(initialData?.subcategory?.settings || {}), image_mode: 'per_occurrence' } })
+          .eq('id', subcategoryId)
+      }
+
+      // Save images - either shared or per-occurrence
+      if (eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1) {
+        // PER-OCCURRENCE MODE: create occurrence-specific tags and link assets
+        const categoryName = details.name.trim()
+        for (let idx = 0; idx < eventScheduling.occurrences.length; idx++) {
+          const occ = eventScheduling.occurrences[idx]
+          const occAssets = perOccurrenceAssetIds[idx] || []
+          const occName = (occ.name || '').trim()
+          if (!occName || occAssets.length === 0) continue
+
+          const occTagName = `${categoryName} :: ${occName}`
+
+          // Find or create the occurrence tag
+          let occTagId: string | null = null
+          const { data: existingOccTag } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('name', occTagName)
+            .eq('kind', 'occurrence')
+            .eq('is_active', true)
+            .maybeSingle()
+
+          if (existingOccTag) {
+            occTagId = existingOccTag.id
+          } else {
+            const { data: newOccTag } = await supabase
+              .from('tags')
+              .insert({
+                brand_id: brandId,
+                name: occTagName,
+                kind: 'occurrence',
+                is_active: true
+              })
+              .select('id')
+              .single()
+            if (newOccTag) occTagId = newOccTag.id
+          }
+
+          if (occTagId) {
+            // Clear existing and insert new
+            await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
+            const inserts = occAssets.map((assetId, position) => ({
+              asset_id: assetId,
+              tag_id: occTagId!,
+              position
+            }))
+            const { error: linkErr } = await supabase.from('asset_tags').insert(inserts)
+            if (linkErr) console.error(`[Wizard] Error linking assets to occurrence tag ${occName}:`, linkErr)
+          }
+        }
+      } else if (selectedAssetIds.length > 0) {
+        // SHARED MODE: existing behavior
         // Find the subcategory's tag (should exist due to triggers, but handle gracefully if not)
         let tagId: string | null = null
-        
-        // First, try to find the tag (it should have been created by the trigger)
+
         const { data: subcategoryTag, error: tagError } = await supabase
           .from('tags')
           .select('id')
@@ -2738,7 +2937,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           .eq('name', details.name.trim())
           .eq('kind', 'subcategory')
           .eq('is_active', true)
-          .maybeSingle() // Use maybeSingle instead of single to handle not found gracefully
+          .maybeSingle()
 
         if (subcategoryTag) {
           tagId = subcategoryTag.id
@@ -2763,7 +2962,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         if (tagId) {
-          // Defensive: delete any existing asset_tags for this tag, then insert with positions.
           const { error: clearError } = await supabase
             .from('asset_tags')
             .delete()
@@ -2771,7 +2969,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
           if (clearError) {
             console.error('[Wizard] Error clearing existing asset_tags:', clearError)
-            // Non-fatal for create mode, continue with insert
           }
 
           const assetTagInserts = selectedAssetIds.map((assetId, index) => ({
@@ -3773,6 +3970,26 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     </>
   )
 
+  // Helper: check if per-occurrence mode is relevant (event_series with >1 occurrence)
+  const showPerOccurrenceToggle = subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
+  // Helper: whether all occurrences in per-occurrence mode have names
+  const allOccurrencesNamed = eventScheduling.occurrences.every(occ => (occ.name || '').trim().length > 0)
+  // Helper: get asset IDs for the active context
+  const getActiveAssetIdsForOccurrence = (idx: number) => perOccurrenceAssetIds[idx] || []
+  const setActiveAssetIdsForOccurrence = (idx: number, ids: string[]) => {
+    setPerOccurrenceAssetIds(prev => ({ ...prev, [idx]: ids }))
+  }
+  // Helper: check if all non-past occurrences have media in per-occurrence mode
+  const allOccurrencesHaveMedia = eventScheduling.occurrences.every((occ, idx) => {
+    const occDate = eventOccurrenceType === 'single' ? occ.date : occ.start_date
+    if (occDate && occDate < todayDateStr) return true // past occurrences don't need media
+    return (perOccurrenceAssetIds[idx] || []).length > 0
+  })
+  // Overall media validation
+  const hasRequiredMedia = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
+    ? allOccurrencesHaveMedia
+    : selectedAssetIds.length > 0
+
   const renderImagesContent = () => (
     <>
       <div className="mb-4">
@@ -3781,239 +3998,482 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         </h3>
       </div>
 
-      {/* Mode Toggle - Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <div className="flex space-x-8">
-          <button
-            type="button"
-            onClick={() => setImageMode('upload')}
-            className={`
-              px-1 py-4 text-sm font-medium border-b-2 transition-colors
-              ${
-                imageMode === 'upload'
-                  ? 'border-[#6366F1] text-gray-900 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }
-            `}
-          >
-            Upload
-          </button>
-          <button
-            type="button"
-            onClick={() => setImageMode('existing')}
-            className={`
-              px-1 py-4 text-sm font-medium border-b-2 transition-colors
-              ${
-                imageMode === 'existing'
-                  ? 'border-[#6366F1] text-gray-900 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }
-            `}
-          >
-            From library
-          </button>
-        </div>
-      </div>
-
-      {/* Selected Media - Always visible */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium text-gray-900 mb-3">
-          Selected Media ({selectedAssetIds.length})
-        </h4>
-        <SortableAssetGrid
-          assets={resolvedAssets}
-          selectedIds={selectedAssetIds}
-          onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
-          onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
-          assetUsage={mode === 'edit' ? assetUsage : undefined}
-        />
-      </div>
-
-      {/* Upload Mode */}
-      {imageMode === 'upload' && (
-        <div className="space-y-4">
-          <AssetUploadMenu
-            brandId={brandId}
-            onUploadSuccess={async (assetIds) => {
-              setSelectedAssetIds(prev => [...prev, ...assetIds])
-              refetchAssets()
-
-              // Auto-tag uploaded assets with the category name
-              const categoryName = details.name.trim()
-              if (!categoryName || assetIds.length === 0) return
-
-              try {
-                // Find or create the tag for this category
-                let tagId: string | null = null
-                const { data: existingTag } = await supabase
-                  .from('tags')
-                  .select('id')
-                  .eq('brand_id', brandId)
-                  .eq('name', categoryName)
-                  .eq('kind', 'subcategory')
-                  .eq('is_active', true)
-                  .maybeSingle()
-
-                if (existingTag) {
-                  tagId = existingTag.id
-                } else {
-                  // Create the tag (this handles create mode where trigger hasn't fired yet)
-                  const { data: newTag } = await supabase
-                    .from('tags')
-                    .insert({
-                      brand_id: brandId,
-                      name: categoryName,
-                      kind: 'subcategory',
-                      is_active: true,
-                    })
-                    .select('id')
-                    .single()
-                  if (newTag) tagId = newTag.id
+      {/* Per-occurrence toggle - only for event_series with multiple occurrences */}
+      {showPerOccurrenceToggle && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm font-medium text-gray-900 mb-3">
+            Use the same images for all events?
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setEventImageMode('shared')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                eventImageMode === 'shared'
+                  ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Yes, same images
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!allOccurrencesNamed) {
+                  showToast({
+                    title: 'Names required',
+                    message: 'Please add a name to each occurrence in Step 3 before using per-event images.',
+                    type: 'error'
+                  })
+                  return
                 }
-
-                if (tagId) {
-                  // Get existing asset_tags count for position ordering
-                  const { count } = await supabase
-                    .from('asset_tags')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('tag_id', tagId)
-
-                  const startPosition = count ?? 0
-
-                  const assetTagInserts = assetIds.map((assetId, index) => ({
-                    asset_id: assetId,
-                    tag_id: tagId!,
-                    position: startPosition + index,
-                  }))
-
-                  const { error: insertError } = await supabase
-                    .from('asset_tags')
-                    .insert(assetTagInserts)
-
-                  if (insertError) {
-                    console.error('[Wizard] Error auto-tagging uploaded assets:', insertError)
-                  }
-                }
-              } catch (err) {
-                console.error('[Wizard] Error auto-tagging uploaded assets:', err)
-              }
-            }}
-            onUploadError={(error) => {
-              showToast({
-                title: 'Upload failed',
-                message: error,
-                type: 'error'
-              })
-            }}
-          />
+                setEventImageMode('per_occurrence')
+              }}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                eventImageMode === 'per_occurrence'
+                  ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              No, different images
+            </button>
+          </div>
+          {eventImageMode === 'per_occurrence' && (
+            <p className="text-xs text-gray-500 mt-2">
+              Each event occurrence will have its own set of images for round-robin rotation.
+            </p>
+          )}
         </div>
       )}
 
-      {/* Existing Images Mode */}
-      {imageMode === 'existing' && (
-        <div className="space-y-4">
-          {assetsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
-            </div>
-          ) : assets.length === 0 ? (
-            <p className="text-sm text-gray-500 py-8 text-center">
-              No media available yet. Upload some images or videos to get started.
-            </p>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {resolvedAssets.slice(0, libraryVisibleCount).map(asset => {
-                  const isSelected = selectedAssetIds.includes(asset.id)
-                  const isVideo = asset.asset_type === 'video'
-                  const thumbUrl = asset.thumbnail_signed_url || asset.signed_url
-                  return (
+      {/* ===== PER-OCCURRENCE MODE ===== */}
+      {eventImageMode === 'per_occurrence' && showPerOccurrenceToggle ? (
+        <>
+          {/* Occurrence selector tabs */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {eventScheduling.occurrences.map((occ, idx) => {
+              const occDate = eventOccurrenceType === 'single' ? occ.date : occ.start_date
+              const isPast = occDate ? occDate < todayDateStr : false
+              if (isPast) return null
+              const occAssetCount = (perOccurrenceAssetIds[idx] || []).length
+              const isActive = activeOccurrenceIndex === idx
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActiveOccurrenceIndex(idx)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    isActive
+                      ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {occ.name || `Event ${idx + 1}`}
+                  <span className={`ml-1.5 text-xs ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                    ({occAssetCount})
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Active occurrence media section */}
+          {(() => {
+            const activeOcc = eventScheduling.occurrences[activeOccurrenceIndex]
+            if (!activeOcc) return null
+            const activeIds = perOccurrenceAssetIds[activeOccurrenceIndex] || []
+
+            return (
+              <>
+                {/* Mode Toggle - Tabs */}
+                <div className="mb-6 border-b border-gray-200">
+                  <div className="flex space-x-8">
                     <button
-                      key={asset.id}
                       type="button"
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))
-                        } else {
-                          setSelectedAssetIds(prev => [...prev, asset.id])
-                        }
-                      }}
+                      onClick={() => setImageMode('upload')}
                       className={`
-                        relative group border-2 rounded-lg overflow-hidden transition-all
+                        px-1 py-4 text-sm font-medium border-b-2 transition-colors
                         ${
-                          isSelected
-                            ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
-                            : 'border-gray-200 hover:border-gray-300'
+                          imageMode === 'upload'
+                            ? 'border-[#6366F1] text-gray-900 font-semibold'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }
                       `}
                     >
-                      {thumbUrl ? (
-                        <>
-                          <img
-                            src={thumbUrl}
-                            alt={asset.title}
-                            loading="lazy"
-                            className="w-full h-32 object-cover"
-                          />
-                          {isVideo && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
-                              </div>
+                      Upload
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageMode('existing')}
+                      className={`
+                        px-1 py-4 text-sm font-medium border-b-2 transition-colors
+                        ${
+                          imageMode === 'existing'
+                            ? 'border-[#6366F1] text-gray-900 font-semibold'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }
+                      `}
+                    >
+                      From library
+                    </button>
+                  </div>
+                </div>
+
+                {/* Selected Media for active occurrence */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">
+                    Selected Media for &ldquo;{activeOcc.name || `Event ${activeOccurrenceIndex + 1}`}&rdquo; ({activeIds.length})
+                  </h4>
+                  <SortableAssetGrid
+                    assets={resolvedAssets}
+                    selectedIds={activeIds}
+                    onReorder={(newOrder) => setActiveAssetIdsForOccurrence(activeOccurrenceIndex, newOrder)}
+                    onRemove={(id) => setActiveAssetIdsForOccurrence(activeOccurrenceIndex, activeIds.filter(x => x !== id))}
+                    assetUsage={mode === 'edit' ? assetUsage : undefined}
+                  />
+                </div>
+
+                {/* Upload Mode */}
+                {imageMode === 'upload' && (
+                  <div className="space-y-4">
+                    <AssetUploadMenu
+                      brandId={brandId}
+                      onUploadSuccess={async (assetIds) => {
+                        setActiveAssetIdsForOccurrence(activeOccurrenceIndex, [...activeIds, ...assetIds])
+                        refetchAssets()
+                      }}
+                      onUploadError={(error) => {
+                        showToast({ title: 'Upload failed', message: error, type: 'error' })
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Existing Images Mode */}
+                {imageMode === 'existing' && (
+                  <div className="space-y-4">
+                    {assetsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+                      </div>
+                    ) : assets.length === 0 ? (
+                      <p className="text-sm text-gray-500 py-8 text-center">
+                        No media available yet. Upload some images or videos to get started.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                          {resolvedAssets.slice(0, libraryVisibleCount).map(asset => {
+                            const isSelected = activeIds.includes(asset.id)
+                            const isVideo = asset.asset_type === 'video'
+                            const thumbUrl = asset.thumbnail_signed_url || asset.signed_url
+                            return (
+                              <button
+                                key={asset.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setActiveAssetIdsForOccurrence(activeOccurrenceIndex, activeIds.filter(id => id !== asset.id))
+                                  } else {
+                                    setActiveAssetIdsForOccurrence(activeOccurrenceIndex, [...activeIds, asset.id])
+                                  }
+                                }}
+                                className={`
+                                  relative group border-2 rounded-lg overflow-hidden transition-all
+                                  ${
+                                    isSelected
+                                      ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
+                                      : 'border-gray-200 hover:border-gray-300'
+                                  }
+                                `}
+                              >
+                                {thumbUrl ? (
+                                  <>
+                                    <img src={thumbUrl} alt={asset.title} loading="lazy" className="w-full h-32 object-cover" />
+                                    {isVideo && (
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                                          <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                                    {isVideo ? (
+                                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                                    ) : 'Loading...'}
+                                  </div>
+                                )}
+                                {isSelected && (
+                                  <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
+                                    <CheckIcon className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
+                                  {asset.title}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {assets.length > libraryVisibleCount && (
+                          <div className="mt-4 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setLibraryVisibleCount(prev => prev + MEDIA_PAGE_SIZE)}
+                              className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                            >
+                              Load more ({assets.length - libraryVisibleCount} remaining)
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )
+          })()}
+        </>
+      ) : (
+        /* ===== SHARED MODE (default) ===== */
+        <>
+          {/* Mode Toggle - Tabs */}
+          <div className="mb-6 border-b border-gray-200">
+            <div className="flex space-x-8">
+              <button
+                type="button"
+                onClick={() => setImageMode('upload')}
+                className={`
+                  px-1 py-4 text-sm font-medium border-b-2 transition-colors
+                  ${
+                    imageMode === 'upload'
+                      ? 'border-[#6366F1] text-gray-900 font-semibold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }
+                `}
+              >
+                Upload
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageMode('existing')}
+                className={`
+                  px-1 py-4 text-sm font-medium border-b-2 transition-colors
+                  ${
+                    imageMode === 'existing'
+                      ? 'border-[#6366F1] text-gray-900 font-semibold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }
+                `}
+              >
+                From library
+              </button>
+            </div>
+          </div>
+
+          {/* Selected Media - Always visible */}
+          <div className="mb-6">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">
+              Selected Media ({selectedAssetIds.length})
+            </h4>
+            <SortableAssetGrid
+              assets={resolvedAssets}
+              selectedIds={selectedAssetIds}
+              onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
+              onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
+              assetUsage={mode === 'edit' ? assetUsage : undefined}
+            />
+          </div>
+
+          {/* Upload Mode */}
+          {imageMode === 'upload' && (
+            <div className="space-y-4">
+              <AssetUploadMenu
+                brandId={brandId}
+                onUploadSuccess={async (assetIds) => {
+                  setSelectedAssetIds(prev => [...prev, ...assetIds])
+                  refetchAssets()
+
+                  // Auto-tag uploaded assets with the category name
+                  const categoryName = details.name.trim()
+                  if (!categoryName || assetIds.length === 0) return
+
+                  try {
+                    // Find or create the tag for this category
+                    let tagId: string | null = null
+                    const { data: existingTag } = await supabase
+                      .from('tags')
+                      .select('id')
+                      .eq('brand_id', brandId)
+                      .eq('name', categoryName)
+                      .eq('kind', 'subcategory')
+                      .eq('is_active', true)
+                      .maybeSingle()
+
+                    if (existingTag) {
+                      tagId = existingTag.id
+                    } else {
+                      // Create the tag (this handles create mode where trigger hasn't fired yet)
+                      const { data: newTag } = await supabase
+                        .from('tags')
+                        .insert({
+                          brand_id: brandId,
+                          name: categoryName,
+                          kind: 'subcategory',
+                          is_active: true,
+                        })
+                        .select('id')
+                        .single()
+                      if (newTag) tagId = newTag.id
+                    }
+
+                    if (tagId) {
+                      // Get existing asset_tags count for position ordering
+                      const { count } = await supabase
+                        .from('asset_tags')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('tag_id', tagId)
+
+                      const startPosition = count ?? 0
+
+                      const assetTagInserts = assetIds.map((assetId, index) => ({
+                        asset_id: assetId,
+                        tag_id: tagId!,
+                        position: startPosition + index,
+                      }))
+
+                      const { error: insertError } = await supabase
+                        .from('asset_tags')
+                        .insert(assetTagInserts)
+
+                      if (insertError) {
+                        console.error('[Wizard] Error auto-tagging uploaded assets:', insertError)
+                      }
+                    }
+                  } catch (err) {
+                    console.error('[Wizard] Error auto-tagging uploaded assets:', err)
+                  }
+                }}
+                onUploadError={(error) => {
+                  showToast({
+                    title: 'Upload failed',
+                    message: error,
+                    type: 'error'
+                  })
+                }}
+              />
+            </div>
+          )}
+
+          {/* Existing Images Mode */}
+          {imageMode === 'existing' && (
+            <div className="space-y-4">
+              {assetsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
+                </div>
+              ) : assets.length === 0 ? (
+                <p className="text-sm text-gray-500 py-8 text-center">
+                  No media available yet. Upload some images or videos to get started.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {resolvedAssets.slice(0, libraryVisibleCount).map(asset => {
+                      const isSelected = selectedAssetIds.includes(asset.id)
+                      const isVideo = asset.asset_type === 'video'
+                      const thumbUrl = asset.thumbnail_signed_url || asset.signed_url
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))
+                            } else {
+                              setSelectedAssetIds(prev => [...prev, asset.id])
+                            }
+                          }}
+                          className={`
+                            relative group border-2 rounded-lg overflow-hidden transition-all
+                            ${
+                              isSelected
+                                ? 'border-[#6366F1] ring-2 ring-[#6366F1] ring-opacity-20'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }
+                          `}
+                        >
+                          {thumbUrl ? (
+                            <>
+                              <img
+                                src={thumbUrl}
+                                alt={asset.title}
+                                loading="lazy"
+                                className="w-full h-32 object-cover"
+                              />
+                              {isVideo && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                  <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                              {isVideo ? (
+                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                              ) : 'Loading...'}
                             </div>
                           )}
-                        </>
-                      ) : (
-                        <div className="w-full h-32 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                          {isVideo ? (
-                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                          ) : 'Loading...'}
-                        </div>
-                      )}
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
-                          <CheckIcon className="w-4 h-4" />
-                        </div>
-                      )}
-                      {mode === 'edit' && (() => {
-                        const u = assetUsage.get(asset.id)
-                        if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
-                        return (
-                          <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
-                            {u.usedCount > 0 && (
-                              <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                                Used {u.usedCount}x
-                              </span>
-                            )}
-                            {u.queuedCount > 0 && (
-                              <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                                Queued
-                              </span>
-                            )}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-6 h-6 bg-[#6366F1] text-white rounded-full flex items-center justify-center">
+                              <CheckIcon className="w-4 h-4" />
+                            </div>
+                          )}
+                          {mode === 'edit' && (() => {
+                            const u = assetUsage.get(asset.id)
+                            if (!u || (u.usedCount === 0 && u.queuedCount === 0)) return null
+                            return (
+                              <div className="absolute bottom-7 left-0 flex items-center gap-1 p-1.5">
+                                {u.usedCount > 0 && (
+                                  <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                    Used {u.usedCount}x
+                                  </span>
+                                )}
+                                {u.queuedCount > 0 && (
+                                  <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                    Queued
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })()}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
+                            {asset.title}
                           </div>
-                        )
-                      })()}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
-                        {asset.title}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-              {assets.length > libraryVisibleCount && (
-                <div className="mt-4 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setLibraryVisibleCount(prev => prev + MEDIA_PAGE_SIZE)}
-                    className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
-                  >
-                    Load more ({assets.length - libraryVisibleCount} remaining)
-                  </button>
-                </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {assets.length > libraryVisibleCount && (
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setLibraryVisibleCount(prev => prev + MEDIA_PAGE_SIZE)}
+                        className="px-6 py-2 text-sm font-medium text-[#6366F1] border border-[#6366F1] rounded-lg hover:bg-[#EEF2FF] transition-colors"
+                      >
+                        Load more ({assets.length - libraryVisibleCount} remaining)
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
-            </>
+            </div>
           )}
-        </div>
+        </>
       )}
     </>
   )
@@ -4192,11 +4652,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     </button>
                     <button
                       onClick={handleFinish}
-                      disabled={isSaving || selectedAssetIds.length === 0}
+                      disabled={isSaving || !hasRequiredMedia}
                       className={`
                         inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
                         ${
-                          !isSaving && selectedAssetIds.length > 0
+                          !isSaving && hasRequiredMedia
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }
@@ -4204,7 +4664,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     >
                       {initialData?.setup_complete === false ? 'Save & generate drafts' : 'Save & update drafts'}
                     </button>
-                    {selectedAssetIds.length === 0 && !isSaving && (
+                    {!hasRequiredMedia && !isSaving && (
                       <p className="text-xs text-amber-600 mt-1 text-right">Add at least one image to save</p>
                     )}
                   </div>
@@ -4361,11 +4821,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   ) : (
                     <button
                       onClick={handleFinish}
-                      disabled={isSaving || selectedAssetIds.length === 0}
+                      disabled={isSaving || !hasRequiredMedia}
                       className={`
                         inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
                         ${
-                          !isSaving && selectedAssetIds.length > 0
+                          !isSaving && hasRequiredMedia
                             ? 'bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white hover:from-[#4F46E5] hover:to-[#4338CA]'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }
@@ -4384,7 +4844,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                       )}
                     </button>
                   )}
-                  {currentStep === 4 && selectedAssetIds.length === 0 && !isSaving && (
+                  {currentStep === 4 && !hasRequiredMedia && !isSaving && (
                     <p className="text-xs text-amber-600 mt-1">Add at least one image to generate drafts</p>
                   )}
                 </div>

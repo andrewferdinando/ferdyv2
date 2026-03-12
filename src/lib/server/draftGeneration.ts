@@ -176,15 +176,17 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   // Fetch subcategory names and setup_complete status for filtering and logging
   const targetSubcategoryIds = [...new Set(targetsInWindow.map((t: any) => t.subcategory_id).filter(Boolean))];
   const subcategoryNameMap: Record<string, string> = {};
+  const subcategorySettingsMap: Record<string, any> = {};
   const incompleteSubcategoryIds = new Set<string>();
   if (targetSubcategoryIds.length > 0) {
     const { data: subcats } = await supabaseAdmin
       .from('subcategories')
-      .select('id, name, setup_complete')
+      .select('id, name, setup_complete, settings')
       .in('id', targetSubcategoryIds);
     if (subcats) {
       for (const sc of subcats) {
         subcategoryNameMap[sc.id] = sc.name;
+        subcategorySettingsMap[sc.id] = sc.settings || {};
         if (sc.setup_complete === false) {
           incompleteSubcategoryIds.add(sc.id);
         }
@@ -252,6 +254,27 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   // Map: schedule_rule_id -> count of assets already picked this run
   const selectedAssetsByRuleId = new Map<string, number>();
 
+  // Pre-fetch event occurrence names for per-occurrence media categories
+  // Map: subcategory_id -> Map<date_string, occurrence_name>
+  const occurrenceNamesByDate = new Map<string, Map<string, string>>();
+  const perOccMediaSubcategoryIds = targetSubcategoryIds.filter(id => subcategorySettingsMap[id]?.image_mode === 'per_occurrence');
+  if (perOccMediaSubcategoryIds.length > 0) {
+    const { data: occRows } = await supabaseAdmin
+      .from('event_occurrences')
+      .select('subcategory_id, name, starts_at')
+      .in('subcategory_id', perOccMediaSubcategoryIds);
+    if (occRows) {
+      for (const occ of occRows) {
+        if (!occ.name || !occ.starts_at) continue;
+        if (!occurrenceNamesByDate.has(occ.subcategory_id)) {
+          occurrenceNamesByDate.set(occ.subcategory_id, new Map());
+        }
+        const dateKey = new Date(occ.starts_at).toISOString().split('T')[0];
+        occurrenceNamesByDate.get(occ.subcategory_id)!.set(dateKey, occ.name.trim());
+      }
+    }
+  }
+
   // Process each target
   for (const target of readyTargets) {
     const targetName = subcategoryNameMap[target.subcategory_id] || target.subcategory_id;
@@ -306,7 +329,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // we take the first one found. In practice, most subcategories have one active rule.
       const { data: scheduleRule, error: ruleError } = await supabaseAdmin
         .from('schedule_rules')
-        .select('id, channels')
+        .select('id, channels, frequency, start_date')
         .eq('brand_id', brandId)
         .eq('subcategory_id', target.subcategory_id)
         .eq('is_active', true)
@@ -366,7 +389,36 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
           // Get the subcategory's tag via brand_id + name + kind (no subcategory_id column on tags)
           const subcategoryName = subcategoryNameMap[target.subcategory_id];
           let tags: { id: string }[] | null = null;
-          if (subcategoryName) {
+
+          // Check for per-occurrence media: use occurrence-specific tag if available
+          const subcatSettings = subcategorySettingsMap[target.subcategory_id];
+          if (
+            subcatSettings?.image_mode === 'per_occurrence' &&
+            subcategoryName &&
+            scheduleRule.frequency === 'specific' &&
+            scheduleRule.start_date
+          ) {
+            const ruleDateKey = new Date(scheduleRule.start_date).toISOString().split('T')[0];
+            const occName = occurrenceNamesByDate.get(target.subcategory_id)?.get(ruleDateKey);
+            if (occName) {
+              const occTagName = `${subcategoryName} :: ${occName}`;
+              const { data: occTagRows } = await supabaseAdmin
+                .from('tags')
+                .select('id')
+                .eq('brand_id', brandId)
+                .eq('name', occTagName)
+                .eq('kind', 'occurrence')
+                .eq('is_active', true)
+                .limit(1);
+              if (occTagRows && occTagRows.length > 0) {
+                tags = occTagRows;
+                console.log(`[draftGeneration] Using per-occurrence tag "${occTagName}" for ${targetName}`);
+              }
+            }
+          }
+
+          // Fallback to category-level tag
+          if ((!tags || tags.length === 0) && subcategoryName) {
             const { data: tagRows } = await supabaseAdmin
               .from('tags')
               .select('id')

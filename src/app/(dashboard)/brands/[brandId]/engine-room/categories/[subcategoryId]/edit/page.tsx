@@ -82,27 +82,61 @@ export default function EditCategoryPage() {
 
         // 4. Fetch associated assets via tags
         let assetIds: string[] = []
+        let perOccurrenceAssets: Record<string, string[]> | undefined = undefined
+        const isPerOccurrenceMode = subcategory.settings?.image_mode === 'per_occurrence'
 
-        // Get tag for this subcategory (tags are linked by brand_id + name + kind, not subcategory_id)
-        const { data: tag, error: tagError } = await supabase
-          .from('tags')
-          .select('id')
-          .eq('brand_id', brandId)
-          .eq('name', subcategory.name)
-          .eq('kind', 'subcategory')
-          .eq('is_active', true)
-          .maybeSingle()
+        if (isPerOccurrenceMode && eventOccurrences && eventOccurrences.length > 0) {
+          // PER-OCCURRENCE MODE: fetch occurrence-specific tags
+          perOccurrenceAssets = {}
+          for (const occ of eventOccurrences) {
+            const occName = occ.name?.trim()
+            if (!occName) continue
 
-        if (!tagError && tag) {
-          // Get asset_ids via asset_tags
-          const { data: assetTags, error: assetTagsError } = await supabase
-            .from('asset_tags')
-            .select('asset_id')
-            .eq('tag_id', tag.id)
-            .order('position', { ascending: true, nullsFirst: false })
+            const occTagName = `${subcategory.name} :: ${occName}`
+            const { data: occTag } = await supabase
+              .from('tags')
+              .select('id')
+              .eq('brand_id', brandId)
+              .eq('name', occTagName)
+              .eq('kind', 'occurrence')
+              .eq('is_active', true)
+              .maybeSingle()
 
-          if (!assetTagsError && assetTags) {
-            assetIds = assetTags.map((at: any) => at.asset_id)
+            if (occTag) {
+              const { data: occAssetTags } = await supabase
+                .from('asset_tags')
+                .select('asset_id')
+                .eq('tag_id', occTag.id)
+                .order('position', { ascending: true, nullsFirst: false })
+
+              if (occAssetTags) {
+                perOccurrenceAssets[occName] = occAssetTags.map((at: any) => at.asset_id)
+              }
+            }
+          }
+        } else {
+          // SHARED MODE: existing behavior
+          // Get tag for this subcategory (tags are linked by brand_id + name + kind, not subcategory_id)
+          const { data: tag, error: tagError } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('name', subcategory.name)
+            .eq('kind', 'subcategory')
+            .eq('is_active', true)
+            .maybeSingle()
+
+          if (!tagError && tag) {
+            // Get asset_ids via asset_tags
+            const { data: assetTags, error: assetTagsError } = await supabase
+              .from('asset_tags')
+              .select('asset_id')
+              .eq('tag_id', tag.id)
+              .order('position', { ascending: true, nullsFirst: false })
+
+            if (!assetTagsError && assetTags) {
+              assetIds = assetTags.map((at: any) => at.asset_id)
+            }
           }
         }
 
@@ -121,6 +155,7 @@ export default function EditCategoryPage() {
             settings: subcategory.settings || {}
           },
           assets: assetIds,
+          perOccurrenceAssets: perOccurrenceAssets,
           eventOccurrenceType: eventOccurrenceType,
           setup_complete: subcategory.setup_complete ?? true
         }
