@@ -2552,19 +2552,20 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         }
 
         // Create/update tags for each occurrence
+        const _tagResults: Record<string, unknown>[] = []
         for (let idx = 0; idx < eventScheduling.occurrences.length; idx++) {
           const occ = eventScheduling.occurrences[idx]
           const occAssets = perOccurrenceAssetIds[idx] || []
           const occName = (occ.name || '').trim()
-          console.warn(`[Wizard] Processing occurrence ${idx}: name="${occName}", assets=${occAssets.length}`, occAssets)
-          if (!occName) { console.warn(`[Wizard] Skipping occurrence ${idx}: no name`); continue }
+          if (!occName) { _tagResults.push({ idx, skipped: 'no name' }); continue }
 
           const occTagName = `${categoryName} :: ${occName}`
+          const tagResult: Record<string, unknown> = { idx, name: occName, tagName: occTagName, assetCount: occAssets.length }
 
           let occTagId: string | null = null
 
           // First try to find an active tag
-          const { data: existingOccTag } = await supabase
+          const { data: existingOccTag, error: findErr } = await supabase
             .from('tags')
             .select('id')
             .eq('brand_id', brandId)
@@ -2573,11 +2574,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             .eq('is_active', true)
             .maybeSingle()
 
+          tagResult.findActiveResult = existingOccTag?.id || null
+          tagResult.findActiveError = findErr?.message || null
+
           if (existingOccTag) {
             occTagId = existingOccTag.id
+            tagResult.action = 'reused_active'
           } else {
             // Check for an inactive tag with the same name and reactivate it
-            const { data: inactiveTag } = await supabase
+            const { data: inactiveTag, error: findInactiveErr } = await supabase
               .from('tags')
               .select('id')
               .eq('brand_id', brandId)
@@ -2586,40 +2591,42 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               .eq('is_active', false)
               .maybeSingle()
 
+            tagResult.findInactiveResult = inactiveTag?.id || null
+            tagResult.findInactiveError = findInactiveErr?.message || null
+
             if (inactiveTag) {
-              await supabase.from('tags').update({ is_active: true }).eq('id', inactiveTag.id)
+              const { error: reactivateErr } = await supabase.from('tags').update({ is_active: true }).eq('id', inactiveTag.id)
               occTagId = inactiveTag.id
+              tagResult.action = 'reactivated'
+              tagResult.reactivateError = reactivateErr?.message || null
             } else {
               const { data: newOccTag, error: tagCreateErr } = await supabase
                 .from('tags')
                 .insert({ brand_id: brandId, name: occTagName, kind: 'occurrence', is_active: true })
                 .select('id')
                 .single()
-              if (tagCreateErr) {
-                console.error(`[Wizard] Error creating occurrence tag "${occTagName}":`, tagCreateErr)
-              }
+              tagResult.action = 'insert_new'
+              tagResult.insertError = tagCreateErr ? { message: tagCreateErr.message, code: tagCreateErr.code, details: tagCreateErr.details, hint: tagCreateErr.hint } : null
+              tagResult.insertResult = newOccTag?.id || null
               if (newOccTag) occTagId = newOccTag.id
             }
           }
 
-          console.warn(`[Wizard] Tag resolution for "${occTagName}": tagId=${occTagId}`)
-          if (occTagId) {
+          tagResult.finalTagId = occTagId
+          if (occTagId && occAssets.length > 0) {
             const { error: deleteErr } = await supabase.from('asset_tags').delete().eq('tag_id', occTagId)
-            if (deleteErr) console.error(`[Wizard] Error clearing asset_tags for tag ${occTagId}:`, deleteErr)
-            if (occAssets.length > 0) {
-              const inserts = occAssets.map((assetId, position) => ({
-                asset_id: assetId,
-                tag_id: occTagId!,
-                position
-              }))
-              const { error: insertErr } = await supabase.from('asset_tags').insert(inserts)
-              if (insertErr) console.error(`[Wizard] Error linking assets to occurrence tag "${occTagName}":`, insertErr)
-            }
+            tagResult.deleteError = deleteErr?.message || null
+            const inserts = occAssets.map((assetId, position) => ({
+              asset_id: assetId,
+              tag_id: occTagId!,
+              position
+            }))
+            const { error: insertErr } = await supabase.from('asset_tags').insert(inserts)
+            tagResult.assetLinkError = insertErr?.message || null
           }
+          _tagResults.push(tagResult)
         }
-
-        // Update localStorage debug with tag creation results
-        try { localStorage.setItem('_wizardSaveDebug', JSON.stringify({ ..._saveDebug, tagCreationReached: true })) } catch {}
+        try { localStorage.setItem('_wizardSaveDebug', JSON.stringify({ ..._saveDebug, tagCreationReached: true, tagResults: _tagResults })) } catch {}
 
         // Also clear category-level tag assets (switching from shared to per-occurrence)
         const { data: subcategoryTag } = await supabase
