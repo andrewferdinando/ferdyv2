@@ -253,6 +253,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   // Track how many assets have been picked per schedule_rule_id in this run (for multi-draft offset).
   // Map: schedule_rule_id -> count of assets already picked this run
   const selectedAssetsByRuleId = new Map<string, number>();
+  // Cache the startIndex per rule (only computed on the first pick from lastDraft lookup)
+  const startIndexByRuleId = new Map<string, number>();
 
   // Pre-fetch event occurrence names for per-occurrence media categories
   // Map: subcategory_id -> Map<date_string, occurrence_name>
@@ -446,30 +448,36 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
             if (orderedAssetIds.length === 0) {
               console.log(`[draftGeneration] No assets available for subcategory ${target.subcategory_id}, continuing without asset`);
             } else {
-              // Find the most recent non-deleted draft for this subcategory to determine last-used asset
-              const { data: lastDraft } = await supabaseAdmin
-                .from('drafts')
-                .select('asset_ids')
-                .eq('brand_id', brandId)
-                .eq('subcategory_id', target.subcategory_id)
-                .eq('schedule_source', 'framework')
-                .not('asset_ids', 'is', null)
-                .not('status', 'in', '("deleted")')
-                .order('scheduled_for', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+              // Determine start index: only query lastDraft on the first pick for this rule
+              const runOffset = selectedAssetsByRuleId.get(finalScheduleRuleId) || 0;
+              let startIndex: number;
 
-              // Determine start index: one past the last-used asset's position
-              let startIndex = 0;
-              if (lastDraft?.asset_ids && Array.isArray(lastDraft.asset_ids) && lastDraft.asset_ids.length > 0) {
-                const lastAssetId = lastDraft.asset_ids[0];
-                const lastIndex = orderedAssetIds.indexOf(lastAssetId);
-                // If the asset was removed (indexOf → -1), fall back to 0
-                startIndex = lastIndex >= 0 ? (lastIndex + 1) % orderedAssetIds.length : 0;
+              if (startIndexByRuleId.has(finalScheduleRuleId)) {
+                // Reuse cached startIndex for subsequent picks in the same run
+                startIndex = startIndexByRuleId.get(finalScheduleRuleId)!;
+              } else {
+                // First pick for this rule: find the most recent draft to seed the rotation
+                const { data: lastDraft } = await supabaseAdmin
+                  .from('drafts')
+                  .select('asset_ids')
+                  .eq('brand_id', brandId)
+                  .eq('subcategory_id', target.subcategory_id)
+                  .eq('schedule_source', 'framework')
+                  .not('asset_ids', 'is', null)
+                  .not('status', 'in', '("deleted")')
+                  .order('scheduled_for', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                startIndex = 0;
+                if (lastDraft?.asset_ids && Array.isArray(lastDraft.asset_ids) && lastDraft.asset_ids.length > 0) {
+                  const lastAssetId = lastDraft.asset_ids[0];
+                  const lastIndex = orderedAssetIds.indexOf(lastAssetId);
+                  startIndex = lastIndex >= 0 ? (lastIndex + 1) % orderedAssetIds.length : 0;
+                }
+                startIndexByRuleId.set(finalScheduleRuleId, startIndex);
               }
 
-              // Advance by runOffset (number already picked for this rule in this run)
-              const runOffset = selectedAssetsByRuleId.get(finalScheduleRuleId) || 0;
               const pickIndex = (startIndex + runOffset) % orderedAssetIds.length;
 
               assetId = orderedAssetIds[pickIndex];
