@@ -352,53 +352,36 @@ export default function SchedulePage() {
                 })}
               </div>
 
-              <button
-                onClick={() => setView(view === 'calendar' ? 'list' : 'calendar')}
-                className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm flex items-center gap-1.5 ${
-                  view === 'calendar'
-                    ? 'border-[#6366F1] text-[#6366F1]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Calendar
-              </button>
-            </div>
-          </div>
-
-          {/* Category Filter */}
-          {view === 'list' && categoryNames.length > 1 && (
-            <div className="px-4 sm:px-6 lg:px-10 pt-4 sm:pt-5 pb-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium text-gray-500 mr-1">Category:</span>
+              <div className="flex items-center gap-4">
+                {view === 'list' && categoryNames.length > 1 && (
+                  <select
+                    value={categoryFilter || ''}
+                    onChange={(e) => setCategoryFilter(e.target.value || null)}
+                    className="text-sm text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-[#6366F1] focus:border-[#6366F1] cursor-pointer appearance-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25rem 1.25rem' }}
+                  >
+                    <option value="">All categories</option>
+                    {categoryNames.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                )}
                 <button
-                  onClick={() => setCategoryFilter(null)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
-                    categoryFilter === null
-                      ? 'bg-[#6366F1] text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  onClick={() => setView(view === 'calendar' ? 'list' : 'calendar')}
+                  className={`pb-3 border-b-2 font-medium transition-all duration-200 text-sm flex items-center gap-1.5 ${
+                    view === 'calendar'
+                      ? 'border-[#6366F1] text-[#6366F1]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  All
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Calendar
                 </button>
-                {categoryNames.map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => setCategoryFilter(categoryFilter === name ? null : name)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
-                      categoryFilter === name
-                        ? 'bg-[#6366F1] text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Tab Content */}
           <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6">
