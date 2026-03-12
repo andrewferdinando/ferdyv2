@@ -686,7 +686,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             // Single mode: extract date and time from starts_at
             const startsAtDate = new Date(occ.starts_at)
             const dateStr = startsAtDate.toISOString().split('T')[0] // YYYY-MM-DD
-            const timeStr = startsAtDate.toTimeString().split(' ')[0].slice(0, 5) // HH:mm
+            const timeStr = `${String(startsAtDate.getHours()).padStart(2, '0')}:${String(startsAtDate.getMinutes()).padStart(2, '0')}` // HH:mm
             
             occurrences.push({
               id: occ.id,
@@ -1251,7 +1251,15 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       if (eventScheduling.occurrences.length === 0) {
         return false
       }
-      
+
+      // Check for duplicate occurrence names (they become tag names, must be unique)
+      const occNames = eventScheduling.occurrences
+        .map(occ => (occ.name || '').trim().toLowerCase())
+        .filter(n => n.length > 0)
+      if (occNames.length !== new Set(occNames).size) {
+        return false
+      }
+
       // Validate based on occurrence type
       if (eventOccurrenceType === 'single') {
         // Single mode: date + time required, new occurrences must not be in the past
@@ -1267,6 +1275,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (!occ.start_date || !occ.start_date.trim() || !occ.end_date || !occ.end_date.trim()) return false
           // Allow past dates only for existing occurrences (already in DB)
           if (!occ.id && occ.end_date < todayDateStr) return false
+          // Start date must not be after end date
+          if (occ.start_date > occ.end_date) return false
           return true
         })
         const hasTime = schedule.timeOfDay && schedule.timeOfDay.trim().length > 0
@@ -1579,7 +1589,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           if (ch === 'linkedin') return 'linkedin_profile';
           return ch;
         };
-        const normalizedEventChannels = details.channels.length > 0
+        const normalizedChannels = details.channels.length > 0
           ? details.channels.map(normalizeChannelForSave)
           : null;
 
@@ -1598,7 +1608,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           category_id: null,
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
-          channels: normalizedEventChannels,
+          channels: normalizedChannels,
           is_active: true,
           tone: null,
           hashtag_rule: null,
@@ -2050,6 +2060,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Normalize hashtags (already an array)
       const normalizedHashtags = normalizeHashtags(details.defaultHashtags)
 
+      // Normalize channels for consistent storage
+      const normalizeChannelForSave = (ch: string): string => {
+        if (ch === 'instagram') return 'instagram_feed'
+        if (ch === 'linkedin') return 'linkedin_profile'
+        return ch
+      }
+      const normalizedChannels = details.channels.length > 0
+        ? details.channels.map(normalizeChannelForSave)
+        : null
+
       // Fetch existing settings first to preserve them
       const { data: existingSubcategory, error: fetchError } = await supabase
         .from('subcategories')
@@ -2078,11 +2098,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           detail: details.detail.trim(),
           url: details.url.trim() || null,
           default_hashtags: normalizedHashtags,
-          channels: details.channels.length > 0 ? details.channels : null,
+          channels: normalizedChannels,
           subcategory_type: subcategoryType || 'other',
           default_copy_length: details.default_copy_length || 'medium',
           // Convert post_time from form format (HH:MM) to database format (HH:MM:SS)
-          post_time: details.post_time 
+          post_time: details.post_time
             ? (details.post_time.includes(':') && details.post_time.split(':').length === 2
                 ? `${details.post_time}:00`
                 : details.post_time)
@@ -2108,16 +2128,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // 2. Upsert schedule_rules
       if (subcategoryType === 'event_series') {
         // Events: create one schedule_rules row PER occurrence + upsert event_occurrences
-        // Normalize channels for event rules
-        const normalizeChannelForSave = (ch: string): string => {
-          if (ch === 'instagram') return 'instagram_feed';
-          if (ch === 'linkedin') return 'linkedin_profile';
-          return ch;
-        };
-        const normalizedEventChannels = details.channels.length > 0
-          ? details.channels.map(normalizeChannelForSave)
-          : null;
-
         // Shared fields for all schedule_rules rows
         const sharedRuleFields: Record<string, unknown> = {
           brand_id: brandId,
@@ -2125,7 +2135,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           category_id: null,
           name: `${details.name.trim()} – Specific Events`,
           frequency: 'specific',
-          channels: normalizedEventChannels,
+          channels: normalizedChannels,
           is_active: true,
           tone: null,
           hashtag_rule: null,
@@ -2330,7 +2340,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             category_id: null,
             name: `${details.name.trim()} – ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}`,
             frequency: schedule.frequency,
-            channels: details.channels.length > 0 ? details.channels : null,
+            channels: normalizedChannels,
             is_active: true,
             tone: null,
             hashtag_rule: null,
@@ -3507,6 +3517,17 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           onClick={(e) => {
                             e.stopPropagation()
                             setExpandedOccurrences(prev => { const next = new Set(prev); next.delete(index); return next })
+                            // Realign per-occurrence asset indices when removing an occurrence
+                            setPerOccurrenceAssetIds(prev => {
+                              const updated: Record<number, string[]> = {}
+                              Object.keys(prev).forEach(key => {
+                                const k = Number(key)
+                                if (k < index) updated[k] = prev[k]
+                                else if (k > index) updated[k - 1] = prev[k]
+                                // k === index is the deleted one, skip it
+                              })
+                              return updated
+                            })
                             setEventScheduling(prev => ({
                               ...prev,
                               occurrences: prev.occurrences.filter((_, i) => i !== index)
@@ -3534,6 +3555,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               setEventScheduling(prev => ({ ...prev, occurrences: updated }))
                             }}
                             placeholder="e.g. Round 1 - Blues v Chiefs"
+                            error={
+                              occurrence.name?.trim() &&
+                              eventScheduling.occurrences.some((other, i) =>
+                                i !== index && (other.name || '').trim().toLowerCase() === occurrence.name!.trim().toLowerCase()
+                              )
+                                ? 'Duplicate name — each occurrence must have a unique name'
+                                : undefined
+                            }
                           />
                         </FormField>
 
@@ -3596,7 +3625,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               <Input
                                 type="date"
                                 value={occurrence.end_date || ''}
-                                min={!isPast ? todayDateStr : undefined}
+                                min={!isPast ? (occurrence.start_date || todayDateStr) : undefined}
                                 disabled={isPast}
                                 onChange={(e) => {
                                   const updated = [...eventScheduling.occurrences]
@@ -3606,7 +3635,13 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                                     setEventErrors(prev => ({ ...prev, occurrences: undefined }))
                                   }
                                 }}
-                                error={eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim()) ? 'End date is required' : undefined}
+                                error={
+                                  occurrence.start_date && occurrence.end_date && occurrence.start_date > occurrence.end_date
+                                    ? 'End date must be after start date'
+                                    : eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim())
+                                      ? 'End date is required'
+                                      : undefined
+                                }
                               />
                             </FormField>
                           </div>

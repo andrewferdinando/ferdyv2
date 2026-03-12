@@ -186,7 +186,7 @@ export default function EditCategoryPage() {
             end_at: occ.end_at,
             url: occ.url,
             notes: occ.notes,
-            summary: occ.summary ? (typeof occ.summary === 'string' ? JSON.parse(occ.summary) : occ.summary) : null
+            summary: occ.summary ? (typeof occ.summary === 'string' ? (() => { try { return JSON.parse(occ.summary) } catch { return null } })() : occ.summary) : null
           }))
         }
 
