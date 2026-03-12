@@ -770,6 +770,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [mode, subcategoryType, schedule.frequency])
 
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  // Track which occurrence cards are expanded (by index). In edit mode, all start collapsed.
+  const [expandedOccurrences, setExpandedOccurrences] = useState<Set<number>>(() => {
+    if (mode === 'edit') return new Set()
+    // In create mode, expand all existing occurrences
+    const initial = new Set<number>()
+    if (initialData?.eventOccurrences) {
+      initialData.eventOccurrences.forEach((_, idx) => initial.add(idx))
+    }
+    return initial
+  })
 
   // Initialize daysBefore from leadTimesInput when component mounts or switching to specific frequency
   useEffect(() => {
@@ -2482,12 +2492,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
 
       // 4. Update asset associations
-      // Save image_mode setting
-      const currentSettings = initialData?.subcategory?.settings || {}
+      // Save image_mode setting — fetch fresh settings from DB to avoid overwriting the merge done above
       const isPerOccurrence = eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1
-      if (isPerOccurrence !== (currentSettings.image_mode === 'per_occurrence')) {
-        const newSettings = { ...currentSettings, image_mode: isPerOccurrence ? 'per_occurrence' : 'shared' }
-        await supabase.from('subcategories').update({ settings: newSettings }).eq('id', subcategoryId)
+      const previousImageMode = initialData?.subcategory?.settings?.image_mode
+      if (isPerOccurrence !== (previousImageMode === 'per_occurrence')) {
+        const { data: freshSubcat } = await supabase
+          .from('subcategories')
+          .select('settings')
+          .eq('id', subcategoryId)
+          .single()
+        const freshSettings = freshSubcat?.settings || {}
+        const updatedSettings = { ...freshSettings, image_mode: isPerOccurrence ? 'per_occurrence' : 'shared' }
+        await supabase.from('subcategories').update({ settings: updatedSettings }).eq('id', subcategoryId)
       }
 
       if (isPerOccurrence) {
@@ -2578,7 +2594,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       } else {
         // SHARED MODE: existing behavior
         // If switching from per-occurrence to shared, clean up occurrence tags
-        if (currentSettings.image_mode === 'per_occurrence') {
+        if (previousImageMode === 'per_occurrence') {
           const categoryName = details.name.trim()
           const { data: occTags } = await supabase
             .from('tags')
@@ -2868,9 +2884,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     try {
       // Save image_mode setting if using per-occurrence
       if (eventImageMode === 'per_occurrence' && subcategoryType === 'event_series' && eventScheduling.occurrences.length > 1) {
+        // Fetch current settings from DB to avoid overwriting settings saved by ensureSubcategorySaved
+        const { data: currentSubcat } = await supabase
+          .from('subcategories')
+          .select('settings')
+          .eq('id', subcategoryId)
+          .single()
+        const currentSettings = currentSubcat?.settings || {}
         await supabase
           .from('subcategories')
-          .update({ settings: { ...(initialData?.subcategory?.settings || {}), image_mode: 'per_occurrence' } })
+          .update({ settings: { ...currentSettings, image_mode: 'per_occurrence' } })
           .eq('id', subcategoryId)
       }
 
@@ -3399,189 +3422,205 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 )
               }
 
-              const renderOccurrenceCard = (occurrence: EventOccurrenceInput, index: number, isPast: boolean) => (
-                <div
-                  key={occurrence.id || index}
-                  ref={(el) => {
-                    if (el) {
-                      occurrenceRefs.current.set(index, el)
-                    } else {
-                      occurrenceRefs.current.delete(index)
-                    }
-                  }}
-                  className={isPast
-                    ? "bg-gray-100 border border-gray-200 rounded-lg p-3 space-y-3 opacity-60"
-                    : "bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3"
-                  }
-                >
-                  <div className="flex items-start justify-between">
-                    <h4 className="text-sm font-medium text-gray-900">
-                      {occurrence.name?.trim()
-                        ? occurrence.name.trim()
-                        : (eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`)
+              const renderOccurrenceCard = (occurrence: EventOccurrenceInput, index: number, isPast: boolean) => {
+                const isExpanded = expandedOccurrences.has(index)
+                const toggleExpanded = () => {
+                  setExpandedOccurrences(prev => {
+                    const next = new Set(prev)
+                    if (next.has(index)) next.delete(index)
+                    else next.add(index)
+                    return next
+                  })
+                }
+
+                // Summary line for collapsed state
+                const displayName = occurrence.name?.trim()
+                  ? occurrence.name.trim()
+                  : (eventOccurrenceType === 'single' ? `Event ${index + 1}` : `Range ${index + 1}`)
+                const displayDate = eventOccurrenceType === 'single'
+                  ? occurrence.date || ''
+                  : [occurrence.start_date, occurrence.end_date].filter(Boolean).join(' – ')
+                const displayTime = eventOccurrenceType === 'single' ? (occurrence.time || '') : ''
+
+                return (
+                  <div
+                    key={occurrence.id || index}
+                    ref={(el) => {
+                      if (el) {
+                        occurrenceRefs.current.set(index, el)
+                      } else {
+                        occurrenceRefs.current.delete(index)
                       }
-                      {isPast && <span className="ml-2 text-xs font-normal text-gray-400">(past)</span>}
-                    </h4>
-                    {!isPast && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEventScheduling(prev => ({
-                            ...prev,
-                            occurrences: prev.occurrences.filter((_, i) => i !== index)
-                          }))
-                        }}
-                        className="text-red-600 hover:text-red-700 p-1"
-                        title="Remove"
-                      >
-                        <XMarkIcon className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-
-                    <FormField label="Name (optional)">
-                      <Input
-                        type="text"
-                        value={occurrence.name || ''}
-                        disabled={isPast}
-                        onChange={(e) => {
-                          const updated = [...eventScheduling.occurrences]
-                          updated[index] = { ...updated[index], name: e.target.value }
-                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                        }}
-                        placeholder="e.g. Round 1 - Blues v Chiefs"
-                      />
-                    </FormField>
-
-                    {eventOccurrenceType === 'single' ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField label="Date" required>
-                          <Input
-                            type="date"
-                            value={occurrence.date || ''}
-                            min={!isPast ? todayDateStr : undefined}
-                            disabled={isPast}
-                            onChange={(e) => {
-                              const updated = [...eventScheduling.occurrences]
-                              updated[index] = { ...updated[index], date: e.target.value }
-                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                              if (eventErrors.occurrences) {
-                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                              }
-                            }}
-                            error={eventErrors.occurrences && (!occurrence.date || !occurrence.date.trim()) ? 'Date is required' : undefined}
-                          />
-                        </FormField>
-                        <FormField label="Time" required>
-                          <Input
-                            type="time"
-                            value={occurrence.time || ''}
-                            disabled={isPast}
-                            onChange={(e) => {
-                              const updated = [...eventScheduling.occurrences]
-                              updated[index] = { ...updated[index], time: e.target.value }
-                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                              if (eventErrors.occurrences) {
-                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                              }
-                            }}
-                            error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
-                          />
-                        </FormField>
+                    }}
+                    className={isPast
+                      ? "bg-gray-100 border border-gray-200 rounded-lg opacity-60"
+                      : "bg-gray-50 border border-gray-200 rounded-lg"
+                    }
+                  >
+                    {/* Collapsed header — always visible */}
+                    <button
+                      type="button"
+                      onClick={toggleExpanded}
+                      className="w-full flex items-center justify-between p-3 text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <ChevronRightIcon className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <span className="text-sm font-medium text-gray-900 truncate">{displayName}</span>
+                        {isPast && <span className="text-xs font-normal text-gray-400 flex-shrink-0">(past)</span>}
+                        {!isExpanded && displayDate && (
+                          <span className="text-xs text-gray-500 flex-shrink-0">
+                            {displayDate}{displayTime ? ` at ${displayTime}` : ''}
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField label="Start Date" required>
+                      {!isPast && isExpanded && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setExpandedOccurrences(prev => { const next = new Set(prev); next.delete(index); return next })
+                            setEventScheduling(prev => ({
+                              ...prev,
+                              occurrences: prev.occurrences.filter((_, i) => i !== index)
+                            }))
+                          }}
+                          className="text-red-600 hover:text-red-700 p-1 flex-shrink-0"
+                          title="Remove"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </button>
+
+                    {/* Expanded content */}
+                    {isExpanded && (
+                      <div className="px-3 pb-3 space-y-3 border-t border-gray-200 pt-3">
+                        <FormField label="Name (optional)">
                           <Input
-                            type="date"
-                            value={occurrence.start_date || ''}
-                            min={!isPast ? todayDateStr : undefined}
+                            type="text"
+                            value={occurrence.name || ''}
                             disabled={isPast}
                             onChange={(e) => {
                               const updated = [...eventScheduling.occurrences]
-                              updated[index] = { ...updated[index], start_date: e.target.value }
+                              updated[index] = { ...updated[index], name: e.target.value }
                               setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                              if (eventErrors.occurrences) {
-                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                              }
                             }}
-                            error={eventErrors.occurrences && (!occurrence.start_date || !occurrence.start_date.trim()) ? 'Start date is required' : undefined}
+                            placeholder="e.g. Round 1 - Blues v Chiefs"
                           />
                         </FormField>
-                        <FormField label="End Date" required>
+
+                        {eventOccurrenceType === 'single' ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField label="Date" required>
+                              <Input
+                                type="date"
+                                value={occurrence.date || ''}
+                                min={!isPast ? todayDateStr : undefined}
+                                disabled={isPast}
+                                onChange={(e) => {
+                                  const updated = [...eventScheduling.occurrences]
+                                  updated[index] = { ...updated[index], date: e.target.value }
+                                  setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                  if (eventErrors.occurrences) {
+                                    setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                  }
+                                }}
+                                error={eventErrors.occurrences && (!occurrence.date || !occurrence.date.trim()) ? 'Date is required' : undefined}
+                              />
+                            </FormField>
+                            <FormField label="Time" required>
+                              <Input
+                                type="time"
+                                value={occurrence.time || ''}
+                                disabled={isPast}
+                                onChange={(e) => {
+                                  const updated = [...eventScheduling.occurrences]
+                                  updated[index] = { ...updated[index], time: e.target.value }
+                                  setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                  if (eventErrors.occurrences) {
+                                    setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                  }
+                                }}
+                                error={eventErrors.occurrences && (!occurrence.time || !occurrence.time.trim()) ? 'Time is required' : undefined}
+                              />
+                            </FormField>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField label="Start Date" required>
+                              <Input
+                                type="date"
+                                value={occurrence.start_date || ''}
+                                min={!isPast ? todayDateStr : undefined}
+                                disabled={isPast}
+                                onChange={(e) => {
+                                  const updated = [...eventScheduling.occurrences]
+                                  updated[index] = { ...updated[index], start_date: e.target.value }
+                                  setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                  if (eventErrors.occurrences) {
+                                    setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                  }
+                                }}
+                                error={eventErrors.occurrences && (!occurrence.start_date || !occurrence.start_date.trim()) ? 'Start date is required' : undefined}
+                              />
+                            </FormField>
+                            <FormField label="End Date" required>
+                              <Input
+                                type="date"
+                                value={occurrence.end_date || ''}
+                                min={!isPast ? todayDateStr : undefined}
+                                disabled={isPast}
+                                onChange={(e) => {
+                                  const updated = [...eventScheduling.occurrences]
+                                  updated[index] = { ...updated[index], end_date: e.target.value }
+                                  setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                                  if (eventErrors.occurrences) {
+                                    setEventErrors(prev => ({ ...prev, occurrences: undefined }))
+                                  }
+                                }}
+                                error={eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim()) ? 'End date is required' : undefined}
+                              />
+                            </FormField>
+                          </div>
+                        )}
+
+                        <FormField label="URL (optional)">
                           <Input
-                            type="date"
-                            value={occurrence.end_date || ''}
-                            min={!isPast ? todayDateStr : undefined}
+                            type="url"
+                            value={occurrence.url || ''}
                             disabled={isPast}
                             onChange={(e) => {
                               const updated = [...eventScheduling.occurrences]
-                              updated[index] = { ...updated[index], end_date: e.target.value }
+                              updated[index] = { ...updated[index], url: e.target.value }
                               setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                              if (eventErrors.occurrences) {
-                                setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                              }
                             }}
-                            error={eventErrors.occurrences && (!occurrence.end_date || !occurrence.end_date.trim()) ? 'End date is required' : undefined}
+                            placeholder="https://example.com/event"
                           />
                         </FormField>
-                      </div>
-                    )}
 
-                    <FormField label="URL (optional)">
-                      <Input
-                        type="url"
-                        value={occurrence.url || ''}
-                        disabled={isPast}
-                        onChange={(e) => {
-                          const updated = [...eventScheduling.occurrences]
-                          updated[index] = { ...updated[index], url: e.target.value }
-                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                        }}
-                        placeholder="https://example.com/event"
-                      />
-                    </FormField>
-
-                    <FormField label="Notes (optional)">
-                      <Textarea
-                        value={occurrence.notes || ''}
-                        disabled={isPast}
-                        onChange={(e) => {
-                          const updated = [...eventScheduling.occurrences]
-                          updated[index] = { ...updated[index], notes: e.target.value }
-                          setEventScheduling(prev => ({ ...prev, occurrences: updated }))
-                        }}
-                        placeholder="e.g. opponent, venue, ticket link, key details..."
-                        rows={2}
-                      />
-                    </FormField>
-
-                    {occurrence.summary && occurrence.summary.details && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
-                        <p className="font-medium text-gray-900 mb-2">Details found:</p>
-                        <div className="space-y-1 text-gray-700">
-                          {occurrence.summary.details.dateText && (
-                            <p><strong>Date:</strong> {occurrence.summary.details.dateText}</p>
-                          )}
-                          {occurrence.summary.details.startTime && (
-                            <p><strong>Time:</strong> {occurrence.summary.details.startTime}</p>
-                          )}
-                          {occurrence.summary.details.venueName && (
-                            <p><strong>Venue:</strong> {occurrence.summary.details.venueName}</p>
-                          )}
-                          {occurrence.summary.details.priceText && (
-                            <p><strong>Price:</strong> {occurrence.summary.details.priceText}</p>
-                          )}
-                        </div>
+                        <FormField label="Notes (optional)">
+                          <Textarea
+                            value={occurrence.notes || ''}
+                            disabled={isPast}
+                            onChange={(e) => {
+                              const updated = [...eventScheduling.occurrences]
+                              updated[index] = { ...updated[index], notes: e.target.value }
+                              setEventScheduling(prev => ({ ...prev, occurrences: updated }))
+                            }}
+                            placeholder="e.g. opponent, venue, ticket link, key details..."
+                            rows={2}
+                          />
+                        </FormField>
                       </div>
                     )}
                   </div>
                 )
+              }
 
               return (
                 <>
                   {/* Upcoming occurrences */}
-                  <div className="max-h-[500px] overflow-y-auto space-y-4 pr-1">
+                  <div className="space-y-3">
                     {upcomingIndices.map(idx => renderOccurrenceCard(eventScheduling.occurrences[idx], idx, false))}
                   </div>
 
@@ -3612,6 +3651,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   ...prev,
                   occurrences: [...prev.occurrences, newOccurrence]
                 }))
+                // Auto-expand the new occurrence
+                setExpandedOccurrences(prev => new Set([...prev, newIndex]))
                 if (eventErrors.occurrences) {
                   setEventErrors(prev => ({ ...prev, occurrences: undefined }))
                 }
@@ -4028,6 +4069,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   return
                 }
                 setEventImageMode('per_occurrence')
+                // Auto-select first non-past occurrence
+                const firstUpcoming = eventScheduling.occurrences.findIndex(occ => {
+                  const d = eventOccurrenceType === 'single' ? occ.date : occ.start_date
+                  return !d || d >= todayDateStr
+                })
+                if (firstUpcoming >= 0) setActiveOccurrenceIndex(firstUpcoming)
               }}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
                 eventImageMode === 'per_occurrence'
@@ -4054,22 +4101,25 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             {eventScheduling.occurrences.map((occ, idx) => {
               const occDate = eventOccurrenceType === 'single' ? occ.date : occ.start_date
               const isPast = occDate ? occDate < todayDateStr : false
-              if (isPast) return null
               const occAssetCount = (perOccurrenceAssetIds[idx] || []).length
               const isActive = activeOccurrenceIndex === idx
               return (
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => setActiveOccurrenceIndex(idx)}
+                  onClick={() => { if (!isPast) setActiveOccurrenceIndex(idx) }}
+                  disabled={isPast}
                   className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                    isActive
-                      ? 'bg-[#6366F1] text-white border-[#6366F1]'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    isPast
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                      : isActive
+                        ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   {occ.name || `Event ${idx + 1}`}
-                  <span className={`ml-1.5 text-xs ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                  {isPast && <span className="ml-1 text-xs">(past)</span>}
+                  <span className={`ml-1.5 text-xs ${isPast ? 'text-gray-400' : isActive ? 'text-white/70' : 'text-gray-400'}`}>
                     ({occAssetCount})
                   </span>
                 </button>
