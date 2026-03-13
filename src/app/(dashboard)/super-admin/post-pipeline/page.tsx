@@ -459,7 +459,7 @@ export default function PostPipelinePage() {
                 No posts found for this date range
               </div>
             ) : (
-              <div className="rounded-lg border border-gray-200 bg-white overflow-x-auto">
+              <div key={`table-${selectedBrand ?? ''}-${search}-${statusFilter}`} className="rounded-lg border border-gray-200 bg-white overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
@@ -493,7 +493,6 @@ export default function PostPipelinePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(() => { const dataRows = tableRows.filter(i => i.type === 'data'); console.log('[pipeline-render] tableRows data count=' + dataRows.length + ' brands=' + JSON.stringify([...new Set(dataRows.map(i => (i as any).row.brandName))])); return null })()}
                     {tableRows.map((item, idx) => {
                       if (item.type === 'separator') {
                         return (
