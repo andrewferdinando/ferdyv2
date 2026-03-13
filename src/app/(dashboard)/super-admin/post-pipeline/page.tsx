@@ -229,6 +229,11 @@ export default function PostPipelinePage() {
       result = result.filter((r) => r.status === statusFilter)
     }
 
+    // Debug: log filtering (remove later)
+    if (search || selectedBrand) {
+      console.log('[pipeline-filter]', { search, selectedBrand, totalRows: rows.length, filteredRows: result.length, resultBrands: [...new Set(result.map(r => r.brandName))] })
+    }
+
     return result
   }, [rows, search, selectedBrand, statusFilter])
 
