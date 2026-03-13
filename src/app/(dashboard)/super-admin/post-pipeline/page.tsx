@@ -230,9 +230,8 @@ export default function PostPipelinePage() {
     }
 
     // Debug: log filtering (remove later)
-    if (search || selectedBrand) {
-      console.log('[pipeline-filter]', { search, selectedBrand, totalRows: rows.length, filteredRows: result.length, resultBrands: [...new Set(result.map(r => r.brandName))] })
-    }
+    const resultBrands = [...new Set(result.map(r => r.brandName))]
+    console.log('[pipeline-filter] search="' + search + '" selectedBrand="' + selectedBrand + '" total=' + rows.length + ' filtered=' + result.length + ' brands=' + JSON.stringify(resultBrands))
 
     return result
   }, [rows, search, selectedBrand, statusFilter])
