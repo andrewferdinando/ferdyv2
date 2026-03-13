@@ -24,3 +24,20 @@ LEFT JOIN categories c_via_rule ON c_via_rule.id = s_via_rule.category_id
 LEFT JOIN event_occurrences eo ON eo.id = d.event_occurrence_id;
 
 GRANT SELECT ON drafts_with_labels TO authenticated;
+
+-- Update unique indexes to include event_occurrence_id so two occurrences
+-- on the same date don't collide
+DROP INDEX IF EXISTS drafts_unique_brand_time_channel_source;
+CREATE UNIQUE INDEX drafts_unique_brand_time_channel_source
+ON public.drafts USING btree (
+  brand_id, scheduled_for, channel, schedule_source, subcategory_id,
+  COALESCE(event_occurrence_id, '00000000-0000-0000-0000-000000000000'::uuid)
+);
+
+DROP INDEX IF EXISTS drafts_unique_framework;
+CREATE UNIQUE INDEX drafts_unique_framework
+ON public.drafts USING btree (
+  brand_id, scheduled_for, channel, subcategory_id,
+  COALESCE(event_occurrence_id, '00000000-0000-0000-0000-000000000000'::uuid)
+)
+WHERE (schedule_source = 'framework'::text);
