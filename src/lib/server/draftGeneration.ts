@@ -213,6 +213,10 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
     console.log(`[draftGeneration] Filtered out ${targetsInWindow.length - readyTargets.length} targets for incomplete categories`);
   }
 
+  // Sort targets by scheduled_at ascending so soonest drafts get the first images
+  // (RPC returns targets in days_before array order, which may not be chronological)
+  readyTargets.sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
   // Log all targets the generator will attempt to process
   for (const t of readyTargets) {
     const name = subcategoryNameMap[t.subcategory_id] || t.subcategory_id;
