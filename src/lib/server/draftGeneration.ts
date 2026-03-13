@@ -322,8 +322,11 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
           .eq('id', target.schedule_rule_id)
           .maybeSingle();
         if (ruleForOcc?.start_date) {
-          const ruleDateKey = new Date(ruleForOcc.start_date).toISOString().split('T')[0];
+          // start_date is a plain DATE column (e.g. '2026-03-27') stored in brand-local time
+          // occurrenceIdsByDate keys also use brand-local dates, so use start_date directly
+          const ruleDateKey = String(ruleForOcc.start_date).split('T')[0];
           eventOccurrenceId = occurrenceIdsByDate.get(target.subcategory_id)?.get(ruleDateKey) || null;
+          console.log(`[draftGeneration] Event occurrence resolution: rule=${target.schedule_rule_id}, ruleDateKey=${ruleDateKey}, occurrenceId=${eventOccurrenceId || 'NOT FOUND'}`);
         }
       }
 
@@ -347,6 +350,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       }
 
       const { data: existingDraft, error: checkError } = await dedupQuery.maybeSingle();
+
+      console.log(`[draftGeneration] Dedup check for ${targetName} at ${scheduledAtISO}: occurrenceId=${eventOccurrenceId || 'null'}, found=${existingDraft?.id || 'none'}, error=${checkError?.message || 'none'}`);
 
       if (checkError) {
         const reason = `Dedup check error: ${checkError.message}`;

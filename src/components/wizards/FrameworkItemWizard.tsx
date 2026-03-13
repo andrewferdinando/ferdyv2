@@ -1264,7 +1264,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       for (const daysBefore of eventScheduling.daysBefore) {
         const postDate = new Date(eventDate)
         postDate.setDate(postDate.getDate() - daysBefore)
-        const dateKey = postDate.toISOString().split('T')[0]
+        // Use local date parts to avoid UTC shift (user is in NZ, toISOString shifts back a day)
+        const dateKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, '0')}-${String(postDate.getDate()).padStart(2, '0')}`
 
         if (!dateToOccurrences.has(dateKey)) {
           dateToOccurrences.set(dateKey, [])
@@ -3814,7 +3815,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 <p className="text-sm font-medium text-amber-800 mb-1">Some post dates overlap across occurrences</p>
                 <ul className="text-sm text-amber-700 list-disc list-inside space-y-0.5">
                   {eventDateOverlaps.map(({ date, occurrences }) => {
-                    const formatted = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    const [y, m, d2] = date.split('-').map(Number)
+                    const formatted = new Date(y, m - 1, d2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                     return (
                       <li key={date}>
                         <span className="font-medium">{formatted}</span>: {occurrences.join(' & ')}
