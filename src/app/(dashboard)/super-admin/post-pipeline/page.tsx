@@ -91,6 +91,7 @@ export default function PostPipelinePage() {
 
   // Client-side filters
   const [search, setSearch] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null) // Exact brand name from dropdown
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   // Brand search autocomplete
@@ -216,7 +217,10 @@ export default function PostPipelinePage() {
   const filtered = useMemo(() => {
     let result = rows
 
-    if (search) {
+    if (selectedBrand) {
+      // Exact match when a brand was picked from dropdown
+      result = result.filter((r) => r.brandName === selectedBrand)
+    } else if (search) {
       const q = search.toLowerCase()
       result = result.filter((r) => r.brandName.toLowerCase().includes(q))
     }
@@ -226,7 +230,7 @@ export default function PostPipelinePage() {
     }
 
     return result
-  }, [rows, search, statusFilter])
+  }, [rows, search, selectedBrand, statusFilter])
 
   // Sorting
   const sorted = useMemo(() => {
@@ -397,6 +401,7 @@ export default function PostPipelinePage() {
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value)
+                    setSelectedBrand(null) // Clear exact match when user types
                     setShowBrandDropdown(true)
                   }}
                   onFocus={() => setShowBrandDropdown(true)}
@@ -415,6 +420,7 @@ export default function PostPipelinePage() {
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setSearch(name)
+                          setSelectedBrand(name)
                           setShowBrandDropdown(false)
                         }}
                       >
