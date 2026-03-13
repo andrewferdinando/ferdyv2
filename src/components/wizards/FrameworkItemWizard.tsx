@@ -4298,7 +4298,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                   <h4 className="text-sm font-medium text-gray-900 mb-1">
                     Selected Media for &ldquo;{activeOcc.name || `Event ${activeOccurrenceIndex + 1}`}&rdquo; ({activeIds.length})
                   </h4>
-                  <p className="text-xs text-gray-500 mb-3">Drag to reorder. First image will be used for the first post.</p>
                   <SortableAssetGrid
                     assets={resolvedAssets}
                     selectedIds={activeIds}
@@ -4454,7 +4453,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
             <h4 className="text-sm font-medium text-gray-900 mb-1">
               Selected Media ({selectedAssetIds.length})
             </h4>
-            <p className="text-xs text-gray-500 mb-3">Drag to reorder. First image will be used for the first post.</p>
             <SortableAssetGrid
               assets={resolvedAssets}
               selectedIds={selectedAssetIds}
