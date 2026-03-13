@@ -149,7 +149,15 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
   const deleteSubcategory = async (id: string) => {
     try {
       setLoading(true) // Set loading to prevent multiple simultaneous deletes
-      
+
+      // Get subcategory name before deletion (needed for tag cleanup)
+      const { data: subcatData } = await supabase
+        .from('subcategories')
+        .select('name')
+        .eq('id', id)
+        .single()
+      const subcatName = subcatData?.name
+
       // First, get all schedule_rule_ids for this subcategory
       const { data: scheduleRules, error: fetchRulesError } = await supabase
         .from('schedule_rules')
@@ -209,7 +217,52 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
         }
       }
 
-      // 4. Delete the subcategory
+      // 4. Clean up tags and asset_tags for this subcategory
+      if (subcatName && brandId) {
+        // Find the subcategory-level tag
+        const { data: subcatTags } = await supabase
+          .from('tags')
+          .select('id')
+          .eq('brand_id', brandId)
+          .eq('name', subcatName)
+          .eq('kind', 'subcategory')
+
+        // Find occurrence-level tags (name starts with "SubcatName :: ")
+        const { data: occTags } = await supabase
+          .from('tags')
+          .select('id')
+          .eq('brand_id', brandId)
+          .like('name', `${subcatName} :: %`)
+          .eq('kind', 'occurrence')
+
+        const matchingTags = [...(subcatTags || []), ...(occTags || [])]
+
+        if (matchingTags && matchingTags.length > 0) {
+          const tagIds = matchingTags.map((t: any) => t.id)
+
+          // Delete asset_tags first (FK to tags)
+          const { error: assetTagsError } = await supabase
+            .from('asset_tags')
+            .delete()
+            .in('tag_id', tagIds)
+
+          if (assetTagsError) {
+            console.warn('Failed to delete asset_tags:', assetTagsError)
+          }
+
+          // Delete the tags themselves
+          const { error: tagsError } = await supabase
+            .from('tags')
+            .delete()
+            .in('id', tagIds)
+
+          if (tagsError) {
+            console.warn('Failed to delete tags:', tagsError)
+          }
+        }
+      }
+
+      // 5. Delete the subcategory
       const { error } = await supabase
         .from('subcategories')
         .delete()
