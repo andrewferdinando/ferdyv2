@@ -493,6 +493,7 @@ export default function PostPipelinePage() {
                     </tr>
                   </thead>
                   <tbody>
+                    {(() => { const dataRows = tableRows.filter(i => i.type === 'data'); console.log('[pipeline-render] tableRows data count=' + dataRows.length + ' brands=' + JSON.stringify([...new Set(dataRows.map(i => (i as any).row.brandName))])); return null })()}
                     {tableRows.map((item, idx) => {
                       if (item.type === 'separator') {
                         return (
