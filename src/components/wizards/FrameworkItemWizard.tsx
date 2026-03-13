@@ -4294,10 +4294,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 </div>
 
                 {/* Selected Media for active occurrence */}
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">
+                <div className="mb-6 pb-6 border-b border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-900 mb-1">
                     Selected Media for &ldquo;{activeOcc.name || `Event ${activeOccurrenceIndex + 1}`}&rdquo; ({activeIds.length})
                   </h4>
+                  <p className="text-xs text-gray-500 mb-3">Drag to reorder. First image will be used for the first post.</p>
                   <SortableAssetGrid
                     assets={resolvedAssets}
                     selectedIds={activeIds}
@@ -4326,6 +4327,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 {/* Existing Images Mode */}
                 {imageMode === 'existing' && (
                   <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-gray-900">Content Library</h4>
                     {assetsLoading ? (
                       <div className="flex items-center justify-center py-12">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
@@ -4448,10 +4450,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           </div>
 
           {/* Selected Media - Always visible */}
-          <div className="mb-6">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h4 className="text-sm font-medium text-gray-900 mb-1">
               Selected Media ({selectedAssetIds.length})
             </h4>
+            <p className="text-xs text-gray-500 mb-3">Drag to reorder. First image will be used for the first post.</p>
             <SortableAssetGrid
               assets={resolvedAssets}
               selectedIds={selectedAssetIds}
@@ -4544,6 +4547,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           {/* Existing Images Mode */}
           {imageMode === 'existing' && (
             <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-900">Content Library</h4>
               {assetsLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
