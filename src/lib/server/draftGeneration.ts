@@ -273,7 +273,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         if (!occurrenceNamesByDate.has(occ.subcategory_id)) {
           occurrenceNamesByDate.set(occ.subcategory_id, new Map());
         }
-        const dateKey = new Date(occ.starts_at).toISOString().split('T')[0];
+        // Use brand timezone date to match schedule_rules.start_date (stored as brand-local date)
+        const dateKey = new Date(occ.starts_at).toLocaleDateString('en-CA', { timeZone: brandTimezone });
         occurrenceNamesByDate.get(occ.subcategory_id)!.set(dateKey, occ.name.trim());
       }
     }
@@ -294,7 +295,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         if (!occurrenceIdsByDate.has(occ.subcategory_id)) {
           occurrenceIdsByDate.set(occ.subcategory_id, new Map());
         }
-        const dateKey = new Date(occ.starts_at).toISOString().split('T')[0];
+        // Use brand timezone date to match schedule_rules.start_date (stored as brand-local date)
+        const dateKey = new Date(occ.starts_at).toLocaleDateString('en-CA', { timeZone: brandTimezone });
         occurrenceIdsByDate.get(occ.subcategory_id)!.set(dateKey, occ.id);
       }
     }
@@ -348,19 +350,36 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         continue;
       }
 
-      // Explicitly fetch schedule rule for this target
-      // NOTE: Using .maybeSingle() assumes only one active schedule rule per subcategory
-      // For subcategories with multiple active rules (e.g., weekly + specific dates),
-      // we take the first one found. In practice, most subcategories have one active rule.
-      const { data: scheduleRule, error: ruleError } = await supabaseAdmin
-        .from('schedule_rules')
-        .select('id, channels, frequency, start_date')
-        .eq('brand_id', brandId)
-        .eq('subcategory_id', target.subcategory_id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false }) // Prefer most recently created rule
-        .limit(1)
-        .maybeSingle();
+      // Resolve schedule rule for this target
+      // For event_series: RPC provides schedule_rule_id (1:1 with occurrence), so use it directly
+      // For other types: resolve by subcategory_id (one active rule per subcategory)
+      let scheduleRule: { id: string; channels: string[]; frequency: string; start_date: string | null } | null = null;
+      let ruleError: any = null;
+
+      if (target.schedule_rule_id) {
+        // Use the RPC-provided rule ID (critical for event_series with multiple rules)
+        const result = await supabaseAdmin
+          .from('schedule_rules')
+          .select('id, channels, frequency, start_date')
+          .eq('id', target.schedule_rule_id)
+          .eq('is_active', true)
+          .maybeSingle();
+        scheduleRule = result.data;
+        ruleError = result.error;
+      } else {
+        // Fallback: resolve by subcategory (assumes one active rule per subcategory)
+        const result = await supabaseAdmin
+          .from('schedule_rules')
+          .select('id, channels, frequency, start_date')
+          .eq('brand_id', brandId)
+          .eq('subcategory_id', target.subcategory_id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        scheduleRule = result.data;
+        ruleError = result.error;
+      }
 
       // HARD GUARD: If no schedule rule found, skip this target (NO DEFAULTS)
       if (ruleError) {
