@@ -229,10 +229,6 @@ export default function PostPipelinePage() {
       result = result.filter((r) => r.status === statusFilter)
     }
 
-    // Debug: log filtering (remove later)
-    const resultBrands = [...new Set(result.map(r => r.brandName))]
-    console.log('[pipeline-filter] search="' + search + '" selectedBrand="' + selectedBrand + '" total=' + rows.length + ' filtered=' + result.length + ' brands=' + JSON.stringify(resultBrands))
-
     return result
   }, [rows, search, selectedBrand, statusFilter])
 
