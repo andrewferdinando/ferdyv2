@@ -310,20 +310,43 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       const scheduledAtISO = scheduledAt.toISOString();
 
       console.log(`[draftGeneration] Processing: ${targetName} at ${scheduledAtISO}`);
-      
+
+      // Resolve event_occurrence_id early (needed for dedup check)
+      // For event_series: match via target's schedule_rule_id -> rule start_date -> occurrence
+      let eventOccurrenceId: string | null = null;
+      if (subcategoryTypeMap[target.subcategory_id] === 'event_series' && target.schedule_rule_id) {
+        // Look up start_date from the schedule rule to find the occurrence
+        const { data: ruleForOcc } = await supabaseAdmin
+          .from('schedule_rules')
+          .select('start_date')
+          .eq('id', target.schedule_rule_id)
+          .maybeSingle();
+        if (ruleForOcc?.start_date) {
+          const ruleDateKey = new Date(ruleForOcc.start_date).toISOString().split('T')[0];
+          eventOccurrenceId = occurrenceIdsByDate.get(target.subcategory_id)?.get(ruleDateKey) || null;
+        }
+      }
+
       // Check if ANY framework draft already exists at this slot (regardless of status).
       // The DB unique constraint (drafts_unique_framework) prevents duplicates at
-      // the same (brand, subcategory, scheduled_for, schedule_source) regardless of
-      // status, so the dedup check must match that scope. Published drafts already
-      // went out for this slot; deleted drafts were intentionally removed by the user.
-      const { data: existingDraft, error: checkError } = await supabaseAdmin
+      // the same (brand, subcategory, scheduled_for, schedule_source, event_occurrence_id)
+      // regardless of status. For event_series, two different occurrences may legitimately
+      // produce drafts at the same time.
+      let dedupQuery = supabaseAdmin
         .from('drafts')
         .select('id')
         .eq('brand_id', brandId)
         .eq('subcategory_id', target.subcategory_id)
         .eq('scheduled_for', scheduledAtISO)
-        .eq('schedule_source', 'framework')
-        .maybeSingle();
+        .eq('schedule_source', 'framework');
+
+      if (eventOccurrenceId) {
+        dedupQuery = dedupQuery.eq('event_occurrence_id', eventOccurrenceId);
+      } else {
+        dedupQuery = dedupQuery.is('event_occurrence_id', null);
+      }
+
+      const { data: existingDraft, error: checkError } = await dedupQuery.maybeSingle();
 
       if (checkError) {
         const reason = `Dedup check error: ${checkError.message}`;
@@ -604,13 +627,8 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
           approved: false, // User must approve before scheduling
           subcategory_id: target.subcategory_id,
           asset_ids: assetId ? [assetId] : [], // May be empty - this is acceptable
-          // Link to event occurrence if this is an event_series draft
-          ...(subcategoryTypeMap[target.subcategory_id] === 'event_series' && scheduleRule.start_date ? {
-            event_occurrence_id: (() => {
-              const ruleDateKey = new Date(scheduleRule.start_date).toISOString().split('T')[0];
-              return occurrenceIdsByDate.get(target.subcategory_id)?.get(ruleDateKey) || null;
-            })()
-          } : {})
+          // Link to event occurrence if this is an event_series draft (resolved earlier)
+          ...(eventOccurrenceId ? { event_occurrence_id: eventOccurrenceId } : {})
         })
         .select()
         .single();

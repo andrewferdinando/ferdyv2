@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -1246,6 +1246,43 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       return prev
     })
   }, [daysDuringInput, hasDateRangeSelection, schedule.frequency])
+
+  // Detect overlapping post dates across event occurrences
+  const eventDateOverlaps = useMemo(() => {
+    if (subcategoryType !== 'event_series' || eventScheduling.occurrences.length < 2 || eventScheduling.daysBefore.length === 0) {
+      return []
+    }
+
+    // Build map of date -> list of occurrence names that produce a post on that date
+    const dateToOccurrences = new Map<string, string[]>()
+
+    for (const occ of eventScheduling.occurrences) {
+      if (!occ.date) continue
+      const occName = occ.name || occ.date
+      const eventDate = new Date(occ.date + 'T00:00:00')
+
+      for (const daysBefore of eventScheduling.daysBefore) {
+        const postDate = new Date(eventDate)
+        postDate.setDate(postDate.getDate() - daysBefore)
+        const dateKey = postDate.toISOString().split('T')[0]
+
+        if (!dateToOccurrences.has(dateKey)) {
+          dateToOccurrences.set(dateKey, [])
+        }
+        dateToOccurrences.get(dateKey)!.push(occName)
+      }
+    }
+
+    // Find dates with multiple occurrences
+    const overlaps: Array<{ date: string; occurrences: string[] }> = []
+    for (const [date, occs] of dateToOccurrences) {
+      if (occs.length > 1) {
+        overlaps.push({ date, occurrences: occs })
+      }
+    }
+
+    return overlaps.sort((a, b) => a.date.localeCompare(b.date))
+  }, [subcategoryType, eventScheduling.occurrences, eventScheduling.daysBefore])
 
   const isStep3Valid = (): boolean => {
     // Specific frequency uses event-style validation (for all types)
@@ -3771,6 +3808,25 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 error={eventErrors.leadTimes}
               />
             </FormField>
+
+            {eventDateOverlaps.length > 0 && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm font-medium text-amber-800 mb-1">Some post dates overlap across occurrences</p>
+                <ul className="text-sm text-amber-700 list-disc list-inside space-y-0.5">
+                  {eventDateOverlaps.map(({ date, occurrences }) => {
+                    const formatted = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    return (
+                      <li key={date}>
+                        <span className="font-medium">{formatted}</span>: {occurrences.join(' & ')}
+                      </li>
+                    )
+                  })}
+                </ul>
+                <p className="text-xs text-amber-600 mt-2">
+                  Posts will still be created for each occurrence. You can adjust their dates and times on the Schedule page.
+                </p>
+              </div>
+            )}
 
             {hasDateRangeSelection && (
               <FormField label="Days During">
