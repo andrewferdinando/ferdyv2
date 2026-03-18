@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
+import { getGroupRoleDisplay, getBrandRoleDisplay } from '@/lib/roles';
 
 interface UserProfile {
   id: string;
@@ -234,23 +235,8 @@ export default function ProfilePage() {
     }
   };
 
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'Super Admin';
-      case 'admin': return 'Admin';
-      case 'editor': return 'Editor';
-      default: return role;
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'admin': return 'bg-blue-100 text-blue-800';
-      case 'editor': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const getRoleDisplayName = (role: string) => getGroupRoleDisplay(role).label;
+  const getRoleColor = (role: string) => getGroupRoleDisplay(role).color;
 
   if (loading) {
     return (
@@ -426,10 +412,8 @@ export default function ProfilePage() {
                         {brandMemberships.map((membership, index) => (
                           <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <span className="text-sm text-gray-900">{membership.brand_name}</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              membership.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                            }`}>
-                              {membership.role === 'admin' ? 'Admin' : 'Editor'}
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBrandRoleDisplay(membership.role).color}`}>
+                              {getBrandRoleDisplay(membership.role).label}
                             </span>
                           </div>
                         ))}

@@ -230,7 +230,7 @@ export default function BillingPage() {
     if (!group) return
 
     if (!group.stripe_customer_id) {
-      setError('No billing account found. Please contact support to set up billing.')
+      setError('No billing setup found. Please set up billing from the Manage Billing section below.')
       return
     }
 
@@ -394,7 +394,7 @@ export default function BillingPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <p className="text-sm text-gray-500">Account</p>
+                    <p className="text-sm text-gray-500">Group</p>
                     <p className="mt-1 text-2xl font-semibold text-gray-900">{group.name}</p>
                   </div>
 

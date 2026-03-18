@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
+import { getBrandRoleDisplay } from '@/lib/roles';
 
 interface UserProfile {
   id: string;
@@ -124,23 +125,8 @@ export default function ProfilePage() {
     }
   };
 
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'Super Admin';
-      case 'admin': return 'Admin';
-      case 'editor': return 'Editor';
-      default: return role;
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'admin': return 'bg-blue-100 text-blue-800';
-      case 'editor': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const getRoleDisplayName = (role: string) => getBrandRoleDisplay(role).label;
+  const getRoleColor = (role: string) => getBrandRoleDisplay(role).color;
 
   if (loading) {
     return (
@@ -221,7 +207,7 @@ export default function ProfilePage() {
 
                   {/* Role (Read-only) */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Role</label>
                     <div className="flex items-center space-x-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(profile.role)}`}>
                         {getRoleDisplayName(profile.role)}

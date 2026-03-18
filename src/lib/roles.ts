@@ -17,7 +17,7 @@ export const GROUP_ROLES: Record<string, { label: string; color: string; descrip
     description: 'Can manage brands, team, and billing across the group.',
   },
   member: {
-    label: 'Member',
+    label: 'Group Member',
     color: 'bg-gray-100 text-gray-700',
     description: 'Can access assigned brands only. Cannot manage billing or team.',
   },
@@ -31,7 +31,7 @@ export const BRAND_ROLES: Record<string, { label: string; color: string; descrip
     description: "Can manage this brand's settings, integrations, and content.",
   },
   editor: {
-    label: 'Editor',
+    label: 'Brand Editor',
     color: 'bg-green-100 text-green-800',
     description: 'Can create and edit content for this brand.',
   },

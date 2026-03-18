@@ -27,6 +27,20 @@ export default function AuthCallbackPage() {
           return
         }
 
+        // If this is a new-user invite, redirect to set-password page with hash preserved
+        {
+          const cbUrl = new URL(window.location.href)
+          const inviteSrc = cbUrl.searchParams.get('src')
+          if (type === 'invite' || inviteSrc === 'invite') {
+            console.log('[auth callback] Detected invite link, redirecting to set-password')
+            const brandIdParam = cbUrl.searchParams.get('brand_id')
+            const groupIdParam = cbUrl.searchParams.get('group_id')
+            const setPasswordUrl = `/auth/set-password?src=invite${brandIdParam ? `&brand_id=${brandIdParam}` : ''}${groupIdParam ? `&group_id=${groupIdParam}` : ''}${window.location.hash}`
+            window.location.replace(setPasswordUrl)
+            return
+          }
+        }
+
         if (!accessToken || !refreshToken) {
           console.error('Auth callback missing tokens', {
             hasAccessToken: Boolean(accessToken),

@@ -517,8 +517,8 @@ export default function AddBrandPage() {
                               className="ml-3 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <option value="editor">Editor</option>
-                              <option value="admin">Admin</option>
+                              <option value="editor">Brand Editor</option>
+                              <option value="admin">Brand Admin</option>
                             </select>
                           )}
                         </div>

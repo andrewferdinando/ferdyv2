@@ -217,7 +217,7 @@ export default function TeamMemberDetailPage() {
                     <div className="mt-2 flex items-center space-x-3">
                       <p className="text-sm text-gray-600">{member.email}</p>
                       <div className="flex flex-col items-start">
-                        <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Account role</span>
+                        <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Group role</span>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${accountRole.color}`}>
                           {accountRole.label}
                         </span>
@@ -295,8 +295,8 @@ export default function TeamMemberDetailPage() {
                                   className="ml-3 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none disabled:opacity-50"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <option value="editor">Editor</option>
-                                  <option value="admin">Admin</option>
+                                  <option value="editor">Brand Editor</option>
+                                  <option value="admin">Brand Admin</option>
                                 </select>
                               )}
                             </div>

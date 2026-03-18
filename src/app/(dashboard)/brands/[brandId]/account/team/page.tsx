@@ -400,7 +400,7 @@ export default function TeamPage() {
                         onClick={() => setShowTransferModal(true)}
                         className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center space-x-2 text-sm font-medium"
                       >
-                        <span>Transfer Ownership</span>
+                        <span>Transfer Group Ownership</span>
                       </button>
                     )}
                     <button
@@ -419,8 +419,8 @@ export default function TeamPage() {
                   onClick={() => setRoleGuideOpen(!roleGuideOpen)}
                   className="w-full px-6 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center space-x-3">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-4">
+                    <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="text-sm font-medium text-gray-700">Understanding roles</span>
@@ -673,7 +673,7 @@ export default function TeamPage() {
                                     className="ml-3 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-[#EEF2FF] focus:border-[#6366F1] focus:outline-none"
                                   >
                                     <option value="admin">Brand Admin</option>
-                                    <option value="editor">Editor</option>
+                                    <option value="editor">Brand Editor</option>
                                   </select>
                                 )}
                               </div>
@@ -787,8 +787,8 @@ export default function TeamPage() {
                                   disabled={roleUpdatingId === member.id}
                                   className="h-9 rounded-lg border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-700 focus:border-[#6366F1] focus:outline-none focus:ring-4 focus:ring-[#EEF2FF] transition-all appearance-none"
                                 >
-                                  <option value="editor">Editor</option>
-                                  <option value="admin">Admin</option>
+                                  <option value="editor">Brand Editor</option>
+                                  <option value="admin">Brand Admin</option>
                                 </select>
                                 <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
                                   <svg
@@ -941,8 +941,8 @@ export default function TeamPage() {
                     </label>
                   ))}
                 {teamMembers.filter(m => m.groupRole === 'admin' && m.id !== currentUserId).length === 0 && (
-                  <p className="text-sm text-gray-500 py-4 text-center">
-                    No Group Admins available. Promote a Member to Group Admin first before transferring ownership.
+                  <p className="text-sm text-gray-500 py-4 text-left">
+                    No Group Admins available. Promote a Group Member to Group Admin first before transferring ownership.
                   </p>
                 )}
               </div>

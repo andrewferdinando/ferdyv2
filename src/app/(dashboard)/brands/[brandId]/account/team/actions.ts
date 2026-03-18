@@ -85,7 +85,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
           role,
           src: 'team_invite',
         },
-        redirectTo: `${APP_URL}/auth/set-password?src=invite&brand_id=${brandId}`,
+        redirectTo: `${APP_URL}/auth/callback?src=invite&brand_id=${brandId}`,
       },
     })
 
