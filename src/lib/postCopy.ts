@@ -1066,7 +1066,7 @@ Plain text, no headings, no markdown, no explanations.
   // 10) Call OpenAI with retry logic
   const completion = await withRetry(() =>
     client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       temperature: 0.65,
       n: clamp(variants ?? 1, 1, 3),
       max_tokens: effectiveMaxTokens,

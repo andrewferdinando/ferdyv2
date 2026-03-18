@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     const client = getClient();
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       temperature: 0.75,
       max_tokens: 2000,
       response_format: { type: "json_object" },

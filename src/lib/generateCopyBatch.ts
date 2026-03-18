@@ -510,7 +510,7 @@ export async function processBatchCopyGeneration(
           .update({
             copy: finalCopy,
             copy_status: "complete",
-            copy_model: "gpt-4o",
+            copy_model: "gpt-4.1",
             ...(finalHashtags.length > 0 && { hashtags: finalHashtags }),
             ...(assetIds.length > 0 && { asset_ids: assetIds }),
             copy_meta: {
