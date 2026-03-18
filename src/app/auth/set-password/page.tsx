@@ -122,18 +122,22 @@ export default function SetPasswordPage() {
         return
       }
 
-      console.log('[SetPasswordPage] About to finalize, isGroupInvite:', isGroupInvite)
+      // Get fresh session token — updateUser may rotate the access token
+      const { data: sessionData } = await supabase.auth.getSession()
+      const freshToken = sessionData?.session?.access_token || accessToken
+
+      console.log('[SetPasswordPage] About to finalize, isGroupInvite:', isGroupInvite, 'tokenRefreshed:', freshToken !== accessToken)
 
       let result
       if (isGroupInvite) {
         console.log('[SetPasswordPage] Calling finalizeGroupInvite')
         result = await finalizeGroupInvite({
-          accessToken,
+          accessToken: freshToken,
         })
       } else {
         console.log('[SetPasswordPage] Calling finalizeInvite')
         result = await finalizeInvite({
-          accessToken,
+          accessToken: freshToken,
           brandId,
         })
       }
