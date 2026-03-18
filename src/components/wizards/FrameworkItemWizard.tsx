@@ -3886,8 +3886,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                         setSchedule(prev => ({
                           ...prev,
                           frequency: freq,
-                          daysOfWeek: freq !== 'weekly' ? [] : prev.daysOfWeek,
-                          dayOfMonth: freq !== 'monthly' ? null : prev.dayOfMonth,
                         }))
                         if (scheduleErrors.frequency) {
                           setScheduleErrors(prev => ({ ...prev, frequency: undefined }))
