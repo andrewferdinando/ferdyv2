@@ -53,7 +53,6 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAccountAdmin, setIsAccountAdmin] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const { brands, loading: brandsLoading, refetch: refetchBrands } = useBrands();
 
   // Check if user is super admin
@@ -65,8 +64,6 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
           setIsSuperAdmin(false);
           return;
         }
-
-        setUserEmail(user.email || null);
 
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -302,23 +299,6 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
                   </div>
                 ) : (
                   <>
-                  {/* User identity */}
-                  {(userName || userEmail) && (
-                    <div className="flex items-center gap-3 px-4 py-2 mb-1">
-                      <div className="w-8 h-8 rounded-full bg-[#6366F1] flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-semibold text-white">
-                          {userName
-                            ? userName.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
-                            : (userEmail?.[0] || '?').toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        {userName && <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>}
-                        {userEmail && <p className="text-xs text-gray-500 truncate">{userEmail}</p>}
-                      </div>
-                    </div>
-                  )}
-
                   <Link
                     href={activeBrandId ? `/brands/${activeBrandId}/account` : '/account'}
                     onClick={handleNavigationClick}
@@ -363,6 +343,24 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
           </>
         )}
       </nav>
+
+      {/* User identity — bottom of sidebar */}
+      {userName && (
+        <div className="border-t border-gray-200 p-4">
+          <Link
+            href={activeBrandId ? `/brands/${activeBrandId}/account/profile` : '/account/profile'}
+            onClick={handleNavigationClick}
+            className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#6366F1] flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-semibold text-white">
+                {userName.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)}
+              </span>
+            </div>
+            <span className="text-sm font-medium text-gray-900 truncate">{userName}</span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
