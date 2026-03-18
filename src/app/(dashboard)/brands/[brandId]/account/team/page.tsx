@@ -792,11 +792,9 @@ export default function TeamPage() {
 
                         <div className="flex items-center space-x-3">
                           <div className="flex items-center gap-2">
-                            {groupAdminFlag && (
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${GROUP_ROLES[member.groupRole]?.color || GROUP_ROLES.member.color}`}>
-                                {GROUP_ROLES[member.groupRole]?.label || 'Member'}
-                              </span>
-                            )}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${GROUP_ROLES[member.groupRole]?.color || GROUP_ROLES.member.color}`}>
+                              {GROUP_ROLES[member.groupRole]?.label || 'Group Member'}
+                            </span>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBrandRoleColor(member.role)}`}>
                               {getBrandRoleLabel(member.role)}
                             </span>
