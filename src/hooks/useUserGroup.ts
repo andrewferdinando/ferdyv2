@@ -16,7 +16,7 @@ export interface GroupMembership {
   id: string
   group_id: string
   user_id: string
-  role: 'super_admin' | 'admin' | 'member'
+  role: 'super_admin' | 'owner' | 'admin' | 'member'
   created_at: string
 }
 
@@ -92,8 +92,9 @@ export function useUserGroup() {
     membership,
     loading,
     error,
-    isAdmin: membership?.role === 'admin' || membership?.role === 'super_admin',
-    canManageBilling: membership?.role === 'admin' || membership?.role === 'super_admin',
+    isAdmin: membership?.role === 'owner' || membership?.role === 'admin' || membership?.role === 'super_admin',
+    isOwner: membership?.role === 'owner' || membership?.role === 'super_admin',
+    canManageBilling: membership?.role === 'owner' || membership?.role === 'admin' || membership?.role === 'super_admin',
     refetch,
   }
 }

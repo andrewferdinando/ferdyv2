@@ -10,7 +10,7 @@ Ferdy uses a simplified two-tier permission system with roles at both the **Grou
 
 ## Group-Level Roles
 
-Group-level roles control access to account-wide features like billing, team management, and brand creation.
+Group-level roles control access to group-wide features like billing, team management, and brand creation. A group is typically a marketing agency or an umbrella company that owns multiple brands.
 
 ### Super Admin
 **Database Value:** `super_admin`
@@ -20,7 +20,7 @@ Group-level roles control access to account-wide features like billing, team man
 **Permissions:**
 - Full system access
 - Can see system-level debugging features
-- All Admin permissions plus system tools
+- All Owner permissions plus system tools
 
 **Visibility:**
 - Super Admin nav item only visible to super_admins
@@ -29,10 +29,11 @@ Group-level roles control access to account-wide features like billing, team man
 
 ---
 
-### Admin
-**Database Value:** `admin`
+### Group Owner
+**Database Value:** `owner`
+**UI Label:** "Group Owner" (purple badge)
 
-**Who Has This:** Agency owners, account managers
+**Who Has This:** The person who created the group (1 per group)
 
 **Permissions:**
 - Can manage billing and subscriptions
@@ -40,11 +41,39 @@ Group-level roles control access to account-wide features like billing, team man
 - Can create and delete brands
 - Can access all brands in the Group
 - Can modify Group settings
+- Can transfer ownership to a Group Admin
 
 **Use Cases:**
 - Agency owner managing the whole account
+- Business owner who set up the account
+
+**UI Access:**
+- Full access to Account section (Team, Billing, Brand Settings)
+- "Transfer Ownership" button on Team page
+- Can create brands
+- Can invite team members
+- Can manage billing
+
+---
+
+### Group Admin
+**Database Value:** `admin`
+**UI Label:** "Group Admin" (blue badge)
+
+**Who Has This:** Operations managers, senior account managers
+
+**Permissions:**
+- Can manage billing and subscriptions
+- Can invite and remove team members
+- Can create and delete brands
+- Can access all brands in the Group
+- Can modify Group settings
+- **Cannot** transfer group ownership
+
+**Use Cases:**
 - Operations manager with full control
 - Senior account manager
+- Agency partner
 
 **UI Access:**
 - Full access to Account section (Team, Billing, Brand Settings)
@@ -56,6 +85,7 @@ Group-level roles control access to account-wide features like billing, team man
 
 ### Member
 **Database Value:** `member`
+**UI Label:** "Member" (gray badge)
 
 **Who Has This:** Team members, content creators, account coordinators
 
@@ -84,6 +114,7 @@ Brand-level roles control what users can do within a specific brand.
 
 ### Brand Admin
 **Database Value:** `admin`
+**UI Label:** "Brand Admin" (teal badge)
 
 **Who Has This:** Account managers for specific clients, brand leads
 
@@ -110,6 +141,7 @@ Brand-level roles control what users can do within a specific brand.
 
 ### Brand Editor
 **Database Value:** `editor`
+**UI Label:** "Editor" (green badge)
 
 **Who Has This:** Content creators, copywriters, social media coordinators
 
@@ -136,16 +168,17 @@ Brand-level roles control what users can do within a specific brand.
 
 ## Permission Matrix
 
-| Feature | Super Admin | Admin | Member | Brand Admin | Brand Editor |
-|---------|-------------|-------|--------|-------------|--------------|
+| Feature | Super Admin | Group Owner | Group Admin | Member | Brand Admin | Brand Editor |
+|---------|-------------|-------------|-------------|--------|-------------|--------------|
 | **Group Level** |
-| View Billing | ✅ | ✅ | ❌ | N/A | N/A |
-| Manage Billing | ✅ | ✅ | ❌ | N/A | N/A |
-| Invite Team Members | ✅ | ✅ | ❌ | N/A | N/A |
-| Create Brands | ✅ | ✅ | ❌ | N/A | N/A |
-| Delete Brands | ✅ | ✅ | ❌ | N/A | N/A |
-| View All Brands | ✅ | ✅ | ❌ | N/A | N/A |
-| System Tools | ✅ | ❌ | ❌ | N/A | N/A |
+| View Billing | ✅ | ✅ | ✅ | ❌ | N/A | N/A |
+| Manage Billing | ✅ | ✅ | ✅ | ❌ | N/A | N/A |
+| Invite Team Members | ✅ | ✅ | ✅ | ❌ | N/A | N/A |
+| Create Brands | ✅ | ✅ | ✅ | ❌ | N/A | N/A |
+| Delete Brands | ✅ | ✅ | ✅ | ❌ | N/A | N/A |
+| View All Brands | ✅ | ✅ | ✅ | ❌ | N/A | N/A |
+| Transfer Ownership | ✅ | ✅ | ❌ | ❌ | N/A | N/A |
+| System Tools | ✅ | ❌ | ❌ | ❌ | N/A | N/A |
 | **Brand Level** |
 | View Brand | N/A | N/A | N/A | ✅ | ✅ |
 | Edit Brand Settings | N/A | N/A | N/A | ✅ | ❌ |
@@ -162,13 +195,13 @@ Brand-level roles control what users can do within a specific brand.
 
 ### Inviting a New Team Member
 
-1. Admin goes to `/account/team`
-2. Clicks "Invite Team Member"
-3. Enters email address
-4. Selects **Group Role** (Admin or Member)
-5. Selects which **brands** the user should access
-6. For each brand, selects **Brand Role** (Admin or Editor)
-7. Sends invitation
+1. Group Owner or Admin goes to `/account/team`
+2. Clicks "Invite Member"
+3. **Step 1** — Enters name, email, and selects **Group Role** (Group Admin or Member)
+4. **Step 2** — Selects brand access:
+   - **Group Admin**: Automatically assigned to all brands. Selects default brand role (Brand Admin or Editor) per brand.
+   - **Member**: Selects which brands to assign, with a brand role (Brand Admin or Editor) for each.
+5. Sends invitation
 
 **Example 1: Account Manager**
 - Email: `sarah@agency.com`
@@ -252,7 +285,7 @@ group_memberships (
   id uuid PRIMARY KEY,
   group_id uuid REFERENCES groups(id),
   user_id uuid REFERENCES auth.users(id),
-  role text -- 'super_admin' | 'admin' | 'member'
+  role text -- 'owner' | 'admin' | 'member' (super_admin is internal only)
 )
 ```
 

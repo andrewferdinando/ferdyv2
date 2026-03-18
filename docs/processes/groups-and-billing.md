@@ -40,14 +40,13 @@ Group (Company/Agency)
 - `id` (UUID, PK)
 - `group_id` (UUID, FK → groups.id)
 - `user_id` (UUID, FK → auth.users.id)
-- `role` (enum: 'owner', 'admin', 'billing', 'member')
+- `role` (enum: 'owner', 'admin', 'member')
 - `created_at`
 
 **Roles:**
-- **owner**: Full control, can delete group, manage billing
-- **admin**: Can add/remove brands, manage team
-- **billing**: Can view/manage billing only
-- **member**: Read-only access
+- **owner**: Group Owner (1 per group). Full control — billing, team, brands, ownership transfer.
+- **admin**: Group Admin. Can manage brands, team, and billing across the group.
+- **member**: Can only access brands they are explicitly assigned to.
 
 ### `brands` Table (Updated)
 - Added `group_id` (UUID, FK → groups.id, NOT NULL)

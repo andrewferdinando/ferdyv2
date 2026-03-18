@@ -292,9 +292,23 @@ export async function fetchTeamState(brandId: string) {
   // Look up group-level roles so the UI can distinguish account owners
   const { data: brandGroup } = await supabaseAdmin
     .from('brands')
-    .select('group_id')
+    .select('group_id, groups(name)')
     .eq('id', brandId)
     .maybeSingle()
+
+  const groupName = (brandGroup as any)?.groups?.name ?? ''
+
+  // Get all brands in the group for the invite flow
+  let allGroupBrands: Array<{ id: string; name: string }> = []
+  if (brandGroup?.group_id) {
+    const { data: groupBrandsData } = await supabaseAdmin
+      .from('brands')
+      .select('id, name')
+      .eq('group_id', brandGroup.group_id)
+      .order('name', { ascending: true })
+
+    allGroupBrands = groupBrandsData ?? []
+  }
 
   let groupRoleMap = new Map<string, string>()
   if (brandGroup?.group_id && userIds.length > 0) {
@@ -339,6 +353,8 @@ export async function fetchTeamState(brandId: string) {
     members,
     invites: invites ?? [],
     brandName: brand?.name ?? '',
+    groupName,
+    allBrands: allGroupBrands,
   }
 }
 
@@ -486,6 +502,123 @@ export async function removeTeamMember(input: z.infer<typeof RemoveMemberSchema>
   }
 
   return { ok: true }
+}
+
+const TransferOwnershipSchema = z.object({
+  brandId: z.string().uuid(),
+  newOwnerId: z.string().uuid(),
+  requesterId: z.string().uuid(),
+})
+
+export async function transferGroupOwnership(input: z.infer<typeof TransferOwnershipSchema>) {
+  const payload = TransferOwnershipSchema.parse(input)
+  const { brandId, newOwnerId, requesterId } = payload
+
+  if (newOwnerId === requesterId) {
+    throw new Error('You are already the Group Owner.')
+  }
+
+  // Resolve group from the brand
+  const { data: brand } = await supabaseAdmin
+    .from('brands')
+    .select('group_id')
+    .eq('id', brandId)
+    .single()
+
+  if (!brand) {
+    throw new Error('Brand not found.')
+  }
+
+  const groupId = brand.group_id
+
+  // Verify requester is the current owner
+  const { data: requesterMembership } = await supabaseAdmin
+    .from('group_memberships')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', requesterId)
+    .single()
+
+  if (!requesterMembership || requesterMembership.role !== 'owner') {
+    throw new Error('Only the Group Owner can transfer ownership.')
+  }
+
+  // Verify new owner is an admin in the group
+  const { data: newOwnerMembership } = await supabaseAdmin
+    .from('group_memberships')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', newOwnerId)
+    .single()
+
+  if (!newOwnerMembership || newOwnerMembership.role !== 'admin') {
+    throw new Error('Ownership can only be transferred to a Group Admin.')
+  }
+
+  // Swap roles: current owner → admin, new owner → owner
+  const { error: demoteError } = await supabaseAdmin
+    .from('group_memberships')
+    .update({ role: 'admin' })
+    .eq('group_id', groupId)
+    .eq('user_id', requesterId)
+
+  if (demoteError) {
+    console.error('transferGroupOwnership demote error', demoteError)
+    throw new Error('Failed to transfer ownership. Please try again.')
+  }
+
+  const { error: promoteError } = await supabaseAdmin
+    .from('group_memberships')
+    .update({ role: 'owner' })
+    .eq('group_id', groupId)
+    .eq('user_id', newOwnerId)
+
+  if (promoteError) {
+    // Rollback: restore requester as owner
+    await supabaseAdmin
+      .from('group_memberships')
+      .update({ role: 'owner' })
+      .eq('group_id', groupId)
+      .eq('user_id', requesterId)
+    console.error('transferGroupOwnership promote error', promoteError)
+    throw new Error('Failed to transfer ownership. Please try again.')
+  }
+
+  return { ok: true }
+}
+
+export async function getSocialAccountsConnectedByUser(brandId: string, userId: string) {
+  // Get all brands in the same group
+  const { data: brand } = await supabaseAdmin
+    .from('brands')
+    .select('group_id')
+    .eq('id', brandId)
+    .single()
+
+  if (!brand) return []
+
+  const { data: groupBrands } = await supabaseAdmin
+    .from('brands')
+    .select('id, name')
+    .eq('group_id', brand.group_id)
+
+  if (!groupBrands || groupBrands.length === 0) return []
+
+  const brandIds = groupBrands.map(b => b.id)
+  const brandNameMap = new Map(groupBrands.map(b => [b.id, b.name]))
+
+  const { data: socialAccounts } = await supabaseAdmin
+    .from('social_accounts')
+    .select('brand_id, provider')
+    .eq('connected_by_user_id', userId)
+    .in('brand_id', brandIds)
+
+  if (!socialAccounts || socialAccounts.length === 0) return []
+
+  return socialAccounts.map(sa => ({
+    brandName: brandNameMap.get(sa.brand_id) || 'Unknown brand',
+    provider: sa.provider,
+  }))
 }
 
 export async function cancelTeamInvite(input: z.infer<typeof CancelInviteSchema>) {

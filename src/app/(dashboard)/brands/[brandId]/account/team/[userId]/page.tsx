@@ -6,7 +6,7 @@ import Link from 'next/link'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
-import { getAccountRoleDisplay } from '@/lib/roles'
+import { getGroupRoleDisplay } from '@/lib/roles'
 
 interface TeamMember {
   id: string
@@ -189,7 +189,7 @@ export default function TeamMemberDetailPage() {
     }
   }
 
-  const accountRole = member ? getAccountRoleDisplay(member.groupRole) : null
+  const accountRole = member ? getGroupRoleDisplay(member.groupRole) : null
 
   return (
     <RequireAuth>

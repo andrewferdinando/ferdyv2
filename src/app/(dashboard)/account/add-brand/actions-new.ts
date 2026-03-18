@@ -63,7 +63,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('You do not have access to this group.')
   }
 
-  if (!['admin', 'super_admin'].includes(membership.role)) {
+  if (!['owner', 'admin', 'super_admin'].includes(membership.role)) {
     throw new Error('You do not have permission to create brands in this group.')
   }
 
@@ -192,7 +192,7 @@ export async function deleteBrandAction(brandId: string, userId: string) {
     throw new Error('You do not have access to this group.')
   }
 
-  if (!['admin', 'super_admin'].includes(membership.role)) {
+  if (!['owner', 'admin', 'super_admin'].includes(membership.role)) {
     throw new Error('Only group admins can delete brands.')
   }
 

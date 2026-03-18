@@ -118,21 +118,21 @@ export default function BillingPage() {
         .eq('user_id', user.id)
         .single()
 
-      const isGroupAdmin = membership?.role === 'admin' || membership?.role === 'super_admin'
+      const isGroupAdmin = membership?.role === 'owner' || membership?.role === 'admin' || membership?.role === 'super_admin'
       setCanManageBilling(isGroupAdmin)
 
-      // If the current user is NOT a group admin, fetch the account owner's name
+      // If the current user is NOT a group admin, fetch the group owner's name
       if (!isGroupAdmin) {
         const { data: adminMemberships } = await supabase
           .from('group_memberships')
           .select('user_id, role, profiles(name, full_name)')
           .eq('group_id', groupData.id)
-          .in('role', ['admin', 'super_admin'])
+          .in('role', ['owner', 'admin', 'super_admin'])
           .limit(1)
 
         if (adminMemberships && adminMemberships.length > 0) {
           const adminProfile = (adminMemberships[0] as any).profiles
-          const adminName = adminProfile?.name || adminProfile?.full_name || 'your account owner'
+          const adminName = adminProfile?.name || adminProfile?.full_name || 'your Group Owner'
           setAccountAdmin({ name: adminName })
         }
       }
@@ -351,8 +351,8 @@ export default function BillingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <p className="ml-3 text-sm text-indigo-800">
-                    Billing is managed by <span className="font-medium">{accountAdmin?.name || 'your account owner'}</span>.
-                    Contact your account owner for subscription changes.
+                    Billing is managed by <span className="font-medium">{accountAdmin?.name || 'your Group Owner'}</span>.
+                    Only the Group Owner and Group Admins can manage billing and subscriptions.
                   </p>
                 </div>
               )}
