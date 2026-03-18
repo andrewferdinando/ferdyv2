@@ -78,8 +78,8 @@ export default function AddBrandPage() {
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: 'https://',
-    countryCode: '',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    countryCode: 'NZ',
+    timezone: 'Pacific/Auckland',
   })
   const [touched, setTouched] = useState<Record<keyof BrandFormValues, boolean>>({
     name: false,

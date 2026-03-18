@@ -3595,7 +3595,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               updated[index] = { ...updated[index], name: e.target.value }
                               setEventScheduling(prev => ({ ...prev, occurrences: updated }))
                             }}
-                            placeholder="e.g. Round 1 - Blues v Chiefs"
+                            placeholder="Enter event name"
                             error={
                               occurrence.name?.trim() &&
                               eventScheduling.occurrences.some((other, i) =>
