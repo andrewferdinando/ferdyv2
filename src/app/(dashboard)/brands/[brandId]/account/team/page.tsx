@@ -738,6 +738,7 @@ export default function TeamPage() {
                                     name: inviteName.trim(),
                                     role: resolvedRole as 'admin' | 'editor',
                                     groupRole: inviteGroupRole,
+                                    brandAssignments: assignedBrands,
                                     inviterId: currentUserId,
                                   });
                                   setSuccess(`Invitation sent to ${inviteEmail}`);

@@ -8,12 +8,18 @@ import { sendNewUserInvite, sendExistingUserInvite } from '@/lib/emails/send'
 
 const APP_URL = process.env.APP_URL!
 
+const BrandAssignmentSchema = z.object({
+  brandId: z.string().uuid(),
+  role: z.enum(['admin', 'editor']),
+})
+
 const InviteSchema = z.object({
   brandId: z.string().uuid(),
   email: z.string().email(),
   name: z.string().min(1),
   role: z.enum(['admin', 'editor']),
   groupRole: z.enum(['admin', 'member']).default('member'),
+  brandAssignments: z.array(BrandAssignmentSchema).optional(),
   inviterId: z.string().uuid(),
 })
 
@@ -40,7 +46,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   console.log('[sendTeamInvite] Called with input:', { brandId: input.brandId, email: input.email, role: input.role })
   
   const payload = InviteSchema.parse(input)
-  const { brandId, email, name, role, groupRole, inviterId } = payload
+  const { brandId, email, name, role, groupRole, brandAssignments, inviterId } = payload
   const normalizedEmail = email.trim().toLowerCase()
 
   console.log('[sendTeamInvite] Normalized email:', normalizedEmail)
@@ -50,9 +56,29 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   // Get brand name for email
   const { data: brand } = await supabaseAdmin
     .from('brands')
-    .select('name')
+    .select('name, group_id')
     .eq('id', brandId)
     .single()
+
+  // Get group name
+  let groupName = 'the team'
+  if (brand?.group_id) {
+    const { data: groupData } = await supabaseAdmin
+      .from('groups')
+      .select('name')
+      .eq('id', brand.group_id)
+      .single()
+    if (groupData?.name) groupName = groupData.name
+  }
+
+  // Get all assigned brand names for the email
+  const assignedBrandIds = brandAssignments?.map(a => a.brandId) || [brandId]
+  const { data: assignedBrands } = await supabaseAdmin
+    .from('brands')
+    .select('id, name')
+    .in('id', assignedBrandIds)
+
+  const brandNamesList = assignedBrands?.map(b => b.name) || [brand?.name || 'the brand']
 
   // Get inviter name for email
   const { data: inviter } = await supabaseAdmin
@@ -64,7 +90,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   const brandName = brand?.name || 'the brand'
   const inviterName = inviter?.full_name || 'A team member'
 
-  console.log('[sendTeamInvite] Brand name:', brandName, 'Inviter name:', inviterName)
+  console.log('[sendTeamInvite] Brand name:', brandName, 'Group name:', groupName, 'Inviter name:', inviterName, 'Brand assignments:', brandAssignments?.length)
 
   const { data: list } = await supabaseAdmin.auth.admin.listUsers()
   const existing = list?.users?.find(
@@ -85,6 +111,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
           invitee_name: name,
           role,
           group_role: groupRole,
+          brand_assignments: brandAssignments || [{ brandId, role }],
           src: 'team_invite',
         },
         redirectTo: `${APP_URL}/auth/callback?src=invite&brand_id=${brandId}`,
@@ -100,8 +127,10 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     try {
       await sendNewUserInvite({
         to: normalizedEmail,
-        inviteeName: normalizedEmail.split('@')[0],
+        inviteeName: name,
         brandName,
+        groupName,
+        brandNames: brandNamesList,
         inviterName,
         inviteLink: inviteData.properties.action_link,
       })

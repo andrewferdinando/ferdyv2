@@ -131,33 +131,59 @@ export async function finalizeInvite({
     console.log('finalizeInvite: added to group', brandData.group_id, 'as', metadataGroupRole)
   }
 
-  const { error: membershipError } = await supabaseAdmin
-    .from('brand_memberships')
-    .upsert(
-      {
-        brand_id: resolvedBrandId,
-        user_id: user.id,
-        role: resolvedRole,
-      },
-      {
-        onConflict: 'brand_id,user_id',
-      },
-    )
+  // Create brand memberships — use brand_assignments from metadata if available
+  const metadataBrandAssignments = user.user_metadata?.brand_assignments as
+    | Array<{ brandId: string; role: 'admin' | 'editor' }>
+    | undefined
 
-  if (membershipError) {
-    console.error('finalizeInvite membership upsert error', membershipError, {
+  if (metadataBrandAssignments && metadataBrandAssignments.length > 0) {
+    // Multi-brand invite: create all brand memberships
+    const brandMemberships = metadataBrandAssignments.map(a => ({
+      brand_id: a.brandId,
+      user_id: user.id,
+      role: a.role,
+    }))
+
+    const { error: membershipError } = await supabaseAdmin
+      .from('brand_memberships')
+      .upsert(brandMemberships, { onConflict: 'brand_id,user_id' })
+
+    if (membershipError) {
+      console.error('finalizeInvite multi-brand membership upsert error', membershipError)
+      throw new Error('Unable to create membership for invite')
+    }
+
+    console.log('finalizeInvite: added to', metadataBrandAssignments.length, 'brands')
+  } else {
+    // Single brand fallback
+    const { error: membershipError } = await supabaseAdmin
+      .from('brand_memberships')
+      .upsert(
+        {
+          brand_id: resolvedBrandId,
+          user_id: user.id,
+          role: resolvedRole,
+        },
+        {
+          onConflict: 'brand_id,user_id',
+        },
+      )
+
+    if (membershipError) {
+      console.error('finalizeInvite membership upsert error', membershipError, {
+        brandId: resolvedBrandId,
+        userId: user.id,
+        role: resolvedRole,
+      })
+      throw new Error('Unable to create membership for invite')
+    }
+
+    console.log('finalizeInvite membership upsert success', {
       brandId: resolvedBrandId,
       userId: user.id,
       role: resolvedRole,
     })
-    throw new Error('Unable to create membership for invite')
   }
-
-  console.log('finalizeInvite membership upsert success', {
-    brandId: resolvedBrandId,
-    userId: user.id,
-    role: resolvedRole,
-  })
 
   await markInviteAccepted(userEmail, resolvedBrandId)
 

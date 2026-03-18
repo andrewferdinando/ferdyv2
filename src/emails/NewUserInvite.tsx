@@ -5,6 +5,8 @@ import { EmailLayout, emailStyles } from './components/EmailLayout'
 interface NewUserInviteProps {
   inviteeName: string
   brandName: string
+  groupName?: string
+  brandNames?: string[]
   inviterName: string
   inviteLink: string
 }
@@ -12,20 +14,40 @@ interface NewUserInviteProps {
 export function NewUserInvite({
   inviteeName,
   brandName,
+  groupName,
+  brandNames,
   inviterName,
   inviteLink,
 }: NewUserInviteProps) {
+  const displayGroup = groupName || brandName
+  const displayBrands = brandNames && brandNames.length > 0 ? brandNames : [brandName]
+
   return (
-    <EmailLayout preview={`${inviterName} invited you to join ${brandName} on Ferdy`}>
-      <Text style={emailStyles.h1}>You're invited to join {brandName}! 🎉</Text>
-      
+    <EmailLayout preview={`${inviterName} invited you to join ${displayGroup} on Ferdy`}>
+      <Text style={emailStyles.h1}>You're invited to join {displayGroup}!</Text>
+
       <Text style={emailStyles.paragraph}>
         Hi {inviteeName},
       </Text>
 
       <Text style={emailStyles.paragraph}>
-        <strong>{inviterName}</strong> has invited you to join <strong>{brandName}</strong> on Ferdy.
+        <strong>{inviterName}</strong> has invited you to join <strong>{displayGroup}</strong> on Ferdy.
       </Text>
+
+      {displayBrands.length > 0 && (
+        <Text style={emailStyles.paragraph}>
+          You'll have access to {displayBrands.length === 1 ? (
+            <strong>{displayBrands[0]}</strong>
+          ) : (
+            <>the following brands: {displayBrands.map((name, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && (i === displayBrands.length - 1 ? ' and ' : ', ')}
+                <strong>{name}</strong>
+              </React.Fragment>
+            ))}</>
+          )}.
+        </Text>
+      )}
 
       <Section style={{ textAlign: 'center' }}>
         <Link href={inviteLink} style={emailStyles.button}>
@@ -34,8 +56,7 @@ export function NewUserInvite({
       </Section>
 
       <Text style={emailStyles.paragraph}>
-        This invitation link will expire in 7 days. If you have any questions,
-        feel free to reach out to our support team.
+        This invitation link will expire in 7 days.
       </Text>
 
       <Text style={emailStyles.paragraph}>

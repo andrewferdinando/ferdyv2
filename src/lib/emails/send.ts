@@ -36,6 +36,8 @@ export interface NewUserInviteData {
   to: string
   inviteeName: string
   brandName: string
+  groupName?: string
+  brandNames?: string[]
   inviterName: string
   inviteLink: string
 }
@@ -158,15 +160,18 @@ export async function sendNewUserInvite(data: NewUserInviteData) {
     NewUserInvite({
       inviteeName: data.inviteeName,
       brandName: data.brandName,
+      groupName: data.groupName,
+      brandNames: data.brandNames,
       inviterName: data.inviterName,
       inviteLink: data.inviteLink,
     })
   )
 
+  const displayName = data.groupName || data.brandName
   return resend.emails.send({
     from: FROM_EMAIL,
     to: data.to,
-    subject: `${data.inviterName} invited you to join ${data.brandName} on Ferdy`,
+    subject: `${data.inviterName} invited you to join ${displayName} on Ferdy`,
     html,
   })
 }
