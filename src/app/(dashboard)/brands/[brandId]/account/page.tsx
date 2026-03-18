@@ -100,7 +100,7 @@ export default function AccountSettingsPage() {
               {/* Settings Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accountSettings.map((setting) => {
-                  const disabled = setting.requiresAdmin && !isAdmin;
+                  const disabled = !roleLoading && setting.requiresAdmin && !isAdmin;
                   const cardClasses = [
                     'rounded-xl border p-6 transition-all duration-200 h-full',
                     disabled
