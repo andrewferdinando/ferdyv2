@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { groupId, groupName, email, countryCode, brandCount, couponCode } = body
+    const { groupId, groupName, email, countryCode, brandCount, couponCode, termsAcceptedAt } = body
 
     if (!groupId || !groupName || !email) {
       return NextResponse.json(
@@ -31,6 +31,14 @@ export async function POST(request: NextRequest) {
         { error: 'Group not found' },
         { status: 404 }
       )
+    }
+
+    // Save terms acceptance timestamp
+    if (termsAcceptedAt) {
+      await supabase
+        .from('groups')
+        .update({ terms_accepted_at: termsAcceptedAt })
+        .eq('id', groupId)
     }
 
     // Create Stripe subscription

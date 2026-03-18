@@ -51,6 +51,7 @@ export function OnboardingWizard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pricing, setPricing] = useState<PricingInfo | null>(null)
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   const router = useRouter()
 
@@ -162,6 +163,7 @@ export function OnboardingWizard() {
           countryCode: data.countryCode,
           brandCount: 1,
           couponCode: data.couponCode || undefined,
+          termsAcceptedAt: new Date().toISOString(),
         }),
       })
 
@@ -471,9 +473,29 @@ export function OnboardingWizard() {
           )}
 
           <div className="space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-600">
+                I agree to the{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Terms &amp; Conditions
+                </a>
+              </span>
+            </label>
+
             <button
               onClick={handleProceedToPayment}
-              disabled={loading}
+              disabled={loading || !termsAccepted}
               className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {loading ? 'Setting up payment...' : 'Continue to Payment'}

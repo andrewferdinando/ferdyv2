@@ -77,6 +77,13 @@ const sections = [
       <div className="mt-4 space-y-4 text-base leading-7 text-gray-700">
         <p>Ferdy AI may offer free and paid subscription plans.</p>
         <p>Paid subscriptions are billed on a recurring basis unless canceled before the next billing cycle.</p>
+        <p>
+          We reserve the right to change our subscription fees from time to time. If we increase pricing,
+          we will give you at least 30 days&apos; written notice (via email to the address associated with your
+          account) before the new pricing takes effect. Your continued use of the Service after the price
+          change constitutes acceptance of the updated fees. If you do not agree to the new pricing, you
+          may cancel your subscription before the change takes effect.
+        </p>
       </div>
     ),
   },
@@ -153,7 +160,7 @@ export default function TermsPage() {
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
             Terms &amp; Conditions
           </h1>
-          <p className="mt-4 text-gray-600">Last updated: 26 March 2025</p>
+          <p className="mt-4 text-gray-600">Last updated: 19 March 2026</p>
         </div>
       </div>
 
