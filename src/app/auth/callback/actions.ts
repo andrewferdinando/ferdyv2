@@ -129,12 +129,13 @@ export async function finalizeInvite({
 
   inviteeName = selectedInvite?.invitee_name ?? metadataName ?? null
 
-  const profileUpdate: { user_id: string; role: string; full_name?: string } = {
+  const profileUpdate: { user_id: string; role: string; name?: string; full_name?: string } = {
     user_id: user.id,
     role: resolvedRole,
   }
 
   if (inviteeName) {
+    profileUpdate.name = inviteeName
     profileUpdate.full_name = inviteeName
   }
 

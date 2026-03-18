@@ -708,7 +708,7 @@ export default function TeamPage() {
                               Cancel
                             </button>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 // For now, use the first assigned brand for the invite
                                 // The backend will be extended to handle multi-brand in a future iteration
                                 const assignedBrands = Object.entries(inviteBrandAssignments)
@@ -720,10 +720,38 @@ export default function TeamPage() {
                                   return;
                                 }
 
-                                // Use current brand's assignment role for the invite, falling back to 'editor'
+                                // Compute the role directly instead of using state (async setState won't update in time)
                                 const currentBrandAssignment = assignedBrands.find(a => a.brandId === brandId);
-                                setInviteRole(currentBrandAssignment?.role || assignedBrands[0]?.role || 'editor');
-                                handleInviteUser();
+                                const resolvedRole = currentBrandAssignment?.role || assignedBrands[0]?.role || 'editor';
+
+                                if (!inviteName.trim()) { setError('Please enter their name'); return; }
+                                if (!inviteEmail.trim()) { setError('Please enter an email address'); return; }
+                                if (!currentUserId) { setError('Unable to determine current user'); return; }
+
+                                setInviting(true);
+                                setError('');
+                                try {
+                                  await sendTeamInvite({
+                                    brandId,
+                                    email: inviteEmail.trim(),
+                                    name: inviteName.trim(),
+                                    role: resolvedRole as 'admin' | 'editor',
+                                    inviterId: currentUserId,
+                                  });
+                                  setSuccess(`Invitation sent to ${inviteEmail}`);
+                                  setShowInviteForm(false);
+                                  setInviteStep(1);
+                                  setInviteName('');
+                                  setInviteEmail('');
+                                  setInviteGroupRole('member');
+                                  setInviteBrandAssignments({});
+                                  setInviteRole('editor');
+                                  refreshTeam();
+                                } catch (err: any) {
+                                  setError(err.message || 'Failed to send invitation');
+                                } finally {
+                                  setInviting(false);
+                                }
                               }}
                               disabled={inviting}
                               className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
