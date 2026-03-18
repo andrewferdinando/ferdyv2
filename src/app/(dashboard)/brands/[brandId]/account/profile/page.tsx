@@ -5,13 +5,14 @@ import { useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
-import { getBrandRoleDisplay } from '@/lib/roles';
+import { getBrandRoleDisplay, getGroupRoleDisplay } from '@/lib/roles';
 
 interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: string;
+  groupRole: string;
 }
 
 export default function ProfilePage() {
@@ -59,11 +60,35 @@ export default function ProfilePage() {
         }
       }
 
+      // Get group role
+      let groupRole = 'member';
+      if (brandId) {
+        const { data: brandData } = await supabase
+          .from('brands')
+          .select('group_id')
+          .eq('id', brandId)
+          .single();
+
+        if (brandData?.group_id) {
+          const { data: groupMembership } = await supabase
+            .from('group_memberships')
+            .select('role')
+            .eq('user_id', user.id)
+            .eq('group_id', brandData.group_id)
+            .single();
+
+          if (groupMembership) {
+            groupRole = groupMembership.role;
+          }
+        }
+      }
+
       const userProfile: UserProfile = {
         id: user.id,
         name: profileData.name || '',
         email: user.email || '',
-        role: role
+        role: role,
+        groupRole: groupRole,
       };
 
       setProfile(userProfile);
@@ -205,14 +230,22 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  {/* Role (Read-only) */}
+                  {/* Roles (Read-only) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Group Role</label>
+                    <div className="flex items-center space-x-3">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getGroupRoleDisplay(profile.groupRole).color}`}>
+                        {getGroupRoleDisplay(profile.groupRole).label}
+                      </span>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Brand Role</label>
                     <div className="flex items-center space-x-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(profile.role)}`}>
                         {getRoleDisplayName(profile.role)}
                       </span>
-                      <span className="text-sm text-gray-500">Role cannot be changed</span>
                     </div>
                   </div>
 
