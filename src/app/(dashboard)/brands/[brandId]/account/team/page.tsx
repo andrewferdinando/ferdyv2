@@ -179,6 +179,7 @@ export default function TeamPage() {
         email: inviteEmail.trim(),
         name: inviteName.trim(),
         role: inviteRole as 'admin' | 'editor',
+        groupRole: inviteGroupRole,
         inviterId: currentUserId,
       });
 
@@ -736,6 +737,7 @@ export default function TeamPage() {
                                     email: inviteEmail.trim(),
                                     name: inviteName.trim(),
                                     role: resolvedRole as 'admin' | 'editor',
+                                    groupRole: inviteGroupRole,
                                     inviterId: currentUserId,
                                   });
                                   setSuccess(`Invitation sent to ${inviteEmail}`);

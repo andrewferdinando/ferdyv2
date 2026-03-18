@@ -13,6 +13,7 @@ const InviteSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   role: z.enum(['admin', 'editor']),
+  groupRole: z.enum(['admin', 'member']).default('member'),
   inviterId: z.string().uuid(),
 })
 
@@ -39,7 +40,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
   console.log('[sendTeamInvite] Called with input:', { brandId: input.brandId, email: input.email, role: input.role })
   
   const payload = InviteSchema.parse(input)
-  const { brandId, email, name, role, inviterId } = payload
+  const { brandId, email, name, role, groupRole, inviterId } = payload
   const normalizedEmail = email.trim().toLowerCase()
 
   console.log('[sendTeamInvite] Normalized email:', normalizedEmail)
@@ -83,6 +84,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
           brand_id: brandId,
           invitee_name: name,
           role,
+          group_role: groupRole,
           src: 'team_invite',
         },
         redirectTo: `${APP_URL}/auth/callback?src=invite&brand_id=${brandId}`,

@@ -88,6 +88,10 @@ export async function finalizeInvite({
     throw new Error('Invite not found for this user')
   }
 
+  // Resolve group role from metadata
+  const metadataGroupRole =
+    (user.user_metadata?.group_role as string | undefined) ?? 'member'
+
   console.log('finalizeInvite: resolved context', {
     userId: user.id,
     userEmail,
@@ -95,7 +99,37 @@ export async function finalizeInvite({
     resolvedRole,
     metadataBrandId,
     metadataRole,
+    metadataGroupRole,
   })
+
+  // Add user to the brand's group first (required by DB constraint)
+  const { data: brandData } = await supabaseAdmin
+    .from('brands')
+    .select('group_id')
+    .eq('id', resolvedBrandId)
+    .single()
+
+  if (brandData?.group_id) {
+    const { error: groupError } = await supabaseAdmin
+      .from('group_memberships')
+      .upsert(
+        {
+          group_id: brandData.group_id,
+          user_id: user.id,
+          role: metadataGroupRole,
+        },
+        {
+          onConflict: 'group_id,user_id',
+        },
+      )
+
+    if (groupError) {
+      console.error('finalizeInvite group membership upsert error', groupError)
+      throw new Error('Unable to add user to group')
+    }
+
+    console.log('finalizeInvite: added to group', brandData.group_id, 'as', metadataGroupRole)
+  }
 
   const { error: membershipError } = await supabaseAdmin
     .from('brand_memberships')
