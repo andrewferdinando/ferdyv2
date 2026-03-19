@@ -71,7 +71,7 @@ export default function RecurringPosts() {
       <div className="container">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight mb-4">
-            Your weekly specials, posted every week
+            Your weekly and monthly predictable posts
           </h2>
           <p className="text-xl text-gray-500 font-medium">
             Set it once. Ferdy writes and publishes fresh posts on your schedule.
