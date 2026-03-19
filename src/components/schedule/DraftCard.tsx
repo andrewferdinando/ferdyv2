@@ -524,8 +524,12 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
 
                 case 'specific': {
                   if (ruleData.start_date) {
-                    const startDate = new Date(ruleData.start_date).toISOString();
-                    const endDate = ruleData.end_date ? new Date(ruleData.end_date).toISOString() : startDate;
+                    // Append T12:00:00 to plain date strings to avoid UTC midnight parsing
+                    // which shifts dates back a day in timezones ahead of UTC
+                    const startRaw = String(ruleData.start_date);
+                    const endRaw = ruleData.end_date ? String(ruleData.end_date) : startRaw;
+                    const startDate = new Date(startRaw.includes('T') ? startRaw : `${startRaw}T12:00:00`).toISOString();
+                    const endDate = new Date(endRaw.includes('T') ? endRaw : `${endRaw}T12:00:00`).toISOString();
                     
                     // Check if it's a range or single date
                     if (ruleData.end_date && ruleData.end_date !== ruleData.start_date) {
