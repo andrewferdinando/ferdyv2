@@ -88,28 +88,22 @@ function SingleDateSlide() {
         </span>
       </div>
 
-      <div className="relative">
-        <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-300 rounded-full" />
+      <div>
+        <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wide mb-3 text-center">Posts before the event</p>
+        <div className="relative">
+          <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-300 rounded-full" />
 
-        {/* Event day marker */}
-        <div className="absolute top-0 right-4 sm:right-6 flex flex-col items-center" style={{ top: '-4px' }}>
-          <div className="w-px h-3 bg-blue-400" />
-          <p className="text-[9px] font-semibold text-blue-500 mt-0.5">EVENT</p>
-        </div>
+          {/* Event day marker */}
+          <div className="absolute top-0 right-2 sm:right-4 flex flex-col items-center" style={{ top: '-4px' }}>
+            <div className="w-px h-3 bg-blue-400" />
+            <p className="text-[9px] font-semibold text-blue-500 mt-0.5">EVENT</p>
+          </div>
 
-        <div className="flex justify-end relative pr-12 sm:pr-16">
-          <div className="flex gap-2 sm:gap-3" style={{ width: '75%' }}>
+          <div className="flex gap-3 relative pr-10 sm:pr-14">
             <TimelineMarker label="7 days before" color="purple" />
             <TimelineMarker label="3 days before" color="purple" />
             <TimelineMarker label="1 day before" color="purple" />
           </div>
-        </div>
-      </div>
-
-      <div className="flex justify-center gap-6 mt-8 text-xs font-medium text-gray-500">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-purple-500" />
-          <span>Posts before</span>
         </div>
       </div>
     </>
@@ -131,31 +125,30 @@ function DateRangeSlide() {
         </span>
       </div>
 
-      <div className="relative">
-        <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-300 rounded-full" />
-        <div className="absolute top-0 bottom-0 left-[55%] w-px bg-blue-300" style={{ height: 'calc(100% + 8px)', top: '-4px' }} />
-
-        <div className="flex justify-between relative">
-          <div className="flex gap-2 sm:gap-3" style={{ width: '55%' }}>
-            <TimelineMarker label="7 days before" color="purple" />
-            <TimelineMarker label="3 days before" color="purple" />
-            <TimelineMarker label="1 day before" color="purple" />
-          </div>
-          <div className="flex gap-2 sm:gap-3 justify-end" style={{ width: '42%' }}>
-            <TimelineMarker label="Day 1" color="blue" />
-            <TimelineMarker label="Day 2" color="blue" />
+      <div className="space-y-6">
+        {/* Before posts */}
+        <div>
+          <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wide mb-3 text-center">Posts before</p>
+          <div className="relative">
+            <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-300 rounded-full" />
+            <div className="flex gap-3 relative">
+              <TimelineMarker label="7 days before" color="purple" />
+              <TimelineMarker label="3 days before" color="purple" />
+              <TimelineMarker label="1 day before" color="purple" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex justify-center gap-6 mt-8 text-xs font-medium text-gray-500">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-purple-500" />
-          <span>Posts before</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span>Posts during</span>
+        {/* During posts */}
+        <div>
+          <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wide mb-3 text-center">Posts during</p>
+          <div className="relative">
+            <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-300 rounded-full" />
+            <div className="flex gap-3 relative max-w-[66%] mx-auto">
+              <TimelineMarker label="Day 1" color="blue" />
+              <TimelineMarker label="Day 2" color="blue" />
+            </div>
+          </div>
         </div>
       </div>
     </>
