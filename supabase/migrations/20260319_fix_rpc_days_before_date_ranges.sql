@@ -1,8 +1,10 @@
--- Fix: rpc_framework_targets was not generating days_before targets for date-range events
--- The old logic only processed days_before in the single-date branch (ELSE),
--- but date ranges also need days_before (posts leading up to the range start).
--- This restructures the specific-frequency section so days_before runs for ALL events,
--- and days_during only runs when end_date differs from start_date.
+-- Fix: rpc_framework_targets - two bugs in date-range event handling:
+-- 1. days_before was only processed for single-date events, not date ranges
+-- 2. days_during used EXTRACT(day) (calendar day-of-month) instead of offset from start_date
+--
+-- This restructures the specific-frequency section so:
+-- - days_before runs for ALL events (single-date and date-range)
+-- - days_during treats values as day offsets from start_date (e.g. [1,2] = day 1 and 2 after start)
 --
 -- Already deployed to production via Supabase MCP on 2026-03-19.
 
@@ -237,18 +239,22 @@ BEGIN
                 v_end_date := v_rule.end_date;
                 v_end_date_only := v_end_date::date;
 
+                -- days_during values are OFFSETS from start_date (e.g. [1,2] = day 1 and day 2 after start)
                 IF v_rule.days_during IS NOT NULL AND array_length(v_rule.days_during, 1) > 0 THEN
-                    v_current_date := v_start_date_only;
-                    WHILE v_current_date <= v_end_date_only LOOP
-                        IF EXTRACT(day FROM v_current_date)::int = ANY(v_rule.days_during) THEN
-                            FOREACH v_time_of_day IN ARRAY v_time_array LOOP
-                                v_scheduled_time := ((v_current_date::text || ' ' || v_time_of_day::text)::timestamp AT TIME ZONE v_effective_timezone) AT TIME ZONE 'UTC';
-                                IF v_scheduled_time > v_current_time THEN
-                                    RETURN QUERY SELECT p_brand_id, v_rule.id, v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
-                                END IF;
-                            END LOOP;
+                    FOREACH v_days_during IN ARRAY v_rule.days_during LOOP
+                        IF v_days_during < 0 THEN
+                            CONTINUE;
                         END IF;
-                        v_current_date := v_current_date + INTERVAL '1 day';
+                        v_target_date := v_start_date_only + (v_days_during || ' days')::interval;
+                        IF v_target_date > v_end_date_only THEN
+                            CONTINUE;
+                        END IF;
+                        FOREACH v_time_of_day IN ARRAY v_time_array LOOP
+                            v_scheduled_time := ((v_target_date::text || ' ' || v_time_of_day::text)::timestamp AT TIME ZONE v_effective_timezone) AT TIME ZONE 'UTC';
+                            IF v_scheduled_time > v_current_time THEN
+                                RETURN QUERY SELECT p_brand_id, v_rule.id, v_scheduled_time, v_rule.subcategory_id, v_rule_frequency;
+                            END IF;
+                        END LOOP;
                     END LOOP;
                 END IF;
             END IF;
