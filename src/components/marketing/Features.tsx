@@ -14,7 +14,7 @@ export default function Features() {
           <div className="relative bg-blue-50/50 p-12 rounded-3xl border border-blue-100">
             <div className="relative z-10">
               <p className="text-xl md:text-2xl text-gray-700 italic mb-10 leading-relaxed font-medium">
-                &ldquo;After years in marketing, I observed that many social posts are repeatable and predictable. I built Ferdy to automate social content that follows a pattern and save marketers a heap of time.&rdquo;
+                &ldquo;After years in marketing, I observed that many social posts are repeatable and predictable. I built Ferdy to automate social content that follows a pattern, saving marketers a heap of time.&rdquo;
               </p>
               <div className="flex items-center gap-4">
                 <img 
