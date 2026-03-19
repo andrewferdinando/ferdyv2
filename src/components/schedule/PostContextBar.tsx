@@ -32,24 +32,27 @@ export interface PostContextBarProps {
   className?: string;
 }
 
+// Utility: Extract YYYY-MM-DD date string in a specific timezone.
+// Handles both plain date strings ('2026-04-04') and ISO timestamps ('2026-04-04T22:00:00Z').
+function toDateInTz(dateStr: string, tz: string): string {
+  // If it's already a plain date (no T), return as-is — no timezone conversion needed
+  if (!dateStr.includes('T')) return dateStr;
+  return new Date(dateStr).toLocaleDateString('en-CA', { timeZone: tz });
+}
+
 // Utility: Calculate day difference in a specific timezone
 function diffDays(a: string, b: string, tz: string): number {
-  const dateA = new Date(a);
-  const dateB = new Date(b);
-  
-  // Convert to the target timezone's date strings
-  const dateAStr = dateA.toLocaleDateString('en-CA', { timeZone: tz });
-  const dateBStr = dateB.toLocaleDateString('en-CA', { timeZone: tz });
-  
-  // Parse back as dates in the timezone
+  const dateAStr = toDateInTz(a, tz);
+  const dateBStr = toDateInTz(b, tz);
+
   const [yearA, monthA, dayA] = dateAStr.split('-').map(Number);
   const [yearB, monthB, dayB] = dateBStr.split('-').map(Number);
-  
-  const dateAInTz = new Date(yearA, monthA - 1, dayA);
-  const dateBInTz = new Date(yearB, monthB - 1, dayB);
-  
-  const diffTime = dateBInTz.getTime() - dateAInTz.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const dateALocal = new Date(yearA, monthA - 1, dayA);
+  const dateBLocal = new Date(yearB, monthB - 1, dayB);
+
+  const diffTime = dateBLocal.getTime() - dateALocal.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
 // Utility: Format day list (0-6) to day names
@@ -63,7 +66,8 @@ function formatDayList(days: number[]): string {
 
 // Utility: Format date in timezone
 function formatDateInTimezone(dateStr: string, tz: string): string {
-  const date = new Date(dateStr);
+  // For plain date strings (no T), parse as local date to avoid UTC shift
+  const date = dateStr.includes('T') ? new Date(dateStr) : new Date(`${dateStr}T12:00:00`);
   return date.toLocaleDateString('en-GB', {
     timeZone: tz,
     day: 'numeric',
@@ -210,9 +214,9 @@ function formatFrequency(
       // Prioritize checking scheduled date position when we have both scheduledFor and eventWindow
       if (scheduledFor && eventWindow) {
         // Convert dates to date-only strings in brand timezone for accurate comparison
-        const scheduledDateStr = new Date(scheduledFor).toLocaleDateString('en-CA', { timeZone: brandTimezone });
-        const startDateStr = new Date(eventWindow.start).toLocaleDateString('en-CA', { timeZone: brandTimezone });
-        const endDateStr = new Date(eventWindow.end).toLocaleDateString('en-CA', { timeZone: brandTimezone });
+        const scheduledDateStr = toDateInTz(scheduledFor, brandTimezone);
+        const startDateStr = toDateInTz(eventWindow.start, brandTimezone);
+        const endDateStr = toDateInTz(eventWindow.end, brandTimezone);
 
         // Parse as dates for comparison (year, month, day only)
         const [sy, sm, sd] = scheduledDateStr.split('-').map(Number);
