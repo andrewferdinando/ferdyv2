@@ -15,35 +15,35 @@ interface Slide {
 
 const slides: Slide[] = [
   {
-    businessType: 'Venue & Hospitality',
+    businessType: 'Fashion',
     posts: [
-      { day: 1, label: 'Taco Tuesday' },
-      { day: 3, label: 'Pub Quiz' },
-      { day: 5, label: 'Live Music' },
+      { day: 0, label: 'Denim Range' },
+      { day: 2, label: 'Knitwear Collection' },
+      { day: 4, label: 'Accessories' },
     ],
   },
   {
-    businessType: 'Fashion Retail',
+    businessType: 'Venues & Hospitality',
     posts: [
-      { day: 0, label: 'New Arrivals' },
-      { day: 2, label: 'Staff Picks' },
-      { day: 4, label: 'Weekend Edit' },
+      { day: 1, label: 'Taco Tuesday' },
+      { day: 4, label: 'Happy Hour Friday' },
+      { day: 5, label: 'Live Music Saturday' },
     ],
   },
   {
     businessType: 'Food & Beverage',
     posts: [
-      { day: 1, label: 'Weekly Specials' },
-      { day: 4, label: 'New In Store' },
+      { day: 1, label: 'Cold Brew Range' },
+      { day: 3, label: 'Hot Sauce Collection' },
+      { day: 4, label: 'Pasta Range' },
     ],
-    monthlyPost: 'Wine Club',
   },
   {
-    businessType: 'Gym & Wellness',
+    businessType: 'E-commerce',
     posts: [
-      { day: 0, label: 'Class Timetable' },
-      { day: 2, label: 'Member Spotlight' },
-      { day: 5, label: 'Weekend Sessions' },
+      { day: 0, label: 'Tapware Range' },
+      { day: 2, label: 'Shower Screens' },
+      { day: 4, label: 'Vanities' },
     ],
   },
 ]
@@ -159,10 +159,10 @@ export default function RecurringPosts() {
           <div className="flex flex-col justify-center">
             <div className="space-y-6">
               <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
-                Taco Tuesday. New season drop. Monthly wine club. Friday happy hour. These posts repeat, but the copy shouldn&apos;t.
+                Whether you&apos;re keeping your whole product range front of mind or promoting the same weekly special, the schedule never changes &mdash; only the copy does.
               </p>
               <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
-                Ferdy generates unique, on-brand posts for every scheduled slot &mdash; pulling from your website, product details, and brand voice. Pick your days, pick your times, and let it run.
+                Ferdy writes fresh, on-brand posts for every slot, using your product details and brand voice. Set it up once and let it run.
               </p>
             </div>
           </div>
