@@ -681,13 +681,18 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       if (initialData.eventOccurrences && initialData.eventOccurrences.length > 0) {
         const occurrenceType = initialData.eventOccurrenceType || 'single'
         
+        // Helper: extract YYYY-MM-DD in local timezone (not UTC)
+        // Avoids date shift when midnight local time converts to previous day in UTC
+        const toLocalDateStr = (d: Date): string =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
         initialData.eventOccurrences.forEach(occ => {
           if (occurrenceType === 'single') {
             // Single mode: extract date and time from starts_at
             const startsAtDate = new Date(occ.starts_at)
-            const dateStr = startsAtDate.toISOString().split('T')[0] // YYYY-MM-DD
+            const dateStr = toLocalDateStr(startsAtDate)
             const timeStr = `${String(startsAtDate.getHours()).padStart(2, '0')}:${String(startsAtDate.getMinutes()).padStart(2, '0')}` // HH:mm
-            
+
             occurrences.push({
               id: occ.id,
               name: occ.name || undefined,
@@ -700,12 +705,12 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           } else {
             // Range mode: extract start_date and end_date
             const startsAtDate = new Date(occ.starts_at)
-            const startDateStr = startsAtDate.toISOString().split('T')[0] // YYYY-MM-DD
+            const startDateStr = toLocalDateStr(startsAtDate)
 
             let endDateStr: string | undefined
             if (occ.end_at) {
               const endAtDate = new Date(occ.end_at)
-              endDateStr = endAtDate.toISOString().split('T')[0] // YYYY-MM-DD
+              endDateStr = toLocalDateStr(endAtDate)
             }
 
             occurrences.push({
