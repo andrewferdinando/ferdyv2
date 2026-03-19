@@ -29,19 +29,7 @@ export default function Events() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-16 items-center max-w-6xl mx-auto">
-          {/* Left: Copy */}
-          <div className="flex flex-col justify-center">
-            <div className="space-y-6">
-              <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
-                Running a festival, a networking event, or a limited-time promo? Tell Ferdy when it starts and ends, and it schedules the right posts at the right time.
-              </p>
-              <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
-                Set how many posts go out before the event to build anticipation, and add posts during multi-day events to keep the momentum going. Every post is written from your event details, in your brand&apos;s voice.
-              </p>
-            </div>
-          </div>
-
-          {/* Right: Timeline slideshow */}
+          {/* Timeline slideshow - shows first on mobile, second on desktop */}
           <div
             className="relative bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border border-blue-100 rounded-3xl p-8 md:p-10 overflow-hidden"
             onMouseEnter={() => setPaused(true)}
@@ -65,6 +53,18 @@ export default function Events() {
                   />
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Copy - shows second on mobile, first on desktop */}
+          <div className="flex flex-col justify-center lg:order-first">
+            <div className="space-y-6">
+              <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
+                Running a festival, a networking event, or a limited-time promo? Tell Ferdy when it starts and ends, and it schedules the right posts at the right time.
+              </p>
+              <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
+                Set how many posts go out before the event to build anticipation, and add posts during multi-day events to keep the momentum going. Every post is written from your event details, in your brand&apos;s voice.
+              </p>
             </div>
           </div>
         </div>

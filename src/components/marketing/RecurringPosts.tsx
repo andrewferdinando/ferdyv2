@@ -107,11 +107,11 @@ export default function RecurringPosts() {
                           : 'bg-white/50 border-gray-200/60'
                       }`}>
                         {current.posts.find(p => p.day === i) ? (
-                          <div className="flex flex-col items-center px-1">
-                            <svg className="w-4 h-4 text-blue-500 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex flex-col items-center px-0.5">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                             </svg>
-                            <p className="text-[7px] sm:text-[9px] font-semibold text-gray-700 leading-tight text-center">
+                            <p className="text-[5px] sm:text-[9px] font-semibold text-gray-700 leading-tight text-center">
                               {current.posts.find(p => p.day === i)!.label}
                             </p>
                           </div>
