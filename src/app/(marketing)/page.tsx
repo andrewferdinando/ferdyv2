@@ -3,6 +3,7 @@ import Features from '@/components/marketing/Features'
 import HowItWorks from '@/components/marketing/HowItWorks'
 import Examples from '@/components/marketing/Examples'
 import Comparison from '@/components/marketing/Comparison'
+import RecurringPosts from '@/components/marketing/RecurringPosts'
 import Events from '@/components/marketing/Events'
 import TimeSaved from '@/components/marketing/TimeSaved'
 import Pricing from '@/components/marketing/Pricing'
@@ -23,6 +24,7 @@ export default function Home() {
       <HowItWorks />
       {showTestimonials && <Examples />}
       <Comparison />
+      <RecurringPosts />
       <Events />
       <TimeSaved />
       <Pricing />
