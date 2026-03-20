@@ -357,7 +357,7 @@ export default function SchedulePage() {
                   <select
                     value={categoryFilter || ''}
                     onChange={(e) => setCategoryFilter(e.target.value || null)}
-                    className="text-sm text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-[#6366F1] focus:border-[#6366F1] cursor-pointer appearance-none"
+                    className="text-sm text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 pr-8 max-w-[200px] truncate focus:outline-none focus:ring-2 focus:ring-[#6366F1] focus:border-[#6366F1] cursor-pointer appearance-none"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25rem 1.25rem' }}
                   >
                     <option value="">All categories</option>
