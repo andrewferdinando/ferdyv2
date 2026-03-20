@@ -57,7 +57,7 @@ export interface DraftGenerationResult {
  * 
  * EXPLICIT SCHEDULE RULE RESOLUTION:
  * - For every target, explicitly fetch schedule rule using: brand_id + subcategory_id + is_active = true
- * - NO reliance on target.schedule_rule_id
+ * - Uses target.rule_id from RPC for event_series (1:1 with occurrence)
  * - Draft is only created AFTER schedule rule is resolved
  * 
  * HARD GUARDS (prevent silent failures):
@@ -318,19 +318,19 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // Resolve event_occurrence_id early (needed for dedup check)
       // For event_series: match via target's schedule_rule_id -> rule start_date -> occurrence
       let eventOccurrenceId: string | null = null;
-      if (subcategoryTypeMap[target.subcategory_id] === 'event_series' && target.schedule_rule_id) {
+      if (subcategoryTypeMap[target.subcategory_id] === 'event_series' && target.rule_id) {
         // Look up start_date from the schedule rule to find the occurrence
         const { data: ruleForOcc } = await supabaseAdmin
           .from('schedule_rules')
           .select('start_date')
-          .eq('id', target.schedule_rule_id)
+          .eq('id', target.rule_id)
           .maybeSingle();
         if (ruleForOcc?.start_date) {
           // start_date is a plain DATE column (e.g. '2026-03-27') stored in brand-local time
           // occurrenceIdsByDate keys also use brand-local dates, so use start_date directly
           const ruleDateKey = String(ruleForOcc.start_date).split('T')[0];
           eventOccurrenceId = occurrenceIdsByDate.get(target.subcategory_id)?.get(ruleDateKey) || null;
-          console.log(`[draftGeneration] Event occurrence resolution: rule=${target.schedule_rule_id}, ruleDateKey=${ruleDateKey}, occurrenceId=${eventOccurrenceId || 'NOT FOUND'}`);
+          console.log(`[draftGeneration] Event occurrence resolution: rule=${target.rule_id}, ruleDateKey=${ruleDateKey}, occurrenceId=${eventOccurrenceId || 'NOT FOUND'}`);
         }
       }
 
@@ -373,7 +373,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
 
       // EXPLICIT SCHEDULE RULE RESOLUTION
       // For every target, fetch schedule rule using: brand_id + subcategory_id + is_active = true
-      // REMOVED: Any reliance on target.schedule_rule_id
+      // For event_series: use target.rule_id from RPC (1:1 with occurrence)
       if (!target.subcategory_id) {
         const reason = 'No subcategory_id on target';
         console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
@@ -388,12 +388,12 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       let scheduleRule: { id: string; channels: string[]; frequency: string; start_date: string | null; image_cursor: number } | null = null;
       let ruleError: any = null;
 
-      if (target.schedule_rule_id) {
+      if (target.rule_id) {
         // Use the RPC-provided rule ID (critical for event_series with multiple rules)
         const result = await supabaseAdmin
           .from('schedule_rules')
           .select('id, channels, frequency, start_date, image_cursor')
-          .eq('id', target.schedule_rule_id)
+          .eq('id', target.rule_id)
           .eq('is_active', true)
           .maybeSingle();
         scheduleRule = result.data;
