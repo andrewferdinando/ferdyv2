@@ -314,16 +314,12 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
       </div>
 
       <div className="p-4">
-        {asset.tags && asset.tags.length > 0 && (
+        {asset.tags && asset.tags.filter(t => t.kind === 'subcategory').length > 0 && (
           <div className="mb-4 flex flex-wrap gap-1">
-            {asset.tags.map((tag) => (
+            {asset.tags.filter(t => t.kind === 'subcategory').map((tag) => (
               <span
                 key={tag.id}
-                className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  tag.kind === 'subcategory'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
+                className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700"
               >
                 {tag.name}
               </span>
