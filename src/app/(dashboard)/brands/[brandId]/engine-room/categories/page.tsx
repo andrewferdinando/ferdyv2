@@ -328,6 +328,32 @@ export default function CategoriesPage() {
         }
       }
 
+      // Clean up tags and asset_tags
+      // Find tags by subcategory_id (reliable, name-independent)
+      const { data: tagsBySubcatId } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('subcategory_id', subcategoryId)
+
+      // Also find by name pattern (for occurrence tags without subcategory_id)
+      const { data: occTags } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('brand_id', brandId)
+        .ilike('name', `${subcategoryName} :: %`)
+        .eq('kind', 'occurrence')
+
+      const allTagIds = new Set([
+        ...(tagsBySubcatId || []).map((t: any) => t.id),
+        ...(occTags || []).map((t: any) => t.id),
+      ])
+
+      if (allTagIds.size > 0) {
+        const tagIdArray = Array.from(allTagIds)
+        await supabase.from('asset_tags').delete().in('tag_id', tagIdArray)
+        await supabase.from('tags').delete().in('id', tagIdArray)
+      }
+
       // Delete the subcategory
       // First verify it exists
       const { data: existingSubcat, error: checkError } = await supabase

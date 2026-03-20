@@ -218,24 +218,39 @@ export function useSubcategories(brandId: string, categoryId: string | null) {
       }
 
       // 4. Clean up tags and asset_tags for this subcategory
-      if (subcatName && brandId) {
-        // Find the subcategory-level tag
-        const { data: subcatTags } = await supabase
+      if (brandId) {
+        // Find tags by subcategory_id (reliable, name-independent)
+        const { data: tagsBySubcatId } = await supabase
           .from('tags')
           .select('id')
-          .eq('brand_id', brandId)
-          .eq('name', subcatName)
-          .eq('kind', 'subcategory')
+          .eq('subcategory_id', id)
 
-        // Find occurrence-level tags (name starts with "SubcatName :: ")
-        const { data: occTags } = await supabase
-          .from('tags')
-          .select('id')
-          .eq('brand_id', brandId)
-          .like('name', `${subcatName} :: %`)
-          .eq('kind', 'occurrence')
+        // Also find by name pattern as fallback (for occurrence tags without subcategory_id)
+        let tagsByName: { id: string }[] = []
+        if (subcatName) {
+          const { data: subcatTags } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .eq('name', subcatName)
+            .eq('kind', 'subcategory')
 
-        const matchingTags = [...(subcatTags || []), ...(occTags || [])]
+          const { data: occTags } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('brand_id', brandId)
+            .ilike('name', `${subcatName} :: %`)
+            .eq('kind', 'occurrence')
+
+          tagsByName = [...(subcatTags || []), ...(occTags || [])]
+        }
+
+        // Deduplicate
+        const allTagIds = new Set([
+          ...(tagsBySubcatId || []).map((t: any) => t.id),
+          ...tagsByName.map((t: any) => t.id),
+        ])
+        const matchingTags = Array.from(allTagIds).map(id => ({ id }))
 
         if (matchingTags && matchingTags.length > 0) {
           const tagIds = matchingTags.map((t: any) => t.id)
