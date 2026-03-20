@@ -385,14 +385,14 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       // Resolve schedule rule for this target
       // For event_series: RPC provides schedule_rule_id (1:1 with occurrence), so use it directly
       // For other types: resolve by subcategory_id (one active rule per subcategory)
-      let scheduleRule: { id: string; channels: string[]; frequency: string; start_date: string | null } | null = null;
+      let scheduleRule: { id: string; channels: string[]; frequency: string; start_date: string | null; image_cursor: number } | null = null;
       let ruleError: any = null;
 
       if (target.schedule_rule_id) {
         // Use the RPC-provided rule ID (critical for event_series with multiple rules)
         const result = await supabaseAdmin
           .from('schedule_rules')
-          .select('id, channels, frequency, start_date')
+          .select('id, channels, frequency, start_date, image_cursor')
           .eq('id', target.schedule_rule_id)
           .eq('is_active', true)
           .maybeSingle();
@@ -402,7 +402,7 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         // Fallback: resolve by subcategory (assumes one active rule per subcategory)
         const result = await supabaseAdmin
           .from('schedule_rules')
-          .select('id, channels, frequency, start_date')
+          .select('id, channels, frequency, start_date, image_cursor')
           .eq('brand_id', brandId)
           .eq('subcategory_id', target.subcategory_id)
           .eq('is_active', true)
@@ -522,36 +522,19 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
             if (orderedAssetIds.length === 0) {
               console.log(`[draftGeneration] No assets available for subcategory ${target.subcategory_id}, continuing without asset`);
             } else {
-              // Determine start index: only query lastDraft on the first pick for this rule
+              // CURSOR-BASED ASSET ROTATION
+              // Uses schedule_rules.image_cursor to track position independently of draft edits.
+              // Manual asset changes on drafts do NOT affect the rotation.
               const runOffset = selectedAssetsByRuleId.get(finalScheduleRuleId) || 0;
-              let startIndex: number;
 
-              if (startIndexByRuleId.has(finalScheduleRuleId)) {
-                // Reuse cached startIndex for subsequent picks in the same run
-                startIndex = startIndexByRuleId.get(finalScheduleRuleId)!;
-              } else {
-                // First pick for this rule: find the most recent draft to seed the rotation
-                const { data: lastDraft } = await supabaseAdmin
-                  .from('drafts')
-                  .select('asset_ids')
-                  .eq('brand_id', brandId)
-                  .eq('subcategory_id', target.subcategory_id)
-                  .eq('schedule_source', 'framework')
-                  .not('asset_ids', 'is', null)
-                  .not('status', 'in', '("deleted")')
-                  .order('scheduled_for', { ascending: false })
-                  .limit(1)
-                  .maybeSingle();
-
-                startIndex = 0;
-                if (lastDraft?.asset_ids && Array.isArray(lastDraft.asset_ids) && lastDraft.asset_ids.length > 0) {
-                  const lastAssetId = lastDraft.asset_ids[0];
-                  const lastIndex = orderedAssetIds.indexOf(lastAssetId);
-                  startIndex = lastIndex >= 0 ? (lastIndex + 1) % orderedAssetIds.length : 0;
-                }
-                startIndexByRuleId.set(finalScheduleRuleId, startIndex);
+              // On the first pick for this rule in this run, read the DB cursor
+              if (!startIndexByRuleId.has(finalScheduleRuleId)) {
+                const dbCursor = scheduleRule.image_cursor || 0;
+                // Clamp cursor to valid range (handles asset list changes)
+                startIndexByRuleId.set(finalScheduleRuleId, dbCursor % orderedAssetIds.length);
               }
 
+              const startIndex = startIndexByRuleId.get(finalScheduleRuleId)!;
               const pickIndex = (startIndex + runOffset) % orderedAssetIds.length;
 
               assetId = orderedAssetIds[pickIndex];
@@ -559,7 +542,14 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
               // Track this pick for this run
               selectedAssetsByRuleId.set(finalScheduleRuleId, runOffset + 1);
 
-              console.log(`[draftGeneration] Picked asset ${assetId} (position ${pickIndex}/${orderedAssetIds.length}) for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}`);
+              // Persist the next cursor position back to the DB
+              const nextCursor = (pickIndex + 1) % orderedAssetIds.length;
+              await supabaseAdmin
+                .from('schedule_rules')
+                .update({ image_cursor: nextCursor })
+                .eq('id', finalScheduleRuleId);
+
+              console.log(`[draftGeneration] Picked asset ${assetId} (position ${pickIndex}/${orderedAssetIds.length}, cursor now ${nextCursor}) for brand ${brandId}, subcategory ${target.subcategory_id}, tag ${tagId}`);
             }
           } else {
             console.warn(`[draftGeneration] No tag found for subcategory ${target.subcategory_id} (name: ${subcategoryName || 'unknown'}), skipping asset selection`);
