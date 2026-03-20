@@ -42,6 +42,19 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
 
+/**
+ * Type for rows returned by rpc_framework_targets.
+ * Column names MUST match the SQL function's RETURNS TABLE definition exactly:
+ *   TABLE(brand_id uuid, rule_id uuid, scheduled_at timestamptz, subcategory_id uuid, frequency text)
+ */
+interface FrameworkTarget {
+  brand_id: string;
+  rule_id: string;        // schedule_rules.id — DO NOT rename to schedule_rule_id
+  scheduled_at: string;
+  subcategory_id: string;
+  frequency: string;
+}
+
 export interface DraftGenerationResult {
   targetsFound: number;
   draftsCreated: number;
@@ -165,8 +178,25 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
     };
   }
 
+  // Validate and type the RPC results
+  const typedTargets = (targets as FrameworkTarget[]);
+
+  // Runtime validation: ensure RPC returns expected fields
+  // This catches field-name mismatches (e.g. rule_id vs schedule_rule_id) at generation time
+  if (typedTargets.length > 0) {
+    const sample = typedTargets[0];
+    if (!('rule_id' in sample)) {
+      const fields = Object.keys(sample).join(', ');
+      throw new Error(`[draftGeneration] FATAL: rpc_framework_targets missing 'rule_id' field. Got fields: ${fields}. The SQL function return columns may have changed.`);
+    }
+    if (!('subcategory_id' in sample) || !('scheduled_at' in sample)) {
+      const fields = Object.keys(sample).join(', ');
+      throw new Error(`[draftGeneration] FATAL: rpc_framework_targets missing required fields. Got fields: ${fields}`);
+    }
+  }
+
   // Filter targets within the 30-day window
-  const targetsInWindow = (targets as any[]).filter((target: any) => {
+  const targetsInWindow = typedTargets.filter((target) => {
     const scheduledAt = new Date(target.scheduled_at);
     return scheduledAt >= now && scheduledAt <= windowEnd;
   });
@@ -316,9 +346,17 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
       console.log(`[draftGeneration] Processing: ${targetName} at ${scheduledAtISO}`);
 
       // Resolve event_occurrence_id early (needed for dedup check)
-      // For event_series: match via target's schedule_rule_id -> rule start_date -> occurrence
+      // For event_series: match via target's rule_id -> rule start_date -> occurrence
       let eventOccurrenceId: string | null = null;
-      if (subcategoryTypeMap[target.subcategory_id] === 'event_series' && target.rule_id) {
+      const isEventSeries = subcategoryTypeMap[target.subcategory_id] === 'event_series';
+      if (isEventSeries && !target.rule_id) {
+        const reason = `event_series target missing rule_id — RPC field mismatch or data issue`;
+        console.error(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        generationErrors.push(`${targetName} at ${scheduledAtISO}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
+      }
+      if (isEventSeries && target.rule_id) {
         // Look up start_date from the schedule rule to find the occurrence
         const { data: ruleForOcc } = await supabaseAdmin
           .from('schedule_rules')
