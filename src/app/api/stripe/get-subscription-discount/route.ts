@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     if (groupError || !group?.stripe_subscription_id) {
       return NextResponse.json({
         hasDiscount: false,
+        subscriptionStatus: null,
         error: 'No subscription found',
       })
     }
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
       console.log('No discounts on subscription')
       return NextResponse.json({
         hasDiscount: false,
+        subscriptionStatus: subscription.status,
         baseUnitPrice,
         baseTotal,
         discountedUnitPrice: baseUnitPrice,
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
       console.log('Discount has no coupon attached')
       return NextResponse.json({
         hasDiscount: false,
+        subscriptionStatus: subscription.status,
         baseUnitPrice,
         baseTotal,
         discountedUnitPrice: baseUnitPrice,
@@ -118,6 +121,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       hasDiscount: true,
+      subscriptionStatus: subscription.status,
       baseUnitPrice,
       baseTotal,
       discountedUnitPrice,

@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { sendBrandAdded } from '@/lib/emails/send'
+import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
@@ -79,6 +80,35 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('You are not a member of the selected group.')
   }
 
+  // Check subscription status — block if subscription exists but is not active/trialing
+  const { data: groupForSub } = await supabaseAdmin
+    .from('groups')
+    .select('stripe_subscription_id')
+    .eq('id', groupId)
+    .single()
+
+  if (groupForSub?.stripe_subscription_id) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(groupForSub.stripe_subscription_id)
+      const activeStatuses = ['active', 'trialing']
+      if (!activeStatuses.includes(subscription.status)) {
+        console.error(`[createBrandAction] Subscription ${groupForSub.stripe_subscription_id} is ${subscription.status}`)
+        throw new Error(
+          'Your subscription is not active. Please update your payment method on the Billing page before adding a new brand.'
+        )
+      }
+    } catch (err) {
+      // Re-throw our own error, catch Stripe API errors
+      if (err instanceof Error && err.message.includes('subscription is not active')) {
+        throw err
+      }
+      console.error('[createBrandAction] Failed to verify subscription status:', err)
+      throw new Error(
+        'Unable to verify your subscription status. Please check your Billing page and try again.'
+      )
+    }
+  }
+
   const { data: brand, error: rpcError } = await supabaseAdmin.rpc('rpc_create_brand_with_admin', {
     p_user_id: userId,
     p_name: name,
@@ -147,24 +177,47 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     try {
       const { data: groupData } = await supabaseAdmin
         .from('groups')
-        .select('price_per_brand_cents, currency')
+        .select('price_per_brand_cents, currency, stripe_subscription_id')
         .eq('id', groupId)
         .single()
 
       console.log(`[createBrandAction] Group data retrieved:`, groupData)
 
       if (groupData) {
+        // Calculate total with discount if subscription has one
+        let monthlyTotal = (brandCount || 0) * groupData.price_per_brand_cents
+
+        if (groupData.stripe_subscription_id) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(
+              groupData.stripe_subscription_id,
+              { expand: ['discounts.coupon'] }
+            )
+            const discount = sub.discounts?.[0]
+            const coupon = typeof discount === 'string' ? null : (discount as any)?.coupon
+            if (coupon?.percent_off) {
+              monthlyTotal = Math.round(monthlyTotal * (1 - coupon.percent_off / 100))
+              console.log(`[createBrandAction] Applied ${coupon.percent_off}% discount to email total: ${monthlyTotal}`)
+            } else if (coupon?.amount_off) {
+              monthlyTotal = Math.max(0, monthlyTotal - coupon.amount_off)
+              console.log(`[createBrandAction] Applied ${coupon.amount_off} amount discount to email total: ${monthlyTotal}`)
+            }
+          } catch (discountErr) {
+            console.error('[createBrandAction] Failed to fetch discount for email, using base price:', discountErr)
+          }
+        }
+
         // Get user email from auth.users table using the userId
         const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
         console.log(`[createBrandAction] User retrieved - email: ${user?.email}`)
-        
+
         if (user?.email) {
           console.log(`[createBrandAction] Sending brand added email to ${user.email}`)
           await sendBrandAdded({
             to: user.email,
             brandName: name,
             newBrandCount: brandCount || 0,
-            newMonthlyTotal: (brandCount || 0) * groupData.price_per_brand_cents,
+            newMonthlyTotal: monthlyTotal,
             currency: groupData.currency || 'usd',
           })
           console.log(`[createBrandAction] Successfully sent brand added email`)

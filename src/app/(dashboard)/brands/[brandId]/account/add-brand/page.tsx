@@ -84,6 +84,7 @@ export default function AddBrandPage() {
     couponName: string | null
     currency: string
   } | null>(null)
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null)
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: 'https://',
@@ -199,7 +200,7 @@ export default function AddBrandPage() {
         setCurrency(group.currency.toUpperCase())
       }
 
-      // Fetch discount info from Stripe
+      // Fetch discount info + subscription status from Stripe
       try {
         const response = await fetch('/api/stripe/get-subscription-discount', {
           method: 'POST',
@@ -207,6 +208,7 @@ export default function AddBrandPage() {
           body: JSON.stringify({ groupId }),
         })
         const data = await response.json()
+        setSubscriptionStatus(data.subscriptionStatus ?? null)
         if (response.ok && (data.hasDiscount || data.baseUnitPrice)) {
           setDiscountInfo({
             hasDiscount: data.hasDiscount,
@@ -220,6 +222,7 @@ export default function AddBrandPage() {
           setDiscountInfo(null)
         }
       } catch {
+        setSubscriptionStatus(null)
         setDiscountInfo(null)
       }
     }
@@ -382,6 +385,7 @@ export default function AddBrandPage() {
   }
 
   const isFormValid = BrandFormSchema.safeParse(formValues).success
+  const isSubscriptionInactive = subscriptionStatus !== null && !['active', 'trialing'].includes(subscriptionStatus)
 
   const renderContent = () => {
     if (authState === 'loading') {
@@ -421,6 +425,20 @@ export default function AddBrandPage() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-8">
+          {isSubscriptionInactive && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <strong>Subscription inactive</strong> — Your subscription is currently <em>{subscriptionStatus}</em>. Please update your payment method on the{' '}
+              <button
+                type="button"
+                onClick={() => router.push(`/brands/${brandId}/account/billing`)}
+                className="underline font-medium hover:text-amber-900"
+              >
+                Billing page
+              </button>{' '}
+              before adding a new brand.
+            </div>
+          )}
+
           {serverError && (
             <div className="rounded-lg border border-red-200 bg-[#FEF2F2] px-4 py-3 text-sm text-[#991B1B]">
               {serverError}
@@ -514,7 +532,7 @@ export default function AddBrandPage() {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !isFormValid || !currentUserId}
+                disabled={isSubmitting || !isFormValid || !currentUserId || isSubscriptionInactive}
                 className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? 'Creating…' : 'Create Brand'}
