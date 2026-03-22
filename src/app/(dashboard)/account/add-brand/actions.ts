@@ -6,6 +6,7 @@ import { sendBrandAdded } from '@/lib/emails/send'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
+  groupId: z.string().uuid('Invalid group. Please select a group.'),
   name: z
     .string()
     .trim()
@@ -49,7 +50,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error(firstError)
   }
 
-  const { userId, name, websiteUrl, countryCode, timezone } = parsed.data
+  const { userId, groupId, name, websiteUrl, countryCode, timezone } = parsed.data
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
@@ -66,9 +67,22 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('You do not have permission to create a brand.')
   }
 
+  // Server-side membership validation
+  const { data: membership, error: membershipError } = await supabaseAdmin
+    .from('group_memberships')
+    .select('group_id')
+    .eq('user_id', userId)
+    .eq('group_id', groupId)
+    .single()
+
+  if (membershipError || !membership) {
+    throw new Error('You are not a member of the selected group.')
+  }
+
   const { data: brand, error: rpcError } = await supabaseAdmin.rpc('rpc_create_brand_with_admin', {
     p_user_id: userId,
     p_name: name,
+    p_group_id: groupId,
     p_website_url: websiteUrl ?? '',
     p_country_code: countryCode ?? '',
     p_timezone: timezone,
@@ -84,26 +98,19 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     throw new Error('Could not create the brand. Please try again.')
   }
 
-  // Get the group_id from the brand to update Stripe subscription
-  const { data: brandData, error: brandFetchError } = await supabaseAdmin
-    .from('brands')
-    .select('group_id')
-    .eq('id', brand.id)
-    .single()
-
   let brandCount: number | null = null
-  
-  if (!brandFetchError && brandData?.group_id) {
+
+  {
     // Get current brand count for the group
     const { count } = await supabaseAdmin
       .from('brands')
       .select('id', { count: 'exact', head: true })
-      .eq('group_id', brandData.group_id)
+      .eq('group_id', groupId)
       .eq('status', 'active')
-    
+
     brandCount = count
 
-    console.log(`[createBrandAction] Brand count for group ${brandData.group_id}: ${brandCount}`)
+    console.log(`[createBrandAction] Brand count for group ${groupId}: ${brandCount}`)
 
     // Update Stripe subscription quantity
     if (brandCount && brandCount > 0) {
@@ -117,7 +124,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
             ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
           },
           body: JSON.stringify({
-            groupId: brandData.group_id,
+            groupId: groupId,
             brandCount,
           }),
         })
@@ -136,12 +143,12 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     }
 
     // Send brand added email
-    console.log(`[createBrandAction] Preparing to send brand added email - brandCount: ${brandCount}, group_id: ${brandData.group_id}`)
+    console.log(`[createBrandAction] Preparing to send brand added email - brandCount: ${brandCount}, group_id: ${groupId}`)
     try {
       const { data: groupData } = await supabaseAdmin
         .from('groups')
         .select('price_per_brand_cents, currency')
-        .eq('id', brandData.group_id)
+        .eq('id', groupId)
         .single()
 
       console.log(`[createBrandAction] Group data retrieved:`, groupData)
@@ -165,7 +172,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
           console.error('[createBrandAction] No email found for user:', userId)
         }
       } else {
-        console.error('[createBrandAction] No group data found for group:', brandData.group_id)
+        console.error('[createBrandAction] No group data found for group:', groupId)
       }
     } catch (emailError) {
       console.error('[createBrandAction] Failed to send brand added email:', emailError)

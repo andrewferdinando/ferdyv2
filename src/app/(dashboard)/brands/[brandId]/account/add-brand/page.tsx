@@ -67,6 +67,7 @@ export default function AddBrandPage() {
   const [serverError, setServerError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [groupId, setGroupId] = useState<string | null>(null)
+  const [adminGroups, setAdminGroups] = useState<Array<{id: string, name: string}>>([])
   const [showTeamAssignment, setShowTeamAssignment] = useState(false)
   const [newBrandId, setNewBrandId] = useState<string | null>(null)
   const [newBrandName, setNewBrandName] = useState<string>('')
@@ -75,6 +76,14 @@ export default function AddBrandPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pricePerBrand, setPricePerBrand] = useState<number | null>(null)
   const [currency, setCurrency] = useState<string>('USD')
+  const [discountInfo, setDiscountInfo] = useState<{
+    hasDiscount: boolean
+    baseUnitPrice: number
+    discountedUnitPrice: number
+    discountPercent: number
+    couponName: string | null
+    currency: string
+  } | null>(null)
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: 'https://',
@@ -148,19 +157,20 @@ export default function AddBrandPage() {
           return
         }
 
+        // Fetch all groups where user is owner/admin/super_admin
+        const { data: memberships } = await supabase
+          .from('group_memberships')
+          .select('group_id, role, groups(id, name)')
+          .eq('user_id', user.id)
+          .in('role', ['owner', 'admin', 'super_admin'])
+
+        const groups = (memberships || [])
+          .map((m: any) => m.groups)
+          .filter(Boolean)
+          .map((g: any) => ({ id: g.id, name: g.name }))
+
+        setAdminGroups(groups)
         setGroupId(brandData.group_id)
-
-        // Fetch group pricing
-        const { data: group } = await supabase
-          .from('groups')
-          .select('price_per_brand_cents, currency')
-          .eq('id', brandData.group_id)
-          .single()
-
-        if (group) {
-          setPricePerBrand(group.price_per_brand_cents)
-          setCurrency(group.currency.toUpperCase())
-        }
 
         setAuthState('ready')
       } catch (error) {
@@ -171,6 +181,51 @@ export default function AddBrandPage() {
 
     init()
   }, [brandId])
+
+  // Fetch pricing + discount when groupId changes
+  useEffect(() => {
+    if (!groupId) return
+
+    const fetchPricing = async () => {
+      // Fetch base pricing from group
+      const { data: group } = await supabase
+        .from('groups')
+        .select('price_per_brand_cents, currency')
+        .eq('id', groupId)
+        .single()
+
+      if (group) {
+        setPricePerBrand(group.price_per_brand_cents)
+        setCurrency(group.currency.toUpperCase())
+      }
+
+      // Fetch discount info from Stripe
+      try {
+        const response = await fetch('/api/stripe/get-subscription-discount', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId }),
+        })
+        const data = await response.json()
+        if (response.ok && (data.hasDiscount || data.baseUnitPrice)) {
+          setDiscountInfo({
+            hasDiscount: data.hasDiscount,
+            baseUnitPrice: data.baseUnitPrice,
+            discountedUnitPrice: data.discountedUnitPrice,
+            discountPercent: data.discountPercent,
+            couponName: data.couponName,
+            currency: data.currency,
+          })
+        } else {
+          setDiscountInfo(null)
+        }
+      } catch {
+        setDiscountInfo(null)
+      }
+    }
+
+    fetchPricing()
+  }, [groupId])
 
   useEffect(() => {
     validate(formValues)
@@ -216,6 +271,7 @@ export default function AddBrandPage() {
     try {
       const newId = await createBrandAction({
         userId: currentUserId!,
+        groupId: groupId!,
         name: formValues.name.trim(),
         websiteUrl: formValues.websiteUrl?.trim() === 'https://' || formValues.websiteUrl?.trim() === 'http://' ? '' : formValues.websiteUrl?.trim() || '',
         countryCode: formValues.countryCode?.trim().toUpperCase(),
@@ -372,6 +428,20 @@ export default function AddBrandPage() {
           )}
 
           <Form onSubmit={(e: FormEvent) => void handleSubmit(e)} className="space-y-6">
+            {adminGroups.length > 1 && (
+              <FormField label="Group">
+                <Select
+                  value={groupId ?? ''}
+                  onChange={(event) => setGroupId(event.target.value)}
+                  options={adminGroups.map((g) => ({
+                    value: g.id,
+                    label: g.name,
+                  }))}
+                />
+                <p className="mt-1 text-xs text-gray-500">Select which group this brand belongs to.</p>
+              </FormField>
+            )}
+
             <FormField label="Brand Name" required>
               <Input
                 value={formValues.name}
@@ -470,9 +540,30 @@ export default function AddBrandPage() {
           onClose={() => setShowConfirmDialog(false)}
           onConfirm={handleConfirmAddBrand}
           title="Confirm Add Brand"
-          message={pricePerBrand !== null
-            ? `Adding a new brand will cost $${(pricePerBrand / 100).toFixed(2)} ${currency.toUpperCase()}/month. This will be prorated and added to your next invoice. Do you want to proceed?`
-            : 'Are you sure you want to add this brand? The cost will be added to your next invoice.'}
+          message={(() => {
+            const basePriceCents = discountInfo?.baseUnitPrice ?? pricePerBrand
+            if (basePriceCents === null || basePriceCents === undefined) {
+              return 'Are you sure you want to add this brand? The cost will be added to your next invoice.'
+            }
+            const cur = (discountInfo?.currency ?? currency).toUpperCase()
+            const baseStr = `$${(basePriceCents / 100).toFixed(2)}`
+            if (discountInfo?.hasDiscount && discountInfo.discountedUnitPrice !== basePriceCents) {
+              const discountedStr = `$${(discountInfo.discountedUnitPrice / 100).toFixed(2)}`
+              const label = discountInfo.couponName
+                ? `${discountInfo.discountPercent}% discount — ${discountInfo.couponName}`
+                : `${discountInfo.discountPercent}% discount`
+              return (
+                <span>
+                  Adding a new brand will cost{' '}
+                  <span className="line-through text-gray-400">{baseStr}</span>{' '}
+                  <strong>{discountedStr} {cur}/month</strong>{' '}
+                  <span className="text-sm text-green-600">({label})</span>.
+                  {' '}This will be prorated and added to your next invoice. Do you want to proceed?
+                </span>
+              )
+            }
+            return `Adding a new brand will cost ${baseStr} ${cur}/month. This will be prorated and added to your next invoice. Do you want to proceed?`
+          })()}
           confirmText="Add Brand"
           cancelText="Cancel"
           isLoading={false}
