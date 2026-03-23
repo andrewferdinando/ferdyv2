@@ -7,6 +7,8 @@ interface BrandAddedProps {
   newBrandCount: number
   newMonthlyTotal: number
   currency: string
+  discountPercent?: number
+  couponName?: string | null
 }
 
 export function BrandAdded({
@@ -14,6 +16,8 @@ export function BrandAdded({
   newBrandCount,
   newMonthlyTotal,
   currency,
+  discountPercent,
+  couponName,
 }: BrandAddedProps) {
   const formattedTotal = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -34,11 +38,19 @@ export function BrandAdded({
 
       <Section style={infoBox}>
         <Text style={emailStyles.h2}>Updated Subscription</Text>
-        
+
         <Text style={emailStyles.paragraph}>
           <strong>Active Brands:</strong> {newBrandCount}
           <br />
           <strong>New Monthly Total:</strong> {formattedTotal}
+          {discountPercent && discountPercent > 0 && (
+            <>
+              <br />
+              <span style={{ color: '#16a34a' }}>
+                {discountPercent}% discount applied{couponName ? ` (${couponName})` : ''}
+              </span>
+            </>
+          )}
         </Text>
       </Section>
 

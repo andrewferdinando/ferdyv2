@@ -66,6 +66,8 @@ export interface BrandAddedData {
   newBrandCount: number
   newMonthlyTotal: number
   currency: string
+  discountPercent?: number
+  couponName?: string | null
 }
 
 export interface BrandDeletedData {
@@ -220,13 +222,15 @@ export async function sendInvoicePaid(data: InvoicePaidData) {
 
 export async function sendBrandAdded(data: BrandAddedData) {
   const resend = getResend()
-  
+
   const html = await render(
     BrandAdded({
       brandName: data.brandName,
       newBrandCount: data.newBrandCount,
       newMonthlyTotal: data.newMonthlyTotal,
       currency: data.currency,
+      discountPercent: data.discountPercent,
+      couponName: data.couponName,
     })
   )
 

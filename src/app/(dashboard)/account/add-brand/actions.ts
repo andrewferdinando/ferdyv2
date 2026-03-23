@@ -186,6 +186,8 @@ export async function createBrandAction(payload: CreateBrandPayload) {
       if (groupData) {
         // Calculate total with discount if subscription has one
         let monthlyTotal = (brandCount || 0) * groupData.price_per_brand_cents
+        let discountPercent = 0
+        let couponName: string | null = null
 
         if (groupData.stripe_subscription_id) {
           try {
@@ -196,10 +198,15 @@ export async function createBrandAction(payload: CreateBrandPayload) {
             const discount = sub.discounts?.[0]
             const coupon = typeof discount === 'string' ? null : (discount as any)?.coupon
             if (coupon?.percent_off) {
+              discountPercent = coupon.percent_off
+              couponName = coupon.name || coupon.id
               monthlyTotal = Math.round(monthlyTotal * (1 - coupon.percent_off / 100))
               console.log(`[createBrandAction] Applied ${coupon.percent_off}% discount to email total: ${monthlyTotal}`)
             } else if (coupon?.amount_off) {
+              const baseTotal = monthlyTotal
               monthlyTotal = Math.max(0, monthlyTotal - coupon.amount_off)
+              discountPercent = baseTotal > 0 ? Math.round((coupon.amount_off / baseTotal) * 100) : 0
+              couponName = coupon.name || coupon.id
               console.log(`[createBrandAction] Applied ${coupon.amount_off} amount discount to email total: ${monthlyTotal}`)
             }
           } catch (discountErr) {
@@ -219,6 +226,8 @@ export async function createBrandAction(payload: CreateBrandPayload) {
             newBrandCount: brandCount || 0,
             newMonthlyTotal: monthlyTotal,
             currency: groupData.currency || 'usd',
+            discountPercent: discountPercent > 0 ? discountPercent : undefined,
+            couponName,
           })
           console.log(`[createBrandAction] Successfully sent brand added email`)
         } else {

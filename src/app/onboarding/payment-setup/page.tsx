@@ -132,11 +132,7 @@ export default function PaymentSetupPage() {
 
   const fetchSubscriptionDiscount = async (groupId: string) => {
     try {
-      const response = await fetch('/api/stripe/get-subscription-discount', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId }),
-      })
+      const response = await fetch(`/api/stripe/get-subscription-discount?groupId=${groupId}`)
 
       const data = await response.json()
       console.log('Subscription discount response:', data)

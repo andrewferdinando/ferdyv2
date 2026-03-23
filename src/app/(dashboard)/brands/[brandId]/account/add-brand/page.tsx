@@ -204,11 +204,7 @@ export default function AddBrandPage() {
 
       // Fetch discount info + subscription status from Stripe
       try {
-        const response = await fetch('/api/stripe/get-subscription-discount', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupId }),
-        })
+        const response = await fetch(`/api/stripe/get-subscription-discount?groupId=${groupId}`)
         const data = await response.json()
         setSubscriptionStatus(data.subscriptionStatus ?? null)
         if (response.ok && (data.hasDiscount || data.baseUnitPrice)) {
