@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import RequireAuth from '@/components/auth/RequireAuth'
 import AppLayout from '@/components/layout/AppLayout'
 import { supabase } from '@/lib/supabase-browser'
 
@@ -10,6 +9,10 @@ import { supabase } from '@/lib/supabase-browser'
  * Group-level /account page — redirects to the brand-scoped version.
  * We need brand context to show correct group data, so this page
  * resolves the user's current brand and redirects.
+ *
+ * Auth is handled by DashboardAuthGate in the dashboard layout —
+ * do NOT wrap this in RequireAuth (double auth listeners cause
+ * race conditions that can log users out during the redirect).
  */
 export default function AccountRedirectPage() {
   const router = useRouter()
@@ -54,12 +57,10 @@ export default function AccountRedirectPage() {
   }, [router])
 
   return (
-    <RequireAuth>
-      <AppLayout>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366F1]"></div>
-        </div>
-      </AppLayout>
-    </RequireAuth>
+    <AppLayout>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366F1]"></div>
+      </div>
+    </AppLayout>
   )
 }

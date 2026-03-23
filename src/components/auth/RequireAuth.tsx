@@ -43,7 +43,9 @@ export default function RequireAuth({ children }: RequireAuthProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: any, session: any) => {
         console.debug('[RequireAuth] Auth state change', { event, hasSession: !!session })
-        if (event === 'SIGNED_OUT' || !session) {
+        if (event === 'SIGNED_OUT') {
+          // Only redirect on explicit sign-out, not transient null sessions
+          // (e.g. during token refresh or initial subscription)
           const next = encodeURIComponent(pathname)
           router.push(`/auth/sign-in?next=${next}`)
         } else if (session) {
