@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
+import { useGroupRole } from '@/hooks/useGroupRole'
 import { STRIPE_CONFIG } from '@/lib/stripe'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/ToastProvider'
@@ -61,6 +62,7 @@ export default function BillingPage() {
   const router = useRouter()
   const { showToast } = useToast()
   const brandId = params.brandId as string
+  const { isGroupAdmin: hasGroupAccess, loading: groupRoleLoading } = useGroupRole(brandId)
 
   const [group, setGroup] = useState<Group | null>(null)
   const [canManageBilling, setCanManageBilling] = useState(false)
@@ -256,7 +258,7 @@ export default function BillingPage() {
     }
   }
 
-  if (loading) {
+  if (loading || groupRoleLoading) {
     return (
       <RequireAuth>
         <AppLayout>
@@ -264,6 +266,31 @@ export default function BillingPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366F1] mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading billing information...</p>
+            </div>
+          </div>
+        </AppLayout>
+      </RequireAuth>
+    )
+  }
+
+  if (!hasGroupAccess) {
+    return (
+      <RequireAuth>
+        <AppLayout>
+          <div className="flex-1 overflow-auto bg-gray-50">
+            <div className="p-4 sm:p-6 lg:p-10">
+              <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
+                <h2 className="text-xl font-semibold text-gray-900">You don&apos;t have access to this page</h2>
+                <p className="text-sm text-gray-600">
+                  Only Group Owners and Group Admins can manage billing. Ask your Group Owner to update your role if you need this access.
+                </p>
+                <button
+                  onClick={() => router.push(`/brands/${brandId}/account`)}
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Back to Account
+                </button>
+              </div>
             </div>
           </div>
         </AppLayout>

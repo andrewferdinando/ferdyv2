@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useGroupRole } from '@/hooks/useGroupRole';
 
 export default function AccountSettingsPage() {
   const params = useParams();
   const brandId = params.brandId as string;
-  const { isAdmin, loading: roleLoading } = useUserRole(brandId);
+  const { isGroupAdmin, loading: roleLoading } = useGroupRole(brandId);
 
   const accountSettings = useMemo(() => {
     const entries: Array<{
@@ -100,7 +100,7 @@ export default function AccountSettingsPage() {
               {/* Settings Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accountSettings.map((setting) => {
-                  const disabled = !roleLoading && setting.requiresAdmin && !isAdmin;
+                  const disabled = !roleLoading && setting.requiresAdmin && !isGroupAdmin;
                   const cardClasses = [
                     'rounded-xl border p-6 transition-all duration-200 h-full',
                     disabled

@@ -9,6 +9,7 @@ import { Form, FormField } from '@/components/ui/Form'
 import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/ToastProvider'
 import { supabase } from '@/lib/supabase-browser'
+import { useGroupRole } from '@/hooks/useGroupRole'
 import { getTimezonesByCountry, getAllTimezones } from '@/lib/utils/timezone'
 import { countries } from '@/lib/utils/countries'
 import { createBrandAction } from '@/app/(dashboard)/account/add-brand/actions'
@@ -61,6 +62,7 @@ export default function AddBrandPage() {
   const router = useRouter()
   const { showToast } = useToast()
   const brandId = params.brandId as string
+  const { isGroupAdmin, loading: groupRoleLoading } = useGroupRole(brandId)
 
   const [authState, setAuthState] = useState<'loading' | 'ready' | 'unauthorized'>('loading')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -141,7 +143,7 @@ export default function AddBrandPage() {
           .eq('user_id', user.id)
           .single()
 
-        if (profileError || !profile || !['admin', 'super_admin'].includes(profile.role)) {
+        if (profileError || !profile) {
           setAuthState('unauthorized')
           return
         }
@@ -235,13 +237,13 @@ export default function AddBrandPage() {
   }, [formValues, validate])
 
   useEffect(() => {
-    if (authState === 'unauthorized') {
+    if (authState === 'unauthorized' || (!groupRoleLoading && !isGroupAdmin)) {
       const timeout = setTimeout(() => {
         router.replace('/brands')
       }, 3000)
       return () => clearTimeout(timeout)
     }
-  }, [authState, router])
+  }, [authState, groupRoleLoading, isGroupAdmin, router])
 
   const handleChange = (field: keyof BrandFormValues, value: string) => {
     setFormValues((prev) => ({ ...prev, [field]: value }))
@@ -388,7 +390,7 @@ export default function AddBrandPage() {
   const isSubscriptionInactive = subscriptionStatus !== null && !['active', 'trialing'].includes(subscriptionStatus)
 
   const renderContent = () => {
-    if (authState === 'loading') {
+    if (authState === 'loading' || groupRoleLoading) {
       return (
         <div className="flex items-center justify-center py-24">
           <div className="flex flex-col items-center space-y-3">
@@ -399,7 +401,7 @@ export default function AddBrandPage() {
       )
     }
 
-    if (authState === 'unauthorized') {
+    if (authState === 'unauthorized' || !isGroupAdmin) {
       return (
         <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
           <h2 className="text-xl font-semibold text-gray-900">You don&apos;t have access to this page</h2>

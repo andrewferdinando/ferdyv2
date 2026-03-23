@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/auth/RequireAuth';
 import { supabase } from '@/lib/supabase-browser';
 import { GROUP_ROLES, BRAND_ROLES, getBrandRoleDisplay } from '@/lib/roles';
+import { useGroupRole } from '@/hooks/useGroupRole';
 import {
   fetchTeamState,
   sendTeamInvite,
@@ -38,6 +39,7 @@ export default function TeamPage() {
   const params = useParams();
   const router = useRouter();
   const brandId = params.brandId as string;
+  const { isGroupAdmin, loading: groupRoleLoading } = useGroupRole(brandId);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
@@ -350,7 +352,7 @@ export default function TeamPage() {
     }
   };
 
-  if (loading) {
+  if (loading || groupRoleLoading) {
     return (
       <RequireAuth>
         <AppLayout>
@@ -362,20 +364,25 @@ export default function TeamPage() {
     );
   }
 
-  // Check if user has permission to view this page
-  if (userRole !== 'admin' && userRole !== 'super_admin') {
+  // Check if user has permission to view this page (group-level check)
+  if (!isGroupAdmin) {
     return (
       <RequireAuth>
         <AppLayout>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-gray-400 mb-4">
-                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+          <div className="flex-1 overflow-auto bg-gray-50">
+            <div className="p-4 sm:p-6 lg:p-10">
+              <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
+                <h2 className="text-xl font-semibold text-gray-900">You don&apos;t have access to this page</h2>
+                <p className="text-sm text-gray-600">
+                  Only Group Owners and Group Admins can manage the team. Ask your Group Owner to update your role if you need this access.
+                </p>
+                <button
+                  onClick={() => router.push(`/brands/${brandId}/account`)}
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Back to Account
+                </button>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
-              <p className="text-gray-600">You need admin permissions to access team management.</p>
             </div>
           </div>
         </AppLayout>

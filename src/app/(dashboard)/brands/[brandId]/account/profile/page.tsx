@@ -11,20 +11,30 @@ interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: string;
+}
+
+interface GroupWithBrands {
+  groupId: string;
+  groupName: string;
   groupRole: string;
+  brands: Array<{
+    brandId: string;
+    brandName: string;
+    brandRole: string;
+  }>;
 }
 
 export default function ProfilePage() {
   const params = useParams();
   const brandId = params.brandId as string;
-  
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [groupsWithBrands, setGroupsWithBrands] = useState<GroupWithBrands[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,51 +54,10 @@ export default function ProfilePage() {
 
       if (profileError) throw profileError;
 
-      let role = 'editor'; // default
-      if (brandId) {
-        const { data: membershipData, error: membershipError } = await supabase
-          .from('brand_memberships')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('brand_id', brandId)
-          .single();
-
-        if (membershipError) {
-          console.error('Error fetching membership data:', membershipError);
-        } else if (membershipData) {
-          role = membershipData.role;
-        }
-      }
-
-      // Get group role
-      let groupRole = 'member';
-      if (brandId) {
-        const { data: brandData } = await supabase
-          .from('brands')
-          .select('group_id')
-          .eq('id', brandId)
-          .single();
-
-        if (brandData?.group_id) {
-          const { data: groupMembership } = await supabase
-            .from('group_memberships')
-            .select('role')
-            .eq('user_id', user.id)
-            .eq('group_id', brandData.group_id)
-            .single();
-
-          if (groupMembership) {
-            groupRole = groupMembership.role;
-          }
-        }
-      }
-
       const userProfile: UserProfile = {
         id: user.id,
         name: profileData.name || '',
         email: user.email || '',
-        role: role,
-        groupRole: groupRole,
       };
 
       setProfile(userProfile);
@@ -96,6 +65,48 @@ export default function ProfilePage() {
         name: userProfile.name,
         email: userProfile.email,
       });
+
+      // Fetch all group memberships for the user
+      const { data: groupMemberships, error: gmError } = await supabase
+        .from('group_memberships')
+        .select('group_id, role, groups(id, name)')
+        .eq('user_id', user.id);
+
+      if (gmError) {
+        console.error('Error fetching group memberships:', gmError);
+      }
+
+      // Fetch all brand memberships for the user
+      const { data: brandMemberships, error: bmError } = await supabase
+        .from('brand_memberships')
+        .select('brand_id, role, brands(id, name, group_id)')
+        .eq('user_id', user.id);
+
+      if (bmError) {
+        console.error('Error fetching brand memberships:', bmError);
+      }
+
+      // Build groups with their brands
+      const groups: GroupWithBrands[] = (groupMemberships || []).map((gm: any) => {
+        const group = gm.groups;
+        const brandsInGroup = (brandMemberships || [])
+          .filter((bm: any) => bm.brands?.group_id === group?.id)
+          .map((bm: any) => ({
+            brandId: bm.brands.id,
+            brandName: bm.brands.name,
+            brandRole: bm.role,
+          }))
+          .sort((a: any, b: any) => a.brandName.localeCompare(b.brandName));
+
+        return {
+          groupId: group?.id || gm.group_id,
+          groupName: group?.name || 'Unknown Group',
+          groupRole: gm.role,
+          brands: brandsInGroup,
+        };
+      }).sort((a: GroupWithBrands, b: GroupWithBrands) => a.groupName.localeCompare(b.groupName));
+
+      setGroupsWithBrands(groups);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setError('Failed to load profile data');
@@ -114,7 +125,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!profile) return;
-    
+
     setSaving(true);
     setError('');
     setSuccess('');
@@ -136,7 +147,7 @@ export default function ProfilePage() {
         const { error: emailError } = await supabase.auth.updateUser({
           email: formData.email
         });
-        
+
         if (emailError) throw emailError;
       }
 
@@ -149,9 +160,6 @@ export default function ProfilePage() {
       setSaving(false);
     }
   };
-
-  const getRoleDisplayName = (role: string) => getBrandRoleDisplay(role).label;
-  const getRoleColor = (role: string) => getBrandRoleDisplay(role).color;
 
   if (loading) {
     return (
@@ -192,13 +200,13 @@ export default function ProfilePage() {
               </div>
 
               {/* Profile Form */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
                 {error && (
                   <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md mb-6">
                     {error}
                   </div>
                 )}
-                
+
                 {success && (
                   <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md mb-6">
                     {success}
@@ -230,25 +238,6 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  {/* Roles (Read-only) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Group Role</label>
-                    <div className="flex items-center space-x-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getGroupRoleDisplay(profile.groupRole).color}`}>
-                        {getGroupRoleDisplay(profile.groupRole).label}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Role</label>
-                    <div className="flex items-center space-x-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(profile.role)}`}>
-                        {getRoleDisplayName(profile.role)}
-                      </span>
-                    </div>
-                  </div>
-
                   {/* Save Button */}
                   <div className="flex justify-end pt-4">
                     <button
@@ -260,6 +249,53 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Your Groups & Brands */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Groups & Brands</h2>
+
+                {groupsWithBrands.length === 0 ? (
+                  <p className="text-sm text-gray-500">No groups or brands found.</p>
+                ) : (
+                  <div className="divide-y divide-gray-200">
+                    {groupsWithBrands.map((group) => {
+                      const groupDisplay = getGroupRoleDisplay(group.groupRole);
+                      return (
+                        <div key={group.groupId} className="py-4 first:pt-0 last:pb-0">
+                          {/* Group header */}
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-900">
+                              {group.groupName}
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${groupDisplay.color}`}>
+                              {groupDisplay.label}
+                            </span>
+                          </div>
+
+                          {/* Brands in this group */}
+                          {group.brands.length > 0 ? (
+                            <div className="ml-4 space-y-1.5">
+                              {group.brands.map((brand) => {
+                                const brandDisplay = getBrandRoleDisplay(brand.brandRole);
+                                return (
+                                  <div key={brand.brandId} className="flex items-center justify-between py-1">
+                                    <span className="text-sm text-gray-600">{brand.brandName}</span>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${brandDisplay.color}`}>
+                                      {brandDisplay.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="ml-4 text-xs text-gray-400">No brands assigned</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

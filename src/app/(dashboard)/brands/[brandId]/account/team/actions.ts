@@ -161,6 +161,8 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
       ...(existing.user_metadata || {}),
       brand_id: brandId,
       brand_role: role,
+      group_role: groupRole,
+      brand_assignments: brandAssignments || [{ brandId, role }],
       invitee_name: name,
       last_invite_sent_at: new Date().toISOString(),
     }
