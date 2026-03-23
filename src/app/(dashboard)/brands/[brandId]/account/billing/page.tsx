@@ -339,22 +339,35 @@ export default function BillingPage() {
 
   // Calculate totals - use invoice total if available (includes discount + tax)
   const subtotal = brandCount * pricePerBrand
-  const totalMonthly = latestInvoice
-    ? latestInvoice.total / 100
-    : subtotal
+  const discountedSubtotal = subtotal - discountAmount
 
   // GST — for NZ accounts. Detect NZ from country_code or currency.
   const isNz = group.country_code?.toUpperCase() === 'NZ'
     || stripeCurrency?.toLowerCase() === 'nzd'
-  // Use Stripe invoice tax if available, otherwise calculate 15% of pre-discount subtotal
-  const invoiceTax = latestInvoice?.tax ? latestInvoice.tax / 100 : 0
-  const gstAmount = isNz
-    ? (invoiceTax > 0 ? invoiceTax : subtotal * 0.15)
-    : 0
+
+  // When Stripe invoice exists, its `total` already includes discount + tax — never add to it.
+  // Extract GST from Stripe tax field, or back-calculate from total vs discounted subtotal.
+  let totalWithGst: number
+  let gstAmount: number
+
+  if (latestInvoice) {
+    const stripeTotal = latestInvoice.total / 100
+    if (latestInvoice.tax != null && latestInvoice.tax > 0) {
+      gstAmount = isNz ? latestInvoice.tax / 100 : 0
+    } else if (isNz && stripeTotal > discountedSubtotal) {
+      // tax field is null but total > discounted subtotal → tax is the difference
+      gstAmount = stripeTotal - discountedSubtotal
+    } else {
+      gstAmount = 0
+    }
+    totalWithGst = stripeTotal
+  } else {
+    // No invoice data — calculate locally
+    gstAmount = isNz ? discountedSubtotal * 0.15 : 0
+    totalWithGst = discountedSubtotal + gstAmount
+  }
+
   const hasGst = isNz && gstAmount > 0
-  const totalWithGst = invoiceTax > 0
-    ? totalMonthly  // Stripe total already includes tax
-    : totalMonthly + gstAmount  // GST calculated locally, add to total
 
   return (
     <RequireAuth>
