@@ -229,7 +229,7 @@ export default function PaymentSetupPage() {
           groupId: userGroup.id,
           groupName: userGroup.name,
           email: email,
-          countryCode: 'US',
+          countryCode: userGroup.country_code || 'NZ',
           brandCount: count,
           couponCode: coupon || undefined,
         }),
