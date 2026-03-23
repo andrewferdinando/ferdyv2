@@ -148,7 +148,9 @@ export default function TeamPage() {
   useEffect(() => {
     if (!brandId || !currentUserId) return;
 
-    if (userRole && (userRole === 'admin' || userRole === 'super_admin')) {
+    // Load team for brand admins OR group admins
+    const isBrandAdmin = userRole === 'admin' || userRole === 'super_admin';
+    if (isBrandAdmin || isGroupAdmin) {
       startTransition(() => {
         refreshTeam().catch((err) => {
           console.error(err);
@@ -156,7 +158,7 @@ export default function TeamPage() {
         });
       });
     }
-  }, [userRole, brandId, currentUserId, refreshTeam]);
+  }, [userRole, brandId, currentUserId, isGroupAdmin, refreshTeam]);
 
   const handleInviteUser = async () => {
     if (!inviteName.trim()) {
@@ -756,7 +758,9 @@ export default function TeamPage() {
                                   setInviteGroupRole('member');
                                   setInviteBrandAssignments({});
                                   setInviteRole('editor');
-                                  refreshTeam();
+                                  refreshTeam().catch((refreshErr) => {
+                                    console.error('refreshTeam after invite error', refreshErr);
+                                  });
                                 } catch (err: any) {
                                   setError(err.message || 'Failed to send invitation');
                                 } finally {

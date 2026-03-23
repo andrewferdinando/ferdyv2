@@ -176,13 +176,20 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
       console.error('sendTeamInvite updateUser metadata error', updateUserError)
     }
 
+    // Update display name but do NOT overwrite profiles.role (it stores group-level role, not brand role)
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('user_id', existing.id)
+      .maybeSingle()
+
     await supabaseAdmin
       .from('profiles')
       .upsert(
         {
           user_id: existing.id,
           full_name: name,
-          role,
+          ...(existingProfile?.role ? {} : { role }),
         },
         { onConflict: 'user_id' },
       )

@@ -28,7 +28,7 @@ export const BRAND_ROLES: Record<string, { label: string; color: string; descrip
   admin: {
     label: 'Brand Admin',
     color: 'bg-teal-100 text-teal-800',
-    description: "Can manage this brand's settings, integrations, and content.",
+    description: "Can manage this brand's content and integrations.",
   },
   editor: {
     label: 'Brand Editor',
