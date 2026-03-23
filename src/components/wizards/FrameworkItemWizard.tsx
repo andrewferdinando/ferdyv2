@@ -3938,26 +3938,9 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           )}
         </FormField>
 
-        {/* Daily fields */}
+        {/* Daily fields — time is set in the Details section (post_time) and synced to schedule.timeOfDay */}
         {schedule.frequency === 'daily' && (
-          <div className="space-y-3">
-            <FormField label="Time" required>
-              <Input
-                type="time"
-                value={schedule.timeOfDay}
-                onChange={(e) => {
-                  setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
-                  if (scheduleErrors.timeOfDay) {
-                    setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
-                  }
-                }}
-                error={scheduleErrors.timeOfDay}
-              />
-              <p className="mt-2 text-sm text-gray-600">
-                Timezone: {brand?.timezone || 'Not set'}
-              </p>
-            </FormField>
-          </div>
+          <div className="space-y-3" />
         )}
 
         {/* Weekly fields */}
@@ -3993,22 +3976,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               {scheduleErrors.daysOfWeek && (
                 <p className="text-red-500 text-sm mt-2">{scheduleErrors.daysOfWeek}</p>
               )}
-            </FormField>
-            <FormField label="Time" required>
-              <Input
-                type="time"
-                value={schedule.timeOfDay}
-                onChange={(e) => {
-                  setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
-                  if (scheduleErrors.timeOfDay) {
-                    setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
-                  }
-                }}
-                error={scheduleErrors.timeOfDay}
-              />
-              <p className="mt-2 text-sm text-gray-600">
-                Timezone: {brand?.timezone || 'Not set'}
-              </p>
             </FormField>
           </div>
         )}
@@ -4115,22 +4082,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               </FormField>
             </div>
 
-            <FormField label="Time" required>
-              <Input
-                type="time"
-                value={schedule.timeOfDay}
-                onChange={(e) => {
-                  setSchedule(prev => ({ ...prev, timeOfDay: e.target.value }))
-                  if (scheduleErrors.timeOfDay) {
-                    setScheduleErrors(prev => ({ ...prev, timeOfDay: undefined }))
-                  }
-                }}
-                error={scheduleErrors.timeOfDay}
-              />
-              <p className="mt-2 text-sm text-gray-600">
-                Timezone: {brand?.timezone || 'Not set'}
-              </p>
-            </FormField>
           </div>
         )}
         </div>
