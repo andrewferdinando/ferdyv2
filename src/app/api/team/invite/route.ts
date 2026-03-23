@@ -45,10 +45,18 @@ export async function POST(request: NextRequest) {
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
     const userExists = existingUser?.users.find(u => u.email?.toLowerCase() === normalizedEmail)
 
-    console.log('[team/invite] User exists:', !!userExists)
+    // Treat users who have never signed in as new — they need the set-password flow
+    const isNewOrIncomplete = !userExists || !userExists.last_sign_in_at
+    console.log('[team/invite] User exists:', !!userExists, 'lastSignIn:', userExists?.last_sign_in_at, 'isNewOrIncomplete:', isNewOrIncomplete)
 
-    if (userExists) {
-      // User exists - add them to the group and brands
+    // If auth user exists but never signed in, delete for fresh invite
+    if (userExists && !userExists.last_sign_in_at) {
+      console.log('[team/invite] Deleting incomplete auth user for fresh invite:', userExists.id)
+      await supabaseAdmin.auth.admin.deleteUser(userExists.id)
+    }
+
+    if (userExists && userExists.last_sign_in_at) {
+      // User exists AND has signed in before - add them to the group and brands
       const userId = userExists.id
 
       // Check if already a member of this group
@@ -143,8 +151,8 @@ export async function POST(request: NextRequest) {
         message: 'Existing user added to group and brands',
       })
     } else {
-      // User doesn't exist - generate invite link and send custom email
-      console.log('[team/invite] Processing new user invite')
+      // New user or incomplete invite (never signed in) — generate fresh invite link
+      console.log('[team/invite] Processing new/incomplete user invite')
 
       // Store invitation in database for retrieval during signup
       const { error: storeError } = await supabaseAdmin

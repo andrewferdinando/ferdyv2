@@ -44,6 +44,14 @@ export default function SetPasswordPage() {
       const pendingGroupId = currentUrl.searchParams.get('group_id')
       const inviteSource = currentUrl.searchParams.get('src')
 
+      // Handle error redirected from Supabase via the inline auth hash script
+      const urlError = currentUrl.searchParams.get('error')
+      if (urlError) {
+        setError(decodeURIComponent(urlError).replace(/\+/g, ' ') + '. Please ask your Group Owner to send a new invitation.')
+        setIsPreparing(false)
+        return
+      }
+
       console.log('[SetPasswordPage] URL params:', {
         pendingBrandId,
         pendingGroupId,

@@ -97,10 +97,21 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     (user) => user.email?.toLowerCase() === normalizedEmail,
   )
 
-  console.log('[sendTeamInvite] User exists:', !!existing)
+  // Treat users who have never signed in as new — they need the set-password flow.
+  // This handles re-invites after removal: the auth user exists but never completed onboarding.
+  const isNewOrIncomplete = !existing || !existing.last_sign_in_at
+  console.log('[sendTeamInvite] User exists:', !!existing, 'lastSignIn:', existing?.last_sign_in_at, 'isNewOrIncomplete:', isNewOrIncomplete)
 
-  if (!existing) {
-    console.log('[sendTeamInvite] Processing new user invite')
+  if (isNewOrIncomplete) {
+    console.log('[sendTeamInvite] Processing new/incomplete user invite')
+
+    // If the auth user exists but never signed in, delete and recreate
+    // so generateLink type=invite works cleanly
+    if (existing && !existing.last_sign_in_at) {
+      console.log('[sendTeamInvite] Deleting incomplete auth user for fresh invite:', existing.id)
+      await supabaseAdmin.auth.admin.deleteUser(existing.id)
+    }
+
     // New user - generate invite link and send custom email
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
@@ -141,7 +152,7 @@ export async function sendTeamInvite(input: z.infer<typeof InviteSchema>) {
     }
 
   } else {
-    // Existing user - generate magic link and send custom email
+    // Existing user who HAS signed in before - generate magic link
     const { data: magicLinkData, error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: normalizedEmail,
