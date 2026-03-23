@@ -225,25 +225,44 @@ export async function POST(request: NextRequest) {
 
     // 10. Send email notification
     try {
-      const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id) as any
+      const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id, {
+        expand: ['discounts.coupon'],
+      }) as any
       const periodEnd = subscription?.current_period_end
         ? new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
       const { data: groupData } = await supabaseAdmin
         .from('groups')
-        .select('name, price_per_brand_cents, currency')
+        .select('name, price_per_brand_cents, currency, country_code')
         .eq('id', groupId)
         .single()
 
       if (groupData) {
+        // Calculate monthly total with discount
+        let monthlyTotal = newQuantity * groupData.price_per_brand_cents
+        const discount = subscription?.discounts?.[0]
+        const coupon = typeof discount === 'string' ? null : discount?.coupon
+        if (coupon?.percent_off) {
+          monthlyTotal = Math.round(monthlyTotal * (1 - coupon.percent_off / 100))
+        } else if (coupon?.amount_off) {
+          monthlyTotal = Math.max(0, monthlyTotal - coupon.amount_off)
+        }
+
+        // Add GST for NZ groups
+        const isNz = groupData.country_code?.toUpperCase() === 'NZ'
+          || (groupData.currency || '').toLowerCase() === 'nzd'
+        const gstAmount = isNz ? Math.round(monthlyTotal * 0.15) : 0
+        const totalWithGst = monthlyTotal + gstAmount
+
         await sendBrandDeleted({
           to: user.email!,
           brandName: brand.name,
           remainingBrandCount: newQuantity,
-          newMonthlyTotal: newQuantity * groupData.price_per_brand_cents,
+          newMonthlyTotal: totalWithGst,
           currency: groupData.currency || 'usd',
           billingPeriodEnd: periodEnd,
+          gstAmount: gstAmount > 0 ? gstAmount : undefined,
         })
       }
     } catch (emailError) {

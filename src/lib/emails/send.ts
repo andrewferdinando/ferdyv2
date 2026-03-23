@@ -68,6 +68,7 @@ export interface BrandAddedData {
   currency: string
   discountPercent?: number
   couponName?: string | null
+  gstAmount?: number
 }
 
 export interface BrandDeletedData {
@@ -77,6 +78,7 @@ export interface BrandDeletedData {
   newMonthlyTotal: number
   currency: string
   billingPeriodEnd: string
+  gstAmount?: number
 }
 
 export interface ForgotPasswordData {
@@ -231,6 +233,7 @@ export async function sendBrandAdded(data: BrandAddedData) {
       currency: data.currency,
       discountPercent: data.discountPercent,
       couponName: data.couponName,
+      gstAmount: data.gstAmount,
     })
   )
 
@@ -252,6 +255,7 @@ export async function sendBrandDeleted(data: BrandDeletedData) {
       newMonthlyTotal: data.newMonthlyTotal,
       currency: data.currency,
       billingPeriodEnd: data.billingPeriodEnd,
+      gstAmount: data.gstAmount,
     })
   )
 

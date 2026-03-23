@@ -9,6 +9,7 @@ interface BrandAddedProps {
   currency: string
   discountPercent?: number
   couponName?: string | null
+  gstAmount?: number
 }
 
 export function BrandAdded({
@@ -18,6 +19,7 @@ export function BrandAdded({
   currency,
   discountPercent,
   couponName,
+  gstAmount,
 }: BrandAddedProps) {
   const formattedTotal = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -42,7 +44,15 @@ export function BrandAdded({
         <Text style={emailStyles.paragraph}>
           <strong>Active Brands:</strong> {newBrandCount}
           <br />
-          <strong>New Monthly Total:</strong> {formattedTotal}
+          <strong>New Monthly Total:</strong> {formattedTotal}{gstAmount ? ' (incl. GST)' : ''}
+          {gstAmount && gstAmount > 0 && (
+            <>
+              <br />
+              <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                Includes {new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() }).format(gstAmount / 100)} GST (15%)
+              </span>
+            </>
+          )}
           {discountPercent && discountPercent > 0 && (
             <>
               <br />

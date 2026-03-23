@@ -8,6 +8,7 @@ interface BrandDeletedProps {
   newMonthlyTotal: number
   currency: string
   billingPeriodEnd: string
+  gstAmount?: number
 }
 
 export function BrandDeleted({
@@ -16,6 +17,7 @@ export function BrandDeleted({
   newMonthlyTotal,
   currency,
   billingPeriodEnd,
+  gstAmount,
 }: BrandDeletedProps) {
   const formattedTotal = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -40,7 +42,15 @@ export function BrandDeleted({
         <Text style={emailStyles.paragraph}>
           <strong>Remaining Brands:</strong> {remainingBrandCount}
           <br />
-          <strong>New Monthly Total:</strong> {formattedTotal}
+          <strong>New Monthly Total:</strong> {formattedTotal}{gstAmount ? ' (incl. GST)' : ''}
+          {gstAmount && gstAmount > 0 && (
+            <>
+              <br />
+              <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                Includes {new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() }).format(gstAmount / 100)} GST (15%)
+              </span>
+            </>
+          )}
         </Text>
       </Section>
 

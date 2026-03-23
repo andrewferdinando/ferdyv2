@@ -562,9 +562,14 @@ export default function AddBrandPage() {
               return 'Are you sure you want to add this brand? The cost will be added to your next invoice.'
             }
             const cur = (discountInfo?.currency ?? currency).toUpperCase()
-            const baseStr = `$${(basePriceCents / 100).toFixed(2)}`
+            const isNz = cur === 'NZD'
+            const gstMultiplier = isNz ? 1.15 : 1
+            const gstLabel = isNz ? ' (incl. GST)' : ''
+            const baseInclGst = (basePriceCents / 100) * gstMultiplier
+            const baseStr = `$${baseInclGst.toFixed(2)}`
             if (discountInfo?.hasDiscount && discountInfo.discountedUnitPrice !== basePriceCents) {
-              const discountedStr = `$${(discountInfo.discountedUnitPrice / 100).toFixed(2)}`
+              const discountedInclGst = (discountInfo.discountedUnitPrice / 100) * gstMultiplier
+              const discountedStr = `$${discountedInclGst.toFixed(2)}`
               const label = discountInfo.couponName
                 ? `${discountInfo.discountPercent}% discount — ${discountInfo.couponName}`
                 : `${discountInfo.discountPercent}% discount`
@@ -572,13 +577,13 @@ export default function AddBrandPage() {
                 <span>
                   Adding a new brand will cost{' '}
                   <span className="line-through text-gray-400">{baseStr}</span>{' '}
-                  <strong>{discountedStr} {cur}/month</strong>{' '}
+                  <strong>{discountedStr} {cur}/month</strong>{gstLabel}{' '}
                   <span className="text-sm text-green-600">({label})</span>.
                   {' '}This will be prorated and added to your next invoice. Do you want to proceed?
                 </span>
               )
             }
-            return `Adding a new brand will cost ${baseStr} ${cur}/month. This will be prorated and added to your next invoice. Do you want to proceed?`
+            return `Adding a new brand will cost ${baseStr} ${cur}/month${gstLabel}. This will be prorated and added to your next invoice. Do you want to proceed?`
           })()}
           confirmText="Add Brand"
           cancelText="Cancel"

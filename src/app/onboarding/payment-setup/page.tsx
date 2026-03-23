@@ -281,9 +281,13 @@ export default function PaymentSetupPage() {
     )
   }
 
-  // Helper to format price
+  // Helper to format price — includes GST for NZ groups
+  const isNzGroup = group?.country_code?.toUpperCase() === 'NZ'
+    || (group?.currency || '').toLowerCase() === 'nzd'
+  const gstMultiplier = isNzGroup ? 1.15 : 1
+
   const formatPrice = (cents: number, currency: string) => {
-    return `$${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+    return `$${((cents / 100) * gstMultiplier).toFixed(2)} ${currency.toUpperCase()}`
   }
 
   // Show coupon input if no subscription exists yet
@@ -306,6 +310,7 @@ export default function PaymentSetupPage() {
                     </p>
                     <p className="text-lg font-semibold text-green-600">
                       {formatPrice(pricing.discountedUnitPrice, pricing.currency)}/month per brand
+                      {isNzGroup && <span className="text-sm font-normal"> (incl. GST)</span>}
                     </p>
                     <p className="text-sm text-green-600">
                       {pricing.discountPercent}% off
@@ -317,6 +322,7 @@ export default function PaymentSetupPage() {
                 ) : (
                   <p className="text-sm text-gray-600">
                     {formatPrice(pricing.baseUnitPrice, pricing.currency)}/month per brand
+                    {isNzGroup && <span className="text-xs text-gray-500"> (incl. GST)</span>}
                   </p>
                 )}
               </div>

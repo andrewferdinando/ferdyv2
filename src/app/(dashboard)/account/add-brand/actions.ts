@@ -177,7 +177,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     try {
       const { data: groupData } = await supabaseAdmin
         .from('groups')
-        .select('price_per_brand_cents, currency, stripe_subscription_id')
+        .select('price_per_brand_cents, currency, stripe_subscription_id, country_code')
         .eq('id', groupId)
         .single()
 
@@ -214,6 +214,12 @@ export async function createBrandAction(payload: CreateBrandPayload) {
           }
         }
 
+        // Calculate GST for NZ groups
+        const isNz = groupData.country_code?.toUpperCase() === 'NZ'
+          || (groupData.currency || '').toLowerCase() === 'nzd'
+        const gstAmount = isNz ? Math.round(monthlyTotal * 0.15) : 0
+        const totalWithGst = monthlyTotal + gstAmount
+
         // Get user email from auth.users table using the userId
         const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
         console.log(`[createBrandAction] User retrieved - email: ${user?.email}`)
@@ -224,10 +230,11 @@ export async function createBrandAction(payload: CreateBrandPayload) {
             to: user.email,
             brandName: name,
             newBrandCount: brandCount || 0,
-            newMonthlyTotal: monthlyTotal,
+            newMonthlyTotal: totalWithGst,
             currency: groupData.currency || 'usd',
             discountPercent: discountPercent > 0 ? discountPercent : undefined,
             couponName,
+            gstAmount: gstAmount > 0 ? gstAmount : undefined,
           })
           console.log(`[createBrandAction] Successfully sent brand added email`)
         } else {
