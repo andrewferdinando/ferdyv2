@@ -24,10 +24,11 @@ async function handleRequest(groupId: string) {
   }
 
   // Retrieve the subscription with discount info
+  // Expand both singular (legacy) and plural discount fields for compatibility
   const subscription = await stripe.subscriptions.retrieve(
     group.stripe_subscription_id,
     {
-      expand: ['discounts.coupon'],
+      expand: ['discount.coupon', 'discounts.coupon'],
     }
   )
 
@@ -40,28 +41,17 @@ async function handleRequest(groupId: string) {
   const brandCount = subscription.items.data[0]?.quantity || 1
   const baseTotal = baseUnitPrice * brandCount
 
-  // Check if subscription has discounts
-  const discounts = subscription.discounts
-  console.log('[get-subscription-discount] groupId:', groupId, 'subId:', group.stripe_subscription_id, 'discounts:', JSON.stringify(discounts), 'discount(singular):', JSON.stringify((subscription as any).discount))
+  // Check for discounts — try plural array first, fall back to singular legacy field
+  const discountsArray = subscription.discounts
+  const legacyDiscount = (subscription as any).discount
 
-  if (!discounts || discounts.length === 0) {
-    return NextResponse.json({
-      hasDiscount: false,
-      subscriptionStatus: subscription.status,
-      baseUnitPrice,
-      baseTotal,
-      discountedUnitPrice: baseUnitPrice,
-      discountedTotal: baseTotal,
-      discountAmount: 0,
-      discountPercent: 0,
-      currency,
-      couponName: null,
-    })
+  let coupon: any = null
+  if (discountsArray && discountsArray.length > 0) {
+    const first = discountsArray[0]
+    coupon = typeof first === 'string' ? null : (first as any).coupon
+  } else if (legacyDiscount && typeof legacyDiscount !== 'string') {
+    coupon = legacyDiscount.coupon
   }
-
-  // Get the first discount (typically there's only one)
-  const discount = discounts[0]
-  const coupon = typeof discount === 'string' ? null : (discount as any).coupon
 
   if (!coupon) {
     return NextResponse.json({

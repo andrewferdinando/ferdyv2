@@ -271,23 +271,51 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
  * shows the correct payment method.
  */
 async function ensurePaymentMethodSaved(invoice: Stripe.Invoice, customerId: string) {
-  // Get the PaymentIntent from the invoice to find the payment method used
+  let paymentMethodId: string | undefined
+
+  // Try 1: Get payment method from the PaymentIntent on the invoice
   const paymentIntentId = typeof (invoice as any).payment_intent === 'string'
     ? (invoice as any).payment_intent
     : (invoice as any).payment_intent?.id
 
-  if (!paymentIntentId) {
-    console.log('No PaymentIntent on paid invoice, skipping payment method save')
-    return
+  if (paymentIntentId) {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    paymentMethodId = typeof paymentIntent.payment_method === 'string'
+      ? paymentIntent.payment_method
+      : paymentIntent.payment_method?.id || undefined
   }
 
-  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
-  const paymentMethodId = typeof paymentIntent.payment_method === 'string'
-    ? paymentIntent.payment_method
-    : paymentIntent.payment_method?.id
+  // Try 2: Get payment method from the charge on the invoice
+  if (!paymentMethodId) {
+    const chargeId = typeof (invoice as any).charge === 'string'
+      ? (invoice as any).charge
+      : (invoice as any).charge?.id
+    if (chargeId) {
+      const charge = await stripe.charges.retrieve(chargeId)
+      paymentMethodId = typeof charge.payment_method === 'string'
+        ? charge.payment_method
+        : (charge.payment_method as any)?.id || undefined
+      if (paymentMethodId) {
+        console.log('Found payment method from charge:', paymentMethodId)
+      }
+    }
+  }
+
+  // Try 3: Get the most recent payment method attached to the customer
+  if (!paymentMethodId) {
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: 'card',
+      limit: 1,
+    })
+    if (paymentMethods.data.length > 0) {
+      paymentMethodId = paymentMethods.data[0].id
+      console.log('Found payment method from customer:', paymentMethodId)
+    }
+  }
 
   if (!paymentMethodId) {
-    console.log('No payment method on PaymentIntent, skipping')
+    console.log('No payment method found via PaymentIntent, charge, or customer — skipping')
     return
   }
 
