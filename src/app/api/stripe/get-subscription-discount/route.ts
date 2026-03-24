@@ -42,6 +42,7 @@ async function handleRequest(groupId: string) {
 
   // Check if subscription has discounts
   const discounts = subscription.discounts
+  console.log('[get-subscription-discount] groupId:', groupId, 'subId:', group.stripe_subscription_id, 'discounts:', JSON.stringify(discounts), 'discount(singular):', JSON.stringify((subscription as any).discount))
 
   if (!discounts || discounts.length === 0) {
     return NextResponse.json({
