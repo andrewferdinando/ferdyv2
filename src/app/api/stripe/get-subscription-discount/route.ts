@@ -23,12 +23,11 @@ async function handleRequest(groupId: string) {
     })
   }
 
-  // Retrieve the subscription with discount info
-  // Expand both singular (legacy) and plural discount fields for compatibility
+  // Retrieve the subscription with discount + invoice data (same expand as billing page)
   const subscription = await stripe.subscriptions.retrieve(
     group.stripe_subscription_id,
     {
-      expand: ['discount.coupon', 'discounts.coupon'],
+      expand: ['discount.coupon', 'discounts.coupon', 'latest_invoice'],
     }
   )
 
@@ -41,19 +40,36 @@ async function handleRequest(groupId: string) {
   const brandCount = subscription.items.data[0]?.quantity || 1
   const baseTotal = baseUnitPrice * brandCount
 
-  // Check for discounts — try plural array first, fall back to singular legacy field
-  const discountsArray = subscription.discounts
-  const legacyDiscount = (subscription as any).discount
-
+  // --- Resolve coupon from subscription discount fields ---
   let coupon: any = null
+
+  // Try subscription.discounts (plural, newer API)
+  const discountsArray = subscription.discounts
   if (discountsArray && discountsArray.length > 0) {
     const first = discountsArray[0]
     coupon = typeof first === 'string' ? null : (first as any).coupon
-  } else if (legacyDiscount && typeof legacyDiscount !== 'string') {
-    coupon = legacyDiscount.coupon
+    // If coupon is a string ID (unexpanded), fetch it
+    if (typeof coupon === 'string') {
+      coupon = await stripe.coupons.retrieve(coupon)
+    }
   }
 
+  // Try subscription.discount (singular, legacy)
   if (!coupon) {
+    const legacyDiscount = (subscription as any).discount
+    if (legacyDiscount && typeof legacyDiscount !== 'string') {
+      coupon = legacyDiscount.coupon
+      if (typeof coupon === 'string') {
+        coupon = await stripe.coupons.retrieve(coupon)
+      }
+    }
+  }
+
+  // --- Fallback: check invoice for discount amounts (most reliable source) ---
+  const latestInvoice = subscription.latest_invoice as any
+  const invoiceDiscountAmount = latestInvoice?.total_discount_amounts?.[0]?.amount || 0
+
+  if (!coupon && invoiceDiscountAmount <= 0) {
     return NextResponse.json({
       hasDiscount: false,
       subscriptionStatus: subscription.status,
@@ -68,19 +84,38 @@ async function handleRequest(groupId: string) {
     })
   }
 
-  // Calculate discount
+  // Calculate discount — prefer coupon data, fall back to invoice amounts
   let discountAmount = 0
   let discountPercent = 0
   let discountedTotal = baseTotal
+  let couponName: string | null = null
+  let couponDuration: string | null = null
+  let couponDurationMonths: number | null = null
 
-  if (coupon.percent_off) {
+  if (coupon?.percent_off) {
     discountPercent = coupon.percent_off
     discountAmount = Math.round(baseTotal * (coupon.percent_off / 100))
     discountedTotal = baseTotal - discountAmount
-  } else if (coupon.amount_off) {
+    couponName = coupon.name || coupon.id
+    couponDuration = coupon.duration
+    couponDurationMonths = coupon.duration_in_months
+  } else if (coupon?.amount_off) {
     discountAmount = coupon.amount_off
     discountedTotal = Math.max(0, baseTotal - discountAmount)
     discountPercent = Math.round((discountAmount / baseTotal) * 100)
+    couponName = coupon.name || coupon.id
+    couponDuration = coupon.duration
+    couponDurationMonths = coupon.duration_in_months
+  } else if (invoiceDiscountAmount > 0) {
+    // No coupon object but invoice shows a discount — back-calculate
+    discountAmount = invoiceDiscountAmount
+    discountedTotal = Math.max(0, baseTotal - discountAmount)
+    discountPercent = Math.round((discountAmount / baseTotal) * 100)
+    // Try to get coupon name from invoice discount metadata
+    const invoiceDiscount = latestInvoice?.discounts?.[0]
+    if (invoiceDiscount && typeof invoiceDiscount !== 'string') {
+      couponName = (invoiceDiscount as any).coupon?.name || (invoiceDiscount as any).coupon?.id || null
+    }
   }
 
   const discountedUnitPrice = Math.round(discountedTotal / brandCount)
@@ -95,9 +130,9 @@ async function handleRequest(groupId: string) {
     discountAmount,
     discountPercent,
     currency,
-    couponName: coupon.name || coupon.id,
-    couponDuration: coupon.duration,
-    couponDurationMonths: coupon.duration_in_months,
+    couponName,
+    couponDuration,
+    couponDurationMonths,
   })
 }
 
