@@ -519,6 +519,38 @@ export default function AddBrandPage() {
               </p>
             </FormField>
 
+            {/* Pricing hint */}
+            {(() => {
+              const basePriceCents = discountInfo?.baseUnitPrice ?? pricePerBrand
+              if (basePriceCents === null || basePriceCents === undefined) return null
+              const cur = (discountInfo?.currency ?? currency).toUpperCase()
+              const isNz = cur === 'NZD'
+              const gstMultiplier = isNz ? 1.15 : 1
+              const gstLabel = isNz ? ' incl. GST' : ''
+              if (discountInfo?.hasDiscount && discountInfo.discountedUnitPrice !== basePriceCents) {
+                const baseStr = `$${((basePriceCents / 100) * gstMultiplier).toFixed(2)}`
+                const discountedStr = `$${((discountInfo.discountedUnitPrice / 100) * gstMultiplier).toFixed(2)}`
+                const label = discountInfo.couponName
+                  ? `${discountInfo.discountPercent}% discount — ${discountInfo.couponName}`
+                  : `${discountInfo.discountPercent}% discount`
+                return (
+                  <p className="text-sm text-gray-500">
+                    <span className="line-through">{baseStr}</span>{' '}
+                    <span className="font-medium text-gray-900">{discountedStr} {cur}/month</span>
+                    {gstLabel && <span className="text-gray-400"> ({gstLabel})</span>}{' '}
+                    <span className="text-green-600">({label})</span>
+                  </p>
+                )
+              }
+              const baseStr = `$${((basePriceCents / 100) * gstMultiplier).toFixed(2)}`
+              return (
+                <p className="text-sm text-gray-500">
+                  <span className="font-medium text-gray-900">{baseStr} {cur}/month</span>
+                  {gstLabel && <span className="text-gray-400"> ({gstLabel})</span>}
+                </p>
+              )
+            })()}
+
             <div className="flex items-center justify-end gap-3 pt-4">
               <button
                 type="button"
