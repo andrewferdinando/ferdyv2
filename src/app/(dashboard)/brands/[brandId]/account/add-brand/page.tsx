@@ -87,6 +87,7 @@ export default function AddBrandPage() {
     currency: string
   } | null>(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null)
+  const [pricingLoaded, setPricingLoaded] = useState(false)
   const [formValues, setFormValues] = useState<BrandFormValues>({
     name: '',
     websiteUrl: 'https://',
@@ -188,6 +189,7 @@ export default function AddBrandPage() {
   // Fetch pricing + discount when groupId changes
   useEffect(() => {
     if (!groupId) return
+    setPricingLoaded(false)
 
     const fetchPricing = async () => {
       // Fetch base pricing from group
@@ -222,6 +224,8 @@ export default function AddBrandPage() {
       } catch {
         setSubscriptionStatus(null)
         setDiscountInfo(null)
+      } finally {
+        setPricingLoaded(true)
       }
     }
 
@@ -519,34 +523,31 @@ export default function AddBrandPage() {
               </p>
             </FormField>
 
-            {/* Pricing hint */}
-            {(() => {
+            {/* Pricing hint — waits for discount API before rendering */}
+            {pricingLoaded && (() => {
               const basePriceCents = discountInfo?.baseUnitPrice ?? pricePerBrand
               if (basePriceCents === null || basePriceCents === undefined) return null
               const cur = (discountInfo?.currency ?? currency).toUpperCase()
               const isNz = cur === 'NZD'
-              const gstMultiplier = isNz ? 1.15 : 1
-              const gstLabel = isNz ? ' incl. GST' : ''
+              const gstSuffix = isNz ? ' +GST' : ''
               if (discountInfo?.hasDiscount && discountInfo.discountedUnitPrice !== basePriceCents) {
-                const baseStr = `$${((basePriceCents / 100) * gstMultiplier).toFixed(2)}`
-                const discountedStr = `$${((discountInfo.discountedUnitPrice / 100) * gstMultiplier).toFixed(2)}`
+                const baseStr = `$${(basePriceCents / 100).toFixed(2)}`
+                const discountedStr = `$${(discountInfo.discountedUnitPrice / 100).toFixed(2)}`
                 const label = discountInfo.couponName
                   ? `${discountInfo.discountPercent}% discount — ${discountInfo.couponName}`
                   : `${discountInfo.discountPercent}% discount`
                 return (
                   <p className="text-sm text-gray-500">
                     <span className="line-through">{baseStr}</span>{' '}
-                    <span className="font-medium text-gray-900">{discountedStr} {cur}/month</span>
-                    {gstLabel && <span className="text-gray-400"> ({gstLabel})</span>}{' '}
+                    <span className="font-medium text-gray-900">{discountedStr} {cur}/month{gstSuffix}</span>{' '}
                     <span className="text-green-600">({label})</span>
                   </p>
                 )
               }
-              const baseStr = `$${((basePriceCents / 100) * gstMultiplier).toFixed(2)}`
+              const baseStr = `$${(basePriceCents / 100).toFixed(2)}`
               return (
                 <p className="text-sm text-gray-500">
-                  <span className="font-medium text-gray-900">{baseStr} {cur}/month</span>
-                  {gstLabel && <span className="text-gray-400"> ({gstLabel})</span>}
+                  <span className="font-medium text-gray-900">{baseStr} {cur}/month{gstSuffix}</span>
                 </p>
               )
             })()}
@@ -595,13 +596,10 @@ export default function AddBrandPage() {
             }
             const cur = (discountInfo?.currency ?? currency).toUpperCase()
             const isNz = cur === 'NZD'
-            const gstMultiplier = isNz ? 1.15 : 1
-            const gstLabel = isNz ? ' (incl. GST)' : ''
-            const baseInclGst = (basePriceCents / 100) * gstMultiplier
-            const baseStr = `$${baseInclGst.toFixed(2)}`
+            const gstSuffix = isNz ? ' +GST' : ''
+            const baseStr = `$${(basePriceCents / 100).toFixed(2)}`
             if (discountInfo?.hasDiscount && discountInfo.discountedUnitPrice !== basePriceCents) {
-              const discountedInclGst = (discountInfo.discountedUnitPrice / 100) * gstMultiplier
-              const discountedStr = `$${discountedInclGst.toFixed(2)}`
+              const discountedStr = `$${(discountInfo.discountedUnitPrice / 100).toFixed(2)}`
               const label = discountInfo.couponName
                 ? `${discountInfo.discountPercent}% discount — ${discountInfo.couponName}`
                 : `${discountInfo.discountPercent}% discount`
@@ -609,13 +607,13 @@ export default function AddBrandPage() {
                 <span>
                   Adding a new brand will cost{' '}
                   <span className="line-through text-gray-400">{baseStr}</span>{' '}
-                  <strong>{discountedStr} {cur}/month</strong>{gstLabel}{' '}
+                  <strong>{discountedStr} {cur}/month{gstSuffix}</strong>{' '}
                   <span className="text-sm text-green-600">({label})</span>.
                   {' '}This will be prorated and added to your next invoice. Do you want to proceed?
                 </span>
               )
             }
-            return `Adding a new brand will cost ${baseStr} ${cur}/month${gstLabel}. This will be prorated and added to your next invoice. Do you want to proceed?`
+            return `Adding a new brand will cost ${baseStr} ${cur}/month${gstSuffix}. This will be prorated and added to your next invoice. Do you want to proceed?`
           })()}
           confirmText="Add Brand"
           cancelText="Cancel"
