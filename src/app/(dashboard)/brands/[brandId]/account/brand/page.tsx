@@ -128,7 +128,7 @@ export default function BrandSettingsPage() {
               <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
                 <h2 className="text-xl font-semibold text-gray-900">You don&apos;t have access to this page</h2>
                 <p className="text-sm text-gray-600">
-                  Only Group Owners and Group Admins can manage brand settings. Ask your Group Owner to update your role if you need this access.
+                  Only Group Admins can manage brand settings. Ask your Group Admin to update your role if you need this access.
                 </p>
                 <button
                   onClick={() => router.push(`/brands/${brandId}/account`)}

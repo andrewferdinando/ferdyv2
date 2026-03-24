@@ -2,14 +2,14 @@
 // super_admin is internal only (Andrew / system owner), hidden from customers.
 export const GROUP_ROLES: Record<string, { label: string; color: string; description: string }> = {
   super_admin: {
-    label: 'Group Owner',
+    label: 'Super Admin',
     color: 'bg-purple-100 text-purple-800',
-    description: 'Owns this group. Manages billing, team, and all brands.',
+    description: 'System administrator. Manages all groups and brands.',
   },
   owner: {
-    label: 'Group Owner',
-    color: 'bg-purple-100 text-purple-800',
-    description: 'Owns this group. Manages billing, team, and all brands. Can transfer ownership.',
+    label: 'Group Admin',
+    color: 'bg-blue-100 text-blue-800',
+    description: 'Can manage brands, team, and billing across the group.',
   },
   admin: {
     label: 'Group Admin',

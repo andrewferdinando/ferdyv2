@@ -378,7 +378,7 @@ export default function TeamPage() {
               <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
                 <h2 className="text-xl font-semibold text-gray-900">You don&apos;t have access to this page</h2>
                 <p className="text-sm text-gray-600">
-                  Only Group Owners and Group Admins can manage the team. Ask your Group Owner to update your role if you need this access.
+                  Only Group Admins can manage the team. Ask your Group Admin to update your role if you need this access.
                 </p>
                 <button
                   onClick={() => router.push(`/brands/${brandId}/account`)}
@@ -412,14 +412,6 @@ export default function TeamPage() {
                     )}
                   </div>
                   <div className="flex items-center space-x-3">
-                    {isCurrentUserOwner && (
-                      <button
-                        onClick={() => setShowTransferModal(true)}
-                        className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center space-x-2 text-sm font-medium"
-                      >
-                        <span>Transfer Group Ownership</span>
-                      </button>
-                    )}
                     <button
                       onClick={() => setShowInviteForm(true)}
                       className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white px-4 py-2 rounded-lg hover:from-[#4F46E5] hover:to-[#4338CA] transition-all duration-200 flex items-center space-x-2"
@@ -460,12 +452,6 @@ export default function TeamPage() {
                       <div>
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Group-level</p>
                         <div className="space-y-2">
-                          <div className="flex items-start space-x-4">
-                            <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${GROUP_ROLES.owner.color}`}>
-                              {GROUP_ROLES.owner.label}
-                            </span>
-                            <span className="text-sm text-gray-600">{GROUP_ROLES.owner.description}</span>
-                          </div>
                           <div className="flex items-start space-x-4">
                             <span className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${GROUP_ROLES.admin.color}`}>
                               {GROUP_ROLES.admin.label}
@@ -953,66 +939,6 @@ export default function TeamPage() {
           </div>
         )}
 
-        {/* Transfer Ownership Modal */}
-        {showTransferModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-              <h3 className="text-lg font-semibold text-gray-900">Transfer Group Ownership</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Select a Group Admin to become the new Group Owner. You will become a Group Admin after the transfer.
-              </p>
-
-              <div className="mt-4 space-y-2">
-                {teamMembers
-                  .filter(m => m.groupRole === 'admin' && m.id !== currentUserId)
-                  .map(member => (
-                    <label
-                      key={member.id}
-                      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
-                        transferTargetId === member.id
-                          ? 'border-[#6366F1] bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="transferTarget"
-                        checked={transferTargetId === member.id}
-                        onChange={() => setTransferTargetId(member.id)}
-                        className="mr-3 text-[#6366F1] focus:ring-[#6366F1]"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                        <p className="text-xs text-gray-500">{member.email}</p>
-                      </div>
-                    </label>
-                  ))}
-                {teamMembers.filter(m => m.groupRole === 'admin' && m.id !== currentUserId).length === 0 && (
-                  <p className="text-sm text-gray-500 py-4 text-left">
-                    No Group Admins available. Promote a Group Member to Group Admin first before transferring ownership.
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => { setShowTransferModal(false); setTransferTargetId(null); }}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                  disabled={transferring}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleTransferOwnership}
-                  disabled={transferring || !transferTargetId}
-                  className="rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-[#4F46E5] hover:to-[#4338CA] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {transferring ? 'Transferring...' : 'Transfer Ownership'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </AppLayout>
     </RequireAuth>
   );

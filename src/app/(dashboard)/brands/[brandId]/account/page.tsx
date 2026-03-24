@@ -122,7 +122,7 @@ export default function AccountSettingsPage() {
                     <div
                       className={cardClasses}
                       aria-disabled={disabled}
-                      title={disabled ? 'Only Group Owners and Group Admins can access this section.' : undefined}
+                      title={disabled ? 'Only Group Admins can access this section.' : undefined}
                     >
                       <div className="flex items-start space-x-4">
                         <div className="flex-shrink-0">

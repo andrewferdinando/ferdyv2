@@ -134,7 +134,7 @@ export default function BillingPage() {
 
         if (adminMemberships && adminMemberships.length > 0) {
           const adminProfile = (adminMemberships[0] as any).profiles
-          const adminName = adminProfile?.name || adminProfile?.full_name || 'your Group Owner'
+          const adminName = adminProfile?.name || adminProfile?.full_name || 'your Group Admin'
           setAccountAdmin({ name: adminName })
         }
       }
@@ -282,7 +282,7 @@ export default function BillingPage() {
               <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 text-center space-y-4">
                 <h2 className="text-xl font-semibold text-gray-900">You don&apos;t have access to this page</h2>
                 <p className="text-sm text-gray-600">
-                  Only Group Owners and Group Admins can manage billing. Ask your Group Owner to update your role if you need this access.
+                  Only Group Admins can manage billing. Ask your Group Admin to update your role if you need this access.
                 </p>
                 <button
                   onClick={() => router.push(`/brands/${brandId}/account`)}
@@ -391,8 +391,8 @@ export default function BillingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <p className="ml-3 text-sm text-indigo-800">
-                    Billing is managed by <span className="font-medium">{accountAdmin?.name || 'your Group Owner'}</span>.
-                    Only the Group Owner and Group Admins can manage billing and subscriptions.
+                    Billing is managed by <span className="font-medium">{accountAdmin?.name || 'your Group Admin'}</span>.
+                    Only Group Admins can manage billing and subscriptions.
                   </p>
                 </div>
               )}
