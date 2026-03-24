@@ -14,6 +14,8 @@ export interface Brand {
   ai_summary_last_generated_at?: string | null;
   created_at: string;
   updated_at: string;
+  group_id?: string | null;
+  group_name?: string | null;
 }
 
 export function useBrands() {
@@ -54,7 +56,9 @@ export function useBrands() {
               ai_summary,
               ai_summary_last_generated_at,
               created_at,
-              updated_at
+              updated_at,
+              group_id,
+              groups (name)
             )
           `)
           .eq('user_id', user.id)
@@ -65,7 +69,14 @@ export function useBrands() {
 
         // Extract brands from the joined data
         const brandsData = data
-          ?.map((membership: any) => membership.brands)
+          ?.map((membership: any) => {
+            const brand = membership.brands;
+            if (!brand) return null;
+            return {
+              ...brand,
+              group_name: brand.groups?.name ?? null,
+            };
+          })
           .filter((brand: any) => brand !== null)
           .sort((a: any, b: any) => a.name.localeCompare(b.name)) || [];
 

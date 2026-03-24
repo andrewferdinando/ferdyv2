@@ -236,23 +236,66 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
             </button>
           )}
 
-          {isBrandDropdownOpen && !brandsLoading && brands.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-              <div className="p-2">
-                {brands.map((brand) => (
-                  <div
-                    key={brand.id}
-                    onClick={() => handleBrandSelect(brand.id)}
-                    className={`p-2 hover:bg-gray-50 rounded cursor-pointer text-xs transition-colors ${
-                      selectedBrand?.id === brand.id ? 'bg-[#EEF2FF] text-[#6366F1]' : 'text-gray-700'
-                    }`}
-                  >
-                    {brand.name}
+          {isBrandDropdownOpen && !brandsLoading && brands.length > 0 && (() => {
+            // Group brands by group_name for multi-group users
+            const groupNames = new Set(brands.map(b => b.group_name).filter(Boolean));
+            const isMultiGroup = groupNames.size > 1;
+
+            if (!isMultiGroup) {
+              // Single group — flat list (no headers)
+              return (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  <div className="p-2">
+                    {brands.map((brand) => (
+                      <div
+                        key={brand.id}
+                        onClick={() => handleBrandSelect(brand.id)}
+                        className={`p-2 hover:bg-gray-50 rounded cursor-pointer text-xs transition-colors ${
+                          selectedBrand?.id === brand.id ? 'bg-[#EEF2FF] text-[#6366F1]' : 'text-gray-700'
+                        }`}
+                      >
+                        {brand.name}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+              );
+            }
+
+            // Multi-group — brands grouped under group headers
+            const grouped = brands.reduce<Record<string, typeof brands>>((acc, brand) => {
+              const key = brand.group_name || 'Other';
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(brand);
+              return acc;
+            }, {});
+
+            return (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                <div className="p-2">
+                  {Object.entries(grouped).map(([groupLabel, groupBrands], idx) => (
+                    <div key={groupLabel}>
+                      {idx > 0 && <div className="border-t border-gray-100 my-1" />}
+                      <div className="px-2 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                        {groupLabel}
+                      </div>
+                      {groupBrands.map((brand) => (
+                        <div
+                          key={brand.id}
+                          onClick={() => handleBrandSelect(brand.id)}
+                          className={`p-2 pl-4 hover:bg-gray-50 rounded cursor-pointer text-xs transition-colors ${
+                            selectedBrand?.id === brand.id ? 'bg-[#EEF2FF] text-[#6366F1]' : 'text-gray-700'
+                          }`}
+                        >
+                          {brand.name}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
