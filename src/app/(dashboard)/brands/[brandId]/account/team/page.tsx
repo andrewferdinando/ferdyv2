@@ -74,8 +74,9 @@ export default function TeamPage() {
   // Current user's group role
   const [currentUserGroupRole, setCurrentUserGroupRole] = useState<string>('');
 
-  // Group context for invite flow
+  // Group & brand context
   const [groupName, setGroupName] = useState<string>('');
+  const [brandName, setBrandName] = useState<string>('');
   const [allBrands, setAllBrands] = useState<Array<{ id: string; name: string }>>([]);
   const [inviteGroupRole, setInviteGroupRole] = useState<'admin' | 'member'>('member');
   const [inviteBrandAssignments, setInviteBrandAssignments] = useState<Record<string, 'admin' | 'editor' | null>>({});
@@ -107,6 +108,7 @@ export default function TeamPage() {
 
     setPendingInvites(data.invites);
     if (data.groupName) setGroupName(data.groupName);
+    if (data.brandName) setBrandName(data.brandName);
     if (data.allBrands) setAllBrands(data.allBrands);
   }, [brandId, currentUserId]);
 
@@ -403,6 +405,11 @@ export default function TeamPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Team</h1>
+                    {(groupName || brandName) && (
+                      <p className="mt-1 text-sm text-gray-500">
+                        {groupName}{groupName && brandName ? ' — ' : ''}{brandName}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center space-x-3">
                     {isCurrentUserOwner && (
