@@ -126,7 +126,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
       </button>
 
       <p className="text-xs text-stone-500 text-center">
-        Free — only {config.spots} spots available. No credit card required.
+        Free -only {config.spots} spots available. No credit card required.
       </p>
     </form>
   )
@@ -165,7 +165,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             onClick={scrollToForm}
             className="w-full py-3 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-base transition-colors"
           >
-            Register now — it&apos;s free
+            Register now -it&apos;s free
           </button>
         </div>
       </div>
@@ -209,7 +209,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             <p className="text-base text-stone-600 leading-relaxed">
               Hi, I&apos;m Andrew. I&apos;m a marketing advisor who works with some of NZ and Australia&apos;s
               top hospitality businesses. I noticed that 80% of social posts for hospo venues are
-              predictable and repeatable — so I built a system to automate them. This is a free
+              predictable and repeatable -so I built a system to automate them. This is a free
               session where I&apos;ll show you exactly how it works.
             </p>
           </div>
@@ -260,7 +260,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                   </svg>
                 ),
                 title: 'Weeks of silence',
-                text: 'You post three times one week, then nothing for a month. Your audience forgets you exist — and the algorithm punishes you for it.',
+                text: 'You post three times one week, then nothing for a month. Your audience forgets you exist -and the algorithm punishes you for it.',
               },
               {
                 icon: (
@@ -312,7 +312,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             Who this is for
           </h2>
           <p className="text-stone-600 text-center max-w-xl mx-auto leading-relaxed">
-            This training is for pub, restaurant, cafe, and bar owners — or anyone responsible
+            This training is for pub, restaurant, cafe, and bar owners -or anyone responsible
             for managing social media for a hospitality venue. Whether you&apos;re doing it yourself
             or trying to hand it off, you&apos;ll walk away with a system that actually works.
           </p>
@@ -347,7 +347,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
               </svg>
               <p className="text-stone-600 text-sm leading-relaxed mb-4 italic">
-                &quot;Placeholder quote — replace with a real testimonial from a venue owner about how Ferdy changed their social media workflow.&quot;
+                &quot;Placeholder quote -replace with a real testimonial from a venue owner about how Ferdy changed their social media workflow.&quot;
               </p>
               <p className="text-sm font-semibold text-stone-900">Venue Owner</p>
               <p className="text-xs text-stone-500">The Example Bar, Sydney</p>
@@ -381,7 +381,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               },
               {
                 q: 'How long is the training?',
-                a: 'About 30 minutes — a focused session with actionable takeaways. No filler, no fluff.',
+                a: 'About 30 minutes -a focused session with actionable takeaways. No filler, no fluff.',
               },
             ].map((faq, i) => (
               <div key={i}>
