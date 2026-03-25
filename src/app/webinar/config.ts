@@ -6,6 +6,9 @@ export interface WebinarConfig {
   headline: string
   subHeadline: string
   date: string
+  datetime: string // ISO 8601 e.g. "2026-04-14T19:00:00+10:00"
+  duration_minutes: number
+  zoom_url: string
   spots: number
   host: {
     name: string
@@ -25,6 +28,9 @@ export const webinars: WebinarConfig[] = [
     subHeadline:
       'Stop spending hours on content that gets ignored. Learn the exact system venue owners are using to stay consistent on social -without hiring a social media manager.',
     date: 'Tuesday, 14 April',
+    datetime: '2026-04-14T19:00:00+10:00',
+    duration_minutes: 60,
+    zoom_url: 'Zoom link coming soon',
     spots: 50,
     host: {
       name: 'Andrew',

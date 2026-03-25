@@ -52,6 +52,82 @@ function Section({
   )
 }
 
+// -- Calendar helpers --
+function buildGoogleCalendarUrl(config: WebinarConfig): string {
+  const start = new Date(config.datetime)
+  const end = new Date(start.getTime() + config.duration_minutes * 60 * 1000)
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: config.name,
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details: 'Free training session. Details will be emailed to you.',
+    location: config.zoom_url,
+  })
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
+function buildIcsBlob(config: WebinarConfig): string {
+  const start = new Date(config.datetime)
+  const end = new Date(start.getTime() + config.duration_minutes * 60 * 1000)
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Ferdy//Webinar//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${config.name}`,
+    `DESCRIPTION:Free training session. Details will be emailed to you.`,
+    `LOCATION:${config.zoom_url}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+}
+
+function downloadIcs(config: WebinarConfig) {
+  const blob = new Blob([buildIcsBlob(config)], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${config.slug}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function AddToCalendar({ config }: { config: WebinarConfig }) {
+  const calIcon = (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+  const btnClass =
+    'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors'
+
+  return (
+    <div>
+      <p className="text-xs text-stone-500 mb-3">Add to your calendar</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        <a
+          href={buildGoogleCalendarUrl(config)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={btnClass}
+        >
+          {calIcon} Google
+        </a>
+        <button onClick={() => downloadIcs(config)} className={btnClass}>
+          {calIcon} Apple
+        </button>
+        <button onClick={() => downloadIcs(config)} className={btnClass}>
+          {calIcon} Outlook
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // -- Registration form --
 function RegistrationForm({ config }: { config: WebinarConfig }) {
   const [state, formAction, isPending] = useActionState<RegisterResult | null, FormData>(
@@ -70,7 +146,8 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
           </svg>
         </div>
         <h3 className="text-2xl font-bold text-stone-900 mb-2">You&apos;re registered!</h3>
-        <p className="text-stone-600">Check your inbox for details. See you there.</p>
+        <p className="text-stone-600 mb-6">Check your inbox for details. See you there.</p>
+        <AddToCalendar config={config} />
       </div>
     )
   }

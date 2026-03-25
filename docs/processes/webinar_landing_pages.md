@@ -19,7 +19,10 @@ Each webinar gets a standalone page at `/webinar/[slug]` with its own headline, 
   location: 'melbourne',                   // For segmentation
   headline: 'Your headline here',
   subHeadline: 'Your sub-headline here',
-  date: 'Thursday 22 May, 7pm AEST',      // Displayed on page + confirmation email
+  date: 'Thursday 22 May, 7pm AEST',      // Human-readable, displayed on page
+  datetime: '2026-05-22T19:00:00+10:00',  // ISO 8601 — used for calendar links
+  duration_minutes: 60,                    // Used for calendar event end time
+  zoom_url: 'https://zoom.us/j/...',       // Shown in calendar event; update before go-live
   spots: 50,                               // Shown in urgency line
   host: {
     name: 'Andrew',
@@ -28,8 +31,6 @@ Each webinar gets a standalone page at `/webinar/[slug]` with its own headline, 
   what_you_will_learn: [
     'Learning point 1',
     'Learning point 2',
-    'Learning point 3',
-    'Learning point 4',
   ],
 }
 ```
@@ -69,7 +70,20 @@ That's it — no other files need to change.
 2. Server Action validates input with Zod
 3. Upserts to `webinar_registrations` table (deduplicates by email + slug)
 4. Fires confirmation email via Resend (non-blocking)
-5. Shows inline thank-you state (no redirect)
+5. Shows inline thank-you state (no redirect) with "Add to calendar" buttons
+
+### Add to Calendar
+
+After successful registration, the thank-you state shows three calendar buttons:
+- **Google Calendar** — opens a pre-filled Google Calendar event in a new tab
+- **Apple / iCal** — downloads a `.ics` file
+- **Outlook** — downloads the same `.ics` file
+
+These pull event details from the config: `name` (title), `datetime` (ISO start time), `duration_minutes` (end time), and `zoom_url` (location field).
+
+**Important**: The `datetime` field must be a valid ISO 8601 string (e.g. `2026-04-14T19:00:00+10:00`) for calendar links to work correctly. The `date` field is the human-readable display string. Both must be set.
+
+Update `zoom_url` in config before the webinar goes live — it appears in the calendar event location.
 
 ### Database: `webinar_registrations`
 
