@@ -308,8 +308,8 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             Who this is for
           </h2>
           <p className="text-stone-600 text-center max-w-xl mx-auto leading-relaxed">
-            This training is for pub, restaurant, cafe, and bar owners -or anyone responsible
-            for managing social media for a hospitality venue. Whether you&apos;re doing it yourself
+            This training is for pub, restaurant, cafe and entertainment venue owners. Or anyone
+            responsible for managing social media for a hospitality venue. Whether you&apos;re doing it yourself
             or trying to hand it off, you&apos;ll walk away with a system that actually works.
           </p>
         </Section>
