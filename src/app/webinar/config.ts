@@ -28,7 +28,7 @@ export const webinars: WebinarConfig[] = [
     spots: 50,
     host: {
       name: 'Andrew',
-      bio: 'Founder of Ferdy and Marketing Advisor to top NZ and Australian businesses. After years of supporting marketing managers, I observed that 80% of social posts for hospo businesses are predictable and repeatable in their nature -and therefore can be automated. I\u2019ve built the system to do exactly that.',
+      bio: 'Founder of Ferdy and Marketing Advisor across NZ & Aus. I help companies become more efficient and save time using AI and marketing automations.',
     },
     what_you_will_learn: [
       'Intro to the Ferdy system',

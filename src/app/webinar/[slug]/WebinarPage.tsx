@@ -342,10 +342,10 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
               </svg>
               <p className="text-stone-600 text-sm leading-relaxed mb-4 italic">
-                &quot;Placeholder quote -replace with a real testimonial from a venue owner about how Ferdy changed their social media workflow.&quot;
+                &quot;I was skeptical that a tool could capture our brand voice across 3 different venues. It does. Our social presence looks more professional than ever and my team spends about 15 mins per month on it total.&quot;
               </p>
-              <p className="text-sm font-semibold text-stone-900">Venue Owner</p>
-              <p className="text-xs text-stone-500">The Example Bar, Sydney</p>
+              <p className="text-sm font-semibold text-stone-900">Jen, General Manager</p>
+              <p className="text-xs text-stone-500">Chain of indoor entertainment venues</p>
             </div>
           </div>
         </Section>
