@@ -183,7 +183,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               alt="Ferdy"
               width={120}
               height={40}
-              className="mx-auto h-8 w-auto"
+              className="mx-auto md:mx-0 h-8 w-auto"
               priority
             />
           </div>
@@ -203,14 +203,10 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               alt={config.host.name}
               width={80}
               height={80}
-              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-white shadow-md"
+              className="w-20 h-20 rounded-full mx-auto md:mx-0 mb-3 object-cover border-2 border-white shadow-md"
             />
-            <p className="text-sm font-semibold text-stone-900 mb-3">{config.host.name}</p>
             <p className="text-base text-stone-600 leading-relaxed">
-              Hi, I&apos;m Andrew. I&apos;m a marketing advisor who works with some of NZ and Australia&apos;s
-              top hospitality businesses. I noticed that 80% of social posts for hospo venues are
-              predictable and repeatable -so I built a system to automate them. This is a free
-              session where I&apos;ll show you exactly how it works.
+              I&apos;m a marketing advisor.
             </p>
           </div>
 
@@ -329,7 +325,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               alt={config.host.name}
               width={80}
               height={80}
-              className="w-20 h-20 rounded-full mx-auto mb-4 object-cover border-2 border-white shadow-md"
+              className="w-20 h-20 rounded-full mx-auto md:mx-0 mb-4 object-cover border-2 border-white shadow-md"
             />
             <h3 className="text-lg font-bold text-stone-900 mb-2">{config.host.name}</h3>
             <p className="text-sm text-stone-600 leading-relaxed">{config.host.bio}</p>
@@ -381,7 +377,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               },
               {
                 q: 'How long is the training?',
-                a: 'About 30 minutes -a focused session with actionable takeaways. No filler, no fluff.',
+                a: 'About 30 minutes. A focused session with actionable takeaways. No filler, no fluff.',
               },
             ].map((faq, i) => (
               <div key={i}>
