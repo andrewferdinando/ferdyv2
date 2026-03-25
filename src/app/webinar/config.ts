@@ -31,7 +31,7 @@ export const webinars: WebinarConfig[] = [
       bio: 'Founder of Ferdy and Marketing Advisor across NZ & Aus. I help companies become more efficient and save time using AI and marketing automations.',
     },
     what_you_will_learn: [
-      'Intro to the Ferdy system',
+      'Intro to the Ferdy system - automate up to 30 posts per month',
       'Live demo for a hospo business',
     ],
   },
