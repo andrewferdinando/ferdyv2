@@ -183,7 +183,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               alt="Ferdy"
               width={120}
               height={40}
-              className="mx-auto md:mx-0 h-8 w-auto"
+              className="mx-auto h-8 w-auto"
               priority
             />
           </div>
@@ -203,10 +203,13 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               alt={config.host.name}
               width={80}
               height={80}
-              className="w-20 h-20 rounded-full mx-auto md:mx-0 mb-3 object-cover border-2 border-white shadow-md"
+              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-white shadow-md"
             />
             <p className="text-base text-stone-600 leading-relaxed">
-              I&apos;m a marketing advisor.
+              Hi, I&apos;m Andrew. As a marketing advisor for NZ and Aus businesses, I noticed that
+              80% of social posts for hospo venues are predictable and repeatable - so I built a
+              system to automate them. This is a free session where I&apos;ll show you exactly how
+              it works.
             </p>
           </div>
 
@@ -325,7 +328,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               alt={config.host.name}
               width={80}
               height={80}
-              className="w-20 h-20 rounded-full mx-auto md:mx-0 mb-4 object-cover border-2 border-white shadow-md"
+              className="w-20 h-20 rounded-full mx-auto mb-4 object-cover border-2 border-white shadow-md"
             />
             <h3 className="text-lg font-bold text-stone-900 mb-2">{config.host.name}</h3>
             <p className="text-sm text-stone-600 leading-relaxed">{config.host.bio}</p>
