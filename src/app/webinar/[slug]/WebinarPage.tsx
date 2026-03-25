@@ -207,10 +207,10 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             />
             <p className="text-sm font-semibold text-stone-900 mb-3">{config.host.name}</p>
             <p className="text-base text-stone-600 leading-relaxed">
-              I&apos;m a marketing advisor who works with some of NZ and Australia&apos;s top hospitality
-              businesses. I noticed that 80% of social posts for hospo venues are predictable and
-              repeatable — so I built a system to automate them. This is a free session where
-              I&apos;ll show you exactly how it works.
+              Hi, I&apos;m Andrew. I&apos;m a marketing advisor who works with some of NZ and Australia&apos;s
+              top hospitality businesses. I noticed that 80% of social posts for hospo venues are
+              predictable and repeatable — so I built a system to automate them. This is a free
+              session where I&apos;ll show you exactly how it works.
             </p>
           </div>
 
@@ -341,35 +341,17 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
           <h2 className="text-2xl md:text-3xl font-bold text-stone-900 mb-10 text-center">
             What venue owners are saying
           </h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {[
-              {
-                quote:
-                  '"Placeholder quote — replace with a real testimonial from a venue owner about how Ferdy changed their social media workflow."',
-                name: 'Venue Owner',
-                venue: 'The Example Bar, Sydney',
-              },
-              {
-                quote:
-                  '"Another placeholder quote — something about saving time, getting consistent posts out, or finally having a system that works."',
-                name: 'Venue Manager',
-                venue: 'Sample Cafe, Melbourne',
-              },
-            ].map((testimonial, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm"
-              >
-                <svg className="w-8 h-8 text-[var(--primary)] opacity-30 mb-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
-                </svg>
-                <p className="text-stone-600 text-sm leading-relaxed mb-4 italic">
-                  {testimonial.quote}
-                </p>
-                <p className="text-sm font-semibold text-stone-900">{testimonial.name}</p>
-                <p className="text-xs text-stone-500">{testimonial.venue}</p>
-              </div>
-            ))}
+          <div className="max-w-lg mx-auto">
+            <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm">
+              <svg className="w-8 h-8 text-[var(--primary)] opacity-30 mb-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
+              </svg>
+              <p className="text-stone-600 text-sm leading-relaxed mb-4 italic">
+                &quot;Placeholder quote — replace with a real testimonial from a venue owner about how Ferdy changed their social media workflow.&quot;
+              </p>
+              <p className="text-sm font-semibold text-stone-900">Venue Owner</p>
+              <p className="text-xs text-stone-500">The Example Bar, Sydney</p>
+            </div>
           </div>
         </Section>
 
@@ -394,20 +376,12 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
           <div className="space-y-6 max-w-xl mx-auto">
             {[
               {
-                q: 'Is this really free?',
-                a: 'Yes, 100%. No credit card, no hidden fees. This is a free training designed to help venue owners get their social media sorted.',
-              },
-              {
                 q: 'Will there be a replay?',
-                a: 'We plan to make a replay available for a limited time, but we can\u2019t guarantee it. The best way to make sure you don\u2019t miss out is to attend live.',
+                a: 'Yes, I\u2019ll email it to you after the webinar along with an offer if you\u2019re keen to use Ferdy.',
               },
               {
                 q: 'How long is the training?',
-                a: 'About 60 minutes — a focused session with actionable takeaways. No filler, no fluff.',
-              },
-              {
-                q: 'Do I need to be a Ferdy user?',
-                a: 'Not at all. This training is valuable whether you use Ferdy or not. You\u2019ll learn a framework you can apply with any tool.',
+                a: 'About 30 minutes — a focused session with actionable takeaways. No filler, no fluff.',
               },
             ].map((faq, i) => (
               <div key={i}>
