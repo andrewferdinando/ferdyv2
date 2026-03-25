@@ -244,7 +244,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
           <h2 className="text-2xl md:text-3xl font-bold text-stone-900 mb-10 text-center">
             Sound familiar?
           </h2>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 max-w-2xl mx-auto">
             {[
               {
                 icon: (
@@ -254,15 +254,6 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 ),
                 title: 'Hours lost every week',
                 text: 'You know you should be posting, but between running the venue and managing staff, social media always falls to the bottom of the list.',
-              },
-              {
-                icon: (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                ),
-                title: 'Weeks of silence',
-                text: 'You post three times one week, then nothing for a month. Your audience forgets you exist -and the algorithm punishes you for it.',
               },
               {
                 icon: (
@@ -314,9 +305,9 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             Who this is for
           </h2>
           <p className="text-stone-600 text-center max-w-xl mx-auto leading-relaxed">
-            This training is for pub, restaurant, cafe and entertainment venue owners. Or anyone
-            responsible for managing social media for a hospitality venue. Whether you&apos;re doing it yourself
-            or trying to hand it off, you&apos;ll walk away with a system that actually works.
+            This training is for venue owners and social media managers. I&apos;ll show you how to
+            automate 80% of your social posts in just 10-15 mins per month using only your assets
+            and brand tone.
           </p>
         </Section>
 
