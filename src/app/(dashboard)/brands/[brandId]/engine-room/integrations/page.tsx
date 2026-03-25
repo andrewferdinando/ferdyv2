@@ -329,6 +329,7 @@ export default function IntegrationsPage() {
                         : 'Connect'
 
                 // Token status helpers
+                const isRevoked = connectedAccount?.status === 'revoked'
                 const isExpired = connectedAccount?.status === 'expired' || (connectedAccount?.daysUntilExpiry !== null && connectedAccount?.daysUntilExpiry !== undefined && connectedAccount.daysUntilExpiry <= 0)
                 const isExpiringSoon = connectedAccount?.isExpiringSoon
 
@@ -424,7 +425,11 @@ export default function IntegrationsPage() {
                     <div className="flex items-center justify-between">
                       {renderSocialIcon(provider.icon, 'w-10 h-10')}
                       <span className="inline-flex h-6 items-center">
-                        {isExpired ? (
+                        {isRevoked ? (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                            Reconnect Required
+                          </span>
+                        ) : isExpired ? (
                           <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
                             Reconnect Required
                           </span>

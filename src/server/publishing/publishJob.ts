@@ -294,14 +294,17 @@ export async function publishJob(
 
     // Detect if this is an auth/token error and mark account as disconnected
     if (socialAccount && isAuthError(publishResult.error)) {
-      console.warn(`[publishJob] Auth error detected, marking ${provider} account ${socialAccount.id} as disconnected`)
+      console.warn(`[publishJob] Auth error detected, marking ${provider} account ${socialAccount.id} as revoked`)
 
       await supabaseAdmin
         .from('social_accounts')
         .update({
-          status: 'disconnected',
-          last_error: publishResult.error,
-          disconnected_at: new Date().toISOString()
+          status: 'revoked',
+          metadata: {
+            ...(socialAccount.metadata as Record<string, unknown> ?? {}),
+            last_error: publishResult.error,
+            disconnected_at: new Date().toISOString()
+          }
         })
         .eq('id', socialAccount.id)
 
