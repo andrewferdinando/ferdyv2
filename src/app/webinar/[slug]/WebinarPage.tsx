@@ -177,13 +177,13 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
 
         <div className="relative max-w-3xl mx-auto px-5 pt-8 pb-16 md:pt-12 md:pb-24 text-center">
           {/* Ferdy logo */}
-          <div className="mb-8">
+          <div className="flex justify-center mb-8">
             <Image
               src="/images/ferdy_logo_transparent.png"
               alt="Ferdy"
               width={120}
               height={40}
-              className="mx-auto h-8 w-auto"
+              className="h-8 w-auto"
               priority
             />
           </div>
@@ -198,18 +198,21 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
 
           {/* Host intro block */}
           <div className="max-w-xl mx-auto mb-10">
-            <Image
-              src="/images/andrew-headshot.jpg"
-              alt={config.host.name}
-              width={80}
-              height={80}
-              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-white shadow-md"
-            />
+            <div className="flex justify-center mb-3">
+              <Image
+                src="/images/andrew-headshot.jpg"
+                alt={config.host.name}
+                width={80}
+                height={80}
+                className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md"
+              />
+            </div>
+            <p className="text-base text-stone-600 leading-relaxed mb-3">
+              Hi, I&apos;m Andrew. As a marketing advisor, I noticed that 80% of social posts for
+              hospo venues are predictable and repeatable - so I built a system to automate them.
+            </p>
             <p className="text-base text-stone-600 leading-relaxed">
-              Hi, I&apos;m Andrew. As a marketing advisor for NZ and Aus businesses, I noticed that
-              80% of social posts for hospo venues are predictable and repeatable - so I built a
-              system to automate them. This is a free session where I&apos;ll show you exactly how
-              it works.
+              This is a free session where I&apos;ll show you exactly how it works.
             </p>
           </div>
 
@@ -323,13 +326,15 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             Your host
           </h2>
           <div className="bg-white rounded-xl border border-stone-200 p-6 md:p-8 shadow-sm text-center max-w-lg mx-auto">
-            <Image
-              src="/images/andrew-headshot.jpg"
-              alt={config.host.name}
-              width={80}
-              height={80}
-              className="w-20 h-20 rounded-full mx-auto mb-4 object-cover border-2 border-white shadow-md"
-            />
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/images/andrew-headshot.jpg"
+                alt={config.host.name}
+                width={80}
+                height={80}
+                className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md"
+              />
+            </div>
             <h3 className="text-lg font-bold text-stone-900 mb-2">{config.host.name}</h3>
             <p className="text-sm text-stone-600 leading-relaxed">{config.host.bio}</p>
           </div>
