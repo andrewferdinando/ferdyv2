@@ -24,17 +24,15 @@ export const webinars: WebinarConfig[] = [
       'How to Put Your Venue\u2019s Social Media on Autopilot in 60 Minutes',
     subHeadline:
       'Stop spending hours on content that gets ignored. Learn the exact system venue owners are using to stay consistent on social \u2014 without hiring a social media manager.',
-    date: 'Coming soon \u2014 register your spot',
+    date: 'Tuesday, 14 April',
     spots: 50,
     host: {
       name: 'Andrew',
-      bio: 'Founder of Ferdy and former hospitality operator. After years of running venues and struggling with social media, Andrew built the system he wished existed \u2014 and now helps hundreds of venues automate their content.',
+      bio: 'Founder of Ferdy and Marketing Advisor to top NZ and Australian businesses. After years of supporting marketing managers, I observed that 80% of social posts for hospo businesses are predictable and repeatable in their nature \u2014 and therefore can be automated. I\u2019ve built the system to do exactly that.',
     },
     what_you_will_learn: [
-      'The 3-part framework that keeps your venue posting consistently without you lifting a finger',
-      'How to build a month of scroll-stopping content in under 15 minutes',
-      'The biggest mistakes venue owners make on social (and what actually drives foot traffic)',
-      'A live walkthrough of the system \u2014 see exactly how it works, no fluff',
+      'How to set up the system (together, live) in 1 hour',
+      'Live demo using a real hospo business',
     ],
   },
 ]

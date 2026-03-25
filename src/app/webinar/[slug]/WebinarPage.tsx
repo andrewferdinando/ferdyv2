@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useRef, useState, useEffect, useActionState } from 'react'
 import { WebinarConfig } from '@/app/webinar/config'
 import { registerForWebinar, RegisterResult } from './actions'
@@ -92,7 +93,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
           type="text"
           required
           autoComplete="given-name"
-          className="w-full px-4 py-3 rounded-lg border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+          className="w-full px-4 py-3 rounded-lg border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-colors"
           placeholder="e.g. Sarah"
         />
       </div>
@@ -107,7 +108,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
           type="email"
           required
           autoComplete="email"
-          className="w-full px-4 py-3 rounded-lg border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+          className="w-full px-4 py-3 rounded-lg border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-colors"
           placeholder="sarah@yourvenue.com.au"
         />
       </div>
@@ -119,7 +120,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full py-3.5 px-6 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-base transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full py-3.5 px-6 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-base transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isPending ? 'Registering\u2026' : 'Save my spot'}
       </button>
@@ -162,7 +163,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
         <div className="bg-white/95 backdrop-blur border-t border-stone-200 px-4 py-3">
           <button
             onClick={scrollToForm}
-            className="w-full py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-base transition-colors"
+            className="w-full py-3 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-base transition-colors"
           >
             Register now — it&apos;s free
           </button>
@@ -174,22 +175,47 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
         {/* Subtle texture */}
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23000\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
 
-        <div className="relative max-w-3xl mx-auto px-5 pt-12 pb-16 md:pt-20 md:pb-24 text-center">
-          {/* Ferdy wordmark */}
-          <p className="text-sm font-semibold tracking-widest uppercase text-amber-700 mb-6">
+        <div className="relative max-w-3xl mx-auto px-5 pt-8 pb-16 md:pt-12 md:pb-24 text-center">
+          {/* Ferdy logo */}
+          <div className="mb-8">
+            <Image
+              src="/images/ferdy_logo_transparent.png"
+              alt="Ferdy"
+              width={120}
+              height={40}
+              className="mx-auto h-8 w-auto"
+              priority
+            />
+          </div>
+
+          <p className="text-sm font-semibold tracking-widest uppercase text-[var(--primary)] mb-6">
             Free training
           </p>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight tracking-tight text-stone-900 mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight tracking-tight text-stone-900 mb-10">
             {config.headline}
           </h1>
 
-          <p className="text-lg md:text-xl text-stone-600 max-w-2xl mx-auto mb-8 leading-relaxed">
-            {config.subHeadline}
-          </p>
+          {/* Host intro block */}
+          <div className="max-w-xl mx-auto mb-10">
+            <Image
+              src="/images/andrew-headshot.jpg"
+              alt={config.host.name}
+              width={80}
+              height={80}
+              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-white shadow-md"
+            />
+            <p className="text-sm font-semibold text-stone-900 mb-3">{config.host.name}</p>
+            <p className="text-base text-stone-600 leading-relaxed">
+              I&apos;m a marketing advisor who works with some of NZ and Australia&apos;s top hospitality
+              businesses. I noticed that 80% of social posts for hospo venues are predictable and
+              repeatable — so I built a system to automate them. This is a free session where
+              I&apos;ll show you exactly how it works.
+            </p>
+          </div>
 
           <p className="inline-flex items-center gap-2 text-sm font-medium text-stone-700 bg-white/80 backdrop-blur rounded-full px-4 py-2 shadow-sm mb-8">
-            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {config.date}
@@ -199,7 +225,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             <button
               ref={heroCtaRef}
               onClick={scrollToForm}
-              className="inline-flex items-center gap-2 py-3.5 px-8 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-base transition-colors shadow-md hover:shadow-lg"
+              className="inline-flex items-center gap-2 py-3.5 px-8 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-base transition-colors shadow-md hover:shadow-lg"
             >
               Save my free spot
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +276,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 key={pain.title}
                 className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm"
               >
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-amber-50 text-amber-700 mb-4">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[var(--primary-light)] text-[var(--primary)] mb-4">
                   {pain.icon}
                 </div>
                 <h3 className="font-semibold text-stone-900 mb-2">{pain.title}</h3>
@@ -265,16 +291,16 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
           <h2 className="text-2xl md:text-3xl font-bold text-stone-900 mb-10 text-center">
             What you&apos;ll learn
           </h2>
-          <div className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2 max-w-xl mx-auto">
             {config.what_you_will_learn.map((item, i) => (
               <div
                 key={i}
-                className="flex gap-4 items-start bg-white rounded-xl border border-stone-200 p-5 shadow-sm"
+                className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm text-center"
               >
-                <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-800 font-bold text-sm">
+                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--primary-light)] text-[var(--primary)] font-bold text-base mb-3">
                   {i + 1}
                 </span>
-                <p className="text-stone-700 leading-relaxed">{item}</p>
+                <p className="text-stone-900 font-semibold leading-snug">{item}</p>
               </div>
             ))}
           </div>
@@ -298,12 +324,13 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             Your host
           </h2>
           <div className="bg-white rounded-xl border border-stone-200 p-6 md:p-8 shadow-sm text-center max-w-lg mx-auto">
-            {/* Placeholder avatar */}
-            <div className="w-20 h-20 rounded-full bg-stone-200 mx-auto mb-4 flex items-center justify-center text-stone-400">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
+            <Image
+              src="/images/andrew-headshot.jpg"
+              alt={config.host.name}
+              width={80}
+              height={80}
+              className="w-20 h-20 rounded-full mx-auto mb-4 object-cover border-2 border-white shadow-md"
+            />
             <h3 className="text-lg font-bold text-stone-900 mb-2">{config.host.name}</h3>
             <p className="text-sm text-stone-600 leading-relaxed">{config.host.bio}</p>
           </div>
@@ -333,7 +360,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 key={i}
                 className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm"
               >
-                <svg className="w-8 h-8 text-amber-300 mb-3" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-[var(--primary)] opacity-30 mb-3" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
                 </svg>
                 <p className="text-stone-600 text-sm leading-relaxed mb-4 italic">
