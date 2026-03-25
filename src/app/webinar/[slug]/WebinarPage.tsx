@@ -208,7 +208,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               />
             </div>
             <p className="text-base text-stone-600 leading-relaxed mb-3">
-              Hi, I&apos;m Andrew. As a marketing advisor, I noticed that 80% of social posts for
+              Hi, I&apos;m Andrew. As a marketing advisor, I observed that 80% of social posts for
               hospo venues are predictable and repeatable - so I built a system to automate them.
             </p>
             <p className="text-base text-stone-600 leading-relaxed">
