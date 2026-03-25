@@ -27,7 +27,7 @@ export const webinars: WebinarConfig[] = [
       'How to Put Your Venue\u2019s Social Media on Autopilot in 30 Minutes',
     subHeadline:
       'Stop spending hours on content that gets ignored. Learn the exact system venue owners are using to stay consistent on social -without hiring a social media manager.',
-    date: 'Tuesday, 14 April',
+    date: 'Tuesday, 14 April - 10am AEDT - 30 mins + Q&A',
     datetime: '2026-04-14T19:00:00+10:00',
     duration_minutes: 60,
     zoom_url: 'Zoom link coming soon',

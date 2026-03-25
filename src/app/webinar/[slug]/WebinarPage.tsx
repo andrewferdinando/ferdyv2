@@ -485,7 +485,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               },
               {
                 q: 'How long is the training?',
-                a: 'About 30 minutes. A focused session with actionable takeaways. No filler, no fluff.',
+                a: 'About 30 mins + Q&A. A focused session with actionable takeaways. No filler, no fluff.',
               },
             ].map((faq, i) => (
               <div key={i}>
