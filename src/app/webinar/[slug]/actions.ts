@@ -72,6 +72,9 @@ export async function registerForWebinar(
     webinarName,
     webinarDate: config.date,
     webinarSlug,
+    datetime: config.datetime,
+    duration_minutes: config.duration_minutes,
+    zoom_url: config.zoom_url,
   }).catch((err) => {
     console.error('Webinar confirmation email failed:', err)
   })

@@ -4,6 +4,10 @@ import Image from 'next/image'
 import { useRef, useState, useEffect, useActionState } from 'react'
 import { WebinarConfig } from '@/app/webinar/config'
 import { registerForWebinar, RegisterResult } from './actions'
+import {
+  buildGoogleCalendarUrl,
+  buildIcsString,
+} from '@/lib/webinar-calendar'
 
 // -- Intersection Observer hook for scroll-triggered reveals --
 function useReveal() {
@@ -52,42 +56,9 @@ function Section({
   )
 }
 
-// -- Calendar helpers --
-function buildGoogleCalendarUrl(config: WebinarConfig): string {
-  const start = new Date(config.datetime)
-  const end = new Date(start.getTime() + config.duration_minutes * 60 * 1000)
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: config.name,
-    dates: `${fmt(start)}/${fmt(end)}`,
-    details: 'Free training session. Details will be emailed to you.',
-    location: config.zoom_url,
-  })
-  return `https://calendar.google.com/calendar/render?${params.toString()}`
-}
-
-function buildIcsBlob(config: WebinarConfig): string {
-  const start = new Date(config.datetime)
-  const end = new Date(start.getTime() + config.duration_minutes * 60 * 1000)
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
-  return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Ferdy//Webinar//EN',
-    'BEGIN:VEVENT',
-    `DTSTART:${fmt(start)}`,
-    `DTEND:${fmt(end)}`,
-    `SUMMARY:${config.name}`,
-    `DESCRIPTION:Free training session. Details will be emailed to you.`,
-    `LOCATION:${config.zoom_url}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n')
-}
-
+// -- Calendar download helper --
 function downloadIcs(config: WebinarConfig) {
-  const blob = new Blob([buildIcsBlob(config)], { type: 'text/calendar;charset=utf-8' })
+  const blob = new Blob([buildIcsString(config)], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -96,32 +67,104 @@ function downloadIcs(config: WebinarConfig) {
   URL.revokeObjectURL(url)
 }
 
-function AddToCalendar({ config }: { config: WebinarConfig }) {
+// -- Thank-you state with 2-step progress --
+function ThankYouState({ config }: { config: WebinarConfig }) {
+  const [calendarAdded, setCalendarAdded] = useState(false)
+
   const calIcon = (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   )
-  const btnClass =
-    'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors'
+
+  const stepCheck = (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+
+  const handleCalendarClick = (type: 'google' | 'ics') => {
+    if (type === 'google') {
+      window.open(buildGoogleCalendarUrl(config), '_blank', 'noopener,noreferrer')
+    } else {
+      downloadIcs(config)
+    }
+    setCalendarAdded(true)
+  }
+
+  if (calendarAdded) {
+    return (
+      <div className="text-center py-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 mb-4">
+          <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-2xl font-bold text-stone-900 mb-2">You&apos;re all set!</h3>
+        <p className="text-stone-600 mb-6">Registered and in your calendar. See you there.</p>
+        <div className="flex flex-col gap-2 max-w-xs mx-auto text-left">
+          <div className="flex items-center gap-3 text-sm text-emerald-700">
+            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              {stepCheck}
+            </div>
+            Registered - check your inbox
+          </div>
+          <div className="flex items-center gap-3 text-sm text-emerald-700">
+            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              {stepCheck}
+            </div>
+            Added to calendar
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <p className="text-xs text-stone-500 mb-3">Add to your calendar</p>
-      <div className="flex flex-wrap justify-center gap-2">
-        <a
-          href={buildGoogleCalendarUrl(config)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={btnClass}
+    <div className="py-8">
+      {/* Progress steps */}
+      <div className="flex flex-col gap-2 max-w-xs mx-auto text-left mb-8">
+        <div className="flex items-center gap-3 text-sm text-emerald-700">
+          <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            {stepCheck}
+          </div>
+          Registered - check your inbox
+        </div>
+        <div className="flex items-center gap-3 text-sm text-stone-500">
+          <div className="w-6 h-6 rounded-full border-2 border-stone-300 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-bold">2</span>
+          </div>
+          Add to your calendar
+        </div>
+      </div>
+
+      {/* Calendar CTA */}
+      <div className="text-center">
+        <h3 className="text-xl font-bold text-stone-900 mb-2">
+          One more thing - don&apos;t forget to save the date
+        </h3>
+        <p className="text-sm text-stone-500 mb-5">
+          Most attendees add this to their calendar to save their spot
+        </p>
+        <div className="flex flex-col sm:flex-row justify-center gap-3">
+          <button
+            onClick={() => handleCalendarClick('google')}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition-colors shadow-sm"
+          >
+            {calIcon} Google Calendar
+          </button>
+          <button
+            onClick={() => handleCalendarClick('ics')}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg transition-colors"
+          >
+            {calIcon} Apple / Outlook
+          </button>
+        </div>
+        <button
+          onClick={() => setCalendarAdded(true)}
+          className="mt-4 text-xs text-stone-400 hover:text-stone-500 underline transition-colors"
         >
-          {calIcon} Google
-        </a>
-        <button onClick={() => downloadIcs(config)} className={btnClass}>
-          {calIcon} Apple
-        </button>
-        <button onClick={() => downloadIcs(config)} className={btnClass}>
-          {calIcon} Outlook
+          Skip - I&apos;ll do it later
         </button>
       </div>
     </div>
@@ -138,18 +181,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
   )
 
   if (state?.success) {
-    return (
-      <div className="text-center py-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 mb-4">
-          <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-2xl font-bold text-stone-900 mb-2">You&apos;re registered!</h3>
-        <p className="text-stone-600 mb-6">Check your inbox for details. See you there.</p>
-        <AddToCalendar config={config} />
-      </div>
-    )
+    return <ThankYouState config={config} />
   }
 
   return (
@@ -203,7 +235,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
       </button>
 
       <p className="text-xs text-stone-500 text-center">
-        Free -only {config.spots} spots available. No credit card required.
+        Free - only {config.spots} spots available. No credit card required.
       </p>
     </form>
   )
@@ -242,7 +274,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             onClick={scrollToForm}
             className="w-full py-3 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-base transition-colors"
           >
-            Register now -it&apos;s free
+            Register now - it&apos;s free
           </button>
         </div>
       </div>

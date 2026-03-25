@@ -1,17 +1,19 @@
 import React from 'react'
-import { Text, Section } from '@react-email/components'
+import { Text, Section, Link } from '@react-email/components'
 import { EmailLayout, emailStyles } from './components/EmailLayout'
 
 interface WebinarConfirmationProps {
   firstName: string
   webinarName: string
   webinarDate: string
+  googleCalendarUrl: string
 }
 
 export function WebinarConfirmation({
   firstName,
   webinarName,
   webinarDate,
+  googleCalendarUrl,
 }: WebinarConfirmationProps) {
   return (
     <EmailLayout preview={`You're registered for ${webinarName}`}>
@@ -23,26 +25,41 @@ export function WebinarConfirmation({
 
       <Text style={emailStyles.paragraph}>
         You&apos;re officially registered for <strong>{webinarName}</strong>.
-        We&apos;ll send you everything you need before the session.
       </Text>
 
       <Section style={detailsBox}>
-        <Text style={emailStyles.h2}>What&apos;s next</Text>
+        <Text style={emailStyles.h2}>Event details</Text>
         <Text style={emailStyles.paragraph}>
           <strong>Event:</strong> {webinarName}
           <br />
           <strong>When:</strong> {webinarDate}
-        </Text>
-        <Text style={emailStyles.paragraph}>
-          Keep an eye on your inbox — we&apos;ll send a reminder with the link
-          to join closer to the date.
+          <br />
+          <strong>Duration:</strong> ~30 minutes
         </Text>
       </Section>
+
+      {/* Calendar CTA - primary action */}
+      <Text style={{ ...emailStyles.h2, textAlign: 'center' as const }}>
+        Step 2: Add it to your calendar
+      </Text>
+      <Text style={{ ...emailStyles.paragraph, textAlign: 'center' as const, color: '#6B7280' }}>
+        Most attendees save the date so they don&apos;t miss out.
+      </Text>
+
+      <Section style={{ textAlign: 'center' as const }}>
+        <Link href={googleCalendarUrl} style={emailStyles.button}>
+          Add to Google Calendar
+        </Link>
+      </Section>
+
+      <Text style={{ ...emailStyles.paragraph, textAlign: 'center' as const, fontSize: '14px', color: '#6B7280' }}>
+        Use Apple or Outlook? Open the .ics file attached to this email.
+      </Text>
 
       <Text style={emailStyles.paragraph}>
         See you there!
         <br />
-        The Ferdy Team
+        Andrew
       </Text>
     </EmailLayout>
   )

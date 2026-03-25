@@ -72,18 +72,38 @@ That's it — no other files need to change.
 4. Fires confirmation email via Resend (non-blocking)
 5. Shows inline thank-you state (no redirect) with "Add to calendar" buttons
 
-### Add to Calendar
+### Add to Calendar (2-step thank-you flow)
 
-After successful registration, the thank-you state shows three calendar buttons:
-- **Google Calendar** — opens a pre-filled Google Calendar event in a new tab
-- **Apple / iCal** — downloads a `.ics` file
-- **Outlook** — downloads the same `.ics` file
+After registration, the form is replaced with a 2-step progress UI:
+- **Step 1** (auto-completed): "Registered - check your inbox"
+- **Step 2** (action required): "Add to your calendar" with prominent Google Calendar and Apple/Outlook buttons
 
-These pull event details from the config: `name` (title), `datetime` (ISO start time), `duration_minutes` (end time), and `zoom_url` (location field).
+Once the user clicks a calendar button, both steps show as complete with a "You're all set!" message. A "Skip" link is available for users who want to dismiss.
+
+**Calendar buttons:**
+- **Google Calendar** — opens a pre-filled event in a new tab
+- **Apple / Outlook** — downloads a `.ics` file (single button for both)
+
+Calendar logic is shared between the landing page and emails via `src/lib/webinar-calendar.ts`.
 
 **Important**: The `datetime` field must be a valid ISO 8601 string (e.g. `2026-04-14T19:00:00+10:00`) for calendar links to work correctly. The `date` field is the human-readable display string. Both must be set.
 
 Update `zoom_url` in config before the webinar goes live — it appears in the calendar event location.
+
+### Email templates
+
+| Template | File | Sent when | Primary CTA |
+|----------|------|-----------|-------------|
+| Confirmation | `src/emails/WebinarConfirmation.tsx` | Immediately on registration | Add to Google Calendar + .ics attachment |
+| 1 week reminder | `src/emails/WebinarReminder.tsx` | 7 days before | Add to Google Calendar + .ics attachment |
+| 1 day reminder | `src/emails/WebinarReminder.tsx` | 1 day before | Join link (Zoom) |
+| 1 hour reminder | `src/emails/WebinarReminder.tsx` | 1 hour before | Join link (Zoom) |
+
+The confirmation and 1-week reminder emails include a `.ics` file attachment so Apple/Outlook users can add the event directly from their email. The 1-day and 1-hour reminders switch to showing the Zoom join link as the primary CTA.
+
+Email send functions are in `src/lib/emails/webinar.ts`:
+- `sendWebinarConfirmation(data)` — live
+- `sendWebinarReminder(data, '1week' | '1day' | '1hour')` — ready, needs Vercel Cron wiring
 
 ### Database: `webinar_registrations`
 
