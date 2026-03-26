@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useBrands } from '@/hooks/useBrands';
@@ -48,6 +48,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const pathname = usePathname();
   const router = useRouter();
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
+  const brandDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [fallbackBrandName, setFallbackBrandName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -174,6 +175,18 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
   const selectedBrand = selectedBrandId ? brands.find(brand => brand.id === selectedBrandId) || null : null;
   const activeBrandId = selectedBrandId || '';
 
+  // Close brand dropdown when clicking outside
+  useEffect(() => {
+    if (!isBrandDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (brandDropdownRef.current && !brandDropdownRef.current.contains(e.target as Node)) {
+        setIsBrandDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isBrandDropdownOpen]);
+
   const showSkeleton = brandsLoading || (!selectedBrand && brands.length > 0);
   const hasNoBrands = !brandsLoading && brands.length === 0 && !selectedBrandId;
 
@@ -216,7 +229,7 @@ export default function Sidebar({ className = '', onMobileClose }: SidebarProps)
     <div className={`w-[280px] lg:w-[280px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full ${className}`}>
       {/* Brand Dropdown */}
       <div className="p-6 border-b border-gray-200">
-        <div className="relative">
+        <div className="relative" ref={brandDropdownRef}>
           {showSkeleton ? (
             <div className="w-full h-[56px] bg-gray-100 border border-gray-200 rounded-lg animate-pulse" />
           ) : hasNoBrands ? (

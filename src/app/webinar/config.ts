@@ -34,11 +34,11 @@ export const webinars: WebinarConfig[] = [
     spots: 50,
     host: {
       name: 'Andrew',
-      bio: 'Founder of Ferdy and Marketing Advisor across NZ & Aus. I help companies become more efficient and save time using AI and marketing automations.',
+      bio: 'Founder of Ferdy and Marketing Advisor across NZ & Aus. I help companies save time and become more efficient by using AI and marketing automations.',
     },
     what_you_will_learn: [
       'Intro to the Ferdy system - automate up to 30 posts per month',
-      'Live demo for a hospo business',
+      'Live demo. Exactly how I\'d set Ferdy up for a hospo business',
     ],
   },
 ]

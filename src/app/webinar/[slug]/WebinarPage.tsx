@@ -318,7 +318,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             </div>
             <p className="text-base text-stone-600 leading-relaxed mb-3">
               Hi, I&apos;m Andrew. As a marketing advisor, I observed that 80% of social posts for
-              hospo venues are predictable and repeatable - so I built a system to automate them.
+              hospo venues are predictable and repeatable - so I built a system to automate the process.
             </p>
             <p className="text-base text-stone-600 leading-relaxed">
               This is a free session where I&apos;ll show you exactly how it works.
@@ -385,7 +385,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                   </svg>
                 ),
                 title: '"What do I even post?"',
-                text: 'Staring at a blank screen trying to think of something clever is exhausting. You need a system, not more inspiration.',
+                text: 'Staring at a blank screen trying to think of something clever is exhausting. You need a strategic system you can rely on.',
               },
             ].map((pain) => (
               <div
@@ -429,7 +429,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
           </h2>
           <p className="text-stone-600 text-center max-w-xl mx-auto leading-relaxed">
             This training is for venue owners and social media managers. I&apos;ll show you how to
-            automate 80% of your social posts in just 10-15 mins per month using only your assets
+            automate 80% of your social posts in just 10-15 mins per month using only your existing assets
             and brand tone.
           </p>
         </Section>
