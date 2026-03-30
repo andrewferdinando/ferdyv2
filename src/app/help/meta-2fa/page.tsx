@@ -28,11 +28,11 @@ export default function Meta2FAHelpPage() {
           How to Enable Two-Factor Authentication for Facebook &amp; Instagram
         </h1>
         <p className="mt-3 text-gray-600">
-          Meta requires two-factor authentication (2FA) to be enabled on{' '}
-          <strong>both</strong> your personal Facebook account <strong>and</strong> your
-          Facebook Business Manager before third-party apps like Ferdy can publish on
-          your behalf. If either is missing, your posts will fail even though the
-          connection looks fine.
+          Meta requires two-factor authentication (2FA) to be enabled on your
+          personal Facebook account before third-party apps like Ferdy can publish on
+          your behalf. If you also use a Facebook Business Manager, 2FA must be enabled
+          there too. Without it, your posts may fail even though the connection looks
+          fine.
         </p>
 
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -148,9 +148,16 @@ export default function Meta2FAHelpPage() {
           </div>
 
           <p className="mt-4 text-sm text-gray-600">
-            Business Manager has its own 2FA setting, separate from your personal
-            account. Even if your personal 2FA is on, you still need to enable it here.
+            If your Facebook Page is managed through a Business Manager, it has its own
+            2FA setting separate from your personal account. Even if your personal 2FA
+            is on, you still need to enable it here.
           </p>
+
+          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <strong>Don&apos;t have a Business Manager?</strong> No worries — if you
+            manage your Facebook Page directly from your personal account, you can skip
+            this step. Personal 2FA (Step 1) is all you need.
+          </div>
 
           <ol className="mt-4 space-y-4 text-sm text-gray-700">
             <li className="flex gap-3">
@@ -238,9 +245,9 @@ export default function Meta2FAHelpPage() {
           </div>
 
           <p className="mt-4 text-sm text-gray-600">
-            Once 2FA is enabled on both accounts, go back to Ferdy and connect (or
-            reconnect) your Facebook and Instagram accounts. Everything should work
-            smoothly from there.
+            Once 2FA is enabled, go back to Ferdy and connect (or reconnect) your
+            Facebook and Instagram accounts. Everything should work smoothly from
+            there.
           </p>
 
           <div className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
