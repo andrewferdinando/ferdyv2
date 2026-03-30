@@ -3,7 +3,6 @@
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { sendWebinarConfirmation } from '@/lib/emails/webinar'
-import { getWebinarBySlug } from '@/app/webinar/config'
 
 const RegisterSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required'),
@@ -39,9 +38,15 @@ export async function registerForWebinar(
   const { firstName, email, webinarSlug, webinarName, niche, location } =
     parsed.data
 
-  // Validate slug exists in config
-  const config = getWebinarBySlug(webinarSlug)
-  if (!config) {
+  // Validate slug exists in DB
+  const { data: webinar } = await supabaseAdmin
+    .from('webinars')
+    .select('slug, date_label, datetime, duration_minutes, zoom_url')
+    .eq('slug', webinarSlug)
+    .eq('status', 'active')
+    .single()
+
+  if (!webinar) {
     return { success: false, error: 'Invalid workshop.' }
   }
 
@@ -70,11 +75,11 @@ export async function registerForWebinar(
     to: email.toLowerCase(),
     firstName,
     webinarName,
-    webinarDate: config.date,
+    webinarDate: webinar.date_label,
     webinarSlug,
-    datetime: config.datetime,
-    duration_minutes: config.duration_minutes,
-    zoom_url: config.zoom_url,
+    datetime: webinar.datetime,
+    duration_minutes: webinar.duration_minutes,
+    zoom_url: webinar.zoom_url,
   }).catch((err) => {
     console.error('Webinar confirmation email failed:', err)
   })

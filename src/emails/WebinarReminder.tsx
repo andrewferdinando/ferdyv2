@@ -2,7 +2,7 @@ import React from 'react'
 import { Text, Section, Link } from '@react-email/components'
 import { EmailLayout, emailStyles } from './components/EmailLayout'
 
-type ReminderType = '1week' | '1day' | '1hour'
+type ReminderType = '2day' | '1day' | '1hour'
 
 interface WebinarReminderProps {
   firstName: string
@@ -20,10 +20,10 @@ const reminderContent: Record<ReminderType, {
   ctaLabel: string
   ctaType: 'calendar' | 'join'
 }> = {
-  '1week': {
-    subject: 'Your training is next week - is it in your calendar?',
-    heading: 'One week to go!',
-    body: (name) => `Hey ${name}, just a reminder that you're registered for the training next week. Make sure it's in your calendar so you don't miss it.`,
+  '2day': {
+    subject: 'Your training is in 2 days - is it in your calendar?',
+    heading: 'Two days to go!',
+    body: (name) => `Hey ${name}, just a reminder that you're registered for the training in two days. Make sure it's in your calendar so you don't miss it.`,
     ctaLabel: 'Add to Google Calendar',
     ctaType: 'calendar',
   },

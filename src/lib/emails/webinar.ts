@@ -86,7 +86,7 @@ export async function sendWebinarConfirmation(data: WebinarEmailData) {
 
 // --- Pre-webinar reminders ---
 
-type ReminderType = '1week' | '1day' | '1hour'
+type ReminderType = '2day' | '1day' | '1hour'
 
 export async function sendWebinarReminder(
   data: WebinarEmailData,
@@ -108,9 +108,9 @@ export async function sendWebinarReminder(
     })
   )
 
-  // Attach .ics for the 1-week reminder (calendar-focused)
+  // Attach .ics for the 2-day reminder (calendar-focused)
   // For 1-day and 1-hour, the CTA is the join link instead
-  const attachments = reminderType === '1week' ? [buildIcsAttachment(event)] : []
+  const attachments = reminderType === '2day' ? [buildIcsAttachment(event)] : []
 
   return resend.emails.send({
     from: getFromEmail(),

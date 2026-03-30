@@ -19,6 +19,10 @@
     {
       "path": "/api/emails/token-expiry-check",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/emails/webinar-reminders",
+      "schedule": "0 * * * *"
     }
   ]
 }
