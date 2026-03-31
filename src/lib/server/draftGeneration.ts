@@ -372,6 +372,17 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
         }
       }
 
+      // Guard: every event_series draft MUST belong to an occurrence.
+      // If we couldn't resolve one (date mismatch, timezone edge case, etc.),
+      // skip this target rather than creating a null-occurrence draft which
+      // would bypass the dedup check and produce duplicates.
+      if (isEventSeries && !eventOccurrenceId) {
+        const reason = `event_series target could not resolve occurrence (rule=${target.rule_id})`;
+        console.warn(`[draftGeneration] SKIP ${targetName}: ${reason}`);
+        skippedTargets.push({ subcategory_id: target.subcategory_id, scheduled_at: scheduledAtISO, reason });
+        continue;
+      }
+
       // Check if ANY framework draft already exists at this slot (regardless of status).
       // The DB unique constraint (drafts_unique_framework) prevents duplicates at
       // the same (brand, subcategory, scheduled_for, schedule_source, event_occurrence_id)
