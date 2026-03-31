@@ -988,12 +988,24 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                     onClick={handleApprove}
                     disabled={!canApprove || isLoading}
                     className={`px-3 py-1 text-xs font-medium border rounded-md transition-colors ${
-                      canApprove 
-                        ? 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700' 
-                        : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      isLoading
+                        ? 'border-indigo-200 bg-indigo-50 text-indigo-600 cursor-wait'
+                        : canApprove
+                          ? 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                          : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    Approve
+                    {isLoading ? (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Approving…
+                      </span>
+                    ) : (
+                      'Approve'
+                    )}
                   </button>
                 )}
                 {effectiveStatus === 'draft' && draft.approved && (
