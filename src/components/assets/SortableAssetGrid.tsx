@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -32,6 +32,7 @@ interface SortableAssetGridProps {
   onReorder: (newOrder: string[]) => void
   onRemove: (id: string) => void
   assetUsage?: Map<string, AssetUsageInfo>
+  imageCursor?: number
 }
 
 export default function SortableAssetGrid({
@@ -40,8 +41,21 @@ export default function SortableAssetGrid({
   onReorder,
   onRemove,
   assetUsage,
+  imageCursor,
 }: SortableAssetGridProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+
+  // Compute which assets are next in the rotation queue (up to 3)
+  const rotationOrder = useMemo(() => {
+    if (imageCursor === undefined || selectedIds.length === 0) return undefined
+    const cursor = imageCursor % selectedIds.length
+    const map = new Map<string, number>()
+    for (let i = 0; i < Math.min(3, selectedIds.length); i++) {
+      const idx = (cursor + i) % selectedIds.length
+      map.set(selectedIds[idx], i)
+    }
+    return map
+  }, [imageCursor, selectedIds])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -99,6 +113,7 @@ export default function SortableAssetGrid({
                 position={index + 1}
                 onRemove={onRemove}
                 usage={assetUsage?.get(asset.id)}
+                rotationIndex={rotationOrder?.get(asset.id)}
               />
             ))}
           </div>

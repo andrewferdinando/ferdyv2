@@ -11,9 +11,10 @@ interface SortableAssetItemProps {
   position: number
   onRemove: (id: string) => void
   usage?: AssetUsageInfo
+  rotationIndex?: number
 }
 
-export default function SortableAssetItem({ asset, position, onRemove, usage }: SortableAssetItemProps) {
+export default function SortableAssetItem({ asset, position, onRemove, usage, rotationIndex }: SortableAssetItemProps) {
   const {
     attributes,
     listeners,
@@ -127,6 +128,21 @@ export default function SortableAssetItem({ asset, position, onRemove, usage }: 
           {usage.queuedCount > 0 && (
             <span className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
               Queued
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Rotation queue indicator */}
+      {rotationIndex !== undefined && (
+        <div className="absolute bottom-0 right-0 p-1.5">
+          {rotationIndex === 0 ? (
+            <span className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
+              Next
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-gray-50 text-gray-400">
+              {rotationIndex === 1 ? '2nd' : '3rd'}
             </span>
           )}
         </div>

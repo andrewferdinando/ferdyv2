@@ -173,7 +173,8 @@ export default function EditCategoryPage() {
             days_before: scheduleRule.days_before,
             days_during: scheduleRule.days_during,
             start_date: scheduleRule.start_date,
-            end_date: scheduleRule.end_date
+            end_date: scheduleRule.end_date,
+            image_cursor: scheduleRule.image_cursor ?? 0
           }
         }
 

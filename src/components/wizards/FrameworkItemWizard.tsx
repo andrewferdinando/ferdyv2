@@ -467,6 +467,7 @@ export interface WizardInitialData {
     days_during: number[] | null
     start_date?: string | null
     end_date?: string | null
+    image_cursor?: number
   }
   eventOccurrences?: Array<{
     id: string
@@ -4413,6 +4414,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               onReorder={(newOrder) => setSelectedAssetIds(newOrder)}
               onRemove={(id) => setSelectedAssetIds(prev => prev.filter(x => x !== id))}
               assetUsage={mode === 'edit' ? assetUsage : undefined}
+              imageCursor={mode === 'edit' ? initialData?.scheduleRule?.image_cursor : undefined}
             />
           </div>
 
