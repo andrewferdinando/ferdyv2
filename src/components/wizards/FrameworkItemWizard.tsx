@@ -545,7 +545,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       }
       return initialValues
     }
-    // For new subcategories, use brand default (hook ensures this is always non-null)
+    // For new subcategories, post_time starts null (no category-specific override).
+    // The brand default is applied to schedule.timeOfDay via the useEffect below.
     const initialValues = {
       name: '',
       detail: '',
@@ -553,22 +554,21 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       defaultHashtags: [], // Changed from empty string to empty array
       channels: [],
       default_copy_length: defaultCopyLength, // Hook ensures this is always 'short' | 'medium' | 'long'
-      post_time: defaultPostTime ?? null, // Hook provides HH:MM format, explicitly include even if null
+      post_time: null, // null = use brand default; user can set a category-specific override
     }
     return initialValues
   })
-  
-  // Update default_copy_length and post_time when brand settings load (only for new subcategories)
+
+  // Update default_copy_length when brand settings load (only for new subcategories)
   // This handles the case where hook loads after component mounts
   useEffect(() => {
     if (mode === 'create') {
       setDetails(prev => ({
         ...prev,
         default_copy_length: defaultCopyLength || prev.default_copy_length,
-        post_time: defaultPostTime || prev.post_time
       }))
     }
-  }, [defaultCopyLength, defaultPostTime, mode])
+  }, [defaultCopyLength, mode])
   
   const [detailsErrors, setDetailsErrors] = useState<{
     name?: string
@@ -1068,7 +1068,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       defaultHashtags: [],
       channels: [],
       default_copy_length: defaultCopyLength || 'medium',
-      post_time: defaultPostTime || null,
+      post_time: null, // null = use brand default; user can set a category-specific override
     })
     setDetailsErrors({})
     setUrlAutoFilled({ description: false, hashtags: false })
