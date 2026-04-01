@@ -510,7 +510,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   }, [mode, initialData, brandId, router, showToast])
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
-  const { defaultPostTime, defaultCopyLength } = useBrandPostSettings(brandId)
+  const { defaultPostTime, defaultCopyLength, isLoading: settingsLoading } = useBrandPostSettings(brandId)
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
@@ -642,14 +642,14 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   // Uses a ref to ensure this only runs once — after that, the user's changes are preserved.
   const timeInitializedRef = useRef(false)
   useEffect(() => {
-    if (mode === 'create' && !timeInitializedRef.current) {
+    if (mode === 'create' && !timeInitializedRef.current && !settingsLoading) {
       const timeToUse = details.post_time || defaultPostTime || ''
       if (timeToUse) {
         timeInitializedRef.current = true
         setSchedule(prev => ({ ...prev, timeOfDay: timeToUse }))
       }
     }
-  }, [defaultPostTime, details.post_time, mode])
+  }, [defaultPostTime, details.post_time, mode, settingsLoading])
   
   const [scheduleErrors, setScheduleErrors] = useState<{
     frequency?: string
