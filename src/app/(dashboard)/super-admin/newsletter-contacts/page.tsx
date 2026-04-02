@@ -508,7 +508,7 @@ function buildEmailHtml(content: {
     ? `<img src="${content.imageUrl}" alt="" style="width:100%;max-width:536px;border-radius:8px;margin:0 0 24px 0;" />`
     : ''
 
-  // YouTube thumbnail with play button overlay (email-client safe: no position/flex)
+  // YouTube thumbnail with play button overlay
   let youtubeBlock = ''
   if (content.youtubeUrl) {
     const videoId = extractYouTubeId(content.youtubeUrl)
@@ -516,29 +516,9 @@ function buildEmailHtml(content: {
       const thumbnail = getYouTubeThumbnail(videoId)
       const watchUrl = `https://www.youtube.com/watch?v=${videoId}`
       youtubeBlock = `
-        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;width:100%;max-width:536px;">
-          <tr>
-            <td align="center" background="${thumbnail}" style="background-image:url('${thumbnail}');background-size:cover;background-position:center;border-radius:8px;height:300px;" valign="middle">
-              <!--[if gte mso 9]>
-              <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:536px;height:300px;">
-              <v:fill type="frame" src="${thumbnail}" />
-              <v:textbox inset="0,0,0,0">
-              <![endif]-->
-              <a href="${watchUrl}" target="_blank" style="display:inline-block;text-decoration:none;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" alt="Play video" width="68" height="48" style="border:0;display:block;" />
-              </a>
-              <!--[if gte mso 9]>
-              </v:textbox>
-              </v:rect>
-              <![endif]-->
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-top:4px;">
-              <a href="${watchUrl}" target="_blank" style="color:#6366F1;font-size:13px;text-decoration:none;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">▶ Watch on YouTube</a>
-            </td>
-          </tr>
-        </table>`
+        <a href="${watchUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 24px 0;">
+          <img src="${thumbnail}" alt="Watch video" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
+        </a>`
     }
   }
 
@@ -556,7 +536,7 @@ function buildEmailHtml(content: {
 <html>
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
 <body style="background-color:#FAFAFA;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 20px;margin:0;">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;max-width:600px;margin:0 auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="background-color:#ffffff;border-radius:12px;max-width:100%;width:600px;margin:0 auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);">
     <!-- Header -->
     <tr>
       <td style="padding:32px 32px 24px;border-bottom:2px solid #6366F1;text-align:center;">
