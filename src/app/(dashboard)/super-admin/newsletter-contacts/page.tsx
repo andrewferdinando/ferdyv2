@@ -468,15 +468,83 @@ function TestUsersTab() {
   )
 }
 
+// ─── Email Template Builder ──────────────────────────────
+function buildEmailHtml(content: {
+  heading: string
+  body: string
+  imageUrl: string
+  ctaText: string
+  ctaUrl: string
+}) {
+  const paragraphs = content.body
+    .split('\n\n')
+    .filter(p => p.trim())
+    .map(p => `<p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 16px 0;">${p.replace(/\n/g, '<br/>')}</p>`)
+    .join('')
+
+  const imageBlock = content.imageUrl
+    ? `<img src="${content.imageUrl}" alt="" style="width:100%;max-width:536px;border-radius:8px;margin:0 0 24px 0;" />`
+    : ''
+
+  const ctaBlock = content.ctaText && content.ctaUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+        <tr>
+          <td style="background-color:#6366F1;border-radius:8px;">
+            <a href="${content.ctaUrl}" target="_blank" style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:16px;font-weight:500;text-decoration:none;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${content.ctaText}</a>
+          </td>
+        </tr>
+      </table>`
+    : ''
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="background-color:#FAFAFA;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 20px;margin:0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;max-width:600px;margin:0 auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);">
+    <!-- Header -->
+    <tr>
+      <td style="padding:32px 32px 24px;border-bottom:2px solid #6366F1;text-align:center;">
+        <span style="font-size:32px;font-weight:700;color:#6366F1;">Ferdy</span>
+      </td>
+    </tr>
+    <!-- Content -->
+    <tr>
+      <td style="padding:32px;">
+        ${content.heading ? `<h1 style="color:#0A0A0A;font-size:24px;font-weight:700;line-height:1.3;margin:0 0 20px 0;">${content.heading}</h1>` : ''}
+        ${imageBlock}
+        ${paragraphs}
+        ${ctaBlock}
+      </td>
+    </tr>
+    <!-- Footer -->
+    <tr>
+      <td style="border-top:1px solid #E5E7EB;padding:24px 32px;text-align:center;">
+        <p style="color:#6B7280;font-size:14px;line-height:1.5;margin:4px 0;">&copy; ${new Date().getFullYear()} Ferdy. All rights reserved.</p>
+        <p style="color:#6B7280;font-size:14px;line-height:1.5;margin:4px 0;">Questions? Contact us at <a href="mailto:andrew@ferdy.io" style="color:#6366F1;text-decoration:none;">andrew@ferdy.io</a></p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
 // ─── Broadcast Tab ───────────────────────────────────────
 function BroadcastTab() {
   const [subject, setSubject] = useState('')
-  const [html, setHtml] = useState('')
+  const [heading, setHeading] = useState('')
+  const [body, setBody] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [ctaText, setCtaText] = useState('')
+  const [ctaUrl, setCtaUrl] = useState('')
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
   const [testEmail, setTestEmail] = useState('')
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+
+  const html = buildEmailHtml({ heading, body, imageUrl, ctaText, ctaUrl })
+  const hasContent = subject.trim() && (heading.trim() || body.trim())
 
   function toggleAudience(audience: string) {
     setSelectedAudiences(prev =>
@@ -522,16 +590,18 @@ function BroadcastTab() {
     } else {
       setResult({ success: true, message: `Broadcast sent to ${selectedAudiences.join(' and ')}!` })
       setSubject('')
-      setHtml('')
+      setHeading('')
+      setBody('')
+      setImageUrl('')
+      setCtaText('')
+      setCtaUrl('')
       setSelectedAudiences([])
+      setShowPreview(false)
     }
   }
 
-  const canSendTest = subject.trim() && html.trim() && testEmail.trim()
-  const canSend = subject.trim() && html.trim() && selectedAudiences.length > 0
-
   return (
-    <div className="max-w-2xl">
+    <div>
       {result && (
         <div className={`mb-4 p-3 border rounded-lg text-sm ${
           result.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
@@ -540,110 +610,179 @@ function BroadcastTab() {
         </div>
       )}
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-          <input
-            type="text"
-            value={subject}
-            onChange={e => setSubject(e.target.value)}
-            placeholder="Newsletter subject line..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">HTML Body</label>
-          <textarea
-            value={html}
-            onChange={e => setHtml(e.target.value)}
-            placeholder="Paste your newsletter HTML here..."
-            rows={12}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent font-mono"
-          />
-        </div>
-
-        {html && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: Content Form */}
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preview</label>
-            <div
-              className="border border-gray-200 rounded-lg p-4 bg-gray-50 prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: html }}
+            <label className="block text-sm font-medium text-gray-700 mb-1">Subject Line</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder="e.g. What's new at Ferdy this month"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
           </div>
-        )}
 
-        {/* Send Test Email */}
-        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Send Test Email</label>
-          <p className="text-xs text-gray-500 mb-3">Send a test to yourself before broadcasting. Subject will be prefixed with [TEST].</p>
-          <div className="flex gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Heading</label>
             <input
-              type="email"
-              value={testEmail}
-              onChange={e => setTestEmail(e.target.value)}
-              placeholder="your@email.com"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              type="text"
+              value={heading}
+              onChange={e => setHeading(e.target.value)}
+              placeholder="e.g. Big updates are here"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
-            <button
-              onClick={handleSendTest}
-              disabled={!canSendTest || sendingTest}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {sendingTest ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500" />
-                  Sending...
-                </>
-              ) : (
-                'Send Test'
-              )}
-            </button>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Body</label>
+            <p className="text-xs text-gray-400 mb-1">Separate paragraphs with a blank line.</p>
+            <textarea
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Write your newsletter content here..."
+              rows={8}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Image URL <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={e => setImageUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Button Text <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                type="text"
+                value={ctaText}
+                onChange={e => setCtaText(e.target.value)}
+                placeholder="e.g. Learn More"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Button Link</label>
+              <input
+                type="url"
+                value={ctaUrl}
+                onChange={e => setCtaUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Send Test Email */}
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Send Test Email</label>
+            <p className="text-xs text-gray-500 mb-3">Send a test to yourself before broadcasting. Subject will be prefixed with [TEST].</p>
+            <div className="flex gap-3">
+              <input
+                type="email"
+                value={testEmail}
+                onChange={e => setTestEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+              />
+              <button
+                onClick={handleSendTest}
+                disabled={!hasContent || !testEmail.trim() || sendingTest}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {sendingTest ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Test'
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Audience Selection + Send */}
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Send to Audience</label>
+            <div className="flex gap-3 mb-4">
+              {[
+                { id: 'customers', label: 'Customers' },
+                { id: 'non_customers', label: 'Non-customers' },
+              ].map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => toggleAudience(a.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    selectedAudiences.includes(a.id)
+                      ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleSend}
+                disabled={!hasContent || selectedAudiences.length === 0 || sending}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#5558E6] transition-colors disabled:opacity-50"
+              >
+                {sending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Send Broadcast
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Audience Selection + Send */}
-        <div className="border-t border-gray-200 pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Send to Audience</label>
-          <div className="flex gap-3 mb-4">
-            {[
-              { id: 'customers', label: 'Customers' },
-              { id: 'non_customers', label: 'Non-customers' },
-            ].map(a => (
-              <button
-                key={a.id}
-                onClick={() => toggleAudience(a.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  selectedAudiences.includes(a.id)
-                    ? 'bg-[#6366F1] text-white border-[#6366F1]'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex justify-end">
+        {/* Right: Live Preview */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700">Email Preview</label>
             <button
-              onClick={handleSend}
-              disabled={!canSend || sending}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#5558E6] transition-colors disabled:opacity-50"
+              onClick={() => setShowPreview(!showPreview)}
+              className="text-xs text-[#6366F1] hover:underline lg:hidden"
             >
-              {sending ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Send Broadcast
-                </>
-              )}
+              {showPreview ? 'Hide Preview' : 'Show Preview'}
             </button>
+          </div>
+          <div className={`${showPreview ? 'block' : 'hidden'} lg:block`}>
+            {hasContent ? (
+              <div className="border border-gray-200 rounded-lg overflow-hidden bg-[#FAFAFA]">
+                <iframe
+                  srcDoc={html}
+                  title="Email preview"
+                  className="w-full border-0"
+                  style={{ height: '600px' }}
+                  sandbox=""
+                />
+              </div>
+            ) : (
+              <div className="border border-gray-200 rounded-lg p-8 bg-gray-50 text-center text-sm text-gray-400">
+                Fill in the subject and content to see a live preview of your email.
+              </div>
+            )}
           </div>
         </div>
       </div>
