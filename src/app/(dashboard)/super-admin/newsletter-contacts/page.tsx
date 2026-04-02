@@ -568,6 +568,34 @@ function buildEmailHtml(content: {
         ${paragraphs}
         ${content.youtubePosition === 'below' ? youtubeBlock : ''}
         ${ctaBlock}
+
+        <!-- Sign-off -->
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0 0;border-top:1px solid #E5E7EB;padding-top:24px;width:100%;">
+          <tr>
+            <td style="vertical-align:top;padding-right:16px;width:80px;">
+              <img src="https://www.ferdy.io/images/andrew-headshot.jpg" alt="Andrew" width="80" height="80" style="border-radius:50%;display:block;width:80px;height:80px;object-fit:cover;" />
+            </td>
+            <td style="vertical-align:middle;border-left:2px solid #E5E7EB;padding-left:16px;">
+              <p style="color:#374151;font-size:15px;line-height:1.3;margin:0;">Best wishes,</p>
+              <p style="color:#0A0A0A;font-size:16px;font-weight:700;line-height:1.3;margin:4px 0 2px 0;">Andrew Ferdinando</p>
+              <p style="color:#6B7280;font-size:13px;line-height:1.3;margin:0 0 2px 0;">Founder of Ferdy</p>
+              <p style="color:#6B7280;font-size:12px;line-height:1.3;margin:0 0 10px 0;">e: <a href="mailto:andrew@ferdy.io" style="color:#6366F1;text-decoration:none;">andrew@ferdy.io</a>&nbsp;&nbsp;|&nbsp;&nbsp;w: <a href="https://www.ferdy.io" style="color:#6366F1;text-decoration:none;">www.ferdy.io</a></p>
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding-right:6px;">
+                    <a href="https://www.linkedin.com/in/andrewferdinando/" target="_blank" style="display:inline-block;width:28px;height:28px;background-color:#333333;border-radius:50%;text-align:center;line-height:28px;text-decoration:none;color:#ffffff;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">in</a>
+                  </td>
+                  <td style="padding-right:6px;">
+                    <a href="https://www.facebook.com/andrewjferdinando" target="_blank" style="display:inline-block;width:28px;height:28px;background-color:#333333;border-radius:50%;text-align:center;line-height:28px;text-decoration:none;color:#ffffff;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">f</a>
+                  </td>
+                  <td>
+                    <a href="https://www.instagram.com/ferdyinnz/" target="_blank" style="display:inline-block;width:28px;height:28px;background-color:#333333;border-radius:50%;text-align:center;line-height:28px;text-decoration:none;color:#ffffff;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">ig</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>
     <!-- Footer -->
