@@ -468,11 +468,28 @@ function TestUsersTab() {
   )
 }
 
+// ─── YouTube Helpers ─────────────────────────────────────
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+function getYouTubeThumbnail(videoId: string): string {
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+}
+
 // ─── Email Template Builder ──────────────────────────────
 function buildEmailHtml(content: {
   heading: string
   body: string
   imageUrl: string
+  youtubeUrl: string
   ctaText: string
   ctaUrl: string
 }) {
@@ -485,6 +502,27 @@ function buildEmailHtml(content: {
   const imageBlock = content.imageUrl
     ? `<img src="${content.imageUrl}" alt="" style="width:100%;max-width:536px;border-radius:8px;margin:0 0 24px 0;" />`
     : ''
+
+  // YouTube thumbnail with play button overlay
+  let youtubeBlock = ''
+  if (content.youtubeUrl) {
+    const videoId = extractYouTubeId(content.youtubeUrl)
+    if (videoId) {
+      const thumbnail = getYouTubeThumbnail(videoId)
+      const watchUrl = `https://www.youtube.com/watch?v=${videoId}`
+      youtubeBlock = `
+        <a href="${watchUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 24px 0;position:relative;">
+          <div style="position:relative;border-radius:8px;overflow:hidden;">
+            <img src="${thumbnail}" alt="Watch video" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;">
+              <div style="width:68px;height:48px;background-color:rgba(255,0,0,0.85);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <div style="width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:18px solid #ffffff;margin-left:4px;"></div>
+              </div>
+            </div>
+          </div>
+        </a>`
+    }
+  }
 
   const ctaBlock = content.ctaText && content.ctaUrl
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
@@ -512,6 +550,7 @@ function buildEmailHtml(content: {
       <td style="padding:32px;">
         ${content.heading ? `<h1 style="color:#0A0A0A;font-size:24px;font-weight:700;line-height:1.3;margin:0 0 20px 0;">${content.heading}</h1>` : ''}
         ${imageBlock}
+        ${youtubeBlock}
         ${paragraphs}
         ${ctaBlock}
       </td>
@@ -521,6 +560,7 @@ function buildEmailHtml(content: {
       <td style="border-top:1px solid #E5E7EB;padding:24px 32px;text-align:center;">
         <p style="color:#6B7280;font-size:14px;line-height:1.5;margin:4px 0;">&copy; ${new Date().getFullYear()} Ferdy. All rights reserved.</p>
         <p style="color:#6B7280;font-size:14px;line-height:1.5;margin:4px 0;">Questions? Contact us at <a href="mailto:andrew@ferdy.io" style="color:#6366F1;text-decoration:none;">andrew@ferdy.io</a></p>
+        <p style="color:#9CA3AF;font-size:12px;line-height:1.5;margin:12px 0 0 0;"><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#9CA3AF;text-decoration:underline;">Unsubscribe</a> from future emails</p>
       </td>
     </tr>
   </table>
@@ -534,6 +574,7 @@ function BroadcastTab() {
   const [heading, setHeading] = useState('')
   const [body, setBody] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [youtubeUrl, setYoutubeUrl] = useState('')
   const [ctaText, setCtaText] = useState('')
   const [ctaUrl, setCtaUrl] = useState('')
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
@@ -543,7 +584,7 @@ function BroadcastTab() {
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const [showPreview, setShowPreview] = useState(false)
 
-  const html = buildEmailHtml({ heading, body, imageUrl, ctaText, ctaUrl })
+  const html = buildEmailHtml({ heading, body, imageUrl, youtubeUrl, ctaText, ctaUrl })
   const hasContent = subject.trim() && (heading.trim() || body.trim())
 
   function toggleAudience(audience: string) {
@@ -593,6 +634,7 @@ function BroadcastTab() {
       setHeading('')
       setBody('')
       setImageUrl('')
+      setYoutubeUrl('')
       setCtaText('')
       setCtaUrl('')
       setSelectedAudiences([])
@@ -656,6 +698,21 @@ function BroadcastTab() {
               placeholder="https://..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">YouTube Video <span className="text-gray-400 font-normal">(optional)</span></label>
+            <p className="text-xs text-gray-400 mb-1">Paste a YouTube link to show a clickable thumbnail with play button.</p>
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={e => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+            {youtubeUrl && !extractYouTubeId(youtubeUrl) && (
+              <p className="text-xs text-red-500 mt-1">Could not detect a valid YouTube URL.</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
