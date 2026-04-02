@@ -490,6 +490,7 @@ function buildEmailHtml(content: {
   body: string
   imageUrl: string
   youtubeUrl: string
+  youtubePosition: 'above' | 'below'
   ctaText: string
   ctaUrl: string
 }) {
@@ -503,7 +504,7 @@ function buildEmailHtml(content: {
     ? `<img src="${content.imageUrl}" alt="" style="width:100%;max-width:536px;border-radius:8px;margin:0 0 24px 0;" />`
     : ''
 
-  // YouTube thumbnail with play button overlay
+  // YouTube thumbnail with play button overlay (email-client safe: no position/flex)
   let youtubeBlock = ''
   if (content.youtubeUrl) {
     const videoId = extractYouTubeId(content.youtubeUrl)
@@ -511,16 +512,29 @@ function buildEmailHtml(content: {
       const thumbnail = getYouTubeThumbnail(videoId)
       const watchUrl = `https://www.youtube.com/watch?v=${videoId}`
       youtubeBlock = `
-        <a href="${watchUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 24px 0;position:relative;">
-          <div style="position:relative;border-radius:8px;overflow:hidden;">
-            <img src="${thumbnail}" alt="Watch video" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
-            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;">
-              <div style="width:68px;height:48px;background-color:rgba(255,0,0,0.85);border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <div style="width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:18px solid #ffffff;margin-left:4px;"></div>
-              </div>
-            </div>
-          </div>
-        </a>`
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;width:100%;max-width:536px;">
+          <tr>
+            <td align="center" background="${thumbnail}" style="background-image:url('${thumbnail}');background-size:cover;background-position:center;border-radius:8px;height:300px;" valign="middle">
+              <!--[if gte mso 9]>
+              <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:536px;height:300px;">
+              <v:fill type="frame" src="${thumbnail}" />
+              <v:textbox inset="0,0,0,0">
+              <![endif]-->
+              <a href="${watchUrl}" target="_blank" style="display:inline-block;text-decoration:none;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" alt="Play video" width="68" height="48" style="border:0;display:block;" />
+              </a>
+              <!--[if gte mso 9]>
+              </v:textbox>
+              </v:rect>
+              <![endif]-->
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:4px;">
+              <a href="${watchUrl}" target="_blank" style="color:#6366F1;font-size:13px;text-decoration:none;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">▶ Watch on YouTube</a>
+            </td>
+          </tr>
+        </table>`
     }
   }
 
@@ -550,8 +564,9 @@ function buildEmailHtml(content: {
       <td style="padding:32px;">
         ${content.heading ? `<h1 style="color:#0A0A0A;font-size:24px;font-weight:700;line-height:1.3;margin:0 0 20px 0;">${content.heading}</h1>` : ''}
         ${imageBlock}
-        ${youtubeBlock}
+        ${content.youtubePosition === 'above' ? youtubeBlock : ''}
         ${paragraphs}
+        ${content.youtubePosition === 'below' ? youtubeBlock : ''}
         ${ctaBlock}
       </td>
     </tr>
@@ -575,6 +590,7 @@ function BroadcastTab() {
   const [body, setBody] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [youtubePosition, setYoutubePosition] = useState<'above' | 'below'>('below')
   const [ctaText, setCtaText] = useState('')
   const [ctaUrl, setCtaUrl] = useState('')
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
@@ -584,7 +600,7 @@ function BroadcastTab() {
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const [showPreview, setShowPreview] = useState(false)
 
-  const html = buildEmailHtml({ heading, body, imageUrl, youtubeUrl, ctaText, ctaUrl })
+  const html = buildEmailHtml({ heading, body, imageUrl, youtubeUrl, youtubePosition, ctaText, ctaUrl })
   const hasContent = subject.trim() && (heading.trim() || body.trim())
 
   function toggleAudience(audience: string) {
@@ -635,6 +651,7 @@ function BroadcastTab() {
       setBody('')
       setImageUrl('')
       setYoutubeUrl('')
+      setYoutubePosition('below')
       setCtaText('')
       setCtaUrl('')
       setSelectedAudiences([])
@@ -679,14 +696,46 @@ function BroadcastTab() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Body</label>
-            <p className="text-xs text-gray-400 mb-1">Separate paragraphs with a blank line.</p>
+            <p className="text-xs text-gray-400 mb-1">Separate paragraphs with a blank line. Use merge fields for personalisation.</p>
             <textarea
+              id="broadcast-body"
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Write your newsletter content here..."
               rows={8}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs text-gray-400">Insert:</span>
+              {[
+                { label: 'First Name', tag: '{{first_name}}' },
+                { label: 'Last Name', tag: '{{last_name}}' },
+                { label: 'Email', tag: '{{email}}' },
+              ].map(field => (
+                <button
+                  key={field.tag}
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('broadcast-body') as HTMLTextAreaElement | null
+                    if (el) {
+                      const start = el.selectionStart
+                      const end = el.selectionEnd
+                      const newVal = body.slice(0, start) + field.tag + body.slice(end)
+                      setBody(newVal)
+                      setTimeout(() => {
+                        el.focus()
+                        el.selectionStart = el.selectionEnd = start + field.tag.length
+                      }, 0)
+                    } else {
+                      setBody(prev => prev + field.tag)
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-mono rounded border border-gray-200 transition-colors"
+                >
+                  {field.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -712,6 +761,25 @@ function BroadcastTab() {
             />
             {youtubeUrl && !extractYouTubeId(youtubeUrl) && (
               <p className="text-xs text-red-500 mt-1">Could not detect a valid YouTube URL.</p>
+            )}
+            {youtubeUrl && extractYouTubeId(youtubeUrl) && (
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-gray-500">Position:</span>
+                {(['above', 'below'] as const).map(pos => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => setYoutubePosition(pos)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md border transition-colors ${
+                      youtubePosition === pos
+                        ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {pos === 'above' ? 'Above body' : 'Below body'}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 

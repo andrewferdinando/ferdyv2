@@ -50,6 +50,10 @@ Describes the journey of a draft from creation to publication, including status 
 `post_jobs_and_publishing_engine.md`
 Defines the per-channel publishing mechanism, including job creation, processing, and success/failure handling.
 
+### **12. Newsletter Contact Management**
+`newsletter-contacts.md`
+Documents the standalone newsletter broadcast system built on Resend. Covers two audiences (Customers auto-synced, Non-customers manually managed), test user exclusion, customer sync, broadcasting with merge fields and YouTube thumbnails, and the Super Admin UI.
+
 ---
 
 ## 📂 Process Overview (Quick Reference)
