@@ -484,6 +484,9 @@ function getYouTubeThumbnail(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
+const SIGNOFF_HEADSHOT_PATH = '/images/andrew-headshot.jpg'
+const SIGNOFF_BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://www.ferdy.io'
+
 // ─── Email Template Builder ──────────────────────────────
 function buildEmailHtml(content: {
   heading: string
@@ -494,6 +497,7 @@ function buildEmailHtml(content: {
   ctaText: string
   ctaUrl: string
 }) {
+  const headshotUrl = `${SIGNOFF_BASE_URL}${SIGNOFF_HEADSHOT_PATH}`
   const paragraphs = content.body
     .split('\n\n')
     .filter(p => p.trim())
@@ -573,7 +577,7 @@ function buildEmailHtml(content: {
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0 0;border-top:1px solid #E5E7EB;padding-top:24px;width:100%;">
           <tr>
             <td style="vertical-align:top;padding-right:16px;width:80px;">
-              <img src="https://www.ferdy.io/images/andrew-headshot.jpg" alt="Andrew" width="80" height="80" style="border-radius:50%;display:block;width:80px;height:80px;object-fit:cover;" />
+              <img src="${headshotUrl}" alt="Andrew" width="80" height="80" style="border-radius:50%;display:block;width:80px;height:80px;object-fit:cover;" />
             </td>
             <td style="vertical-align:middle;border-left:2px solid #E5E7EB;padding-left:16px;">
               <p style="color:#374151;font-size:15px;line-height:1.3;margin:0;">Best wishes,</p>
