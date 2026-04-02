@@ -474,12 +474,34 @@ function BroadcastTab() {
   const [html, setHtml] = useState('')
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
   const [sending, setSending] = useState(false)
+  const [sendingTest, setSendingTest] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
 
   function toggleAudience(audience: string) {
     setSelectedAudiences(prev =>
       prev.includes(audience) ? prev.filter(a => a !== audience) : [...prev, audience]
     )
+  }
+
+  async function handleSendTest() {
+    if (!testEmail) return
+
+    setSendingTest(true)
+    setResult(null)
+
+    const data = await apiFetch('/api/newsletter/broadcast', {
+      method: 'POST',
+      body: JSON.stringify({ testEmail, subject, html }),
+    })
+
+    setSendingTest(false)
+
+    if (data.error) {
+      setResult({ success: false, message: data.error })
+    } else {
+      setResult({ success: true, message: `Test email sent to ${testEmail}. Check your inbox!` })
+    }
   }
 
   async function handleSend() {
@@ -505,6 +527,7 @@ function BroadcastTab() {
     }
   }
 
+  const canSendTest = subject.trim() && html.trim() && testEmail.trim()
   const canSend = subject.trim() && html.trim() && selectedAudiences.length > 0
 
   return (
@@ -518,28 +541,6 @@ function BroadcastTab() {
       )}
 
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Audience</label>
-          <div className="flex gap-3">
-            {[
-              { id: 'customers', label: 'Customers' },
-              { id: 'non_customers', label: 'Non-customers' },
-            ].map(a => (
-              <button
-                key={a.id}
-                onClick={() => toggleAudience(a.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  selectedAudiences.includes(a.id)
-                    ? 'bg-[#6366F1] text-white border-[#6366F1]'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
           <input
@@ -572,26 +573,78 @@ function BroadcastTab() {
           </div>
         )}
 
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={handleSend}
-            disabled={!canSend || sending}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#5558E6] transition-colors disabled:opacity-50"
-          >
-            {sending ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Send Broadcast
-              </>
-            )}
-          </button>
+        {/* Send Test Email */}
+        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Send Test Email</label>
+          <p className="text-xs text-gray-500 mb-3">Send a test to yourself before broadcasting. Subject will be prefixed with [TEST].</p>
+          <div className="flex gap-3">
+            <input
+              type="email"
+              value={testEmail}
+              onChange={e => setTestEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+            />
+            <button
+              onClick={handleSendTest}
+              disabled={!canSendTest || sendingTest}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {sendingTest ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500" />
+                  Sending...
+                </>
+              ) : (
+                'Send Test'
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Audience Selection + Send */}
+        <div className="border-t border-gray-200 pt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Send to Audience</label>
+          <div className="flex gap-3 mb-4">
+            {[
+              { id: 'customers', label: 'Customers' },
+              { id: 'non_customers', label: 'Non-customers' },
+            ].map(a => (
+              <button
+                key={a.id}
+                onClick={() => toggleAudience(a.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  selectedAudiences.includes(a.id)
+                    ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={handleSend}
+              disabled={!canSend || sending}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#5558E6] transition-colors disabled:opacity-50"
+            >
+              {sending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Send Broadcast
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

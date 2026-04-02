@@ -38,6 +38,31 @@ export async function sendBroadcast({
   return { broadcastId: created!.id, sendId: sent!.id }
 }
 
+export async function sendTestEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string
+  subject: string
+  html: string
+}) {
+  const resend = getNewsletterResend()
+
+  const { data, error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `[TEST] ${subject}`,
+    html,
+  })
+
+  if (error) {
+    throw new Error(`Failed to send test email: ${error.message}`)
+  }
+
+  return { emailId: data!.id }
+}
+
 export async function listBroadcasts() {
   const resend = getNewsletterResend()
   const { data, error } = await resend.broadcasts.list()

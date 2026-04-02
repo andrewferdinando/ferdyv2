@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, isSuperAdmin } from '@/lib/supabase-server'
-import { sendBroadcast, listBroadcasts } from '@/lib/newsletter/broadcast'
+import { sendBroadcast, sendTestEmail, listBroadcasts } from '@/lib/newsletter/broadcast'
 import { getAudienceId } from '@/lib/newsletter/resend'
 
 export const runtime = 'nodejs'
@@ -52,7 +52,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { audiences, subject, html, name } = body
+    const { audiences, subject, html, name, testEmail } = body
+
+    // Test email mode — send to a single address
+    if (testEmail) {
+      if (!subject || !html) {
+        return NextResponse.json(
+          { error: 'Missing required fields: subject, html' },
+          { status: 400 }
+        )
+      }
+      const result = await sendTestEmail({ to: testEmail, subject, html })
+      return NextResponse.json({ success: true, test: true, ...result })
+    }
 
     if (!audiences || !Array.isArray(audiences) || audiences.length === 0) {
       return NextResponse.json(
