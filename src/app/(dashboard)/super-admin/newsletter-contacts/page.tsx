@@ -516,8 +516,15 @@ function buildEmailHtml(content: {
       const thumbnail = getYouTubeThumbnail(videoId)
       const watchUrl = `https://www.youtube.com/watch?v=${videoId}`
       youtubeBlock = `
-        <a href="${watchUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 24px 0;">
-          <img src="${thumbnail}" alt="Watch video" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
+        <a href="${watchUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 24px 0;position:relative;">
+          <div style="position:relative;border-radius:8px;overflow:hidden;">
+            <img src="${thumbnail}" alt="Watch video" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;">
+              <div style="width:68px;height:48px;background-color:rgba(255,0,0,0.85);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <div style="width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:18px solid #ffffff;margin-left:4px;"></div>
+              </div>
+            </div>
+          </div>
         </a>`
     }
   }
