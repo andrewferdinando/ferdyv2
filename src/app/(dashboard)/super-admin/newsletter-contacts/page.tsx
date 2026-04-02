@@ -598,9 +598,90 @@ function BroadcastTab() {
   )
 }
 
+// ─── Setup Banner ────────────────────────────────────────
+function SetupBanner() {
+  const [setting, setSetting] = useState(false)
+  const [result, setResult] = useState<{ success: boolean; message: string; audiences?: any } | null>(null)
+
+  async function handleSetup() {
+    setSetting(true)
+    setResult(null)
+    const data = await apiFetch('/api/newsletter/setup', { method: 'POST' })
+    setSetting(false)
+
+    if (data.error) {
+      setResult({ success: false, message: data.error })
+    } else {
+      setResult({
+        success: true,
+        message: 'Audiences created! Add these IDs as environment variables in Vercel, then redeploy.',
+        audiences: data.audiences,
+      })
+    }
+  }
+
+  return (
+    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+      <div className="flex items-start gap-3">
+        <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-amber-800">Resend audiences not configured</p>
+          <p className="text-sm text-amber-700 mt-1">
+            Click below to create the Customers and Non-customers audiences in Resend.
+            You&apos;ll then need to add the returned IDs as environment variables.
+          </p>
+
+          {result && (
+            <div className={`mt-3 p-3 rounded-lg text-sm ${
+              result.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              <p className="font-medium">{result.message}</p>
+              {result.audiences && (
+                <div className="mt-2 font-mono text-xs space-y-1">
+                  <p>RESEND_AUDIENCE_CUSTOMERS=<span className="select-all font-bold">{result.audiences.customers.id}</span></p>
+                  <p>RESEND_AUDIENCE_NON_CUSTOMERS=<span className="select-all font-bold">{result.audiences.nonCustomers.id}</span></p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!result?.success && (
+            <button
+              onClick={handleSetup}
+              disabled={setting}
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+            >
+              {setting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  Creating audiences...
+                </>
+              ) : (
+                'Create Resend Audiences'
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ───────────────────────────────────────────
 export default function NewsletterContactsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('non_customers')
+  const [needsSetup, setNeedsSetup] = useState(false)
+
+  useEffect(() => {
+    // Check if audiences are configured by trying to list customers
+    apiFetch('/api/newsletter/customers').then(data => {
+      if (data.error && data.error.includes('RESEND_AUDIENCE')) {
+        setNeedsSetup(true)
+      }
+    })
+  }, [])
 
   const tabs: { id: TabId; name: string }[] = [
     { id: 'non_customers', name: 'Non-customers' },
@@ -638,6 +719,7 @@ export default function NewsletterContactsPage() {
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-10">
+          {needsSetup && <SetupBanner />}
           {activeTab === 'non_customers' && <NonCustomersTab />}
           {activeTab === 'customers' && <CustomersTab />}
           {activeTab === 'test_users' && <TestUsersTab />}
