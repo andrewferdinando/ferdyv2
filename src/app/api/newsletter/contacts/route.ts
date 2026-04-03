@@ -127,6 +127,71 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  const user = await authenticateSuperAdmin(request)
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    // Find all contacts missing a resend_contact_id
+    const { data: unsynced, error: fetchError } = await supabaseAdmin
+      .from('newsletter_contacts')
+      .select('*')
+      .is('resend_contact_id', null)
+      .order('created_at', { ascending: true })
+
+    if (fetchError) {
+      console.error('[newsletter/contacts] PATCH fetch error:', fetchError)
+      return NextResponse.json({ error: 'Failed to fetch unsynced contacts' }, { status: 500 })
+    }
+
+    if (!unsynced || unsynced.length === 0) {
+      return NextResponse.json({ success: true, synced: 0, errors: 0, message: 'All contacts already synced' })
+    }
+
+    const audienceId = getAudienceId('non_customers')
+    let synced = 0
+    let errors = 0
+    const errorDetails: string[] = []
+
+    for (const contact of unsynced) {
+      try {
+        const resendContact = await addContactToAudience(audienceId, {
+          email: contact.email,
+          firstName: contact.first_name,
+          lastName: contact.last_name,
+        })
+
+        await supabaseAdmin
+          .from('newsletter_contacts')
+          .update({ resend_contact_id: resendContact.id })
+          .eq('id', contact.id)
+
+        synced++
+      } catch (err: any) {
+        errors++
+        errorDetails.push(`${contact.email}: ${err.message}`)
+        console.error(`[newsletter/contacts] Sync failed for ${contact.email}:`, err.message)
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      synced,
+      errors,
+      total: unsynced.length,
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+    })
+  } catch (error: any) {
+    console.error('[newsletter/contacts] PATCH error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   const user = await authenticateSuperAdmin(request)
   if (!user) {
