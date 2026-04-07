@@ -90,6 +90,7 @@ function NonCustomersTab() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<{ synced: number; errors: number } | null>(null)
+  const [search, setSearch] = useState('')
 
   const loadContacts = useCallback(async () => {
     setLoading(true)
@@ -141,6 +142,12 @@ function NonCustomersTab() {
     return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]" /></div>
   }
 
+  const filtered = contacts.filter(c =>
+    `${c.first_name} ${c.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+    c.email.toLowerCase().includes(search.toLowerCase()) ||
+    c.contact_type.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -151,6 +158,13 @@ function NonCustomersTab() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search contacts..."
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent w-64"
+          />
           {contacts.some(c => !c.resend_contact_id) && (
             <button
               onClick={handleSyncToResend}
@@ -198,6 +212,11 @@ function NonCustomersTab() {
           <p className="text-lg font-medium">No contacts yet</p>
           <p className="text-sm mt-1">Add prospects, referrers, or friends to the newsletter audience.</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg font-medium">No matching contacts</p>
+          <p className="text-sm mt-1">Try a different search term.</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -211,7 +230,7 @@ function NonCustomersTab() {
               </tr>
             </thead>
             <tbody>
-              {contacts.map(c => (
+              {filtered.map(c => (
                 <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 text-gray-900">{c.first_name} {c.last_name}</td>
                   <td className="py-3 px-4 text-gray-600">{c.email}</td>
@@ -309,6 +328,7 @@ function CustomersTab() {
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [syncResult, setSyncResult] = useState<{ synced: number; removed: number; errors: string[] } | null>(null)
+  const [search, setSearch] = useState('')
 
   const loadCustomers = useCallback(async () => {
     setLoading(true)
@@ -335,6 +355,11 @@ function CustomersTab() {
     return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]" /></div>
   }
 
+  const filtered = contacts.filter(c =>
+    [c.first_name, c.last_name].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()) ||
+    c.email.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -344,10 +369,18 @@ function CustomersTab() {
             <p className="text-xs text-gray-400 mt-0.5">Last synced: {new Date(lastSynced).toLocaleString()}</p>
           )}
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#5558E6] transition-colors disabled:opacity-50"
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search customers..."
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent w-64"
+          />
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#6366F1] text-white text-sm font-medium rounded-lg hover:bg-[#5558E6] transition-colors disabled:opacity-50"
         >
           {syncing ? (
             <>
@@ -363,6 +396,7 @@ function CustomersTab() {
             </>
           )}
         </button>
+        </div>
       </div>
 
       {syncResult && (
@@ -380,6 +414,11 @@ function CustomersTab() {
           <p className="text-lg font-medium">No customers synced yet</p>
           <p className="text-sm mt-1">Click "Sync Now" to pull active customers into the audience.</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg font-medium">No matching customers</p>
+          <p className="text-sm mt-1">Try a different search term.</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -392,7 +431,7 @@ function CustomersTab() {
               </tr>
             </thead>
             <tbody>
-              {contacts.map(c => (
+              {filtered.map(c => (
                 <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 text-gray-900">
                     {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
