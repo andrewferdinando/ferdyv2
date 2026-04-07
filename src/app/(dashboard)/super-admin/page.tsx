@@ -60,7 +60,7 @@ const adminCards = [
     ),
   },
   {
-    title: 'Newsletter Contacts',
+    title: 'Newsletter',
     description: 'Manage newsletter audiences and send broadcasts',
     href: '/super-admin/newsletter-contacts',
     cta: 'Manage Contacts',

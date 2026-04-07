@@ -10,7 +10,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-type TabId = 'non_customers' | 'customers' | 'test_users' | 'broadcast'
+type TabId = 'non_customers' | 'customers' | 'test_users' | 'broadcast' | 'sent_broadcasts'
 
 interface NewsletterContact {
   id: string
@@ -1017,6 +1017,103 @@ function BroadcastTab() {
   )
 }
 
+// ─── Sent Broadcasts Tab ────────────────────────────────
+interface Broadcast {
+  id: string
+  name: string | null
+  audience_id: string | null
+  from: string | null
+  subject: string | null
+  status: string
+  created_at: string
+  sent_at: string | null
+  send_at: string | null
+}
+
+function SentBroadcastsTab() {
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadBroadcasts = useCallback(async () => {
+    setLoading(true)
+    const data = await apiFetch('/api/newsletter/broadcast')
+    const all: Broadcast[] = data.broadcasts?.data || data.broadcasts || []
+    // Only show sent broadcasts, sorted newest first
+    const sent = all
+      .filter((b: Broadcast) => b.status === 'sent')
+      .sort((a: Broadcast, b: Broadcast) => new Date(b.sent_at || b.created_at).getTime() - new Date(a.sent_at || a.created_at).getTime())
+    setBroadcasts(sent)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadBroadcasts() }, [loadBroadcasts])
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]" /></div>
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-gray-500">{broadcasts.length} sent broadcast{broadcasts.length !== 1 ? 's' : ''}</p>
+        <button
+          onClick={loadBroadcasts}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      {broadcasts.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg font-medium">No broadcasts sent yet</p>
+          <p className="text-sm mt-1">Sent broadcasts will appear here.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-500">Subject</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-500">Date Sent</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-500">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {broadcasts.map(b => (
+                <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-gray-900">
+                    <div>{b.subject || '(no subject)'}</div>
+                    {b.name && <div className="text-xs text-gray-400 mt-0.5">{b.name}</div>}
+                  </td>
+                  <td className="py-3 px-4 text-gray-500">
+                    {b.sent_at
+                      ? new Date(b.sent_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      : '—'}
+                  </td>
+                  <td className="py-3 px-4">
+                    <Badge label="Sent" color="green" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 mt-4">
+        Recipient counts and open rates are not available via the Resend broadcasts API. View these in your{' '}
+        <a href="https://resend.com/broadcasts" target="_blank" rel="noopener noreferrer" className="text-[#6366F1] hover:underline">
+          Resend dashboard
+        </a>.
+      </p>
+    </div>
+  )
+}
+
 // ─── Setup Banner ────────────────────────────────────────
 function SetupBanner() {
   const [setting, setSetting] = useState(false)
@@ -1107,6 +1204,7 @@ export default function NewsletterContactsPage() {
     { id: 'customers', name: 'Customers' },
     { id: 'test_users', name: 'Test Users' },
     { id: 'broadcast', name: 'Send Broadcast' },
+    { id: 'sent_broadcasts', name: 'Sent Broadcasts' },
   ]
 
   return (
@@ -1143,6 +1241,7 @@ export default function NewsletterContactsPage() {
           {activeTab === 'customers' && <CustomersTab />}
           {activeTab === 'test_users' && <TestUsersTab />}
           {activeTab === 'broadcast' && <BroadcastTab />}
+          {activeTab === 'sent_broadcasts' && <SentBroadcastsTab />}
         </div>
       </div>
     </AppLayout>
