@@ -192,19 +192,7 @@ export default function AddBrandPage() {
     setPricingLoaded(false)
 
     const fetchPricing = async () => {
-      // Fetch base pricing from group
-      const { data: group } = await supabase
-        .from('groups')
-        .select('price_per_brand_cents, currency')
-        .eq('id', groupId)
-        .single()
-
-      if (group) {
-        setPricePerBrand(group.price_per_brand_cents)
-        setCurrency(group.currency.toUpperCase())
-      }
-
-      // Fetch discount info + subscription status from Stripe
+      // Fetch discount info + subscription status from Stripe (source of truth for pricing)
       try {
         const response = await fetch(`/api/stripe/get-subscription-discount?groupId=${groupId}`)
         const data = await response.json()
@@ -218,6 +206,9 @@ export default function AddBrandPage() {
             couponName: data.couponName,
             currency: data.currency,
           })
+          // Keep fallback state in sync with Stripe values
+          if (data.baseUnitPrice) setPricePerBrand(data.baseUnitPrice)
+          if (data.currency) setCurrency(data.currency.toUpperCase())
         } else {
           setDiscountInfo(null)
         }

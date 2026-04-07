@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { getStripe } from '@/lib/stripe'
+import { getStripe, STRIPE_CONFIG } from '@/lib/stripe'
 import { sendBrandDeleted } from '@/lib/emails/send'
 
 function extractToken(request: Request) {
@@ -234,13 +234,18 @@ export async function POST(request: NextRequest) {
 
       const { data: groupData } = await supabaseAdmin
         .from('groups')
-        .select('name, price_per_brand_cents, currency, country_code')
+        .select('name, country_code')
         .eq('id', groupId)
         .single()
 
       if (groupData) {
+        // Fetch base price from Stripe (source of truth for billing)
+        const stripePrice = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!.trim())
+        const unitPrice = stripePrice.unit_amount || STRIPE_CONFIG.pricePerBrand
+        const stripeCurrency = stripePrice.currency || STRIPE_CONFIG.currency
+
         // Calculate monthly total with discount
-        let monthlyTotal = newQuantity * groupData.price_per_brand_cents
+        let monthlyTotal = newQuantity * unitPrice
         const discount = subscription?.discounts?.[0]
         const coupon = typeof discount === 'string' ? null : discount?.coupon
         if (coupon?.percent_off) {
@@ -251,7 +256,7 @@ export async function POST(request: NextRequest) {
 
         // Add GST for NZ groups
         const isNz = groupData.country_code?.toUpperCase() === 'NZ'
-          || (groupData.currency || '').toLowerCase() === 'nzd'
+          || stripeCurrency.toLowerCase() === 'nzd'
         const gstAmount = isNz ? Math.round(monthlyTotal * 0.15) : 0
         const totalWithGst = monthlyTotal + gstAmount
 
@@ -260,7 +265,7 @@ export async function POST(request: NextRequest) {
           brandName: brand.name,
           remainingBrandCount: newQuantity,
           newMonthlyTotal: totalWithGst,
-          currency: groupData.currency || 'usd',
+          currency: stripeCurrency,
           billingPeriodEnd: periodEnd,
           gstAmount: gstAmount > 0 ? gstAmount : undefined,
         })

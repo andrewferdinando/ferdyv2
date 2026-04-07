@@ -177,15 +177,20 @@ export async function createBrandAction(payload: CreateBrandPayload) {
     try {
       const { data: groupData } = await supabaseAdmin
         .from('groups')
-        .select('price_per_brand_cents, currency, stripe_subscription_id, country_code')
+        .select('stripe_subscription_id, country_code')
         .eq('id', groupId)
         .single()
 
       console.log(`[createBrandAction] Group data retrieved:`, groupData)
 
       if (groupData) {
+        // Fetch base price from Stripe (source of truth for billing)
+        const stripePrice = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!.trim())
+        const unitPrice = stripePrice.unit_amount || STRIPE_CONFIG.pricePerBrand
+        const stripeCurrency = stripePrice.currency || STRIPE_CONFIG.currency
+
         // Calculate total with discount if subscription has one
-        let monthlyTotal = (brandCount || 0) * groupData.price_per_brand_cents
+        let monthlyTotal = (brandCount || 0) * unitPrice
         let discountPercent = 0
         let couponName: string | null = null
 
@@ -216,7 +221,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
 
         // Calculate GST for NZ groups
         const isNz = groupData.country_code?.toUpperCase() === 'NZ'
-          || (groupData.currency || '').toLowerCase() === 'nzd'
+          || stripeCurrency.toLowerCase() === 'nzd'
         const gstAmount = isNz ? Math.round(monthlyTotal * 0.15) : 0
         const totalWithGst = monthlyTotal + gstAmount
 
@@ -231,7 +236,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
             brandName: name,
             newBrandCount: brandCount || 0,
             newMonthlyTotal: totalWithGst,
-            currency: groupData.currency || 'usd',
+            currency: stripeCurrency,
             discountPercent: discountPercent > 0 ? discountPercent : undefined,
             couponName,
             gstAmount: gstAmount > 0 ? gstAmount : undefined,
