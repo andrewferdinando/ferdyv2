@@ -11,12 +11,13 @@ const supabase = createClient(
  * Resolve the coupon from a Stripe subscription, handling both the newer
  * `discounts` (plural) array and the legacy `discount` (singular) field.
  * The subscription should be retrieved with expand: ['discounts.coupon', 'discount.coupon'].
+ * If the coupon is an unexpanded string ID, fetches it from Stripe directly.
  */
-export function resolveSubscriptionCoupon(subscription: Stripe.Subscription): {
+export async function resolveSubscriptionCoupon(subscription: Stripe.Subscription): Promise<{
   percentOff: number | null
   amountOff: number | null
   name: string | null
-} {
+}> {
   let coupon: any = null
 
   // Try subscription.discounts (plural, newer Stripe API)
@@ -24,6 +25,14 @@ export function resolveSubscriptionCoupon(subscription: Stripe.Subscription): {
   if (discountsArray && discountsArray.length > 0) {
     const first = discountsArray[0]
     coupon = typeof first === 'string' ? null : (first as any)?.coupon
+    // If coupon is a string ID (unexpanded), fetch it explicitly
+    if (typeof coupon === 'string') {
+      try {
+        coupon = await stripe.coupons.retrieve(coupon)
+      } catch {
+        coupon = null
+      }
+    }
   }
 
   // Fall back to subscription.discount (singular, legacy API)
@@ -31,6 +40,13 @@ export function resolveSubscriptionCoupon(subscription: Stripe.Subscription): {
     const legacyDiscount = (subscription as any).discount
     if (legacyDiscount && typeof legacyDiscount !== 'string') {
       coupon = legacyDiscount.coupon
+      if (typeof coupon === 'string') {
+        try {
+          coupon = await stripe.coupons.retrieve(coupon)
+        } catch {
+          coupon = null
+        }
+      }
     }
   }
 
@@ -324,7 +340,7 @@ export async function getSubscriptionDetails(groupId: string) {
     const customer = await stripe.customers.retrieve(group.stripe_customer_id!)
 
     // Resolve coupon server-side so clients don't need to parse Stripe discount objects
-    const coupon = resolveSubscriptionCoupon(subscription)
+    const coupon = await resolveSubscriptionCoupon(subscription)
 
     return {
       subscription,

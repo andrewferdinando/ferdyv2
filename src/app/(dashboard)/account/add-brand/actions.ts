@@ -201,7 +201,7 @@ export async function createBrandAction(payload: CreateBrandPayload) {
               groupData.stripe_subscription_id,
               { expand: ['discounts.coupon', 'discount.coupon'] }
             )
-            const resolved = resolveSubscriptionCoupon(sub)
+            const resolved = await resolveSubscriptionCoupon(sub)
             if (resolved.percentOff) {
               discountPercent = resolved.percentOff
               couponName = resolved.name

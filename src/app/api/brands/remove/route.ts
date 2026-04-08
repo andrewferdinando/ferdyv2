@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
 
         // Calculate monthly total with discount using shared coupon resolver
         let monthlyTotal = newQuantity * unitPrice
-        const resolved = resolveSubscriptionCoupon(subscription)
+        const resolved = await resolveSubscriptionCoupon(subscription)
         if (resolved.percentOff) {
           monthlyTotal = Math.round(monthlyTotal * (1 - resolved.percentOff / 100))
         } else if (resolved.amountOff) {
