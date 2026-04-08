@@ -48,6 +48,12 @@ interface SubscriptionDetails {
   discounts?: string[]
 }
 
+interface ResolvedCoupon {
+  percentOff: number | null
+  amountOff: number | null
+  name: string | null
+}
+
 interface Brand {
   id: string
   name: string
@@ -70,6 +76,7 @@ export default function BillingPage() {
   const [brandCount, setBrandCount] = useState(0)
   const [brands, setBrands] = useState<Brand[]>([])
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null)
+  const [resolvedCoupon, setResolvedCoupon] = useState<ResolvedCoupon | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
@@ -157,6 +164,7 @@ export default function BillingPage() {
         if (response.ok) {
           const data = await response.json()
           setSubscription(data.subscription)
+          if (data.coupon) setResolvedCoupon(data.coupon)
         }
       }
 
@@ -333,29 +341,15 @@ export default function BillingPage() {
 
   const subtotal = brandCount * pricePerBrand
 
-  // Resolve discount from subscription coupon (not from invoice which may be prorated)
+  // Use server-resolved coupon (resolved in getSubscriptionDetails via resolveSubscriptionCoupon)
   let discountAmount = 0
   let discountPercent = 0
 
-  // Try discounts (plural, newer Stripe API)
-  let couponObj: any = null
-  if (subscription?.discounts?.length) {
-    const first = subscription.discounts[0]
-    couponObj = typeof first === 'string' ? null : (first as any)?.coupon
-  }
-  // Fall back to discount (singular, legacy API)
-  if (!couponObj) {
-    const legacy = (subscription as any)?.discount
-    if (legacy && typeof legacy !== 'string') {
-      couponObj = legacy.coupon
-    }
-  }
-
-  if (couponObj?.percent_off) {
-    discountPercent = couponObj.percent_off
-    discountAmount = subtotal * (couponObj.percent_off / 100)
-  } else if (couponObj?.amount_off) {
-    discountAmount = couponObj.amount_off / 100
+  if (resolvedCoupon?.percentOff) {
+    discountPercent = resolvedCoupon.percentOff
+    discountAmount = subtotal * (resolvedCoupon.percentOff / 100)
+  } else if (resolvedCoupon?.amountOff) {
+    discountAmount = resolvedCoupon.amountOff / 100
     discountPercent = subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0
   }
 

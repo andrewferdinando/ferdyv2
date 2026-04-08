@@ -323,11 +323,15 @@ export async function getSubscriptionDetails(groupId: string) {
 
     const customer = await stripe.customers.retrieve(group.stripe_customer_id!)
 
+    // Resolve coupon server-side so clients don't need to parse Stripe discount objects
+    const coupon = resolveSubscriptionCoupon(subscription)
+
     return {
       subscription,
       customer,
       pricePerBrand: group.price_per_brand_cents,
       currency: group.currency,
+      coupon,
     }
   } catch (error: any) {
     console.error('Error getting subscription details:', error)
