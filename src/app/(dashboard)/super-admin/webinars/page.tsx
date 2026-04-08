@@ -284,7 +284,7 @@ export default function WebinarsPage() {
                       onChange={(e) =>
                         setForm({ ...form, date_label: e.target.value })
                       }
-                      placeholder="Tuesday, 14 April - 10am AEDT - 30 mins + Q&A"
+                      placeholder="Tuesday, 14 April - 10am AEST - 30 mins + Q&A"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#6366F1] focus:outline-none focus:ring-1 focus:ring-[#6366F1]"
                     />
                   </div>

@@ -343,7 +343,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
               <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              10am AEDT
+              10am AEST
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-700 bg-white/80 backdrop-blur rounded-full px-3.5 py-1.5 shadow-sm">
               <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -497,7 +497,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 <svg className="w-3.5 h-3.5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                10am AEDT
+                10am AEST
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 bg-stone-100 rounded-full px-3 py-1">
                 <svg className="w-3.5 h-3.5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
