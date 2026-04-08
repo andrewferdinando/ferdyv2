@@ -1,6 +1,7 @@
 import { render } from '@react-email/render'
 import { Resend } from 'resend'
 import { WebinarConfirmation } from '@/emails/WebinarConfirmation'
+import { WebinarAdminNotification } from '@/emails/WebinarAdminNotification'
 import { WebinarReminder, reminderContent } from '@/emails/WebinarReminder'
 import { buildGoogleCalendarUrl, buildIcsString, CalendarEventInput } from '@/lib/webinar-calendar'
 
@@ -80,6 +81,46 @@ export async function sendWebinarConfirmation(data: WebinarEmailData) {
       { name: 'category', value: 'webinar' },
       { name: 'webinar_slug', value: data.webinarSlug },
       { name: 'email_type', value: 'confirmation' },
+    ],
+  })
+}
+
+// --- Admin notification (sent to site owner on every registration) ---
+
+const ADMIN_EMAIL = 'andrew@ferdy.io'
+
+export interface WebinarAdminNotificationData {
+  firstName: string
+  email: string
+  webinarName: string
+  webinarSlug: string
+  niche: string
+  location: string
+}
+
+export async function sendWebinarAdminNotification(data: WebinarAdminNotificationData) {
+  const resend = getResend()
+
+  const html = await render(
+    WebinarAdminNotification({
+      firstName: data.firstName,
+      email: data.email,
+      webinarName: data.webinarName,
+      webinarSlug: data.webinarSlug,
+      niche: data.niche,
+      location: data.location,
+    })
+  )
+
+  return resend.emails.send({
+    from: getFromEmail(),
+    to: ADMIN_EMAIL,
+    subject: `New registration: ${data.firstName} for ${data.webinarName}`,
+    html,
+    tags: [
+      { name: 'category', value: 'webinar' },
+      { name: 'webinar_slug', value: data.webinarSlug },
+      { name: 'email_type', value: 'admin_notification' },
     ],
   })
 }

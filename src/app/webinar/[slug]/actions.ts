@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { sendWebinarConfirmation } from '@/lib/emails/webinar'
+import { sendWebinarConfirmation, sendWebinarAdminNotification } from '@/lib/emails/webinar'
 
 const RegisterSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required'),
@@ -82,6 +82,18 @@ export async function registerForWebinar(
     zoom_url: webinar.zoom_url,
   }).catch((err) => {
     console.error('Webinar confirmation email failed:', err)
+  })
+
+  // Notify admin of the new registration
+  sendWebinarAdminNotification({
+    firstName,
+    email: email.toLowerCase(),
+    webinarName,
+    webinarSlug,
+    niche,
+    location,
+  }).catch((err) => {
+    console.error('Webinar admin notification email failed:', err)
   })
 
   return { success: true }
