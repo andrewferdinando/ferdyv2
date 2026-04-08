@@ -70,31 +70,32 @@ export async function registerForWebinar(
     return { success: false, error: 'Something went wrong. Please try again.' }
   }
 
-  // Send confirmation email (fire-and-forget — don't block registration on email delivery)
-  sendWebinarConfirmation({
-    to: email.toLowerCase(),
-    firstName,
-    webinarName,
-    webinarDate: webinar.date_label,
-    webinarSlug,
-    datetime: webinar.datetime,
-    duration_minutes: webinar.duration_minutes,
-    zoom_url: webinar.zoom_url,
-  }).catch((err) => {
-    console.error('Webinar confirmation email failed:', err)
-  })
-
-  // Notify admin of the new registration
-  sendWebinarAdminNotification({
-    firstName,
-    email: email.toLowerCase(),
-    webinarName,
-    webinarSlug,
-    niche,
-    location,
-  }).catch((err) => {
-    console.error('Webinar admin notification email failed:', err)
-  })
+  // Send confirmation + admin notification emails in parallel
+  // Must await so Vercel serverless doesn't shut down before sends complete
+  await Promise.all([
+    sendWebinarConfirmation({
+      to: email.toLowerCase(),
+      firstName,
+      webinarName,
+      webinarDate: webinar.date_label,
+      webinarSlug,
+      datetime: webinar.datetime,
+      duration_minutes: webinar.duration_minutes,
+      zoom_url: webinar.zoom_url,
+    }).catch((err) => {
+      console.error('Webinar confirmation email failed:', err)
+    }),
+    sendWebinarAdminNotification({
+      firstName,
+      email: email.toLowerCase(),
+      webinarName,
+      webinarSlug,
+      niche,
+      location,
+    }).catch((err) => {
+      console.error('Webinar admin notification email failed:', err)
+    }),
+  ])
 
   return { success: true }
 }
