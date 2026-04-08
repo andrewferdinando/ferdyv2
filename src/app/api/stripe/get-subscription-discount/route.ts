@@ -46,11 +46,10 @@ async function handleRequest(groupId: string) {
   // Try subscription.discounts (plural, newer API)
   const discountsArray = subscription.discounts
   if (discountsArray && discountsArray.length > 0) {
-    const first = discountsArray[0]
-    coupon = typeof first === 'string' ? null : (first as any).coupon
-    // If coupon is a string ID (unexpanded), fetch it
-    if (typeof coupon === 'string') {
-      coupon = await stripe.coupons.retrieve(coupon)
+    const first = discountsArray[0] as any
+    if (typeof first !== 'string') {
+      // Coupon may be at .coupon or .source.coupon depending on Stripe API version
+      coupon = first.coupon ?? first.source?.coupon ?? null
     }
   }
 
@@ -58,10 +57,16 @@ async function handleRequest(groupId: string) {
   if (!coupon) {
     const legacyDiscount = (subscription as any).discount
     if (legacyDiscount && typeof legacyDiscount !== 'string') {
-      coupon = legacyDiscount.coupon
-      if (typeof coupon === 'string') {
-        coupon = await stripe.coupons.retrieve(coupon)
-      }
+      coupon = legacyDiscount.coupon ?? legacyDiscount.source?.coupon ?? null
+    }
+  }
+
+  // If coupon is a string ID (not expanded), fetch it from Stripe
+  if (typeof coupon === 'string') {
+    try {
+      coupon = await stripe.coupons.retrieve(coupon)
+    } catch {
+      coupon = null
     }
   }
 

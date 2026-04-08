@@ -23,15 +23,10 @@ export async function resolveSubscriptionCoupon(subscription: Stripe.Subscriptio
   // Try subscription.discounts (plural, newer Stripe API)
   const discountsArray = subscription.discounts
   if (discountsArray && discountsArray.length > 0) {
-    const first = discountsArray[0]
-    coupon = typeof first === 'string' ? null : (first as any)?.coupon
-    // If coupon is a string ID (unexpanded), fetch it explicitly
-    if (typeof coupon === 'string') {
-      try {
-        coupon = await stripe.coupons.retrieve(coupon)
-      } catch {
-        coupon = null
-      }
+    const first = discountsArray[0] as any
+    if (typeof first !== 'string') {
+      // Expanded discount object — coupon may be at .coupon or .source.coupon
+      coupon = first.coupon ?? first.source?.coupon ?? null
     }
   }
 
@@ -39,14 +34,16 @@ export async function resolveSubscriptionCoupon(subscription: Stripe.Subscriptio
   if (!coupon) {
     const legacyDiscount = (subscription as any).discount
     if (legacyDiscount && typeof legacyDiscount !== 'string') {
-      coupon = legacyDiscount.coupon
-      if (typeof coupon === 'string') {
-        try {
-          coupon = await stripe.coupons.retrieve(coupon)
-        } catch {
-          coupon = null
-        }
-      }
+      coupon = legacyDiscount.coupon ?? legacyDiscount.source?.coupon ?? null
+    }
+  }
+
+  // If coupon is a string ID (not expanded), fetch it from Stripe
+  if (typeof coupon === 'string') {
+    try {
+      coupon = await stripe.coupons.retrieve(coupon)
+    } catch {
+      coupon = null
     }
   }
 
