@@ -180,6 +180,13 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
     null
   )
 
+  // Fire Meta Pixel Lead event on successful registration
+  useEffect(() => {
+    if (state?.success && typeof window !== 'undefined' && typeof window.fbq === 'function') {
+      window.fbq('track', 'Lead')
+    }
+  }, [state?.success])
+
   if (state?.success) {
     return <ThankYouState config={config} />
   }
