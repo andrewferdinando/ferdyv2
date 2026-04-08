@@ -2,9 +2,10 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'How to Enable 2FA for Facebook & Instagram | Ferdy Help',
+  title: 'How to Enable 2FA for Facebook & Instagram',
   description:
     'Step-by-step guide to enabling two-factor authentication on your personal Facebook account and Facebook Business Manager so Ferdy can publish to your pages.',
+  alternates: { canonical: 'https://ferdy.io/help/meta-2fa' },
 }
 
 export default function Meta2FAHelpPage() {

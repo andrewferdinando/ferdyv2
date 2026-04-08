@@ -9,8 +9,37 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Ferdy - Social Media Marketing Automation",
-  description: "Create, schedule, and publish social media posts automatically with Ferdy",
+  metadataBase: new URL("https://ferdy.io"),
+  title: {
+    default: "Ferdy — Social Media Automation for Small Businesses",
+    template: "%s | Ferdy",
+  },
+  description:
+    "Ferdy automates repeatable social media posts for small businesses. Create, schedule, and publish to Instagram and Facebook — automatically.",
+  openGraph: {
+    type: "website",
+    locale: "en_NZ",
+    url: "https://ferdy.io",
+    siteName: "Ferdy",
+    title: "Ferdy — Social Media Automation for Small Businesses",
+    description:
+      "Automate your repeatable social media posts. Ferdy creates and publishes the content you repeat every month — so you can focus on the creative work.",
+    images: [
+      {
+        url: "/images/og-default.png",
+        width: 1200,
+        height: 630,
+        alt: "Ferdy — Social Media Automation for Small Businesses",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ferdy — Social Media Automation for Small Businesses",
+    description:
+      "Automate your repeatable social media posts. Designed for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand.",
+    images: ["/images/og-default.png"],
+  },
 };
 
 // Inline script that runs synchronously BEFORE React hydrates.
@@ -52,6 +81,25 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <script dangerouslySetInnerHTML={{ __html: AUTH_HASH_REDIRECT_SCRIPT }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Ferdy",
+              url: "https://ferdy.io",
+              logo: "https://ferdy.io/images/ferdy_logo_transparent.png",
+              description:
+                "Ferdy automates repeatable social media posts for small businesses in Australia and New Zealand.",
+              contactPoint: {
+                "@type": "ContactPoint",
+                email: "support@ferdy.io",
+                contactType: "customer support",
+              },
+            }),
+          }}
+        />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ToastProvider>

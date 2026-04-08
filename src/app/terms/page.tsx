@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Terms & Conditions | Ferdy AI',
+  title: 'Terms & Conditions',
   description:
-    'Review the Terms and Conditions for using Ferdy AI, including eligibility, subscription details, and contact information.',
+    'Review the Terms and Conditions for using Ferdy, including eligibility, subscription details, and contact information.',
+  alternates: { canonical: 'https://ferdy.io/terms' },
 }
 
 const sections = [

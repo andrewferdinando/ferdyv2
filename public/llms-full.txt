@@ -1,0 +1,70 @@
+# Ferdy — Full Reference
+
+> Social media automation for small businesses in Australia and New Zealand.
+
+Ferdy is a social media automation tool that creates and publishes repeatable social media posts to Instagram and Facebook. It is designed for product-focused small businesses including restaurants, cafes, venues, e-commerce stores, and service businesses.
+
+## How It Works
+
+1. You set up content categories (e.g. weekly specials, product highlights, seasonal promotions) and upload your brand assets (images, logos, product photos).
+2. Ferdy automatically generates social media posts from your brand assets, website content, and offers on the schedule you define.
+3. You review, edit, approve, or skip each post before it goes live. Nothing is published without your approval.
+
+## Who It's For
+
+- Restaurants and cafes
+- Hospitality venues and entertainment businesses
+- E-commerce stores
+- Service businesses
+- Marketing agencies managing multiple brands
+- Small businesses in Australia and New Zealand
+
+## Pricing
+
+- Solo plan: NZ$147 per month (+GST) per brand, includes up to 30 automated posts per month
+- Multi plan: Custom pricing for businesses managing multiple brands (book a call)
+
+## Key Features
+
+- Automated post creation from brand assets, images, and website content
+- Scheduled publishing to Instagram (feed and stories) and Facebook
+- Full editorial control: review, edit, approve, or skip every post
+- AI-generated social media copy tailored to your brand voice
+- Round-robin asset selection for visual variety
+- Multi-brand management from a single dashboard
+- Team collaboration with role-based access (admin, editor)
+
+## What Ferdy Is NOT
+
+- Ferdy is not a generic social media scheduler like Buffer or Hootsuite
+- Ferdy does not generate random or trending content
+- Ferdy does not require you to write posts yourself
+- Ferdy does not post without your approval
+
+## Frequently Asked Questions
+
+### What is Ferdy?
+Ferdy is a social media automation tool designed for small businesses. It automates the creation and publishing of repeatable social media posts to Instagram and Facebook, saving business owners hours of manual work each month.
+
+### What social media platforms does Ferdy support?
+Ferdy currently supports automatic publishing to Instagram (feed posts and stories) and Facebook (page posts). Posts are created from your brand assets, images, and website content.
+
+### How much does Ferdy cost?
+Ferdy's Solo plan is NZ$147 per month (+GST) per brand, which includes up to 30 automated posts per month. For businesses managing multiple brands, custom Multi pricing is available by booking a call with the Ferdy team.
+
+### Do I lose control over what gets posted?
+No. Ferdy gives you full editorial control. Every post is generated as a draft that you can review, edit, approve, or skip before it goes live. Nothing is published without your approval.
+
+### Who is Ferdy designed for?
+Ferdy is built for product-focused small businesses in Australia and New Zealand, including restaurants, cafes, venues, e-commerce stores, and service businesses that have repeatable content to share on social media each month.
+
+### How does Ferdy create content?
+Ferdy generates posts from your actual brand assets — your images, website content, product information, and offers. It does not create random or generic content. You set up content categories (like weekly specials or product highlights) and Ferdy handles the scheduling and publishing.
+
+## Links
+
+- Website: https://ferdy.io
+- Contact: https://ferdy.io/contact
+- Email: support@ferdy.io
+- Privacy Policy: https://ferdy.io/privacy
+- Terms & Conditions: https://ferdy.io/terms

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Data Deletion | Ferdy AI',
+  title: 'Data Deletion',
   description: 'Learn how to request deletion of your Ferdy data.',
+  alternates: { canonical: 'https://ferdy.io/data-deletion' },
 }
 
 export default function DataDeletionPage() {

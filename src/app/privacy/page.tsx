@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | Ferdy AI',
+  title: 'Privacy Policy',
   description:
-    'Understand how Ferdy AI collects, uses, and protects your information while you use our content automation platform.',
+    'Understand how Ferdy collects, uses, and protects your information while you use our social media automation platform.',
+  alternates: { canonical: 'https://ferdy.io/privacy' },
 }
 
 const sections = [
