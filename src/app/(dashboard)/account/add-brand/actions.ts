@@ -3,8 +3,8 @@
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { sendBrandAdded } from '@/lib/emails/send'
-import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
-import { resolveSubscriptionCoupon } from '@/lib/stripe-helpers'
+import { stripe } from '@/lib/stripe'
+import { calculateMonthlyPricing } from '@/lib/stripe-helpers'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
@@ -173,84 +173,26 @@ export async function createBrandAction(payload: CreateBrandPayload) {
       console.log(`[createBrandAction] Skipping Stripe update - brandCount is ${brandCount}`)
     }
 
-    // Send brand added email
-    console.log(`[createBrandAction] Preparing to send brand added email - brandCount: ${brandCount}, group_id: ${groupId}`)
+    // Send brand added email using canonical pricing calculator
     try {
-      const { data: groupData } = await supabaseAdmin
-        .from('groups')
-        .select('stripe_subscription_id, country_code')
-        .eq('id', groupId)
-        .single()
+      const pricing = await calculateMonthlyPricing(groupId)
+      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
 
-      console.log(`[createBrandAction] Group data retrieved:`, groupData)
-
-      if (groupData) {
-        // Fetch base price from Stripe (source of truth for billing)
-        const stripePrice = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!.trim())
-        const unitPrice = stripePrice.unit_amount || STRIPE_CONFIG.pricePerBrand
-        const stripeCurrency = stripePrice.currency || STRIPE_CONFIG.currency
-
-        // Calculate total with discount if subscription has one
-        let monthlyTotal = (brandCount || 0) * unitPrice
-        let discountPercent = 0
-        let couponName: string | null = null
-
-        if (groupData.stripe_subscription_id) {
-          try {
-            const sub = await stripe.subscriptions.retrieve(
-              groupData.stripe_subscription_id,
-              { expand: ['discounts.coupon', 'discount.coupon'] }
-            )
-            const resolved = await resolveSubscriptionCoupon(sub)
-            if (resolved.percentOff) {
-              discountPercent = resolved.percentOff
-              couponName = resolved.name
-              monthlyTotal = Math.round(monthlyTotal * (1 - resolved.percentOff / 100))
-              console.log(`[createBrandAction] Applied ${resolved.percentOff}% discount to email total: ${monthlyTotal}`)
-            } else if (resolved.amountOff) {
-              const baseTotal = monthlyTotal
-              monthlyTotal = Math.max(0, monthlyTotal - resolved.amountOff)
-              discountPercent = baseTotal > 0 ? Math.round((resolved.amountOff / baseTotal) * 100) : 0
-              couponName = resolved.name
-              console.log(`[createBrandAction] Applied ${resolved.amountOff} amount discount to email total: ${monthlyTotal}`)
-            }
-          } catch (discountErr) {
-            console.error('[createBrandAction] Failed to fetch discount for email, using base price:', discountErr)
-          }
-        }
-
-        // Calculate GST for NZ groups
-        const isNz = groupData.country_code?.toUpperCase() === 'NZ'
-          || stripeCurrency.toLowerCase() === 'nzd'
-        const gstAmount = isNz ? Math.round(monthlyTotal * 0.15) : 0
-        const totalWithGst = monthlyTotal + gstAmount
-
-        // Get user email from auth.users table using the userId
-        const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
-        console.log(`[createBrandAction] User retrieved - email: ${user?.email}`)
-
-        if (user?.email) {
-          console.log(`[createBrandAction] Sending brand added email to ${user.email}`)
-          await sendBrandAdded({
-            to: user.email,
-            brandName: name,
-            newBrandCount: brandCount || 0,
-            newMonthlyTotal: totalWithGst,
-            currency: stripeCurrency,
-            discountPercent: discountPercent > 0 ? discountPercent : undefined,
-            couponName,
-            gstAmount: gstAmount > 0 ? gstAmount : undefined,
-          })
-          console.log(`[createBrandAction] Successfully sent brand added email`)
-        } else {
-          console.error('[createBrandAction] No email found for user:', userId)
-        }
-      } else {
-        console.error('[createBrandAction] No group data found for group:', groupId)
+      if (user?.email) {
+        await sendBrandAdded({
+          to: user.email,
+          brandName: name,
+          newBrandCount: pricing.brandCount,
+          newMonthlyTotal: pricing.totalWithGstCents,
+          currency: pricing.currency,
+          discountPercent: pricing.discountPercent > 0 ? pricing.discountPercent : undefined,
+          couponName: pricing.couponName,
+          gstAmount: pricing.gstAmountCents > 0 ? pricing.gstAmountCents : undefined,
+        })
+        console.log(`[createBrandAction] Sent brand added email to ${user.email}`)
       }
     } catch (emailError) {
       console.error('[createBrandAction] Failed to send brand added email:', emailError)
-      // Don't fail brand creation if email fails
     }
   }
 

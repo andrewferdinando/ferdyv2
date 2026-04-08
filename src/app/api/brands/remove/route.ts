@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { getStripe, STRIPE_CONFIG } from '@/lib/stripe'
-import { resolveSubscriptionCoupon } from '@/lib/stripe-helpers'
+import { getStripe } from '@/lib/stripe'
+import { calculateMonthlyPricing } from '@/lib/stripe-helpers'
 import { sendBrandDeleted } from '@/lib/emails/send'
 
 function extractToken(request: Request) {
@@ -224,55 +224,24 @@ export async function POST(request: NextRequest) {
 
     console.log('[remove-brand] Brand removed successfully')
 
-    // 10. Send email notification
+    // 10. Send email notification using canonical pricing calculator
     try {
-      const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id, {
-        expand: ['discounts.coupon', 'discount.coupon'],
-      }) as any
-      const periodEnd = subscription?.current_period_end
-        ? new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const pricing = await calculateMonthlyPricing(groupId)
+      const periodEnd = pricing.currentPeriodEnd
+        ? new Date(pricing.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-      const { data: groupData } = await supabaseAdmin
-        .from('groups')
-        .select('name, country_code')
-        .eq('id', groupId)
-        .single()
-
-      if (groupData) {
-        // Fetch base price from Stripe (source of truth for billing)
-        const stripePrice = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!.trim())
-        const unitPrice = stripePrice.unit_amount || STRIPE_CONFIG.pricePerBrand
-        const stripeCurrency = stripePrice.currency || STRIPE_CONFIG.currency
-
-        // Calculate monthly total with discount using shared coupon resolver
-        let monthlyTotal = newQuantity * unitPrice
-        const resolved = await resolveSubscriptionCoupon(subscription)
-        if (resolved.percentOff) {
-          monthlyTotal = Math.round(monthlyTotal * (1 - resolved.percentOff / 100))
-        } else if (resolved.amountOff) {
-          monthlyTotal = Math.max(0, monthlyTotal - resolved.amountOff)
-        }
-
-        // Add GST for NZ groups
-        const isNz = groupData.country_code?.toUpperCase() === 'NZ'
-          || stripeCurrency.toLowerCase() === 'nzd'
-        const gstAmount = isNz ? Math.round(monthlyTotal * 0.15) : 0
-        const totalWithGst = monthlyTotal + gstAmount
-
-        await sendBrandDeleted({
-          to: user.email!,
-          brandName: brand.name,
-          remainingBrandCount: newQuantity,
-          newMonthlyTotal: totalWithGst,
-          currency: stripeCurrency,
-          billingPeriodEnd: periodEnd,
-          gstAmount: gstAmount > 0 ? gstAmount : undefined,
-        })
-      }
+      await sendBrandDeleted({
+        to: user.email!,
+        brandName: brand.name,
+        remainingBrandCount: pricing.brandCount,
+        newMonthlyTotal: pricing.totalWithGstCents,
+        currency: pricing.currency,
+        billingPeriodEnd: periodEnd,
+        gstAmount: pricing.gstAmountCents > 0 ? pricing.gstAmountCents : undefined,
+      })
     } catch (emailError) {
       console.error('[remove-brand] Failed to send email:', emailError)
-      // Don't fail the request if email fails
     }
 
     return NextResponse.json({

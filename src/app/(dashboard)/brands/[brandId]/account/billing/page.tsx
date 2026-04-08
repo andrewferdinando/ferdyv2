@@ -6,7 +6,6 @@ import AppLayout from '@/components/layout/AppLayout'
 import RequireAuth from '@/components/auth/RequireAuth'
 import { supabase } from '@/lib/supabase-browser'
 import { useGroupRole } from '@/hooks/useGroupRole'
-import { STRIPE_CONFIG } from '@/lib/stripe'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/ToastProvider'
 
@@ -48,10 +47,20 @@ interface SubscriptionDetails {
   discounts?: string[]
 }
 
-interface ResolvedCoupon {
-  percentOff: number | null
-  amountOff: number | null
-  name: string | null
+interface MonthlyPricing {
+  unitPriceCents: number
+  brandCount: number
+  subtotalCents: number
+  discountPercent: number
+  discountAmountCents: number
+  couponName: string | null
+  discountedSubtotalCents: number
+  isNz: boolean
+  gstAmountCents: number
+  totalWithGstCents: number
+  currency: string
+  subscriptionStatus: string
+  currentPeriodEnd: number
 }
 
 interface Brand {
@@ -76,7 +85,7 @@ export default function BillingPage() {
   const [brandCount, setBrandCount] = useState(0)
   const [brands, setBrands] = useState<Brand[]>([])
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null)
-  const [resolvedCoupon, setResolvedCoupon] = useState<ResolvedCoupon | null>(null)
+  const [pricing, setPricing] = useState<MonthlyPricing | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
@@ -158,13 +167,19 @@ export default function BillingPage() {
       setBrands(brandsData || [])
       setBrandCount(brandsData?.length || 0)
 
-      // Get subscription details if exists
+      // Get subscription details and monthly pricing if subscription exists
       if (groupData.stripe_subscription_id) {
-        const response = await fetch(`/api/stripe/subscription-details?groupId=${groupData.id}`)
-        if (response.ok) {
-          const data = await response.json()
+        const [subResponse, pricingResponse] = await Promise.all([
+          fetch(`/api/stripe/subscription-details?groupId=${groupData.id}`),
+          fetch(`/api/stripe/monthly-pricing?groupId=${groupData.id}`),
+        ])
+        if (subResponse.ok) {
+          const data = await subResponse.json()
           setSubscription(data.subscription)
-          if (data.coupon) setResolvedCoupon(data.coupon)
+        }
+        if (pricingResponse.ok) {
+          const data = await pricingResponse.json()
+          setPricing(data)
         }
       }
 
@@ -329,40 +344,16 @@ export default function BillingPage() {
     )
   }
 
-  // Use Stripe subscription data to calculate the recurring monthly amount.
-  // Never derive the monthly total from the latest invoice — it may be a prorated mid-cycle charge.
-  const stripePrice = subscription?.items?.data?.[0]?.price
-  const stripeCurrency = stripePrice?.currency || group.currency || STRIPE_CONFIG.currency
-
-  // Get price per brand from Stripe subscription item or fallback
-  const pricePerBrand = stripePrice
-    ? stripePrice.unit_amount / 100
-    : (group.price_per_brand_cents || STRIPE_CONFIG.pricePerBrand) / 100
-
-  const subtotal = brandCount * pricePerBrand
-
-  // Use server-resolved coupon (resolved in getSubscriptionDetails via resolveSubscriptionCoupon)
-  let discountAmount = 0
-  let discountPercent = 0
-
-  if (resolvedCoupon?.percentOff) {
-    discountPercent = resolvedCoupon.percentOff
-    discountAmount = subtotal * (resolvedCoupon.percentOff / 100)
-  } else if (resolvedCoupon?.amountOff) {
-    discountAmount = resolvedCoupon.amountOff / 100
-    discountPercent = subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0
-  }
-
+  // All pricing comes from the server-side calculateMonthlyPricing() function
+  // via the /api/stripe/monthly-pricing endpoint — single source of truth.
+  const pricePerBrand = pricing ? pricing.unitPriceCents / 100 : 0
+  const discountAmount = pricing ? pricing.discountAmountCents / 100 : 0
+  const discountPercent = pricing?.discountPercent ?? 0
   const hasDiscount = discountAmount > 0
-  const discountedSubtotal = subtotal - discountAmount
-
-  // GST — for NZ accounts. Detect NZ from country_code or currency.
-  const isNz = group.country_code?.toUpperCase() === 'NZ'
-    || stripeCurrency?.toLowerCase() === 'nzd'
-
-  const gstAmount = isNz ? discountedSubtotal * 0.15 : 0
-  const totalWithGst = discountedSubtotal + gstAmount
-  const hasGst = isNz && gstAmount > 0
+  const gstAmount = pricing ? pricing.gstAmountCents / 100 : 0
+  const totalWithGst = pricing ? pricing.totalWithGstCents / 100 : 0
+  const hasGst = pricing?.isNz && pricing.gstAmountCents > 0
+  const stripeCurrency = pricing?.currency || group.currency || 'nzd'
 
   return (
     <RequireAuth>

@@ -58,6 +58,97 @@ export async function resolveSubscriptionCoupon(subscription: Stripe.Subscriptio
   }
 }
 
+/**
+ * Canonical monthly pricing calculation. Every surface that displays recurring
+ * pricing (billing page, add-brand modal, email notifications) must use this
+ * function so numbers are always consistent.
+ *
+ * All monetary values are returned in **cents** (integers).
+ */
+export interface MonthlyPricing {
+  unitPriceCents: number
+  brandCount: number
+  subtotalCents: number
+  discountPercent: number
+  discountAmountCents: number
+  couponName: string | null
+  discountedSubtotalCents: number
+  isNz: boolean
+  gstAmountCents: number
+  totalWithGstCents: number
+  currency: string
+  subscriptionStatus: string
+  currentPeriodEnd: number
+}
+
+export async function calculateMonthlyPricing(groupId: string): Promise<MonthlyPricing> {
+  // 1. Get group data (subscription ID + country for GST)
+  const { data: group, error: groupError } = await supabase
+    .from('groups')
+    .select('stripe_subscription_id, country_code')
+    .eq('id', groupId)
+    .single()
+
+  if (groupError || !group?.stripe_subscription_id) {
+    throw new Error('Group or subscription not found')
+  }
+
+  // 2. Fetch canonical unit price from Stripe
+  const stripePrice = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID!.trim())
+  const unitPriceCents = stripePrice.unit_amount || STRIPE_CONFIG.pricePerBrand
+  const currency = stripePrice.currency || STRIPE_CONFIG.currency
+
+  // 3. Fetch subscription with coupon expansion
+  const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id, {
+    expand: ['discounts.coupon', 'discount.coupon'],
+  })
+
+  // 4. Brand count from subscription quantity
+  const brandCount = subscription.items.data[0]?.quantity || 1
+
+  // 5. Calculate subtotal
+  const subtotalCents = unitPriceCents * brandCount
+
+  // 6. Resolve coupon
+  const resolved = await resolveSubscriptionCoupon(subscription)
+
+  let discountPercent = 0
+  let discountAmountCents = 0
+  let couponName: string | null = resolved.name
+
+  if (resolved.percentOff) {
+    discountPercent = resolved.percentOff
+    discountAmountCents = Math.round(subtotalCents * (resolved.percentOff / 100))
+  } else if (resolved.amountOff) {
+    discountAmountCents = resolved.amountOff
+    discountPercent = subtotalCents > 0 ? Math.round((resolved.amountOff / subtotalCents) * 100) : 0
+  }
+
+  // 7. Apply discount
+  const discountedSubtotalCents = subtotalCents - discountAmountCents
+
+  // 8. GST for NZ groups
+  const isNz = group.country_code?.toUpperCase() === 'NZ' || currency.toLowerCase() === 'nzd'
+  const gstAmountCents = isNz ? Math.round(discountedSubtotalCents * 0.15) : 0
+  const totalWithGstCents = discountedSubtotalCents + gstAmountCents
+
+  return {
+    unitPriceCents,
+    brandCount,
+    subtotalCents,
+    discountPercent,
+    discountAmountCents,
+    couponName,
+    discountedSubtotalCents,
+    isNz,
+    gstAmountCents,
+    totalWithGstCents,
+    currency,
+    subscriptionStatus: subscription.status,
+    currentPeriodEnd: (subscription as any).current_period_end || 0,
+  }
+}
+
 export interface CreateSubscriptionParams {
   groupId: string
   groupName: string
@@ -322,7 +413,7 @@ export async function getSubscriptionDetails(groupId: string) {
   try {
     const { data: group, error: groupError } = await supabase
       .from('groups')
-      .select('stripe_subscription_id, stripe_customer_id, price_per_brand_cents, currency')
+      .select('stripe_subscription_id, stripe_customer_id')
       .eq('id', groupId)
       .single()
 
@@ -336,15 +427,9 @@ export async function getSubscriptionDetails(groupId: string) {
 
     const customer = await stripe.customers.retrieve(group.stripe_customer_id!)
 
-    // Resolve coupon server-side so clients don't need to parse Stripe discount objects
-    const coupon = await resolveSubscriptionCoupon(subscription)
-
     return {
       subscription,
       customer,
-      pricePerBrand: group.price_per_brand_cents,
-      currency: group.currency,
-      coupon,
     }
   } catch (error: any) {
     console.error('Error getting subscription details:', error)
