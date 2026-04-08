@@ -325,7 +325,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             </div>
             <p className="text-base text-stone-600 leading-relaxed mb-3">
               Hi, I&apos;m Andrew. As a marketing advisor, I observed that 80% of social posts for
-              hospo venues are predictable and repeatable - so I built a system to automate the process.
+              hospo venues are predictable and repeatable - so I built an app to automate the process.
             </p>
             <p className="text-base text-stone-600 leading-relaxed">
               This is a free session where I&apos;ll show you exactly how it works.
@@ -458,25 +458,6 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             </div>
             <h3 className="text-lg font-bold text-stone-900 mb-2">{config.host.name}</h3>
             <p className="text-sm text-stone-600 leading-relaxed">{config.host.bio}</p>
-          </div>
-        </Section>
-
-        {/* ── Social proof ── */}
-        <Section>
-          <h2 className="text-2xl md:text-3xl font-bold text-stone-900 mb-10 text-center">
-            What venue owners are saying
-          </h2>
-          <div className="max-w-lg mx-auto">
-            <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm">
-              <svg className="w-8 h-8 text-[var(--primary)] opacity-30 mb-3" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
-              </svg>
-              <p className="text-stone-600 text-sm leading-relaxed mb-4 italic">
-                &quot;I was skeptical that a tool could capture our brand voice across 3 different venues. It does. Our social presence looks more professional than ever and my team spends about 15 mins per month on it total.&quot;
-              </p>
-              <p className="text-sm font-semibold text-stone-900">Jen, General Manager</p>
-              <p className="text-xs text-stone-500">Chain of indoor entertainment venues</p>
-            </div>
           </div>
         </Section>
 
