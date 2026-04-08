@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { sendBrandAdded } from '@/lib/emails/send'
 import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
+import { resolveSubscriptionCoupon } from '@/lib/stripe-helpers'
 
 const CreateBrandPayloadSchema = z.object({
   userId: z.string().uuid('User session is invalid. Please sign in again.'),
@@ -198,21 +199,20 @@ export async function createBrandAction(payload: CreateBrandPayload) {
           try {
             const sub = await stripe.subscriptions.retrieve(
               groupData.stripe_subscription_id,
-              { expand: ['discounts.coupon'] }
+              { expand: ['discounts.coupon', 'discount.coupon'] }
             )
-            const discount = sub.discounts?.[0]
-            const coupon = typeof discount === 'string' ? null : (discount as any)?.coupon
-            if (coupon?.percent_off) {
-              discountPercent = coupon.percent_off
-              couponName = coupon.name || coupon.id
-              monthlyTotal = Math.round(monthlyTotal * (1 - coupon.percent_off / 100))
-              console.log(`[createBrandAction] Applied ${coupon.percent_off}% discount to email total: ${monthlyTotal}`)
-            } else if (coupon?.amount_off) {
+            const resolved = resolveSubscriptionCoupon(sub)
+            if (resolved.percentOff) {
+              discountPercent = resolved.percentOff
+              couponName = resolved.name
+              monthlyTotal = Math.round(monthlyTotal * (1 - resolved.percentOff / 100))
+              console.log(`[createBrandAction] Applied ${resolved.percentOff}% discount to email total: ${monthlyTotal}`)
+            } else if (resolved.amountOff) {
               const baseTotal = monthlyTotal
-              monthlyTotal = Math.max(0, monthlyTotal - coupon.amount_off)
-              discountPercent = baseTotal > 0 ? Math.round((coupon.amount_off / baseTotal) * 100) : 0
-              couponName = coupon.name || coupon.id
-              console.log(`[createBrandAction] Applied ${coupon.amount_off} amount discount to email total: ${monthlyTotal}`)
+              monthlyTotal = Math.max(0, monthlyTotal - resolved.amountOff)
+              discountPercent = baseTotal > 0 ? Math.round((resolved.amountOff / baseTotal) * 100) : 0
+              couponName = resolved.name
+              console.log(`[createBrandAction] Applied ${resolved.amountOff} amount discount to email total: ${monthlyTotal}`)
             }
           } catch (discountErr) {
             console.error('[createBrandAction] Failed to fetch discount for email, using base price:', discountErr)

@@ -7,6 +7,44 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+/**
+ * Resolve the coupon from a Stripe subscription, handling both the newer
+ * `discounts` (plural) array and the legacy `discount` (singular) field.
+ * The subscription should be retrieved with expand: ['discounts.coupon', 'discount.coupon'].
+ */
+export function resolveSubscriptionCoupon(subscription: Stripe.Subscription): {
+  percentOff: number | null
+  amountOff: number | null
+  name: string | null
+} {
+  let coupon: any = null
+
+  // Try subscription.discounts (plural, newer Stripe API)
+  const discountsArray = subscription.discounts
+  if (discountsArray && discountsArray.length > 0) {
+    const first = discountsArray[0]
+    coupon = typeof first === 'string' ? null : (first as any)?.coupon
+  }
+
+  // Fall back to subscription.discount (singular, legacy API)
+  if (!coupon) {
+    const legacyDiscount = (subscription as any).discount
+    if (legacyDiscount && typeof legacyDiscount !== 'string') {
+      coupon = legacyDiscount.coupon
+    }
+  }
+
+  if (!coupon || typeof coupon === 'string') {
+    return { percentOff: null, amountOff: null, name: null }
+  }
+
+  return {
+    percentOff: coupon.percent_off ?? null,
+    amountOff: coupon.amount_off ?? null,
+    name: coupon.name || coupon.id || null,
+  }
+}
+
 export interface CreateSubscriptionParams {
   groupId: string
   groupName: string
@@ -280,7 +318,7 @@ export async function getSubscriptionDetails(groupId: string) {
     }
 
     const subscription = await stripe.subscriptions.retrieve(group.stripe_subscription_id, {
-      expand: ['latest_invoice', 'default_payment_method', 'discount.coupon'],
+      expand: ['latest_invoice', 'default_payment_method', 'discount.coupon', 'discounts.coupon'],
     })
 
     const customer = await stripe.customers.retrieve(group.stripe_customer_id!)

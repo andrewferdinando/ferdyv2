@@ -321,52 +321,53 @@ export default function BillingPage() {
     )
   }
 
-  // Use Stripe subscription/invoice data if available, otherwise fall back to database
+  // Use Stripe subscription data to calculate the recurring monthly amount.
+  // Never derive the monthly total from the latest invoice — it may be a prorated mid-cycle charge.
   const stripePrice = subscription?.items?.data?.[0]?.price
-  const latestInvoice = subscription?.latest_invoice
-  const stripeCurrency = latestInvoice?.currency || stripePrice?.currency || group.currency || STRIPE_CONFIG.currency
+  const stripeCurrency = stripePrice?.currency || group.currency || STRIPE_CONFIG.currency
 
-  // Get price per brand from Stripe or database
+  // Get price per brand from Stripe subscription item or fallback
   const pricePerBrand = stripePrice
     ? stripePrice.unit_amount / 100
     : (group.price_per_brand_cents || STRIPE_CONFIG.pricePerBrand) / 100
 
-  // Calculate discount from invoice data (most accurate)
-  const hasDiscount = (subscription?.discounts?.length ?? 0) > 0
-  const discountAmount = latestInvoice?.total_discount_amounts?.[0]?.amount
-    ? latestInvoice.total_discount_amounts[0].amount / 100
-    : 0
-
-  // Calculate totals - use invoice total if available (includes discount + tax)
   const subtotal = brandCount * pricePerBrand
+
+  // Resolve discount from subscription coupon (not from invoice which may be prorated)
+  let discountAmount = 0
+  let discountPercent = 0
+
+  // Try discounts (plural, newer Stripe API)
+  let couponObj: any = null
+  if (subscription?.discounts?.length) {
+    const first = subscription.discounts[0]
+    couponObj = typeof first === 'string' ? null : (first as any)?.coupon
+  }
+  // Fall back to discount (singular, legacy API)
+  if (!couponObj) {
+    const legacy = (subscription as any)?.discount
+    if (legacy && typeof legacy !== 'string') {
+      couponObj = legacy.coupon
+    }
+  }
+
+  if (couponObj?.percent_off) {
+    discountPercent = couponObj.percent_off
+    discountAmount = subtotal * (couponObj.percent_off / 100)
+  } else if (couponObj?.amount_off) {
+    discountAmount = couponObj.amount_off / 100
+    discountPercent = subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0
+  }
+
+  const hasDiscount = discountAmount > 0
   const discountedSubtotal = subtotal - discountAmount
 
   // GST — for NZ accounts. Detect NZ from country_code or currency.
   const isNz = group.country_code?.toUpperCase() === 'NZ'
     || stripeCurrency?.toLowerCase() === 'nzd'
 
-  // When Stripe invoice exists, its `total` already includes discount + tax — never add to it.
-  // Extract GST from Stripe tax field, or back-calculate from total vs discounted subtotal.
-  let totalWithGst: number
-  let gstAmount: number
-
-  if (latestInvoice) {
-    const stripeTotal = latestInvoice.total / 100
-    if (latestInvoice.tax != null && latestInvoice.tax > 0) {
-      gstAmount = isNz ? latestInvoice.tax / 100 : 0
-    } else if (isNz && stripeTotal > discountedSubtotal) {
-      // tax field is null but total > discounted subtotal → tax is the difference
-      gstAmount = stripeTotal - discountedSubtotal
-    } else {
-      gstAmount = 0
-    }
-    totalWithGst = stripeTotal
-  } else {
-    // No invoice data — calculate locally
-    gstAmount = isNz ? discountedSubtotal * 0.15 : 0
-    totalWithGst = discountedSubtotal + gstAmount
-  }
-
+  const gstAmount = isNz ? discountedSubtotal * 0.15 : 0
+  const totalWithGst = discountedSubtotal + gstAmount
   const hasGst = isNz && gstAmount > 0
 
   return (
