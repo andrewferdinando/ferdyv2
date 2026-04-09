@@ -32,7 +32,7 @@ export function WebinarFollowUp1({
 
       <Section style={offerBox}>
         <Text style={emailStyles.paragraph}>
-          The <strong>20% discount on your first 3 months</strong> is available
+          The <strong>20% discount on every month</strong> is available
           if you book before <strong>midday this Friday</strong>.
         </Text>
       </Section>

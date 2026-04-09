@@ -48,7 +48,7 @@ export function WebinarReplay({
       <Section style={offerBox}>
         <Text style={emailStyles.paragraph}>
           As a thank you for attending the training, I&apos;m offering{' '}
-          <strong>20% off your first 3 months</strong> if you book your
+          <strong>20% off every month</strong> if you book your
           onboarding session before <strong>midday this Friday (24 April AEST)</strong>.
         </Text>
       </Section>
