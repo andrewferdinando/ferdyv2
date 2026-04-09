@@ -423,7 +423,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--primary-light)] text-[var(--primary)] font-bold text-base mb-3">
                   {i + 1}
                 </span>
-                <p className="text-stone-900 font-semibold leading-snug">{item}</p>
+                <p className="text-stone-900 leading-snug">{item}</p>
               </div>
             ))}
           </div>
