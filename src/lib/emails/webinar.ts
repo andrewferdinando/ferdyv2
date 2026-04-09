@@ -3,6 +3,9 @@ import { Resend } from 'resend'
 import { WebinarConfirmation } from '@/emails/WebinarConfirmation'
 import { WebinarAdminNotification } from '@/emails/WebinarAdminNotification'
 import { WebinarReminder, reminderContent } from '@/emails/WebinarReminder'
+import { WebinarReplay } from '@/emails/WebinarReplay'
+import { WebinarFollowUp1 } from '@/emails/WebinarFollowUp1'
+import { WebinarFollowUp2 } from '@/emails/WebinarFollowUp2'
 import { buildGoogleCalendarUrl, buildIcsString, CalendarEventInput } from '@/lib/webinar-calendar'
 
 let resendInstance: Resend | null = null
@@ -167,12 +170,84 @@ export async function sendWebinarReminder(
   })
 }
 
-// --- Post-webinar follow-up (stubs - add implementations when ready) ---
-//
-// sendWebinarReplay(data)         - day 0
-// sendWebinarFollowUp1(data)      - day 1
-// sendWebinarFollowUp3(data)      - day 3
-// sendWebinarFollowUp5(data)      - day 5
-// sendWebinarFollowUp7(data)      - day 7
-//
-// Each should accept WebinarEmailData and use the same tagging pattern.
+// --- Post-webinar follow-up emails ---
+
+export interface WebinarFollowUpData {
+  to: string
+  firstName: string
+  webinarName: string
+  webinarSlug: string
+  recordingUrl: string
+  bookingUrl: string
+}
+
+export async function sendWebinarReplay(data: WebinarFollowUpData) {
+  const resend = getResend()
+
+  const html = await render(
+    WebinarReplay({
+      firstName: data.firstName,
+      webinarName: data.webinarName,
+      recordingUrl: data.recordingUrl,
+      bookingUrl: data.bookingUrl,
+    })
+  )
+
+  return resend.emails.send({
+    from: getFromEmail(),
+    to: data.to,
+    subject: "Here's the recording + a special offer",
+    html,
+    tags: [
+      { name: 'category', value: 'webinar' },
+      { name: 'webinar_slug', value: data.webinarSlug },
+      { name: 'email_type', value: 'followup_replay' },
+    ],
+  })
+}
+
+export async function sendWebinarFollowUp1(data: WebinarFollowUpData) {
+  const resend = getResend()
+
+  const html = await render(
+    WebinarFollowUp1({
+      firstName: data.firstName,
+      bookingUrl: data.bookingUrl,
+    })
+  )
+
+  return resend.emails.send({
+    from: getFromEmail(),
+    to: data.to,
+    subject: 'Quick reminder — your onboarding offer expires Friday',
+    html,
+    tags: [
+      { name: 'category', value: 'webinar' },
+      { name: 'webinar_slug', value: data.webinarSlug },
+      { name: 'email_type', value: 'followup_reminder1' },
+    ],
+  })
+}
+
+export async function sendWebinarFollowUp2(data: WebinarFollowUpData) {
+  const resend = getResend()
+
+  const html = await render(
+    WebinarFollowUp2({
+      firstName: data.firstName,
+      bookingUrl: data.bookingUrl,
+    })
+  )
+
+  return resend.emails.send({
+    from: getFromEmail(),
+    to: data.to,
+    subject: 'Last chance — 20% off expires at midday today',
+    html,
+    tags: [
+      { name: 'category', value: 'webinar' },
+      { name: 'webinar_slug', value: data.webinarSlug },
+      { name: 'email_type', value: 'followup_reminder2' },
+    ],
+  })
+}

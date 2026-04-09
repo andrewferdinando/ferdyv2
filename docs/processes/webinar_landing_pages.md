@@ -45,11 +45,16 @@ Draft → Active → Completed
 | `src/app/webinar/[slug]/actions.ts` | Server Action — form validation, Supabase insert, confirmation email |
 | `src/app/(dashboard)/super-admin/webinars/page.tsx` | Super Admin management page |
 | `src/app/api/super-admin/webinars/route.ts` | API route — GET/POST/PATCH for webinar CRUD |
-| `src/app/api/emails/webinar-reminders/route.ts` | Hourly cron — sends 2-day, 1-day, 1-hour reminders |
-| `src/lib/emails/webinar.ts` | Resend email helpers (confirmation + reminders) |
+| `src/app/api/emails/webinar-reminders/route.ts` | Hourly cron — sends 2-day, 1-day, 1-hour pre-event reminders |
+| `src/app/api/emails/webinar-follow-ups/route.ts` | Hourly cron — sends post-event replay + follow-up emails |
+| `src/lib/emails/webinar.ts` | Resend email helpers (confirmation, admin notification, reminders, follow-ups) |
 | `src/lib/webinar-calendar.ts` | Shared calendar utilities (Google Calendar URL + ICS file) |
 | `src/emails/WebinarConfirmation.tsx` | React Email template — registration confirmation |
+| `src/emails/WebinarAdminNotification.tsx` | React Email template — admin notification on registration |
 | `src/emails/WebinarReminder.tsx` | React Email template — 2-day, 1-day, 1-hour reminders |
+| `src/emails/WebinarReplay.tsx` | React Email template — recording + onboarding offer |
+| `src/emails/WebinarFollowUp1.tsx` | React Email template — onboarding reminder |
+| `src/emails/WebinarFollowUp2.tsx` | React Email template — final deadline reminder |
 
 ### Data flow
 
@@ -60,9 +65,13 @@ Landing page [slug]/page.tsx ← fetches active webinar from DB
                                     ↓
 User registers → actions.ts → webinar_registrations table
                                     ↓
-                              sendWebinarConfirmation() (fire-and-forget)
+                              sendWebinarConfirmation() + sendWebinarAdminNotification()
                                     ↓
-Hourly cron checks reminder windows → sendWebinarReminder() per registrant
+Pre-event cron (hourly) → sendWebinarReminder() per registrant
+                                    ↓
+                            [webinar happens]
+                                    ↓
+Post-event cron (hourly) → sendWebinarReplay() / sendWebinarFollowUp1() / sendWebinarFollowUp2()
 ```
 
 ### Page sections (in order)
@@ -72,9 +81,8 @@ Hourly cron checks reminder windows → sendWebinarReminder() per registrant
 3. **What you'll learn** — Numbered list from DB
 4. **Who it's for** — Short paragraph
 5. **About the host** — From DB
-6. **Social proof** — Testimonial (edit in WebinarPage.tsx)
-7. **Registration form** — First name + email, hidden config fields
-8. **FAQ** — Common questions (edit in WebinarPage.tsx)
+6. **Registration form** — First name + email, hidden config fields
+7. **FAQ** — Common questions (edit in WebinarPage.tsx)
 
 ### Registration flow
 
@@ -99,27 +107,53 @@ Calendar logic is shared between the landing page and emails via `src/lib/webina
 
 ### Email templates
 
+#### Pre-webinar
+
 | Template | File | Sent when | Primary CTA |
 |----------|------|-----------|-------------|
 | Confirmation | `WebinarConfirmation.tsx` | Immediately on registration | Add to Google Calendar + .ics attachment |
+| Admin notification | `WebinarAdminNotification.tsx` | Immediately on registration (to andrew@ferdy.io) | — |
 | 2-day reminder | `WebinarReminder.tsx` | 2 days before event | Add to Google Calendar + .ics attachment |
 | 1-day reminder | `WebinarReminder.tsx` | 1 day before event | Join link (Zoom) |
 | 1-hour reminder | `WebinarReminder.tsx` | 1 hour before event | Join link (Zoom) |
 
 The confirmation and 2-day reminder include a `.ics` file attachment. The 1-day and 1-hour reminders show the Zoom join link as the primary CTA.
 
-### Reminder cron
+#### Post-webinar
+
+| Template | File | Sent when | Primary CTA |
+|----------|------|-----------|-------------|
+| Replay + offer | `WebinarReplay.tsx` | 30 mins after end (only if `recording_url` is set) | Watch recording + Book onboarding session |
+| Onboarding reminder | `WebinarFollowUp1.tsx` | ~24 hours after end | Book your session |
+| Final deadline | `WebinarFollowUp2.tsx` | ~47 hours after end (Fri 9am for a Tues webinar) | Book before midday |
+
+Post-webinar emails promote a free onboarding session with a time-limited discount (20% off first 3 months). The replay email won't send until you add the `recording_url` to the webinar in the DB.
+
+### Pre-webinar reminder cron
 
 - **Route**: `/api/emails/webinar-reminders`
 - **Schedule**: Hourly via Vercel Cron (`0 * * * *` in `vercel.json`)
 - **Logic**: Fetches active webinars with future datetimes, checks if each reminder window has been reached but not yet sent
 - **Idempotency**: `reminder_2day_sent_at`, `reminder_1day_sent_at`, `reminder_1hour_sent_at` columns on the `webinars` table prevent double-sends
 
+### Post-webinar follow-up cron
+
+- **Route**: `/api/emails/webinar-follow-ups`
+- **Schedule**: Hourly via Vercel Cron (`0 * * * *` in `vercel.json`)
+- **Logic**: Fetches active webinars with past datetimes, checks if each follow-up window has been reached but not yet sent
+- **Replay guard**: The replay email will NOT send until `recording_url` is set in the DB. After the webinar, update it via Supabase or Super Admin and the next cron run will trigger the email.
+- **Booking URL**: Must be set in the `booking_url` column. All 3 follow-up emails use it as the CTA link.
+- **Idempotency**: `followup_replay_sent_at`, `followup_reminder1_sent_at`, `followup_reminder2_sent_at` columns prevent double-sends
+
 ### Email functions
 
 In `src/lib/emails/webinar.ts`:
 - `sendWebinarConfirmation(data)` — sent on registration
-- `sendWebinarReminder(data, '2day' | '1day' | '1hour')` — sent by cron
+- `sendWebinarAdminNotification(data)` — sent to andrew@ferdy.io on registration
+- `sendWebinarReminder(data, '2day' | '1day' | '1hour')` — sent by pre-webinar cron
+- `sendWebinarReplay(data)` — recording + onboarding offer, sent by follow-up cron
+- `sendWebinarFollowUp1(data)` — onboarding reminder, sent by follow-up cron
+- `sendWebinarFollowUp2(data)` — final deadline reminder, sent by follow-up cron
 
 ## Database
 
@@ -142,9 +176,14 @@ In `src/lib/emails/webinar.ts`:
 | status | text | draft / active / completed / cancelled |
 | attendance_count | int | Manually entered post-event |
 | onboarding_booked_count | int | Manually entered post-event |
+| recording_url | text | Set after webinar — triggers replay email |
+| booking_url | text | Google Calendar booking link for onboarding |
 | reminder_2day_sent_at | timestamptz | Idempotency guard |
 | reminder_1day_sent_at | timestamptz | Idempotency guard |
 | reminder_1hour_sent_at | timestamptz | Idempotency guard |
+| followup_replay_sent_at | timestamptz | Idempotency guard |
+| followup_reminder1_sent_at | timestamptz | Idempotency guard |
+| followup_reminder2_sent_at | timestamptz | Idempotency guard |
 | created_at, updated_at | timestamptz | Timestamps |
 
 **RLS**: Anon can SELECT where `status = 'active'`. Service_role has full access.
@@ -199,12 +238,17 @@ The webinars page at `/super-admin/webinars` shows:
 
 ## Updating static content
 
-- **Testimonials**: Edit the testimonials array in `WebinarPage.tsx` (Social proof section)
 - **FAQ**: Edit the FAQ array in `WebinarPage.tsx`
 - **Pain points / "Who it's for"**: Edit directly in `WebinarPage.tsx` — currently hospo-specific
 
+## Post-webinar checklist
+
+After the webinar ends:
+1. **Add recording URL**: Update `recording_url` in the `webinars` table via Supabase. The replay email will auto-send on the next hourly cron run.
+2. **Verify booking URL**: Ensure `booking_url` is set (Google Calendar booking link for onboarding sessions).
+3. The follow-up cron handles the rest — reminder emails send automatically at the scheduled windows.
+4. After the follow-up sequence completes, mark the webinar as **Completed** in Super Admin.
+
 ## Future enhancements
 
-- Post-webinar replay email (template stub exists in `src/lib/emails/webinar.ts`)
-- Follow-up email sequences (day 1/3/5/7 stubs exist)
-- Making hardcoded landing page copy (pain points, FAQ, testimonials) configurable per webinar via DB
+- Making hardcoded landing page copy (pain points, FAQ) configurable per webinar via DB

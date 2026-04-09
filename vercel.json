@@ -25,6 +25,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/emails/webinar-follow-ups",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/newsletter/sync",
       "schedule": "0 6 * * *"
     }
