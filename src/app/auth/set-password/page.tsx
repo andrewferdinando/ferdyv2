@@ -70,6 +70,19 @@ export default function SetPasswordPage() {
       }
 
       if (!access || !refresh) {
+        // Supabase's detectSessionInUrl may have already consumed the hash and
+        // established a session before this React effect ran. Check for an
+        // existing session as a fallback before treating the link as invalid.
+        const { data: existingSession } = await supabase.auth.getSession()
+        if (existingSession?.session?.access_token) {
+          console.log('[SetPasswordPage] Hash already consumed by Supabase, using existing session')
+          setBrandId(pendingBrandId)
+          setEmail(existingSession.session.user?.email ?? emailFromHash)
+          setAccessToken(existingSession.session.access_token)
+          setIsPreparing(false)
+          return
+        }
+
         setError('This invite link is invalid or has expired. Please request a new invitation.')
         setIsPreparing(false)
         return
@@ -100,9 +113,17 @@ export default function SetPasswordPage() {
   const handleSubmit = async (event: React.FormEvent<Element>) => {
     event.preventDefault()
 
-    if (!accessToken) {
-      setError('Missing access token for this invite. Please use the link from your email again.')
-      return
+    let token = accessToken
+    if (!token) {
+      // Last-resort: try to recover from Supabase session in case state was lost
+      const { data: fallback } = await supabase.auth.getSession()
+      if (fallback?.session?.access_token) {
+        token = fallback.session.access_token
+        setAccessToken(token)
+      } else {
+        setError('Missing access token for this invite. Please use the link from your email again.')
+        return
+      }
     }
 
     if (password.trim().length < 8) {
@@ -132,7 +153,7 @@ export default function SetPasswordPage() {
 
       // Get fresh session token — updateUser may rotate the access token
       const { data: sessionData } = await supabase.auth.getSession()
-      const freshToken = sessionData?.session?.access_token || accessToken
+      const freshToken = sessionData?.session?.access_token || token
 
       console.log('[SetPasswordPage] About to finalize, isGroupInvite:', isGroupInvite, 'tokenRefreshed:', freshToken !== accessToken)
 
