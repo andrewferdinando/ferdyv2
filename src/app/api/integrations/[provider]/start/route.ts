@@ -128,6 +128,7 @@ export async function POST(
         .select('brand_id, brands!inner(name)')
         .in('provider', ['facebook', 'instagram'])
         .eq('status', 'connected')
+        .eq('connected_by_user_id', userData.user.id)
         .neq('brand_id', brandId)
 
       if (otherAccounts && otherAccounts.length > 0) {
