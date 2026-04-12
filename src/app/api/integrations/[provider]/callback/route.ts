@@ -3,8 +3,9 @@ import { supabaseAdmin, requireAdmin } from '@/lib/supabase-server'
 import { handleOAuthCallback } from '@/lib/integrations'
 import type { SupportedProvider } from '@/lib/integrations/types'
 import { encryptToken } from '@/lib/encryption'
-import { verifyOAuthState } from '@/lib/oauthState'
+import { verifyOAuthState, type OAuthStatePayload } from '@/lib/oauthState'
 import { updateBrandPostInformationFromSocialAccount } from '@/server/brandPostInformation/updateBrandPostInformationFromSocialAccount'
+import { refreshCrossBrandTokens } from '@/lib/integrations/crossBrandRefresh'
 
 export const runtime = 'nodejs'
 
@@ -92,25 +93,44 @@ export async function GET(
       url: request.url,
     })
 
+    // Try to extract brandId from state so we redirect back to the correct brand page
+    let errorBrandId = ''
+    if (stateParam) {
+      try {
+        const state = verifyOAuthState(stateParam)
+        errorBrandId = state.brandId
+      } catch {
+        // State may be expired or invalid on error flows — that's OK, fall through
+      }
+    }
+
     let message = errorDescription || 'OAuth flow was cancelled.'
     let reason = errorParam || 'general_failure'
 
     if (provider === 'linkedin' && errorParam === 'unauthorized_scope_error') {
       message =
-        'We couldn’t complete the LinkedIn connection. Please reconnect your LinkedIn profile and try again.'
+        "We couldn't complete the LinkedIn connection. Please reconnect your LinkedIn profile and try again."
       reason = 'linkedin_scope_denied'
     }
 
-    const errorRedirect = getRedirectUrl(requestOrigin, '', {
-      connect_error: 'linkedin_auth_failed',
+    const errorRedirect = getRedirectUrl(requestOrigin, errorBrandId, {
+      connect_error: reason,
       connect_error_description: message.substring(0, 500),
-      reason,
     })
     return NextResponse.redirect(errorRedirect)
   }
 
   if (!code || !stateParam) {
-    const redirect = getRedirectUrl(requestOrigin, '', {
+    let missingBrandId = ''
+    if (stateParam) {
+      try {
+        const state = verifyOAuthState(stateParam)
+        missingBrandId = state.brandId
+      } catch {
+        // Ignore — state may be expired
+      }
+    }
+    const redirect = getRedirectUrl(requestOrigin, missingBrandId, {
       connect_error: 'missing_parameters',
       connect_error_description: 'Missing OAuth parameters.',
     })
@@ -216,11 +236,53 @@ export async function GET(
       })
     }
 
-    const { accounts } = await handleOAuthCallback(stateProvider, { code, redirectUri: callbackRedirect }, debugLogger)
+    const result = await handleOAuthCallback(stateProvider, { code, redirectUri: callbackRedirect }, debugLogger)
+    const { accounts, allPages, facebookUserId } = result
     if (!accounts.length) {
       throw new Error('No accounts were returned by the provider.')
     }
 
+    // For Facebook with multiple pages: store pending connection and show page selection UI
+    if (normalizedProvider === 'facebook' && allPages && allPages.length > 1) {
+      console.log('[OAuth callback:multi_page]', {
+        brandId: state.brandId,
+        pageCount: allPages.length,
+        pageNames: allPages.map(p => p.name),
+      })
+
+      // Store all pages (encrypted) in pending_oauth_connections for page selection
+      const pagesEncrypted = encryptToken(JSON.stringify(allPages))
+
+      // Clean up expired pending records
+      await supabaseAdmin
+        .from('pending_oauth_connections')
+        .delete()
+        .lt('expires_at', new Date().toISOString())
+
+      const { data: pending, error: pendingError } = await supabaseAdmin
+        .from('pending_oauth_connections')
+        .insert({
+          brand_id: state.brandId,
+          user_id: state.userId,
+          provider: 'facebook',
+          pages_encrypted: pagesEncrypted,
+          facebook_user_id: facebookUserId,
+        })
+        .select('id')
+        .single()
+
+      if (pendingError) {
+        throw new Error(`Failed to store pending connection: ${pendingError.message}`)
+      }
+
+      const selectRedirect = getRedirectUrl(originForRedirect, state.brandId, {
+        pending_id: pending.id,
+      })
+      console.log('OAuth callback redirect (page selection) ->', selectRedirect.toString())
+      return NextResponse.redirect(selectRedirect)
+    }
+
+    // Single page or non-Facebook: save directly (existing behavior)
     const targetProviders = Array.from(new Set(accounts.map((account) => account.provider)))
     console.log('[OAuth callback:accounts]', {
       provider: stateProvider,
@@ -284,6 +346,18 @@ export async function GET(
             error: postInfoError instanceof Error ? postInfoError.message : postInfoError,
           })
         }
+      }
+    }
+
+    // Refresh tokens for other brands that share the same Facebook pages
+    if (allPages && allPages.length > 0) {
+      try {
+        await refreshCrossBrandTokens(allPages, state.brandId)
+      } catch (refreshError) {
+        console.error('[OAuth callback:cross_brand_refresh]', {
+          brandId: state.brandId,
+          error: refreshError instanceof Error ? refreshError.message : refreshError,
+        })
       }
     }
 

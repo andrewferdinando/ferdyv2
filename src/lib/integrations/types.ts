@@ -24,8 +24,19 @@ export type OAuthCallbackArgs = {
   redirectUri?: string
 }
 
+export type FacebookPageData = {
+  id: string
+  name: string
+  access_token: string
+  instagram_business_account?: { id: string }
+  picture?: { data?: { url?: string } }
+  category?: string
+}
+
 export type OAuthCallbackResult = {
   accounts: ConnectedAccount[]
+  allPages?: FacebookPageData[]
+  facebookUserId?: string | null
 }
 
 export type OAuthLogger = (event: string, payload: Record<string, unknown>) => void

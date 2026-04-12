@@ -6,6 +6,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
 import { supabase } from '@/lib/supabase-browser'
+import FacebookPageSelectModal from '@/components/integrations/FacebookPageSelectModal'
 
 // Social Media Platform Icons
 const FacebookIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
@@ -120,6 +121,7 @@ export default function IntegrationsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [enrichedProfiles, setEnrichedProfiles] = useState<Record<string, { profilePictureUrl: string | null; accountType: string | null }>>({})
+  const [pendingId, setPendingId] = useState<string | null>(null)
 
   // Fetch profile data (picture + account type) for connected accounts missing it in metadata
   const enrichProfiles = useCallback(async () => {
@@ -194,6 +196,15 @@ export default function IntegrationsPage() {
         url.searchParams.delete('connected')
         window.history.replaceState({}, '', url.toString())
       }
+    }
+
+    // Handle pending page selection from multi-page OAuth flow
+    const pendingParam = searchParams.get('pending_id')
+    if (pendingParam) {
+      setPendingId(pendingParam)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('pending_id')
+      window.history.replaceState({}, '', url.toString())
     }
   }, [searchParams, refetch])
 
@@ -556,6 +567,19 @@ export default function IntegrationsPage() {
           </div>
         </div>
       </div>
+
+      <FacebookPageSelectModal
+        isOpen={!!pendingId}
+        onClose={() => setPendingId(null)}
+        pendingId={pendingId ?? ''}
+        brandId={brandId}
+        onConnected={(providers) => {
+          setPendingId(null)
+          const names = providers.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' and ')
+          setSuccessMessage(`Successfully connected ${names}!`)
+          refetch()
+        }}
+      />
     </AppLayout>
   )
 }

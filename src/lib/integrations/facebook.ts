@@ -408,7 +408,7 @@ async function fetchFacebookPages(userAccessToken: string, logger?: OAuthLogger)
   return result
 }
 
-async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
+export async function fetchInstagramAccount(instagramId: string, pageAccessToken: string, logger?: OAuthLogger) {
   const igUrl = new URL(`https://graph.facebook.com/v21.0/${instagramId}`)
   igUrl.searchParams.set('fields', 'id,username,name,profile_picture_url,biography,followers_count,follows_count,media_count,website')
   igUrl.searchParams.set('access_token', pageAccessToken)
@@ -582,7 +582,19 @@ export async function handleFacebookCallback({
     }
   }
 
-  return { accounts }
+  // Return all pages data for page selection UI and cross-brand token refresh
+  const allPages = pages.map(p => ({
+    id: p.id,
+    name: p.name,
+    access_token: p.access_token,
+    instagram_business_account: p.instagram_business_account,
+    picture: p.picture,
+    category: p.category,
+  }))
+
+  const facebookUserId = pagesResponse._debug?.userId ?? null
+
+  return { accounts, allPages, facebookUserId }
 }
 
 export async function revokeFacebookAccess(pageId: string, pageAccessToken: string) {
