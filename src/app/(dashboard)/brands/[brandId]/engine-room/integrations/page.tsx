@@ -123,7 +123,7 @@ export default function IntegrationsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [enrichedProfiles, setEnrichedProfiles] = useState<Record<string, { profilePictureUrl: string | null; accountType: string | null }>>({})
   const [pendingId, setPendingId] = useState<string | null>(null)
-  const [connectWarning, setConnectWarning] = useState<{ url: string; otherBrands: string[] } | null>(null)
+  const [connectWarning, setConnectWarning] = useState<{ url: string } | null>(null)
 
   // Fetch profile data (picture + account type) for connected accounts missing it in metadata
   const enrichProfiles = useCallback(async () => {
@@ -250,9 +250,9 @@ export default function IntegrationsPage() {
         throw new Error('Provider did not return an authorization URL.')
       }
 
-      // If other brands have connected Facebook accounts, show warning first
-      if (data.otherConnectedBrands && data.otherConnectedBrands.length > 0) {
-        setConnectWarning({ url: data.url, otherBrands: data.otherConnectedBrands })
+      // Show info modal before redirecting to Facebook OAuth
+      if (providerId === 'facebook' || providerId === 'instagram') {
+        setConnectWarning({ url: data.url })
         setActionProvider(null)
         return
       }
@@ -577,28 +577,20 @@ export default function IntegrationsPage() {
         </div>
       </div>
 
-      {/* Warning modal when other brands have connected Facebook accounts */}
+      {/* Info modal before Facebook OAuth */}
       <Modal
         isOpen={!!connectWarning}
         onClose={() => setConnectWarning(null)}
-        title="Other brands are connected to Facebook"
+        title="Connecting to Facebook"
         maxWidth="md"
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-700">
-            The following brands also have Facebook connections that use the same login:
+            You'll be redirected to Facebook to log in and select the Page you want to connect to this brand.
           </p>
-          <ul className="space-y-1">
-            {connectWarning?.otherBrands.map((name) => (
-              <li key={name} className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                {name}
-              </li>
-            ))}
-          </ul>
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
             <p className="text-sm text-amber-800">
-              <span className="font-semibold">Important:</span> When Facebook asks you to select pages, make sure you keep <span className="font-semibold">all your existing pages selected</span> as well as the new one. Deselecting a page will disconnect it from its brand.
+              <span className="font-semibold">Manage multiple brands?</span> When Facebook asks you to select pages, make sure you keep <span className="font-semibold">all your pages selected</span> — not just the one for this brand. Deselecting a page may disconnect it from another brand.
             </p>
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">

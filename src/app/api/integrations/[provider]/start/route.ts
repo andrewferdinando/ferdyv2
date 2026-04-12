@@ -120,43 +120,6 @@ export async function POST(
     const normalizedProvider = provider === 'instagram' ? 'facebook' : provider
     const redirectUri = `${origin}/api/integrations/${normalizedProvider}/callback`
 
-    // Check if other brands the user has admin access to have connected Facebook/Instagram accounts.
-    // We check by brand membership rather than connected_by_user_id because the same Facebook
-    // account may have been used from a different Ferdy profile.
-    let otherConnectedBrands: string[] = []
-    if (normalizedProvider === 'facebook') {
-      // Get all brands the current user is an admin of
-      const { data: userBrands } = await supabaseAdmin
-        .from('brand_memberships')
-        .select('brand_id')
-        .eq('user_id', userData.user.id)
-        .in('role', ['admin', 'editor'])
-
-      if (userBrands && userBrands.length > 0) {
-        const otherBrandIds = userBrands
-          .map(b => b.brand_id)
-          .filter(id => id !== brandId)
-
-        if (otherBrandIds.length > 0) {
-          const { data: otherAccounts } = await supabaseAdmin
-            .from('social_accounts')
-            .select('brand_id, brands!inner(name)')
-            .in('provider', ['facebook', 'instagram'])
-            .eq('status', 'connected')
-            .in('brand_id', otherBrandIds)
-
-          if (otherAccounts && otherAccounts.length > 0) {
-            const brandNames = new Set<string>()
-            for (const acc of otherAccounts) {
-              const brand = acc.brands as unknown as { name: string }
-              if (brand?.name) brandNames.add(brand.name)
-            }
-            otherConnectedBrands = Array.from(brandNames)
-          }
-        }
-      }
-    }
-
     const state = createOAuthState({
       brandId,
       userId: userData.user.id,
@@ -168,7 +131,7 @@ export async function POST(
 
     const { url } = getAuthorizationUrl(provider, { state, redirectUri })
 
-    return NextResponse.json({ url, otherConnectedBrands })
+    return NextResponse.json({ url })
   } catch (error) {
     console.error('Integration start error:', error)
     return NextResponse.json(
