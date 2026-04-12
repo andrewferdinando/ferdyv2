@@ -120,6 +120,26 @@ export async function POST(
     const normalizedProvider = provider === 'instagram' ? 'facebook' : provider
     const redirectUri = `${origin}/api/integrations/${normalizedProvider}/callback`
 
+    // Check if other brands the user has access to have connected Facebook/Instagram accounts
+    let otherConnectedBrands: string[] = []
+    if (normalizedProvider === 'facebook') {
+      const { data: otherAccounts } = await supabaseAdmin
+        .from('social_accounts')
+        .select('brand_id, brands!inner(name)')
+        .in('provider', ['facebook', 'instagram'])
+        .eq('status', 'connected')
+        .neq('brand_id', brandId)
+
+      if (otherAccounts && otherAccounts.length > 0) {
+        const brandNames = new Set<string>()
+        for (const acc of otherAccounts) {
+          const brand = acc.brands as unknown as { name: string }
+          if (brand?.name) brandNames.add(brand.name)
+        }
+        otherConnectedBrands = Array.from(brandNames)
+      }
+    }
+
     const state = createOAuthState({
       brandId,
       userId: userData.user.id,
@@ -131,7 +151,7 @@ export async function POST(
 
     const { url } = getAuthorizationUrl(provider, { state, redirectUri })
 
-    return NextResponse.json({ url })
+    return NextResponse.json({ url, otherConnectedBrands })
   } catch (error) {
     console.error('Integration start error:', error)
     return NextResponse.json(

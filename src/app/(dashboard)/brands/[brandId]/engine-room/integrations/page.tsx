@@ -7,6 +7,7 @@ import { useSocialAccounts } from '@/hooks/useSocialAccounts'
 import { useUserRole } from '@/hooks/useUserRole'
 import { supabase } from '@/lib/supabase-browser'
 import FacebookPageSelectModal from '@/components/integrations/FacebookPageSelectModal'
+import Modal from '@/components/ui/Modal'
 
 // Social Media Platform Icons
 const FacebookIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
@@ -122,6 +123,7 @@ export default function IntegrationsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [enrichedProfiles, setEnrichedProfiles] = useState<Record<string, { profilePictureUrl: string | null; accountType: string | null }>>({})
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [connectWarning, setConnectWarning] = useState<{ url: string; otherBrands: string[] } | null>(null)
 
   // Fetch profile data (picture + account type) for connected accounts missing it in metadata
   const enrichProfiles = useCallback(async () => {
@@ -246,6 +248,13 @@ export default function IntegrationsPage() {
       const data = await response.json()
       if (!data?.url) {
         throw new Error('Provider did not return an authorization URL.')
+      }
+
+      // If other brands have connected Facebook accounts, show warning first
+      if (data.otherConnectedBrands && data.otherConnectedBrands.length > 0) {
+        setConnectWarning({ url: data.url, otherBrands: data.otherConnectedBrands })
+        setActionProvider(null)
+        return
       }
 
       window.location.href = data.url as string
@@ -567,6 +576,53 @@ export default function IntegrationsPage() {
           </div>
         </div>
       </div>
+
+      {/* Warning modal when other brands have connected Facebook accounts */}
+      <Modal
+        isOpen={!!connectWarning}
+        onClose={() => setConnectWarning(null)}
+        title="Other brands are connected to Facebook"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            The following brands also have Facebook connections that use the same login:
+          </p>
+          <ul className="space-y-1">
+            {connectWarning?.otherBrands.map((name) => (
+              <li key={name} className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                {name}
+              </li>
+            ))}
+          </ul>
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">Important:</span> When Facebook asks you to select pages, make sure you keep <span className="font-semibold">all your existing pages selected</span> as well as the new one. Deselecting a page will disconnect it from its brand.
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setConnectWarning(null)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (connectWarning?.url) {
+                  window.location.href = connectWarning.url
+                }
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Continue to Facebook
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <FacebookPageSelectModal
         isOpen={!!pendingId}
