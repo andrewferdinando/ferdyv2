@@ -317,7 +317,10 @@ export async function GET(
             status: 'connected',
             connected_by_user_id: state.userId,
             last_refreshed_at: nowIso,
-            metadata: account.metadata ?? null,
+            metadata: {
+              ...(account.metadata ?? {}),
+              ...(facebookUserId ? { facebookUserId } : {}),
+            },
           },
           {
             onConflict: 'brand_id,provider',
