@@ -18,6 +18,8 @@ It covers:
 - **✅ IMPLEMENTED:** Automatic token refresh system
 - **✅ IMPLEMENTED:** Disconnection detection and email alerts
 - **✅ IMPLEMENTED:** Proactive token health monitoring (cron job, warning emails, UI status)
+- **✅ IMPLEMENTED:** Multi-page selection modal for Facebook OAuth (April 2026)
+- **✅ IMPLEMENTED:** Cross-brand token refresh to prevent re-auth disconnections (April 2026)
 
 ---
 
@@ -125,6 +127,8 @@ Note: For LinkedIn Profiles there is usually only a single option, so selection 
 5.1 Facebook Pages
 User clicks “Connect Facebook” for a given brand.
 
+An **info modal** is shown reminding multi-brand users to keep all their pages selected during Facebook login (to prevent re-auth from invalidating other brands' tokens).
+
 Ferdy redirects to Facebook/Meta OAuth (v21.0, `auth_type=reauthenticate`).
 
 User chooses which Facebook Pages to grant access to.
@@ -133,7 +137,7 @@ After OAuth completes, Ferdy:
 
 1. Exchanges the auth code for an access token, then exchanges for a long-lived token (60 days).
 
-2. Fetches the list of Pages via `me/accounts`.
+2. Fetches the list of ALL Pages via `me/accounts`.
 
 3. **If `me/accounts` returns empty** (common with Facebook Login for Business), Ferdy falls back to:
    - Calling the `debug_token` API to inspect `granular_scopes`
@@ -141,9 +145,13 @@ After OAuth completes, Ferdy:
    - Fetching each page directly via `/{page-id}?fields=...`
    - This recovers the page data and access tokens that `me/accounts` fails to return
 
-4. Shows the list in the UI.
+4. **If multiple pages returned:** Stores all pages (encrypted) in `pending_oauth_connections` table (10-min TTL), redirects to integrations page → **page selection modal** is shown.
 
-5. User selects which Page to connect to this brand.
+5. **If single page returned:** Auto-connects directly without modal.
+
+6. User selects which Page to connect to this brand (multi-page flow).
+
+7. **Cross-brand token refresh:** Updates tokens for any other brands that have `social_accounts` matching page IDs from this OAuth response. This prevents re-authentication from invalidating existing connections.
 
 Ferdy stores:
 
@@ -161,9 +169,9 @@ token_expires_at (if provided)
 
 scopes
 
-metadata (platform-specific IDs as needed)
+metadata (platform-specific IDs as needed, including `facebookUserId`)
 
-If a brand connects multiple Facebook Pages, each Page is a separate row in social_accounts.
+Each brand connects to one Facebook Page (unique constraint on `brand_id, provider`).
 
 5.2 Instagram Business Accounts
 Instagram is connected via Meta (Facebook) Business integration.
@@ -599,6 +607,48 @@ Approve them.
 
 Auto-publish via scheduled jobs.
 
+## ✅ Multi-Page Selection & Cross-Brand Token Refresh (IMPLEMENTED April 2026)
+
+### Problem
+
+Facebook Login for Business (FLIB) replaces the previous OAuth authorization on each re-authentication. When a user connects a new brand to Facebook, the re-auth invalidates page tokens for previously connected brands, silently breaking their publishing.
+
+Additionally, the system previously auto-selected `pages[0]` with no user choice when multiple pages were available.
+
+### Solution
+
+**Page Selection Modal:**
+- When OAuth returns multiple Facebook pages, a selection modal is shown
+- User explicitly picks which page to connect to the current brand
+- Single-page accounts auto-connect without the modal (no UX change)
+
+**Cross-Brand Token Refresh:**
+- After every Facebook OAuth flow, `refreshCrossBrandTokens()` runs
+- Queries `social_accounts` for other brands whose `account_id` matches any page ID or Instagram account ID from the OAuth response
+- Updates their tokens with the fresh tokens, preventing disconnection
+- Matches by page ID, not by Ferdy user — works across different Ferdy profiles
+
+**Pre-OAuth Info Modal:**
+- Shown before every Facebook/Instagram OAuth redirect
+- Reminds users who manage multiple brands to keep all pages selected during Facebook's "Choose what to share" screen
+
+### Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/integrations/crossBrandRefresh.ts` | Cross-brand token refresh logic |
+| `src/app/api/integrations/pending-pages/route.ts` | GET — returns page metadata (tokens stripped) for modal |
+| `src/app/api/integrations/finalize-connection/route.ts` | POST — saves selected page, triggers cross-brand refresh |
+| `src/components/integrations/FacebookPageSelectModal.tsx` | Page selection modal UI |
+| `src/lib/integrations/types.ts` | `FacebookPageData` type, extended `OAuthCallbackResult` |
+
+### Database
+
+- `pending_oauth_connections` table — temporary encrypted storage during page selection (10-min TTL, RLS service_role only, lazy cleanup)
+- `social_accounts.metadata` now includes `facebookUserId` for future cross-brand matching accuracy
+
+---
+
 This file should be kept updated whenever:
 
 - New platforms are added
@@ -606,3 +656,4 @@ This file should be kept updated whenever:
 - The publishing pipeline changes
 - Proactive monitoring features are modified
 - New email templates for token/connection alerts are added
+- Multi-page selection or cross-brand refresh logic changes

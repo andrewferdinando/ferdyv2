@@ -65,18 +65,28 @@ This document describes the full flow from user clicking "Connect" through to su
 flowchart TD
     A[User opens Integrations page] --> B[Clicks 'Connect']
     B --> C[API returns OAuth URL]
-    C --> D[Frontend redirects user<br/>to provider OAuth]
+    C --> C2[Info modal: keep all pages selected]
+    C2 --> D[Frontend redirects user<br/>to provider OAuth]
 
     D --> E[User approves permissions]
     E --> F[Provider redirects to Ferdy callback<br/>with code + state]
 
     F --> G[Validate state<br/>verify brand + user]
     G --> H[Exchange code for access token]
-    H --> I[Fetch account/page metadata]
-    I --> J[Upsert into social_accounts<br/>status = connected]
+    H --> I[Fetch ALL pages + metadata]
+    I --> I2{Multiple pages?}
+    
+    I2 -->|Yes| P1[Store pages in pending_oauth_connections<br/>encrypted, 10-min expiry]
+    P1 --> P2[Redirect to integrations with pending_id]
+    P2 --> P3[Page selection modal shown]
+    P3 --> P4[User selects page for this brand]
+    P4 --> P5[POST /api/integrations/finalize-connection]
+    P5 --> J
 
-    J --> K[Health check request<br/>(optional but recommended)]
-    K --> L[Redirect back to Integrations page]
+    I2 -->|No| J[Upsert into social_accounts<br/>status = connected]
+
+    J --> J2[Cross-brand token refresh:<br/>update tokens for other brands<br/>using same Facebook pages]
+    J2 --> L[Redirect back to Integrations page]
     L --> M[UI updates provider to Connected]
 
     %% Error paths
@@ -104,7 +114,7 @@ Shows:
 
 UI calls:
 ```
-POST /api/integrations/{provider}/auth-url
+POST /api/integrations/{provider}/start
 ```
 
 **API response:**
@@ -113,14 +123,17 @@ POST /api/integrations/{provider}/auth-url
   - `brandId`
   - `userId`
   - `provider`
-  - `redirectPath`
-  - random nonce
+  - `origin`
+
+**For Facebook/Instagram:** An info modal is shown before redirecting, reminding users who manage multiple brands to keep all their pages selected during the Facebook login. This prevents re-authentication from invalidating tokens for other brands.
 
 UI redirects browser to OAuth URL.
 
 ### 3. Provider OAuth
 
 User authenticates and approves permissions.
+
+**Important for multi-brand users:** Facebook Login for Business (FLIB) replaces the previous authorization on each new OAuth flow. Users must keep all existing pages selected in the "Choose what to share" screen, otherwise tokens for deselected pages become invalid.
 
 Provider redirects back to Ferdy:
 ```
@@ -129,13 +142,16 @@ Provider redirects back to Ferdy:
 
 ### 4. OAuth Callback Processing (Server)
 
-1. Validate state
+1. Validate state (HMAC-SHA256 signed, 5-minute expiry)
 2. Exchange auth code for tokens (short-lived → long-lived for Meta)
 3. Fetch provider account metadata
-4. **For Facebook/Instagram:** Fetch pages via `me/accounts`. If empty, fall back to `debug_token` granular_scopes (see below)
-5. Upsert into `social_accounts`
-6. Run a health check to confirm token validity
-7. Redirect user back to the integrations page
+4. **For Facebook/Instagram:** Fetch ALL pages via `me/accounts`. If empty, fall back to `debug_token` granular_scopes (see below)
+5. **Multi-page branching (Facebook only):**
+   - **Multiple pages:** Store all pages (encrypted) in `pending_oauth_connections` table (10-minute TTL), redirect to integrations page with `?pending_id=` → page selection modal shown → user picks which page to connect to this brand → `POST /api/integrations/finalize-connection`
+   - **Single page:** Auto-connect directly (no modal)
+6. Upsert selected page into `social_accounts`
+7. **Cross-brand token refresh:** Query `social_accounts` for other brands with matching `account_id` (Facebook page ID or Instagram account ID) and update their tokens with the fresh tokens from this OAuth response
+8. Redirect user back to the integrations page
 
 #### Facebook Login for Business – `me/accounts` Fallback
 
@@ -155,6 +171,61 @@ Provider redirects back to Ferdy:
 **OAuth URL parameters:**
 - `auth_type=reauthenticate` — Forces fresh login on every connect attempt, preventing cached session issues when multiple users share a browser
 - Graph API version: `v21.0`
+
+---
+
+## Multi-Page Selection (Facebook/Instagram)
+
+**Added:** April 2026
+
+When a user's Facebook account has access to multiple pages, Ferdy shows a page selection modal instead of auto-picking the first page.
+
+### Flow
+
+1. OAuth callback receives all pages from `handleFacebookCallback()`
+2. If `allPages.length > 1`: pages are encrypted and stored in `pending_oauth_connections` (10-minute expiry)
+3. User is redirected to integrations page with `?pending_id={id}`
+4. `FacebookPageSelectModal` opens, fetching page metadata (without tokens) from `GET /api/integrations/pending-pages`
+5. User selects a page → `POST /api/integrations/finalize-connection` saves the selected page and its linked Instagram account
+
+### Key Files
+
+- `src/components/integrations/FacebookPageSelectModal.tsx` — Page selection UI
+- `src/app/api/integrations/pending-pages/route.ts` — Returns page metadata (tokens stripped)
+- `src/app/api/integrations/finalize-connection/route.ts` — Saves selected page, triggers cross-brand refresh
+
+### Database
+
+- `pending_oauth_connections` table — Temporary storage for encrypted page data during selection
+  - RLS: service_role only
+  - 10-minute TTL, lazy cleanup on each request
+
+---
+
+## Cross-Brand Token Refresh
+
+**Added:** April 2026
+
+**Problem:** Facebook Login for Business (FLIB) replaces the previous authorization on each re-authentication. When a user connects a new brand, tokens for previously connected brands become invalid.
+
+**Solution:** After every Facebook OAuth flow (both single-page and multi-page), `refreshCrossBrandTokens()` queries `social_accounts` for other brands whose `account_id` matches any page ID or Instagram account ID returned in the OAuth response, and updates their `token_encrypted` with the fresh token.
+
+### How it works
+
+1. Build a map of `pageId → freshToken` and `instagramAccountId → parentPageToken` from all pages returned by OAuth
+2. Query `social_accounts` where `provider IN ('facebook', 'instagram')` AND `brand_id != currentBrand` AND `account_id` matches any key in the map
+3. Update matching records with the fresh encrypted token, set `last_refreshed_at` and `status = 'connected'`
+
+### Key points
+
+- Matches by **Facebook page ID**, not by Ferdy user or Facebook user — works across different Ferdy profiles
+- Only refreshes tokens for pages the user selected during the Facebook "Choose what to share" screen — if a page wasn't selected, its token can't be refreshed
+- The pre-OAuth info modal reminds multi-brand users to keep all pages selected
+- Non-destructive: if no other brands match, nothing happens
+
+### Key File
+
+- `src/lib/integrations/crossBrandRefresh.ts`
 
 ---
 
