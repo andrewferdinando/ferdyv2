@@ -71,6 +71,7 @@ export async function sendWebinarConfirmation(data: WebinarEmailData) {
       webinarName: data.webinarName,
       webinarDate: data.webinarDate,
       googleCalendarUrl: googleUrl,
+      joinUrl: data.zoom_url,
     })
   )
 
