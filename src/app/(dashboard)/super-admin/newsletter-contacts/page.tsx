@@ -557,7 +557,7 @@ function TestUsersTab() {
   )
 }
 
-// ─── YouTube Helpers ─────────────────────────────────────
+// ─── Featured Link Helpers ───────────────────────────────
 function extractYouTubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
@@ -573,6 +573,21 @@ function getYouTubeThumbnail(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
+function detectLinkType(url: string): 'youtube' | 'linkedin' | 'other' {
+  if (!url) return 'other'
+  if (extractYouTubeId(url)) return 'youtube'
+  if (/linkedin\.com/i.test(url)) return 'linkedin'
+  return 'other'
+}
+
+function defaultLinkLabel(type: 'youtube' | 'linkedin' | 'other'): string {
+  switch (type) {
+    case 'youtube': return 'Watch on YouTube'
+    case 'linkedin': return 'View on LinkedIn'
+    default: return 'View post'
+  }
+}
+
 const SIGNOFF_HEADSHOT_PATH = '/images/andrew-headshot.jpg'
 const SIGNOFF_BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://www.ferdy.io'
 
@@ -581,8 +596,10 @@ function buildEmailHtml(content: {
   heading: string
   body: string
   imageUrl: string
-  youtubeUrl: string
-  youtubePosition: 'above' | 'below'
+  linkUrl: string
+  linkThumbnailUrl: string
+  linkLabel: string
+  linkPosition: 'above' | 'below'
   ctaText: string
   ctaUrl: string
 }) {
@@ -597,19 +614,15 @@ function buildEmailHtml(content: {
     ? `<img src="${content.imageUrl}" alt="" style="width:100%;max-width:536px;border-radius:8px;margin:0 0 24px 0;" />`
     : ''
 
-  // YouTube thumbnail with play button overlay
-  let youtubeBlock = ''
-  if (content.youtubeUrl) {
-    const videoId = extractYouTubeId(content.youtubeUrl)
-    if (videoId) {
-      const thumbnail = getYouTubeThumbnail(videoId)
-      const watchUrl = `https://www.youtube.com/watch?v=${videoId}`
-      youtubeBlock = `
-        <a href="${watchUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 4px 0;">
-          <img src="${thumbnail}" alt="Watch video" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
+  // Featured link — clickable thumbnail with label (YouTube, LinkedIn, or any URL)
+  let linkBlock = ''
+  if (content.linkUrl && content.linkThumbnailUrl) {
+    const label = content.linkLabel || 'View post'
+    linkBlock = `
+        <a href="${content.linkUrl}" target="_blank" style="display:block;text-decoration:none;margin:0 0 4px 0;">
+          <img src="${content.linkThumbnailUrl}" alt="${label}" style="width:100%;max-width:536px;display:block;border-radius:8px;" />
         </a>
-        <p style="margin:0 0 24px 0;"><a href="${watchUrl}" target="_blank" style="color:#6366F1;font-size:14px;text-decoration:none;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">&#9654; Watch on YouTube</a></p>`
-    }
+        <p style="margin:0 0 24px 0;"><a href="${content.linkUrl}" target="_blank" style="color:#6366F1;font-size:14px;text-decoration:none;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">&#9654; ${label}</a></p>`
   }
 
   const ctaBlock = content.ctaText && content.ctaUrl
@@ -638,9 +651,9 @@ function buildEmailHtml(content: {
       <td style="padding:32px;">
         ${content.heading ? `<h1 style="color:#0A0A0A;font-size:24px;font-weight:700;line-height:1.3;margin:0 0 20px 0;">${content.heading}</h1>` : ''}
         ${imageBlock}
-        ${content.youtubePosition === 'above' ? youtubeBlock : ''}
+        ${content.linkPosition === 'above' ? linkBlock : ''}
         ${paragraphs}
-        ${content.youtubePosition === 'below' ? youtubeBlock : ''}
+        ${content.linkPosition === 'below' ? linkBlock : ''}
         ${ctaBlock}
 
         <!-- Sign-off -->
@@ -691,8 +704,11 @@ function BroadcastTab() {
   const [heading, setHeading] = useState('')
   const [body, setBody] = useState('')
   const [imageUrl, setImageUrl] = useState('')
-  const [youtubeUrl, setYoutubeUrl] = useState('')
-  const [youtubePosition, setYoutubePosition] = useState<'above' | 'below'>('below')
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkThumbnailUrl, setLinkThumbnailUrl] = useState('')
+  const [linkLabel, setLinkLabel] = useState('')
+  const [linkPosition, setLinkPosition] = useState<'above' | 'below'>('below')
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
   const [ctaText, setCtaText] = useState('')
   const [ctaUrl, setCtaUrl] = useState('')
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
@@ -702,7 +718,7 @@ function BroadcastTab() {
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const [showPreview, setShowPreview] = useState(false)
 
-  const html = buildEmailHtml({ heading, body, imageUrl, youtubeUrl, youtubePosition, ctaText, ctaUrl })
+  const html = buildEmailHtml({ heading, body, imageUrl, linkUrl, linkThumbnailUrl, linkLabel, linkPosition, ctaText, ctaUrl })
   const hasContent = subject.trim() && (heading.trim() || body.trim())
 
   function toggleAudience(audience: string) {
@@ -752,8 +768,10 @@ function BroadcastTab() {
       setHeading('')
       setBody('')
       setImageUrl('')
-      setYoutubeUrl('')
-      setYoutubePosition('below')
+      setLinkUrl('')
+      setLinkThumbnailUrl('')
+      setLinkLabel('')
+      setLinkPosition('below')
       setCtaText('')
       setCtaUrl('')
       setSelectedAudiences([])
@@ -852,35 +870,131 @@ function BroadcastTab() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">YouTube Video <span className="text-gray-400 font-normal">(optional)</span></label>
-            <p className="text-xs text-gray-400 mb-1">Paste a YouTube link to show a clickable thumbnail with play button.</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Featured Link <span className="text-gray-400 font-normal">(optional)</span></label>
+            <p className="text-xs text-gray-400 mb-1">Add a clickable thumbnail that links to a YouTube video, LinkedIn post, or any URL.</p>
             <input
               type="url"
-              value={youtubeUrl}
-              onChange={e => setYoutubeUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
+              value={linkUrl}
+              onChange={e => {
+                const url = e.target.value
+                setLinkUrl(url)
+                const type = detectLinkType(url)
+                setLinkLabel(defaultLinkLabel(type))
+                // Auto-populate YouTube thumbnail
+                if (type === 'youtube') {
+                  const videoId = extractYouTubeId(url)
+                  if (videoId) setLinkThumbnailUrl(getYouTubeThumbnail(videoId))
+                } else {
+                  // Clear auto-thumbnail when switching away from YouTube
+                  if (linkThumbnailUrl.includes('img.youtube.com')) {
+                    setLinkThumbnailUrl('')
+                  }
+                }
+              }}
+              placeholder="https://www.linkedin.com/posts/... or YouTube link"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
             />
-            {youtubeUrl && !extractYouTubeId(youtubeUrl) && (
-              <p className="text-xs text-red-500 mt-1">Could not detect a valid YouTube URL.</p>
+
+            {/* Thumbnail upload (shown when URL is set and not a YouTube link with auto-thumbnail) */}
+            {linkUrl && detectLinkType(linkUrl) !== 'youtube' && (
+              <div className="mt-2">
+                <label className="block text-xs text-gray-500 mb-1">Thumbnail Image</label>
+                {linkThumbnailUrl ? (
+                  <div className="relative inline-block">
+                    <img src={linkThumbnailUrl} alt="Thumbnail preview" className="max-w-[200px] rounded-md border border-gray-200" />
+                    <button
+                      type="button"
+                      onClick={() => setLinkThumbnailUrl('')}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                    >
+                      x
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <label className={`px-3 py-1.5 text-xs font-medium rounded-md border cursor-pointer transition-colors ${
+                      uploadingThumbnail
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-[#6366F1] hover:text-[#6366F1]'
+                    }`}>
+                      {uploadingThumbnail ? 'Uploading...' : 'Upload JPG / PNG'}
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png"
+                        className="hidden"
+                        disabled={uploadingThumbnail}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          setUploadingThumbnail(true)
+                          try {
+                            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+                            const path = `newsletter/thumbnails/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+                            const { error } = await supabase.storage
+                              .from('ferdy-assets')
+                              .upload(path, file, { contentType: file.type, upsert: false })
+                            if (error) throw error
+                            const { data: urlData } = supabase.storage.from('ferdy-assets').getPublicUrl(path)
+                            setLinkThumbnailUrl(urlData.publicUrl)
+                          } catch (err: any) {
+                            alert(`Upload failed: ${err.message || 'Unknown error'}`)
+                          } finally {
+                            setUploadingThumbnail(false)
+                            e.target.value = '' // reset file input
+                          }
+                        }}
+                      />
+                    </label>
+                    <span className="text-xs text-gray-400">or paste URL:</span>
+                    <input
+                      type="url"
+                      value={linkThumbnailUrl}
+                      onChange={e => setLinkThumbnailUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
             )}
-            {youtubeUrl && extractYouTubeId(youtubeUrl) && (
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-gray-500">Position:</span>
-                {(['above', 'below'] as const).map(pos => (
-                  <button
-                    key={pos}
-                    type="button"
-                    onClick={() => setYoutubePosition(pos)}
-                    className={`px-3 py-1 text-xs font-medium rounded-md border transition-colors ${
-                      youtubePosition === pos
-                        ? 'bg-[#6366F1] text-white border-[#6366F1]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    {pos === 'above' ? 'Above body' : 'Below body'}
-                  </button>
-                ))}
+
+            {/* YouTube auto-thumbnail preview */}
+            {linkUrl && detectLinkType(linkUrl) === 'youtube' && linkThumbnailUrl && (
+              <div className="mt-2">
+                <img src={linkThumbnailUrl} alt="YouTube thumbnail" className="max-w-[200px] rounded-md border border-gray-200" />
+                <p className="text-xs text-gray-400 mt-1">Thumbnail auto-detected from YouTube</p>
+              </div>
+            )}
+
+            {/* Link label + position (shown when we have both URL and thumbnail) */}
+            {linkUrl && linkThumbnailUrl && (
+              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">Label:</span>
+                  <input
+                    type="text"
+                    value={linkLabel}
+                    onChange={e => setLinkLabel(e.target.value)}
+                    className="w-40 px-2 py-1 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-[#6366F1] focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">Position:</span>
+                  {(['above', 'below'] as const).map(pos => (
+                    <button
+                      key={pos}
+                      type="button"
+                      onClick={() => setLinkPosition(pos)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md border transition-colors ${
+                        linkPosition === pos
+                          ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      {pos === 'above' ? 'Above body' : 'Below body'}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
