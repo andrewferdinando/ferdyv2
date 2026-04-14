@@ -166,7 +166,7 @@ APP_URL=https://www.ferdy.io
 
 ## Implementation Summary
 
-**Completed: 12/12 email notifications ✅**
+**Completed: 25/25 email notifications ✅**
 
 ✅ **Critical User Flows (All Implemented):**
 - Invoice Paid - Billing confirmation
@@ -185,6 +185,23 @@ APP_URL=https://www.ferdy.io
 
 ✅ **Social Platform Management (All Implemented):**
 - Social Connection Disconnected - Reactive detection with automatic token refresh
+
+✅ **Webinar System (All Implemented):** See `docs/processes/webinar_landing_pages.md`
+- Webinar Registration Confirmation - Immediate on sign-up (join link + calendar invite)
+- Webinar Admin Notification - Immediate to andrew@ferdy.io on sign-up
+- Webinar 2-Day Reminder - Hourly cron (join link + calendar invite)
+- Webinar 1-Day Reminder - Hourly cron (join link CTA)
+- Webinar 1-Hour Reminder - Hourly cron (join link CTA)
+- Webinar Replay + Offer - Hourly cron, 30 mins after end (recording + onboarding CTA)
+- Webinar Follow-Up Reminder - Hourly cron, ~24 hours after end (onboarding CTA)
+- Webinar Final Deadline - Hourly cron, ~47 hours after end (onboarding CTA)
+
+✅ **Onboarding Booking (All Implemented):** See `docs/processes/webinar_landing_pages.md`
+- Onboarding Booking Confirmation - Immediate on Calendly booking (prep checklist)
+- Onboarding Rescheduled - Immediate on Calendly reschedule (new date + prep checklist)
+- Onboarding 2-Day Reminder - Hourly cron (full prep checklist)
+- Onboarding 1-Day Reminder - Hourly cron (quick checklist)
+- Onboarding 1-Hour Reminder - Hourly cron (short nudge)
 
 ---
 
