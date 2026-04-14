@@ -12,10 +12,15 @@ import { sendOnboardingConfirmation } from '@/lib/emails/onboarding'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Log raw payload for debugging
+    console.log('[calendly-webhook] Raw payload:', JSON.stringify(body, null, 2))
+
     const event = body.event
     const payload = body.payload
 
     if (!event || !payload) {
+      console.error('[calendly-webhook] Missing event or payload. Keys:', Object.keys(body))
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
 
@@ -30,6 +35,8 @@ export async function POST(request: NextRequest) {
 
       if (!email || !eventUri || !startTime) {
         console.error('[calendly-webhook] Missing required fields:', { email, eventUri, startTime })
+        console.error('[calendly-webhook] Invitee keys:', Object.keys(invitee))
+        console.error('[calendly-webhook] ScheduledEvent keys:', Object.keys(scheduledEvent))
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
       }
 
