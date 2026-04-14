@@ -7,6 +7,7 @@ interface WebinarConfirmationProps {
   webinarName: string
   webinarDate: string
   googleCalendarUrl: string
+  joinUrl: string
 }
 
 export function WebinarConfirmation({
@@ -14,6 +15,7 @@ export function WebinarConfirmation({
   webinarName,
   webinarDate,
   googleCalendarUrl,
+  joinUrl,
 }: WebinarConfirmationProps) {
   return (
     <EmailLayout preview={`You're registered for ${webinarName}`}>
@@ -35,6 +37,9 @@ export function WebinarConfirmation({
           <strong>When:</strong> {webinarDate}
           <br />
           <strong>Duration:</strong> ~30 minutes
+          <br />
+          <strong>Join link:</strong>{' '}
+          <Link href={joinUrl} style={linkStyle}>{joinUrl}</Link>
         </Text>
       </Section>
 
@@ -71,6 +76,11 @@ const detailsBox = {
   borderLeft: '4px solid #F59E0B',
   padding: '20px',
   margin: '24px 0',
+}
+
+const linkStyle = {
+  color: '#6366F1',
+  textDecoration: 'underline',
 }
 
 export default WebinarConfirmation

@@ -67,6 +67,13 @@ export function WebinarReminder({
           <strong>Event:</strong> {webinarName}
           <br />
           <strong>When:</strong> {webinarDate}
+          {zoomUrl && (
+            <>
+              <br />
+              <strong>Join link:</strong>{' '}
+              <Link href={zoomUrl} style={linkStyle}>{zoomUrl}</Link>
+            </>
+          )}
         </Text>
       </Section>
 
@@ -97,6 +104,11 @@ const detailsBox = {
   borderLeft: '4px solid #F59E0B',
   padding: '20px',
   margin: '24px 0',
+}
+
+const linkStyle = {
+  color: '#6366F1',
+  textDecoration: 'underline',
 }
 
 export { reminderContent }
