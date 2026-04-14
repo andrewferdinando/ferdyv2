@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { sendOnboardingConfirmation } from '@/lib/emails/onboarding'
+import { sendOnboardingConfirmation, sendOnboardingRescheduled } from '@/lib/emails/onboarding'
 
 /**
  * Calendly Webhook Endpoint
@@ -68,16 +68,28 @@ export async function POST(request: NextRequest) {
         timeZoneName: 'short',
       })
 
-      // Send confirmation email immediately
-      await sendOnboardingConfirmation({
-        to: email.toLowerCase(),
-        firstName,
-        bookingDate,
-      }).catch((err) => {
-        console.error('[calendly-webhook] Confirmation email failed:', err)
-      })
+      // Detect reschedule: Calendly sets old_invitee or rescheduled=true
+      const isReschedule = !!payload.old_invitee || payload.rescheduled === true
 
-      console.log(`[calendly-webhook] Booking created: ${email} at ${startTime}`)
+      if (isReschedule) {
+        await sendOnboardingRescheduled({
+          to: email.toLowerCase(),
+          firstName,
+          bookingDate,
+        }).catch((err) => {
+          console.error('[calendly-webhook] Rescheduled email failed:', err)
+        })
+        console.log(`[calendly-webhook] Booking rescheduled: ${email} to ${startTime}`)
+      } else {
+        await sendOnboardingConfirmation({
+          to: email.toLowerCase(),
+          firstName,
+          bookingDate,
+        }).catch((err) => {
+          console.error('[calendly-webhook] Confirmation email failed:', err)
+        })
+        console.log(`[calendly-webhook] Booking created: ${email} at ${startTime}`)
+      }
     } else if (event === 'invitee.canceled') {
       const scheduledEvent = payload.scheduled_event || payload.old_scheduled_event || {}
       const eventUri = scheduledEvent.uri || ''
