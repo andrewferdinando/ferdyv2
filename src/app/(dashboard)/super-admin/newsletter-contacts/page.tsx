@@ -637,18 +637,30 @@ function buildEmailHtml(content: {
 
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
-<body style="background-color:#FAFAFA;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 20px;margin:0;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="background-color:#ffffff;border-radius:12px;max-width:100%;width:600px;margin:0 auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <style>
+    body { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    @media only screen and (max-width: 620px) {
+      .email-container { width: 100% !important; }
+      .email-padding { padding: 24px 20px !important; }
+      .email-header { padding: 24px 20px 20px !important; }
+    }
+  </style>
+</head>
+<body style="background-color:#FAFAFA;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 20px;margin:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="600" class="email-container" style="background-color:#ffffff;border-radius:12px;max-width:100%;width:600px;margin:0 auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);">
     <!-- Header -->
     <tr>
-      <td style="padding:32px 32px 24px;border-bottom:2px solid #6366F1;text-align:center;">
+      <td class="email-header" style="padding:32px 32px 24px;border-bottom:2px solid #6366F1;text-align:center;">
         <span style="font-size:32px;font-weight:700;color:#6366F1;">Ferdy</span>
       </td>
     </tr>
     <!-- Content -->
     <tr>
-      <td style="padding:32px;">
+      <td class="email-padding" style="padding:32px;">
         ${content.heading ? `<h1 style="color:#0A0A0A;font-size:24px;font-weight:700;line-height:1.3;margin:0 0 20px 0;">${content.heading}</h1>` : ''}
         ${imageBlock}
         ${content.linkPosition === 'above' ? linkBlock : ''}
@@ -687,7 +699,7 @@ function buildEmailHtml(content: {
     </tr>
     <!-- Footer -->
     <tr>
-      <td style="border-top:1px solid #E5E7EB;padding:24px 32px;text-align:center;">
+      <td class="email-padding" style="border-top:1px solid #E5E7EB;padding:24px 32px;text-align:center;">
         <p style="color:#6B7280;font-size:14px;line-height:1.5;margin:4px 0;">&copy; ${new Date().getFullYear()} Ferdy. All rights reserved.</p>
         <p style="color:#6B7280;font-size:14px;line-height:1.5;margin:4px 0;">Questions? Contact us at <a href="mailto:andrew@ferdy.io" style="color:#6366F1;text-decoration:none;">andrew@ferdy.io</a></p>
         <p style="color:#9CA3AF;font-size:12px;line-height:1.5;margin:12px 0 0 0;"><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#9CA3AF;text-decoration:underline;">Unsubscribe</a> from future emails</p>
