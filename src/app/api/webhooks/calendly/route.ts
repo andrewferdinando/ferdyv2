@@ -25,18 +25,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (event === 'invitee.created') {
-      const invitee = payload.invitee || {}
+      // Calendly v2 webhook: invitee fields are directly on payload, not nested under payload.invitee
+      const email = payload.email
+      const name = payload.name || ''
+      const firstName = name.split(' ')[0] || name
       const scheduledEvent = payload.scheduled_event || {}
-
-      const email = invitee.email
-      const firstName = (invitee.name || '').split(' ')[0] || invitee.name || ''
       const eventUri = scheduledEvent.uri || ''
       const startTime = scheduledEvent.start_time
 
       if (!email || !eventUri || !startTime) {
         console.error('[calendly-webhook] Missing required fields:', { email, eventUri, startTime })
-        console.error('[calendly-webhook] Invitee keys:', Object.keys(invitee))
-        console.error('[calendly-webhook] ScheduledEvent keys:', Object.keys(scheduledEvent))
+        console.error('[calendly-webhook] Payload keys:', Object.keys(payload))
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
       }
 
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
 
       console.log(`[calendly-webhook] Booking created: ${email} at ${startTime}`)
     } else if (event === 'invitee.canceled') {
-      const scheduledEvent = payload.scheduled_event || {}
+      const scheduledEvent = payload.scheduled_event || payload.old_scheduled_event || {}
       const eventUri = scheduledEvent.uri || ''
 
       if (eventUri) {
