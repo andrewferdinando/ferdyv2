@@ -29,6 +29,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/emails/onboarding-reminders",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/newsletter/sync",
       "schedule": "0 6 * * *"
     }
