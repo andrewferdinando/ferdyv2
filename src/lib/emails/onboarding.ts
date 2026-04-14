@@ -4,6 +4,7 @@ import { OnboardingConfirmation } from '@/emails/OnboardingConfirmation'
 import { OnboardingReminder2Day } from '@/emails/OnboardingReminder2Day'
 import { OnboardingReminder1Day } from '@/emails/OnboardingReminder1Day'
 import { OnboardingReminder1Hour } from '@/emails/OnboardingReminder1Hour'
+import { OnboardingRescheduled } from '@/emails/OnboardingRescheduled'
 
 let resendInstance: Resend | null = null
 
@@ -120,6 +121,30 @@ export async function sendOnboardingReminder1Hour(data: OnboardingEmailData) {
     tags: [
       { name: 'category', value: 'onboarding' },
       { name: 'email_type', value: 'reminder_1hour' },
+    ],
+  })
+}
+
+// --- Rescheduled notification ---
+
+export async function sendOnboardingRescheduled(data: OnboardingEmailData) {
+  const resend = getResend()
+
+  const html = await render(
+    OnboardingRescheduled({
+      firstName: data.firstName,
+      bookingDate: data.bookingDate,
+    })
+  )
+
+  return resend.emails.send({
+    from: getFromEmail(),
+    to: data.to,
+    subject: 'Your onboarding session has been rescheduled',
+    html,
+    tags: [
+      { name: 'category', value: 'onboarding' },
+      { name: 'email_type', value: 'rescheduled' },
     ],
   })
 }
