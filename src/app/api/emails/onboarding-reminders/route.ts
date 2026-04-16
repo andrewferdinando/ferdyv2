@@ -38,7 +38,7 @@ const SEND_FN: Record<ReminderType, (data: OnboardingEmailData) => Promise<unkno
   '1hour': sendOnboardingReminder1Hour,
 }
 
-export async function POST() {
+export async function GET() {
   try {
     const now = new Date()
 
