@@ -28,7 +28,7 @@ const reminderContent: Record<ReminderType, {
     ctaType: 'calendar',
   },
   '1day': {
-    subject: 'Tomorrow: The Ferdy System - here\'s your link',
+    subject: 'Tomorrow: How to automate your repeatable social posts',
     heading: 'See you tomorrow!',
     body: (name) => `Hey ${name}, the training is tomorrow. Here's everything you need to join.`,
     ctaLabel: 'Join the session',

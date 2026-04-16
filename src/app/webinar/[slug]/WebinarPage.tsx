@@ -225,7 +225,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
           required
           autoComplete="email"
           className="w-full px-4 py-3 rounded-lg border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-colors"
-          placeholder="sarah@yourvenue.com.au"
+          placeholder="sarah@yourbusiness.com.au"
         />
       </div>
 
@@ -325,7 +325,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             </div>
             <p className="text-base text-stone-600 leading-relaxed mb-3">
               Hi, I&apos;m Andrew. As a marketing advisor, I observed that 80% of social posts for
-              hospo venues are predictable and repeatable - so I built an app to automate the process.
+              most businesses are predictable and repeatable - so I built an app to automate the process.
             </p>
             <p className="text-base text-stone-600 leading-relaxed">
               This is a free session where I&apos;ll show you exactly how it works.
@@ -383,7 +383,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
                   </svg>
                 ),
                 title: 'Hours lost every week',
-                text: 'You know you should be posting, but between running the venue and managing staff, social media always falls to the bottom of the list.',
+                text: 'You know you should be posting, but between running the business and managing staff, social media always falls to the bottom of the list.',
               },
               {
                 icon: (
@@ -435,7 +435,7 @@ export function WebinarPage({ config }: { config: WebinarConfig }) {
             Who this is for
           </h2>
           <p className="text-stone-600 text-center max-w-xl mx-auto leading-relaxed">
-            This training is for venue owners and social media managers. I&apos;ll show you how to
+            This training is for business owners and marketers. I&apos;ll show you how to
             automate 80% of your social posts in just 10-15 mins per month using only your existing assets
             and brand tone.
           </p>
