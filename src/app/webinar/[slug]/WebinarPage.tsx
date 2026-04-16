@@ -242,7 +242,7 @@ function RegistrationForm({ config }: { config: WebinarConfig }) {
       </button>
 
       <p className="text-xs text-stone-500 text-center">
-        Free - only {config.spots} spots available. No credit card required.
+        Free - only {config.spots} spots available.
       </p>
     </form>
   )
