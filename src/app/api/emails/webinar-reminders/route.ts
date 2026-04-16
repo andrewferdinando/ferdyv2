@@ -27,7 +27,7 @@ const REMINDER_WINDOWS: ReminderWindow[] = [
   { type: '1hour', column: 'reminder_1hour_sent_at', offsetMs: 1 * 60 * 60 * 1000 },
 ]
 
-export async function POST() {
+export async function GET() {
   try {
     const now = new Date()
 

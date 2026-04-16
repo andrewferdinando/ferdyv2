@@ -55,7 +55,7 @@ const SEND_FN: Record<FollowUpType, (data: WebinarFollowUpData) => Promise<unkno
   reminder2: sendWebinarFollowUp2,
 }
 
-export async function POST() {
+export async function GET() {
   try {
     const now = new Date()
 
