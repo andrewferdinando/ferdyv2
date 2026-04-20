@@ -7,7 +7,15 @@ import { sendOnboardingConfirmation, sendOnboardingRescheduled } from '@/lib/ema
  *
  * Receives invitee.created and invitee.canceled events from Calendly.
  * Stores bookings in onboarding_bookings table for reminder emails.
+ *
+ * Only processes events for the Ferdy - onboarding event type
+ * (https://calendly.com/ferdy-app/ferdy-onboarding). Other event types
+ * (e.g. general meetings with Andrew) are acknowledged and ignored so
+ * they don't trigger the onboarding email sequence.
  */
+
+const ONBOARDING_EVENT_TYPE_URI =
+  'https://api.calendly.com/event_types/0772c31d-260e-48f4-8be1-12bf0f0d5424'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +30,19 @@ export async function POST(request: NextRequest) {
     if (!event || !payload) {
       console.error('[calendly-webhook] Missing event or payload. Keys:', Object.keys(body))
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    }
+
+    // scheduled_event is present on invitee.created; invitee.canceled uses
+    // old_scheduled_event as a fallback.
+    const scheduledEventForFilter =
+      payload.scheduled_event || payload.old_scheduled_event || {}
+    const eventTypeUri = scheduledEventForFilter.event_type
+
+    if (eventTypeUri !== ONBOARDING_EVENT_TYPE_URI) {
+      console.log(
+        `[calendly-webhook] Ignoring event_type "${eventTypeUri}" — not onboarding.`
+      )
+      return NextResponse.json({ received: true, ignored: true })
     }
 
     if (event === 'invitee.created') {
