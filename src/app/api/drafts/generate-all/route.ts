@@ -146,7 +146,7 @@ async function handleGenerateAll(req: NextRequest) {
       await supabaseAdmin.from('cron_logs').update({
         status: allErrors.length > 0 ? 'failed' : 'success',
         completed_at: new Date().toISOString(),
-        summary: { brandsProcessed, draftsCreated: totalDraftsCreated, errors: allErrors.length },
+        summary: { brandsProcessed, draftsCreated: totalDraftsCreated, draftsSkipped: totalDraftsSkipped, errors: allErrors.length },
         error: allErrors.length > 0 ? allErrors.slice(0, 5).join('; ') : null,
       }).eq('id', cronLogId);
     }

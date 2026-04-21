@@ -591,7 +591,10 @@ export default function PostPipelinePage() {
                             )}
                             {day.generation.summary && (
                               <span className="text-xs text-gray-500">
-                                ({(day.generation.summary as any).draftsCreated ?? 0} created)
+                                ({(day.generation.summary as any).draftsCreated ?? 0} created
+                                {typeof (day.generation.summary as any).draftsSkipped === 'number' && (
+                                  <>, {(day.generation.summary as any).draftsSkipped} already existed</>
+                                )})
                               </span>
                             )}
                           </div>
