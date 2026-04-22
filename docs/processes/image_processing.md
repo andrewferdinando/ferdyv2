@@ -19,13 +19,13 @@ When publishing to Instagram or Facebook, images must meet specific requirements
 
 1. **Aspect Ratios:** Meta supports specific ratios (1:1, 4:5, 1.91:1, 9:16).
 2. **Dimensions:** Optimal quality at 1080px base width.
-3. **Format:** JPEG or PNG (not GIF/WebP).
+3. **Format at the API boundary:** Meta only accepts JPEG/PNG. Sources in WebP/GIF are transcoded to JPEG during pre-publish processing (see §3.3).
 4. **File Size:** Max 30MB for images, 200MB for videos.
 
 Ferdy's image processing ensures:
 - User crop selections are **actually applied** (not just previewed).
 - Images are resized to Meta's exact dimensions.
-- Format conversion where needed.
+- Format conversion to JPEG (from WebP/PNG/HEIC/etc.) so Meta always receives a format it accepts.
 
 ---
 
@@ -103,11 +103,13 @@ Flow:
 **File:** `src/lib/publishing/validateAssetForMeta.ts`
 
 Validates assets before publishing:
-- **Format:** Blocks GIF/WebP (not supported by Meta).
+- **Format:** Flags GIF/WebP as "requires conversion" — exposed via `requiresFormatConversion()`. Consumers decide whether to transcode or reject. `publishJob.ts` transcodes.
 - **Dimensions:** Minimum 320x320, recommended 600x600.
 - **File Size:** Max 30MB images, 200MB videos.
 
 Returns errors (blocking) and warnings (non-blocking).
+
+> **Note (Apr 2026):** The publish pipeline no longer fails images on source mime type. `ensureAssetsProcessed()` skips the mime check for image assets because `processImage()` always outputs JPEG from any Sharp-supported input. For video assets the mime check still applies.
 
 ---
 
@@ -132,15 +134,13 @@ When publishing (via publishJob.ts):
 
 1. `ensureAssetsProcessed()` is called.
 2. For each image asset:
-   - Validate against Meta requirements.
-   - Check if processed version exists for aspect ratio.
-   - If missing, process the image:
-     - Download original.
-     - Apply crop from `image_crops`.
-     - Resize to Meta dimensions.
-     - Upload processed version.
-     - Update `processed_images`.
-3. Publishing providers use processed images.
+   - Validate dimensions/file size against Meta limits (source mime is not checked for images — see §2.4).
+   - Determine if the source requires transcoding (WebP/GIF). Track per-iteration.
+   - Resolve the aspect ratio (best-fit if `original`/unset), then either:
+     - Use the existing processed JPEG, or
+     - Download → crop (from `image_crops`) → resize → JPEG via Sharp → upload to `processed/` → update `processed_images`.
+   - After all processing paths: if the source required transcoding and no processed JPEG was produced (e.g. download/upload failed, Sharp threw), **hard-fail** the job with a user-facing message asking the client to re-upload as JPEG/PNG. This prevents a raw WebP/GIF ever being sent to the Meta API.
+3. Publishing providers (`providers/instagram.ts`, `providers/facebook.ts`) resolve the asset URL via `processed_images[aspectRatio]` when available; if not, they fall back to the original — which is guaranteed to be JPEG/PNG by the guard above.
 
 ### 3.4 Publishing
 
@@ -232,16 +232,19 @@ ferdy-assets/
 ### 8.1 Validation Errors (Blocking)
 
 These prevent publishing:
-- GIF/WebP format.
 - Dimensions below 320x320.
 - File size exceeds limits.
+- Video mime type not in `video/mp4` / `video/quicktime`.
+- **Source is WebP/GIF AND transcoding failed** — rare, but covered by the hard-fail guard in `ensureAssetsProcessed()` so the publisher never hands a raw WebP/GIF to the Meta API.
 
 ### 8.2 Processing Errors (Non-Blocking)
 
-If processing fails:
+If processing fails for a JPEG/PNG source:
 - Error is logged.
-- Publishing continues with original image.
+- Publishing continues with the original image (which Meta accepts).
 - May fail at Meta's end with dimension errors.
+
+If processing fails for a WebP/GIF source, the publisher hard-fails instead (see §8.1) — silent fallback to the original would be rejected by Meta anyway, and a clear message is more actionable.
 
 ### 8.3 Warnings (Non-Blocking)
 

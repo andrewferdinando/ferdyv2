@@ -8,7 +8,7 @@ import { publishFacebookPost } from './providers/facebook'
 import { publishInstagramFeedPost, publishInstagramStory } from './providers/instagram'
 import { sendPostPublished } from '@/lib/emails/send'
 import { refreshSocialAccountToken } from '../social/tokenRefresh'
-import { validateAssetForMeta } from '@/lib/publishing/validateAssetForMeta'
+import { validateAssetForMeta, requiresFormatConversion } from '@/lib/publishing/validateAssetForMeta'
 import {
   processImage,
   isValidAspectRatio,
@@ -323,6 +323,12 @@ export async function publishJob(
 /**
  * Process assets before publishing to ensure they meet Meta requirements.
  * Generates cropped/resized versions if not already processed.
+ *
+ * Source mime type is NOT treated as a blocker for image assets here —
+ * processImage() transcodes any Sharp-supported input (including WebP) to JPEG.
+ * If processing fails to run for any reason AND the source format isn't one
+ * Meta accepts directly, we hard-fail the job with a clear error rather than
+ * silently passing the unpublishable original to the provider.
  */
 async function ensureAssetsProcessed(
   assetIds: string[] | null,
@@ -335,8 +341,10 @@ async function ensureAssetsProcessed(
   }
 
   for (const assetId of assetIds) {
+    let needsTranscode = false
+    let processedReady = false
+
     try {
-      // Fetch asset to check if it needs processing
       const { data: asset, error: fetchError } = await supabaseAdmin
         .from('assets')
         .select('id, asset_type, aspect_ratio, processed_images, storage_path, mime_type, width, height, file_size')
@@ -345,18 +353,20 @@ async function ensureAssetsProcessed(
 
       if (fetchError || !asset) {
         console.warn('[ensureAssetsProcessed] Asset not found:', { assetId, fetchError })
-        continue // Skip missing assets, let the provider handle the error
+        continue
       }
 
-      // Skip videos - they don't need processing
       if (asset.asset_type === 'video') {
         continue
       }
 
-      // Validate asset for Meta requirements
+      needsTranscode = requiresFormatConversion(asset.mime_type)
+
+      // Skip mime validation for images — processImage() below produces JPEG
+      // from any Sharp-supported source. Dimension/file-size checks still run.
       const validation = validateAssetForMeta({
         asset_type: asset.asset_type as 'image' | 'video' | null,
-        mime_type: asset.mime_type,
+        mime_type: asset.asset_type === 'video' ? asset.mime_type : null,
         width: asset.width,
         height: asset.height,
         file_size: asset.file_size,
@@ -373,224 +383,226 @@ async function ensureAssetsProcessed(
         }
       }
 
-      // Check if processed image already exists for this aspect ratio
-      let aspectRatio = asset.aspect_ratio
-      const processedImages = asset.processed_images as Record<string, unknown> | null
+      // Inner scope lets early-exit paths use `return` instead of `continue`,
+      // so the needsTranscode guard below still runs for each asset.
+      await (async () => {
+        let aspectRatio = asset.aspect_ratio
+        const processedImages = asset.processed_images as Record<string, unknown> | null
 
-      // If aspect_ratio is 'original' or unset, calculate best fit from dimensions
-      // This mirrors what the Content Library does on save
-      if ((!aspectRatio || !isValidAspectRatio(aspectRatio)) && asset.width && asset.height) {
-        const bestFit = calculateBestFit(asset.width, asset.height)
-        console.log('[ensureAssetsProcessed] No explicit aspect ratio, using best fit:', {
-          assetId,
-          originalAspectRatio: aspectRatio,
-          calculatedBestFit: bestFit,
-          dimensions: `${asset.width}x${asset.height}`,
-        })
-        aspectRatio = bestFit
+        if ((!aspectRatio || !isValidAspectRatio(aspectRatio)) && asset.width && asset.height) {
+          const bestFit = calculateBestFit(asset.width, asset.height)
+          console.log('[ensureAssetsProcessed] No explicit aspect ratio, using best fit:', {
+            assetId,
+            originalAspectRatio: aspectRatio,
+            calculatedBestFit: bestFit,
+            dimensions: `${asset.width}x${asset.height}`,
+          })
+          aspectRatio = bestFit
 
-        // Persist best fit so provider getAssetUrl functions can find the processed image
-        await supabaseAdmin
-          .from('assets')
-          .update({ aspect_ratio: bestFit })
-          .eq('id', assetId)
-      }
+          await supabaseAdmin
+            .from('assets')
+            .update({ aspect_ratio: bestFit })
+            .eq('id', assetId)
+        }
 
-      if (aspectRatio && isValidAspectRatio(aspectRatio)) {
-        if (processedImages && processedImages[aspectRatio]) {
-          console.log('[ensureAssetsProcessed] Processed image already exists:', {
+        if (aspectRatio && isValidAspectRatio(aspectRatio)) {
+          if (processedImages && processedImages[aspectRatio]) {
+            console.log('[ensureAssetsProcessed] Processed image already exists:', {
+              assetId,
+              aspectRatio,
+            })
+            processedReady = true
+            return
+          }
+
+          console.log('[ensureAssetsProcessed] Processing image:', {
             assetId,
             aspectRatio,
+            jobId,
           })
-          continue // Already processed
-        }
 
-        // Process the image
-        console.log('[ensureAssetsProcessed] Processing image:', {
-          assetId,
-          aspectRatio,
-          jobId,
-        })
+          const { data: downloadData, error: downloadError } = await supabaseAdmin.storage
+            .from('ferdy-assets')
+            .download(asset.storage_path)
 
-        // Download original image
-        const { data: downloadData, error: downloadError } = await supabaseAdmin.storage
-          .from('ferdy-assets')
-          .download(asset.storage_path)
+          if (downloadError || !downloadData) {
+            console.error('[ensureAssetsProcessed] Failed to download:', {
+              assetId,
+              downloadError,
+            })
+            return
+          }
 
-        if (downloadError || !downloadData) {
-          console.error('[ensureAssetsProcessed] Failed to download:', {
+          const { data: assetWithCrops } = await supabaseAdmin
+            .from('assets')
+            .select('image_crops')
+            .eq('id', assetId)
+            .single()
+
+          const crops = assetWithCrops?.image_crops as Record<string, CropCoordinates> | null
+          const crop: CropCoordinates = crops?.[aspectRatio] || getDefaultCrop()
+
+          const arrayBuffer = await downloadData.arrayBuffer()
+          const imageBuffer = Buffer.from(arrayBuffer)
+          const result = await processImage(imageBuffer, aspectRatio as AspectRatio, crop)
+
+          const pathParts = asset.storage_path.split('/')
+          const fileName = pathParts.pop() || 'image'
+          const fileNameWithoutExt = fileName.split('.')[0]
+          const basePath = pathParts.join('/')
+          const ratioSafe = aspectRatio.replace(':', '_').replace('.', '-')
+          const processedPath = `${basePath}/processed/${fileNameWithoutExt}_${ratioSafe}.jpg`
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('ferdy-assets')
+            .upload(processedPath, result.buffer, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            })
+
+          if (uploadError) {
+            console.error('[ensureAssetsProcessed] Failed to upload:', {
+              assetId,
+              uploadError,
+            })
+            return
+          }
+
+          const existingProcessed = processedImages || {}
+          const updatedProcessed = {
+            ...existingProcessed,
+            [aspectRatio]: {
+              storage_path: processedPath,
+              width: result.width,
+              height: result.height,
+              processed_at: new Date().toISOString(),
+            },
+          }
+
+          await supabaseAdmin
+            .from('assets')
+            .update({ processed_images: updatedProcessed })
+            .eq('id', assetId)
+
+          console.log('[ensureAssetsProcessed] Image processed successfully:', {
             assetId,
-            downloadError,
+            aspectRatio,
+            processedPath,
           })
-          continue // Skip, let publishing proceed with original
-        }
+          processedReady = true
+        } else if (channel === 'instagram_feed' && (!aspectRatio || aspectRatio === 'original')) {
+          // Auto-process 'original' images for IG Feed if outside allowed range (0.8–1.91)
+          if (!asset.width || !asset.height) {
+            console.warn('[ensureAssetsProcessed] Missing dimensions for original asset, skipping IG Feed auto-process:', { assetId })
+            return
+          }
 
-        // Get crop coordinates
-        const { data: assetWithCrops } = await supabaseAdmin
-          .from('assets')
-          .select('image_crops')
-          .eq('id', assetId)
-          .single()
+          const targetRatio = pickClosestFeedRatio(asset.width, asset.height)
+          if (!targetRatio) {
+            console.log('[ensureAssetsProcessed] Original aspect ratio is within IG Feed range, no processing needed:', {
+              assetId,
+              ratio: (asset.width / asset.height).toFixed(3),
+            })
+            // For JPEG/PNG this is fine — original will publish. For WebP/GIF
+            // the needsTranscode guard below turns this into a clear hard-fail.
+            return
+          }
 
-        const crops = assetWithCrops?.image_crops as Record<string, CropCoordinates> | null
-        const crop: CropCoordinates = crops?.[aspectRatio] || getDefaultCrop()
+          if (processedImages && processedImages[targetRatio]) {
+            console.log('[ensureAssetsProcessed] Auto-processed image already exists for IG Feed:', {
+              assetId,
+              targetRatio,
+            })
+            processedReady = true
+            return
+          }
 
-        // Process image
-        const arrayBuffer = await downloadData.arrayBuffer()
-        const imageBuffer = Buffer.from(arrayBuffer)
-        const result = await processImage(imageBuffer, aspectRatio as AspectRatio, crop)
-
-        // Generate storage path for processed image
-        const pathParts = asset.storage_path.split('/')
-        const fileName = pathParts.pop() || 'image'
-        const fileNameWithoutExt = fileName.split('.')[0]
-        const basePath = pathParts.join('/')
-        const ratioSafe = aspectRatio.replace(':', '_').replace('.', '-')
-        const processedPath = `${basePath}/processed/${fileNameWithoutExt}_${ratioSafe}.jpg`
-
-        // Upload processed image
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from('ferdy-assets')
-          .upload(processedPath, result.buffer, {
-            contentType: 'image/jpeg',
-            upsert: true,
-          })
-
-        if (uploadError) {
-          console.error('[ensureAssetsProcessed] Failed to upload:', {
+          console.log('[ensureAssetsProcessed] Auto-processing original image for IG Feed:', {
             assetId,
-            uploadError,
+            originalRatio: (asset.width / asset.height).toFixed(3),
+            targetRatio,
+            jobId,
           })
-          continue // Skip, let publishing proceed with original
-        }
 
-        // Update processed_images column
-        const existingProcessed = processedImages || {}
-        const updatedProcessed = {
-          ...existingProcessed,
-          [aspectRatio]: {
-            storage_path: processedPath,
-            width: result.width,
-            height: result.height,
-            processed_at: new Date().toISOString(),
-          },
-        }
+          const { data: downloadData, error: downloadError } = await supabaseAdmin.storage
+            .from('ferdy-assets')
+            .download(asset.storage_path)
 
-        await supabaseAdmin
-          .from('assets')
-          .update({ processed_images: updatedProcessed })
-          .eq('id', assetId)
+          if (downloadError || !downloadData) {
+            console.error('[ensureAssetsProcessed] Failed to download for IG Feed auto-process:', {
+              assetId,
+              downloadError,
+            })
+            return
+          }
 
-        console.log('[ensureAssetsProcessed] Image processed successfully:', {
-          assetId,
-          aspectRatio,
-          processedPath,
-        })
-      } else if (channel === 'instagram_feed' && (!aspectRatio || aspectRatio === 'original')) {
-        // Auto-process 'original' images for IG Feed if outside allowed range (0.8–1.91)
-        if (!asset.width || !asset.height) {
-          console.warn('[ensureAssetsProcessed] Missing dimensions for original asset, skipping IG Feed auto-process:', { assetId })
-          continue
-        }
+          const crop = getDefaultCrop()
 
-        const targetRatio = pickClosestFeedRatio(asset.width, asset.height)
-        if (!targetRatio) {
-          console.log('[ensureAssetsProcessed] Original aspect ratio is within IG Feed range, no processing needed:', {
-            assetId,
-            ratio: (asset.width / asset.height).toFixed(3),
-          })
-          continue
-        }
+          const arrayBuffer = await downloadData.arrayBuffer()
+          const imageBuffer = Buffer.from(arrayBuffer)
+          const result = await processImage(imageBuffer, targetRatio, crop)
 
-        // Check if already processed for this target ratio
-        if (processedImages && processedImages[targetRatio]) {
-          console.log('[ensureAssetsProcessed] Auto-processed image already exists for IG Feed:', {
+          const pathParts = asset.storage_path.split('/')
+          const fileName = pathParts.pop() || 'image'
+          const fileNameWithoutExt = fileName.split('.')[0]
+          const basePath = pathParts.join('/')
+          const ratioSafe = targetRatio.replace(':', '_').replace('.', '-')
+          const processedPath = `${basePath}/processed/${fileNameWithoutExt}_${ratioSafe}.jpg`
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('ferdy-assets')
+            .upload(processedPath, result.buffer, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            })
+
+          if (uploadError) {
+            console.error('[ensureAssetsProcessed] Failed to upload IG Feed auto-processed image:', {
+              assetId,
+              uploadError,
+            })
+            return
+          }
+
+          const existingProcessed = processedImages || {}
+          const updatedProcessed = {
+            ...existingProcessed,
+            [targetRatio]: {
+              storage_path: processedPath,
+              width: result.width,
+              height: result.height,
+              processed_at: new Date().toISOString(),
+            },
+          }
+
+          await supabaseAdmin
+            .from('assets')
+            .update({ processed_images: updatedProcessed })
+            .eq('id', assetId)
+
+          console.log('[ensureAssetsProcessed] IG Feed auto-processing complete:', {
             assetId,
             targetRatio,
+            processedPath,
           })
-          continue
+          processedReady = true
         }
-
-        console.log('[ensureAssetsProcessed] Auto-processing original image for IG Feed:', {
-          assetId,
-          originalRatio: (asset.width / asset.height).toFixed(3),
-          targetRatio,
-          jobId,
-        })
-
-        // Download original image
-        const { data: downloadData, error: downloadError } = await supabaseAdmin.storage
-          .from('ferdy-assets')
-          .download(asset.storage_path)
-
-        if (downloadError || !downloadData) {
-          console.error('[ensureAssetsProcessed] Failed to download for IG Feed auto-process:', {
-            assetId,
-            downloadError,
-          })
-          continue
-        }
-
-        // Use default (centered) crop for auto-processing
-        const crop = getDefaultCrop()
-
-        const arrayBuffer = await downloadData.arrayBuffer()
-        const imageBuffer = Buffer.from(arrayBuffer)
-        const result = await processImage(imageBuffer, targetRatio, crop)
-
-        // Generate storage path for processed image
-        const pathParts = asset.storage_path.split('/')
-        const fileName = pathParts.pop() || 'image'
-        const fileNameWithoutExt = fileName.split('.')[0]
-        const basePath = pathParts.join('/')
-        const ratioSafe = targetRatio.replace(':', '_').replace('.', '-')
-        const processedPath = `${basePath}/processed/${fileNameWithoutExt}_${ratioSafe}.jpg`
-
-        // Upload processed image
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from('ferdy-assets')
-          .upload(processedPath, result.buffer, {
-            contentType: 'image/jpeg',
-            upsert: true,
-          })
-
-        if (uploadError) {
-          console.error('[ensureAssetsProcessed] Failed to upload IG Feed auto-processed image:', {
-            assetId,
-            uploadError,
-          })
-          continue
-        }
-
-        // Update processed_images column
-        const existingProcessed = processedImages || {}
-        const updatedProcessed = {
-          ...existingProcessed,
-          [targetRatio]: {
-            storage_path: processedPath,
-            width: result.width,
-            height: result.height,
-            processed_at: new Date().toISOString(),
-          },
-        }
-
-        await supabaseAdmin
-          .from('assets')
-          .update({ processed_images: updatedProcessed })
-          .eq('id', assetId)
-
-        console.log('[ensureAssetsProcessed] IG Feed auto-processing complete:', {
-          assetId,
-          targetRatio,
-          processedPath,
-        })
-      }
+      })()
     } catch (error) {
       console.error('[ensureAssetsProcessed] Unexpected error:', {
         assetId,
         error: error instanceof Error ? error.message : 'unknown',
       })
-      // Continue with other assets, don't fail the entire publish
+      // Don't fail the whole publish on an unexpected error for JPEG/PNG
+      // assets; the needsTranscode guard below still catches unpublishable
+      // originals.
+    }
+
+    if (needsTranscode && !processedReady) {
+      return {
+        success: false,
+        error: 'Could not convert this image to a format supported by Instagram. Please re-upload the image as JPEG or PNG.',
+      }
     }
   }
 
