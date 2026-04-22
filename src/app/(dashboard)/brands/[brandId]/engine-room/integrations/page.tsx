@@ -400,7 +400,7 @@ export default function IntegrationsPage() {
                     ?? undefined
 
                 const connectionSummary = isConnected ? (
-                  <div className="flex items-start gap-3">
+                  <div className="flex w-full min-w-0 items-start gap-3">
                     {profilePictureUrl && (
                       <img
                         src={profilePictureUrl}
