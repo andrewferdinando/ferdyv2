@@ -1094,7 +1094,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                     e.stopPropagation();
                     setIsMockupOpen(true);
                   }}
-                  className="ml-auto text-[11px] font-medium text-[#6366F1] hover:text-[#4F46E5] hover:underline"
+                  className="text-[11px] font-medium text-[#6366F1] hover:text-[#4F46E5] hover:underline"
                 >
                   View mockup
                 </button>

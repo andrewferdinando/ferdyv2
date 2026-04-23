@@ -461,6 +461,13 @@ const PostMockupModal: React.FC<PostMockupModalProps> = ({
         })}
       </div>
 
+      {dims && assets.length > 0 && (
+        <div className="mb-4 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-600">
+          Image will display at <span className="font-semibold text-gray-900">{targetRatio}</span>{' '}
+          ({dims.width}×{dims.height}px) on {getChannelLabel(channelToShow)}.
+        </div>
+      )}
+
       {channelToShow === 'facebook' && (
         <FacebookMockup
           assets={assets}
@@ -494,12 +501,6 @@ const PostMockupModal: React.FC<PostMockupModalProps> = ({
           account={account}
           brandName={safeBrandName}
         />
-      )}
-
-      {dims && assets.length > 0 && (
-        <p className="mt-4 text-center text-xs text-gray-400">
-          Image will be published at {dims.width}×{dims.height}px ({targetRatio}).
-        </p>
       )}
     </Modal>
   );
