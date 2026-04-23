@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, ArrowRight, ChevronDown, X, Loader2 } from 'lucide-react'
+import { Plus, ArrowRight, Check, ChevronDown, Search, X, Loader2 } from 'lucide-react'
 import { authFetch } from '@/lib/client/auth-fetch'
 
 type EnquiryStatus = 'new' | 'in_progress' | 'converted' | 'expired' | 'lost'
@@ -167,27 +167,31 @@ export default function EnquiriesTab() {
                     <div className="inline-flex items-center gap-2">
                       {e.status !== 'converted' && (
                         <button
+                          type="button"
                           onClick={() => setConvertTarget(e)}
-                          className="text-xs font-medium text-[#6366F1] hover:underline"
+                          className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-[#6366F1] to-[#4F46E5] px-2.5 py-1 text-xs font-semibold text-white hover:from-[#4F46E5] hover:to-[#4338CA]"
                         >
                           Convert to Sale
                         </button>
                       )}
-                      {e.status !== 'converted' && e.status !== 'expired' && (
-                        <button
-                          onClick={() => updateStatus(e.id, 'expired')}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-700"
-                        >
-                          Expire
-                        </button>
-                      )}
-                      {e.status !== 'converted' && e.status !== 'lost' && (
-                        <button
-                          onClick={() => updateStatus(e.id, 'lost')}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-700"
-                        >
-                          Lost
-                        </button>
+                      {e.status !== 'converted' && (
+                        <div className="relative">
+                          <select
+                            aria-label="Change status"
+                            value={e.status}
+                            onChange={(ev) => updateStatus(e.id, ev.target.value as EnquiryStatus)}
+                            className="rounded-md border border-gray-300 pl-2 pr-7 py-1 text-xs font-medium text-gray-700 focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none appearance-none cursor-pointer bg-white"
+                          >
+                            <option value="new">New</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="expired">Expired</option>
+                            <option value="lost">Lost</option>
+                          </select>
+                          <ChevronDown
+                            aria-hidden
+                            className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500"
+                          />
+                        </div>
                       )}
                     </div>
                   </td>
@@ -428,39 +432,78 @@ function ConvertEnquiryModal({
     <ModalShell title={`Convert to sale: ${enquiry.prospect_company}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-gray-600">
-          Pick the group that signed up. This links future Stripe invoices on that group to this
-          partner enquiry for commission attribution.
+          Pick the group that signed up. Only groups with an active subscription are shown.
         </p>
-        <Field label="Search groups">
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Group name…"
-            className={inputStyles}
-          />
-        </Field>
-        <Field label="Select group *">
-          <select
-            required
-            value={selectedGroupId}
-            onChange={(e) => setSelectedGroupId(e.target.value)}
-            className={inputStyles}
-            size={Math.min(groups.length + 1, 8)}
-          >
-            <option value="">-</option>
-            {groups.map((g) => {
-              const alreadyAttributed = g.partner_enquiry_id && g.partner_enquiry_id !== enquiry.id
-              return (
-                <option key={g.id} value={g.id} disabled={!!alreadyAttributed}>
-                  {g.name}
-                  {alreadyAttributed ? ' (already attributed)' : ''}
-                  {g.subscription_status ? ` · ${g.subscription_status}` : ''}
-                </option>
-              )
-            })}
-          </select>
-        </Field>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Search groups</label>
+          <div className="relative">
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+            />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Type a group name…"
+              className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium text-gray-700">Select group</label>
+            <span className="text-xs text-gray-500">
+              {groups.length} {groups.length === 1 ? 'match' : 'matches'}
+            </span>
+          </div>
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white divide-y divide-gray-100">
+            {groups.length === 0 ? (
+              <div className="p-6 text-center text-sm text-gray-500">
+                No active groups match your search.
+              </div>
+            ) : (
+              groups.map((g) => {
+                const alreadyAttributed = !!g.partner_enquiry_id && g.partner_enquiry_id !== enquiry.id
+                const isSelected = selectedGroupId === g.id
+                return (
+                  <button
+                    type="button"
+                    key={g.id}
+                    disabled={alreadyAttributed}
+                    onClick={() => setSelectedGroupId(g.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                      alreadyAttributed
+                        ? 'opacity-50 cursor-not-allowed'
+                        : isSelected
+                        ? 'bg-[#EEF2FF]'
+                        : 'hover:bg-gray-50'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    <div
+                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${
+                        isSelected ? 'bg-[#6366F1] border-[#6366F1]' : 'bg-white border-gray-300'
+                      }`}
+                    >
+                      {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900 truncate">{g.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {g.subscription_status ?? 'no subscription'}
+                        {alreadyAttributed && ' · already attributed to another partner'}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
         {error && <div className="text-sm text-red-600">{error}</div>}
         <div className="flex justify-end gap-2 pt-2">
           <button

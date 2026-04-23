@@ -13,9 +13,13 @@ export async function GET(request: NextRequest) {
 
   const q = request.nextUrl.searchParams.get('q')?.trim() ?? ''
 
+  // Only groups with a live subscription are eligible for conversion.
+  // Incomplete / incomplete_expired means they never finished onboarding,
+  // and canceled means they've left — neither should be pickable here.
   let query = supabaseAdmin
     .from('groups')
     .select('id, name, partner_enquiry_id, subscription_status, created_at')
+    .in('subscription_status', ['active', 'past_due', 'trialing'])
     .order('created_at', { ascending: false })
     .limit(100)
 
