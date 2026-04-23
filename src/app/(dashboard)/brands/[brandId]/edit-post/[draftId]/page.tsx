@@ -14,7 +14,9 @@ import type { PostJobSummary } from '@/types/postJobs';
 import { canonicalizeChannel, getChannelLabel } from '@/lib/channels';
 import { useToast } from '@/components/ui/ToastProvider';
 import PublishProgressModal from '@/components/schedule/PublishProgressModal';
+import PostMockupModal from '@/components/schedule/PostMockupModal';
 import { usePublishNow } from '@/hooks/usePublishNow';
+import { useSocialAccounts } from '@/hooks/useSocialAccounts';
 import ChannelSelector from '@/components/forms/ChannelSelector';
 
 console.log('Edit Post page component loaded');
@@ -91,6 +93,9 @@ export default function EditPostPage() {
   const [retryModalComplete, setRetryModalComplete] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [alternatives, setAlternatives] = useState<string[] | null>(null);
+  const [isMockupOpen, setIsMockupOpen] = useState(false);
+
+  const { accounts: socialAccounts } = useSocialAccounts(brandId);
 
   // Use shared publish-now hook
   const {
@@ -1201,9 +1206,22 @@ export default function EditPostPage() {
         <div className="flex-1 overflow-auto bg-gray-50">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 py-6">
-            <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Edit Post</h1>
-              <p className="text-gray-600 mt-1 text-sm">Edit your social media post</p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold text-gray-950 leading-[1.2]">Edit Post</h1>
+                <p className="text-gray-600 mt-1 text-sm">Edit your social media post</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMockupOpen(true)}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View mockup
+              </button>
             </div>
           </div>
 
@@ -1747,6 +1765,20 @@ export default function EditPostPage() {
           completeTitle="Retry complete"
           onClose={() => setRetryModalOpen(false)}
         />
+
+        {/* Post Mockup Modal */}
+        {isMockupOpen && (
+          <PostMockupModal
+            isOpen={isMockupOpen}
+            onClose={() => setIsMockupOpen(false)}
+            assets={resolvedSelectedAssets}
+            copy={postCopy}
+            hashtags={hashtags}
+            channels={selectedChannels}
+            accounts={socialAccounts}
+            brandName={brand?.name ?? null}
+          />
+        )}
       </AppLayout>
     </RequireAuth>
   );

@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase-browser';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatDateTimeLocal } from '@/lib/utils/timezone';
 import OverdueApprovalModal from '@/components/schedule/OverdueApprovalModal';
+import PostMockupModal from '@/components/schedule/PostMockupModal';
 import { usePublishNow } from '@/hooks/usePublishNow';
 import PostContextBar, { type FrequencyInput } from '@/components/schedule/PostContextBar';
 import type { PostJobSummary } from '@/types/postJobs';
@@ -291,6 +292,7 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
   const copyRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
+  const [isMockupOpen, setIsMockupOpen] = useState(false);
   const { updateDraft, approveDraft, deleteDraft } = useDrafts(draft.brand_id);
   const { accounts: hookAccounts } = useSocialAccounts(draft.brand_id);
   const accounts = socialAccounts ?? hookAccounts;
@@ -1086,6 +1088,16 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
                     </div>
                   );
                 })}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMockupOpen(true);
+                  }}
+                  className="ml-auto text-[11px] font-medium text-[#6366F1] hover:text-[#4F46E5] hover:underline"
+                >
+                  View mockup
+                </button>
               </div>
             )}
           </div>
@@ -1119,6 +1131,20 @@ export default function DraftCard({ draft, onUpdate, status, jobs, socialAccount
               console.error('Failed to update draft:', error);
             }
           }}
+        />
+      )}
+
+      {/* Post Mockup Modal */}
+      {isMockupOpen && (
+        <PostMockupModal
+          isOpen={isMockupOpen}
+          onClose={() => setIsMockupOpen(false)}
+          assets={draft.assets ?? []}
+          copy={draft.copy}
+          hashtags={draft.hashtags ?? []}
+          channels={normalizedJobs.map((j) => j.channel)}
+          accounts={accounts}
+          brandName={brand?.name ?? null}
         />
       )}
     </>
