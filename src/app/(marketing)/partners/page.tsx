@@ -19,13 +19,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-const PORTRAIT_SRC = '/images/andrew-partners.jpg'
+const PORTRAIT_SRC = '/images/andrew-headshot.jpg'
 
 export default function PartnersPage() {
   return (
     <div className="bg-white">
       {/* Hero — personal, portrait + invitation */}
-      <section className="relative pt-16 md:pt-24 pb-20 bg-gradient-to-br from-indigo-50 via-white to-indigo-50/40 overflow-hidden">
+      <section className="relative pt-28 md:pt-36 pb-20 bg-gradient-to-br from-indigo-50 via-white to-indigo-50/40 overflow-hidden">
         <div className="container max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
             {/* Portrait (mobile: top, desktop: left) */}
@@ -102,7 +102,7 @@ export default function PartnersPage() {
             How it works
           </h2>
           <p className="text-lg text-gray-600 text-center mb-16 max-w-2xl mx-auto">
-            Four steps, and most of them are me doing the work.
+            From intro to payout, in four simple steps.
           </p>
 
           {/* Desktop: horizontal timeline. Mobile: vertical stack with left rail. */}
@@ -242,26 +242,35 @@ export default function PartnersPage() {
 
       {/* How you get paid */}
       <section className="py-20 bg-gray-50">
-        <div className="container max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            How you get paid
-          </h2>
-          <p className="text-lg text-gray-600 mb-8">
-            I handle everything &mdash; no invoicing admin on your end.
-          </p>
-          <ul className="space-y-3">
-            {[
-              <>At the start of each month, I&rsquo;ll issue you a <strong>Buyer-Created Tax Invoice (BCTI)</strong> for the previous month&rsquo;s commissions</>,
-              <>Payment lands in your bank account within 7 days (NZ bank transfer, or Wise for international partners)</>,
-              <><strong>Minimum payout: NZD $50.</strong> Anything under rolls into the next month</>,
-              <><strong>GST:</strong> If you&rsquo;re GST-registered, I&rsquo;ll add 15% GST on top of your commission. If you&rsquo;re not, no GST applies. Either way, your 20% is the same</>,
-            ].map((item, i) => (
-              <li key={i} className="flex gap-3 text-gray-700 leading-relaxed">
-                <Check className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="container max-w-5xl mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 items-center">
+            <div className="lg:col-span-3">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                How you get paid
+              </h2>
+              <p className="text-lg text-gray-600 mb-8">
+                I handle everything &mdash; no invoicing admin on your end.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  <>At the start of each month, I&rsquo;ll issue you a <strong>Buyer-Created Tax Invoice (BCTI)</strong> for the previous month&rsquo;s commissions</>,
+                  <>Payment lands in your bank account within 7 days (NZ bank transfer, or Wise for international partners)</>,
+                  <><strong>Minimum payout: NZD $50.</strong> Anything under rolls into the next month</>,
+                  <><strong>GST:</strong> If you&rsquo;re GST-registered, I&rsquo;ll add 15% GST on top of your commission. If you&rsquo;re not, no GST applies. Either way, your 20% is the same</>,
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-3 text-gray-700 leading-relaxed">
+                    <Check className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* BCTI preview card */}
+            <div className="lg:col-span-2">
+              <BctiPreviewCard />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -375,6 +384,96 @@ export default function PartnersPage() {
           </div>
         </div>
       </section>
+    </div>
+  )
+}
+
+/**
+ * Miniature BCTI preview card — visual mock of what a partner receives each
+ * month. Purely decorative; numbers are illustrative.
+ */
+function BctiPreviewCard() {
+  return (
+    <div className="relative">
+      {/* soft glow behind */}
+      <div className="absolute -inset-4 bg-gradient-to-br from-[#6366F1]/15 to-[#4F46E5]/10 rounded-3xl blur-2xl" />
+
+      <div
+        className="relative bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden transform lg:rotate-[1.5deg] hover:rotate-0 transition-transform duration-300"
+        aria-label="Example BCTI preview"
+      >
+        {/* top bar */}
+        <div className="px-5 py-3 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white">
+          <div className="text-[10px] font-semibold uppercase tracking-widest opacity-80">
+            Buyer-created tax invoice
+          </div>
+          <div className="text-base font-bold">BCTI-0042</div>
+        </div>
+
+        {/* meta row */}
+        <div className="px-5 py-3 border-b border-gray-100 flex justify-between text-[11px]">
+          <div>
+            <div className="text-gray-400 uppercase tracking-wider text-[10px]">Issued</div>
+            <div className="text-gray-700 font-medium">1 May 2026</div>
+          </div>
+          <div className="text-right">
+            <div className="text-gray-400 uppercase tracking-wider text-[10px]">Period</div>
+            <div className="text-gray-700 font-medium">Apr 2026</div>
+          </div>
+        </div>
+
+        {/* parties */}
+        <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-2 gap-3 text-[11px]">
+          <div>
+            <div className="text-gray-400 uppercase tracking-wider text-[10px]">From</div>
+            <div className="text-gray-700 font-medium">Ferdy AI Limited</div>
+          </div>
+          <div className="text-right">
+            <div className="text-gray-400 uppercase tracking-wider text-[10px]">To</div>
+            <div className="text-gray-700 font-medium">Your business</div>
+          </div>
+        </div>
+
+        {/* line items */}
+        <div className="px-5 pt-3">
+          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            Commissions
+          </div>
+          <div className="space-y-1.5">
+            {[
+              { label: 'CaféCo · 3 brands', amount: '$88.20' },
+              { label: 'North Fit Studio · 1 brand', amount: '$29.40' },
+              { label: 'Lumen Architects · 2 brands', amount: '$58.80' },
+            ].map((row) => (
+              <div key={row.label} className="flex justify-between text-[11px]">
+                <span className="text-gray-600 truncate pr-2">{row.label}</span>
+                <span className="text-gray-900 font-medium tabular-nums">{row.amount}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* totals */}
+        <div className="px-5 pt-3 pb-5 mt-3 border-t border-gray-100">
+          <div className="flex justify-between text-[11px] text-gray-600">
+            <span>Subtotal</span>
+            <span className="tabular-nums">$176.40</span>
+          </div>
+          <div className="flex justify-between text-[11px] text-gray-500">
+            <span>GST (15%)</span>
+            <span className="tabular-nums">$26.46</span>
+          </div>
+          <div className="flex justify-between mt-2 pt-2 border-t border-gray-200">
+            <span className="text-sm font-bold text-gray-900">Total due</span>
+            <span className="text-sm font-bold text-gray-900 tabular-nums">NZD $202.86</span>
+          </div>
+          <div className="mt-3 text-[10px] text-gray-400 text-center">
+            Paid within 7 days · Direct to your bank
+          </div>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-500 mt-4">Example only. Your real BCTI is issued as a PDF.</p>
     </div>
   )
 }
