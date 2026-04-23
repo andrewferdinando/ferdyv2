@@ -59,8 +59,10 @@ export default function PartnerTermsPage() {
           <h2 className={sectionHeadingClass}>2. Registration and eligibility</h2>
           <p className={paragraphClass}>
             You must register via the form at ferdy.io/partners and provide accurate, current information. You must
-            be over 18 and legally able to enter into contracts. You must keep your contact, business, and bank
-            details up to date by emailing{' '}
+            be over 18 and legally able to enter into contracts. New Zealand partners provide bank account details
+            for direct NZ bank transfer. Partners outside New Zealand provide a Wise-linked email address and are
+            paid via Wise; if you don&rsquo;t have a Wise account, Ferdy will contact you to arrange an alternative
+            payment method. You must keep your contact, business, and payment details up to date by emailing{' '}
             <a href="mailto:andrew@ferdy.io" className="text-indigo-600 hover:underline font-medium">
               andrew@ferdy.io
             </a>
@@ -142,20 +144,26 @@ export default function PartnerTermsPage() {
           <p className={paragraphClass}>Payment terms:</p>
           <ul className={listClass}>
             <li>BCTIs are issued at the start of each month for the previous month&rsquo;s earnings</li>
-            <li>Payment is made by bank transfer within 7 days of the BCTI issue date</li>
+            <li>Payment is made within 7 days of the BCTI issue date</li>
             <li>
-              For non-New Zealand partners, payment is made via Wise in NZD or your local currency at prevailing
-              exchange rates
+              For New Zealand partners, payment is made by direct NZ bank transfer to the account you provided at
+              registration
+            </li>
+            <li>
+              For partners outside New Zealand, payment is made via Wise to the email address you provided at
+              registration. Commissions are invoiced in NZD; Wise converts to your local currency at the prevailing
+              exchange rate when you withdraw. Any currency conversion fees charged by Wise are your responsibility.
+              If you don&rsquo;t have a Wise account, Ferdy will contact you to arrange an alternative
             </li>
             <li>
               The minimum payout threshold is NZD $50. Amounts below this roll forward until the threshold is met
             </li>
             <li>
               If you are GST-registered in New Zealand, Ferdy will add 15% GST to your commission on the BCTI. If you
-              are not GST-registered, no GST applies
+              are not GST-registered (including all partners outside New Zealand), no GST applies
             </li>
             <li>You must notify Ferdy promptly if your GST registration status changes</li>
-            <li>You must notify Ferdy promptly of any change to your bank or Wise details</li>
+            <li>You must notify Ferdy promptly of any change to your bank account or Wise email</li>
           </ul>
 
           <h2 className={sectionHeadingClass}>8. Tax</h2>
