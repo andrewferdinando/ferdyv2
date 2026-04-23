@@ -55,26 +55,52 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function pickIgFeedRatio(originalRatio: string): string {
-  if (originalRatio === '9:16') return '4:5';
-  if (SUPPORTED_RATIOS.includes(originalRatio) && originalRatio !== '9:16') {
-    return originalRatio;
-  }
-  return '1:1';
+function getAssetRatio(asset: MockupAsset): string {
+  const r = asset.aspect_ratio || '1:1';
+  return SUPPORTED_RATIOS.includes(r) ? r : '1:1';
 }
 
-function targetRatioForChannel(channel: string, asset: MockupAsset): string {
-  const assetRatio = asset.aspect_ratio || '1:1';
-  switch (channel) {
-    case 'instagram_story':
-      return '9:16';
-    case 'instagram_feed':
-      return pickIgFeedRatio(assetRatio);
-    case 'facebook':
-    case 'linkedin_profile':
-    default:
-      return SUPPORTED_RATIOS.includes(assetRatio) ? assetRatio : '1:1';
+function isVideoAsset(asset: MockupAsset): boolean {
+  return (asset.asset_type ?? 'image') === 'video';
+}
+
+function getVideoNativeRatioLabel(asset: MockupAsset): string {
+  if (!asset.width || !asset.height) return 'native dimensions';
+  return `${asset.width}×${asset.height}px`;
+}
+
+function MockupVideo({ asset }: { asset: MockupAsset }) {
+  const videoUrl = asset.signed_url || null;
+  const poster = asset.thumbnail_signed_url || undefined;
+  const naturalRatio =
+    asset.width && asset.height ? asset.width / asset.height : 9 / 16;
+
+  if (!videoUrl) {
+    return (
+      <div
+        className="relative w-full overflow-hidden bg-gray-100 flex items-center justify-center"
+        style={{ aspectRatio: `${naturalRatio}` }}
+      >
+        <span className="text-xs text-gray-400">No video URL</span>
+      </div>
+    );
   }
+
+  return (
+    <div
+      className="relative w-full overflow-hidden bg-black"
+      style={{ aspectRatio: `${naturalRatio}` }}
+    >
+      <video
+        src={videoUrl}
+        poster={poster}
+        controls
+        playsInline
+        preload="metadata"
+        className="absolute inset-0 h-full w-full object-contain bg-black"
+      />
+    </div>
+  );
 }
 
 function MockupImage({
@@ -84,8 +110,12 @@ function MockupImage({
   asset: MockupAsset;
   targetRatio: string;
 }) {
-  const previewUrl = asset.thumbnail_signed_url || asset.signed_url || null;
   const isVideo = (asset.asset_type ?? 'image') === 'video';
+  if (isVideo) {
+    return <MockupVideo asset={asset} />;
+  }
+
+  const previewUrl = asset.thumbnail_signed_url || asset.signed_url || null;
 
   const frameWidth = FORMAT_RATIOS[targetRatio] ?? 1;
   const frameHeight = 1;
@@ -137,15 +167,6 @@ function MockupImage({
           transform: `translate(calc(-50% + ${translateXPercent}%), calc(-50% + ${translateYPercent}%))`,
         }}
       />
-      {isVideo && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 shadow">
-            <svg className="h-5 w-5 text-[#6366F1]" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -258,7 +279,7 @@ function FacebookMockup({
             <MockupImage
               key={asset.id}
               asset={asset}
-              targetRatio={targetRatioForChannel('facebook', asset)}
+              targetRatio={getAssetRatio(asset)}
             />
           ))}
         </div>
@@ -316,7 +337,7 @@ function InstagramFeedMockup({
             <MockupImage
               key={asset.id}
               asset={asset}
-              targetRatio={targetRatioForChannel('instagram_feed', asset)}
+              targetRatio={getAssetRatio(asset)}
             />
           ))}
         </div>
@@ -349,12 +370,36 @@ function InstagramStoryMockup({
   const displayName = getDisplayName(account, brandName);
   const pic = getProfilePicture(account);
   const firstAsset = assets[0];
+  const isVideo = firstAsset ? isVideoAsset(firstAsset) : false;
+  const assetRatio = firstAsset ? getAssetRatio(firstAsset) : '9:16';
+  // Videos publish at native dimensions, images publish at their stored aspect_ratio
+  const nativeVideoRatio =
+    isVideo && firstAsset?.width && firstAsset?.height
+      ? firstAsset.width / firstAsset.height
+      : null;
+  const nineSixteen = 9 / 16;
+  const isFullScreen = isVideo
+    ? nativeVideoRatio !== null && Math.abs(nativeVideoRatio - nineSixteen) < 0.02
+    : assetRatio === '9:16';
+  const ratioLabel = isVideo
+    ? nativeVideoRatio
+      ? `${firstAsset?.width}×${firstAsset?.height}px`
+      : 'native size'
+    : assetRatio;
 
   return (
     <div className="mx-auto" style={{ maxWidth: '280px' }}>
       <div className="relative w-full overflow-hidden rounded-2xl bg-black" style={{ aspectRatio: '9 / 16' }}>
         {firstAsset ? (
-          <MockupImage asset={firstAsset} targetRatio="9:16" />
+          isFullScreen ? (
+            <MockupImage asset={firstAsset} targetRatio="9:16" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-full">
+                <MockupImage asset={firstAsset} targetRatio={assetRatio} />
+              </div>
+            </div>
+          )
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-white/60">
             No media
@@ -379,6 +424,12 @@ function InstagramStoryMockup({
           </div>
         </div>
       </div>
+      {!isFullScreen && firstAsset && (
+        <p className="mt-2 text-center text-xs text-gray-500">
+          {isVideo ? 'Video' : 'Image'} is {ratioLabel} — Stories display in a 9:16 viewport, so it
+          will appear letterboxed.
+        </p>
+      )}
       {assets.length > 1 && (
         <p className="mt-2 text-center text-xs text-gray-500">
           Stories show one image. {assets.length - 1} additional image{assets.length > 2 ? 's' : ''} not shown.
@@ -427,9 +478,9 @@ const PostMockupModal: React.FC<PostMockupModalProps> = ({
     : supportedChannels[0];
 
   const account = getAccountForChannel(channelToShow, accounts);
-  const targetRatio = assets[0]
-    ? targetRatioForChannel(channelToShow, assets[0])
-    : '1:1';
+  const firstAsset = assets[0];
+  const firstIsVideo = firstAsset ? isVideoAsset(firstAsset) : false;
+  const targetRatio = firstAsset ? getAssetRatio(firstAsset) : '1:1';
   const dims = META_DIMENSIONS[targetRatio];
 
   return (
@@ -461,10 +512,23 @@ const PostMockupModal: React.FC<PostMockupModalProps> = ({
         })}
       </div>
 
-      {dims && assets.length > 0 && (
+      {firstAsset && (
         <div className="mb-4 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-600">
-          Image will display at <span className="font-semibold text-gray-900">{targetRatio}</span>{' '}
-          ({dims.width}×{dims.height}px) on {getChannelLabel(channelToShow)}.
+          {firstIsVideo ? (
+            <>
+              Video will be published at its native dimensions{' '}
+              <span className="font-semibold text-gray-900">
+                ({getVideoNativeRatioLabel(firstAsset)})
+              </span>
+              .
+            </>
+          ) : dims ? (
+            <>
+              Image will be published at{' '}
+              <span className="font-semibold text-gray-900">{targetRatio}</span>{' '}
+              ({dims.width}×{dims.height}px).
+            </>
+          ) : null}
         </div>
       )}
 
