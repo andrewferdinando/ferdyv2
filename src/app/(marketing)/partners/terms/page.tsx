@@ -220,8 +220,10 @@ export default function PartnerTermsPage() {
             </li>
             <li>No further commissions will accrue for introductions made after the termination date</li>
             <li>
-              For customers introduced before termination, commissions will continue to accrue for 3 months after the
-              termination date, after which commission stops, unless Ferdy terminates for cause under clause 14
+              For customers introduced before termination, commissions will continue to accrue for the lifetime of
+              each customer&rsquo;s subscription, subject to the adjustments, cancellation, and refund rules in
+              clause 6. This does not apply if Ferdy terminates for cause under clause 14, in which case all unpaid
+              commissions are forfeited.
             </li>
           </ul>
 
