@@ -15,10 +15,13 @@ export async function GET(request: NextRequest) {
   const from = params.get('from')
   const to = params.get('to')
 
+  // Disambiguate the groups join — there are two FKs between partner_enquiries
+  // and groups (forward via group_id, backward via groups.partner_enquiry_id),
+  // so PostgREST needs an explicit hint.
   let q = supabaseAdmin
     .from('partner_enquiries')
     .select(
-      'id, partner_id, enquiry_date, prospect_company, prospect_contact_name, prospect_email, status, group_id, converted_at, expires_at, notes, created_at, partners(full_name, trading_name), groups(name)',
+      'id, partner_id, enquiry_date, prospect_company, prospect_contact_name, prospect_email, status, group_id, converted_at, expires_at, notes, created_at, partners(full_name, trading_name), groups!partner_enquiries_group_id_fkey(name)',
     )
     .order('enquiry_date', { ascending: false })
 
