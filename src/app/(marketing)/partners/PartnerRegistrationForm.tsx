@@ -61,20 +61,25 @@ export default function PartnerRegistrationForm() {
   }
 
   const isFormValid = useMemo(() => {
-    const requiredTextFields: (keyof FormState)[] = [
+    const baseRequired: (keyof FormState)[] = [
       'full_name',
       'email',
       'trading_name',
       'business_address',
-      'bank_account_name',
-      'bank_account_number',
     ]
-    for (const f of requiredTextFields) {
+    for (const f of baseRequired) {
       if (!String(values[f] || '').trim()) return false
     }
     if (!values.tcs_accepted) return false
     if (values.gst_registered && !values.gst_number.trim()) return false
-    if (values.country !== 'NZ' && !values.wise_email.trim()) return false
+
+    // Conditional payment fields.
+    if (values.country === 'NZ') {
+      if (!values.bank_account_name.trim()) return false
+      if (!values.bank_account_number.trim()) return false
+    } else {
+      if (!values.wise_email.trim()) return false
+    }
     return true
   }, [values])
 
@@ -292,59 +297,80 @@ export default function PartnerRegistrationForm() {
         </div>
       </fieldset>
 
-      {/* Payment details */}
+      {/* Payment details — conditional on country */}
       <fieldset>
         <legend className={sectionTitle}>Payment details</legend>
-        <p className="text-xs text-gray-500 mb-4">
-          Bank account number and Wise email are encrypted in our database.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label htmlFor="bank_account_name" className={labelClass}>
-              Bank account name <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="bank_account_name"
-              type="text"
-              required
-              className={inputClass}
-              value={values.bank_account_name}
-              onChange={(e) => update('bank_account_name', e.target.value)}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label htmlFor="bank_account_number" className={labelClass}>
-              Bank account number <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="bank_account_number"
-              type="text"
-              required
-              className={inputClass}
-              value={values.bank_account_number}
-              onChange={(e) => update('bank_account_number', e.target.value)}
-            />
-          </div>
-          {values.country !== 'NZ' && (
-            <div className="md:col-span-2">
-              <label htmlFor="wise_email" className={labelClass}>
-                Wise email <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="wise_email"
-                type="email"
-                required
-                className={inputClass}
-                value={values.wise_email}
-                onChange={(e) => update('wise_email', e.target.value)}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                We pay international partners via Wise.
-              </p>
-              {fieldError === 'wise_email' && error && <p className={errorClass}>{error}</p>}
+
+        {values.country === 'NZ' ? (
+          <>
+            <p className="text-xs text-gray-500 mb-4">
+              I&rsquo;ll pay your commission by direct NZ bank transfer each month. Bank account number is encrypted
+              in our database.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label htmlFor="bank_account_name" className={labelClass}>
+                  Bank account name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="bank_account_name"
+                  type="text"
+                  required
+                  className={inputClass}
+                  value={values.bank_account_name}
+                  onChange={(e) => update('bank_account_name', e.target.value)}
+                />
+                {fieldError === 'bank_account_name' && error && <p className={errorClass}>{error}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <label htmlFor="bank_account_number" className={labelClass}>
+                  Bank account number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="bank_account_number"
+                  type="text"
+                  required
+                  className={inputClass}
+                  value={values.bank_account_number}
+                  onChange={(e) => update('bank_account_number', e.target.value)}
+                />
+                {fieldError === 'bank_account_number' && error && <p className={errorClass}>{error}</p>}
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-gray-500 mb-4">
+              I&rsquo;ll pay your commission via Wise using this email address. If you don&rsquo;t have a Wise
+              account yet, you can create one for free at{' '}
+              <a
+                href="https://wise.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:underline"
+              >
+                wise.com
+              </a>
+              {' '}- or I&rsquo;ll email you to arrange an alternative. Email is encrypted in our database.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label htmlFor="wise_email" className={labelClass}>
+                  Wise email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="wise_email"
+                  type="email"
+                  required
+                  className={inputClass}
+                  value={values.wise_email}
+                  onChange={(e) => update('wise_email', e.target.value)}
+                />
+                {fieldError === 'wise_email' && error && <p className={errorClass}>{error}</p>}
+              </div>
+            </div>
+          </>
+        )}
       </fieldset>
 
       {/* Agreement */}

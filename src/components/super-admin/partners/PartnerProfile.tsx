@@ -153,37 +153,59 @@ export default function PartnerProfile({ partner, onUpdated }: Props) {
       </Section>
 
       <Section title="Payment details">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Bank account name"><input className={inputStyles} value={form.bank_account_name} onChange={(e) => update('bank_account_name', e.target.value)} /></Field>
-          <Field label="Bank account number">
-            <div className="flex gap-2">
-              <input
-                className={inputStyles}
-                type={showBank ? 'text' : 'password'}
-                value={form.bank_account_number}
-                onChange={(e) => update('bank_account_number', e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowBank((v) => !v)}
-                className="rounded-lg border border-gray-300 px-2 text-gray-600 hover:bg-gray-50"
-                aria-label={showBank ? 'Hide' : 'Show'}
-              >
-                {showBank ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Wise email (international partners)">
-              <input
-                className={inputStyles}
-                type={showBank ? 'email' : 'password'}
-                value={form.wise_email}
-                onChange={(e) => update('wise_email', e.target.value)}
-              />
+        <p className="text-xs text-gray-500 mb-4">
+          {form.country === 'NZ'
+            ? 'Paid by direct NZ bank transfer.'
+            : 'Paid via Wise to the email below.'}
+        </p>
+        {form.country === 'NZ' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Bank account name">
+              <input className={inputStyles} value={form.bank_account_name} onChange={(e) => update('bank_account_name', e.target.value)} />
+            </Field>
+            <Field label="Bank account number">
+              <div className="flex gap-2">
+                <input
+                  className={inputStyles}
+                  type={showBank ? 'text' : 'password'}
+                  value={form.bank_account_number}
+                  onChange={(e) => update('bank_account_number', e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowBank((v) => !v)}
+                  className="rounded-lg border border-gray-300 px-2 text-gray-600 hover:bg-gray-50"
+                  aria-label={showBank ? 'Hide' : 'Show'}
+                >
+                  {showBank ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </Field>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Field label="Wise email">
+                <div className="flex gap-2">
+                  <input
+                    className={inputStyles}
+                    type={showBank ? 'email' : 'password'}
+                    value={form.wise_email}
+                    onChange={(e) => update('wise_email', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowBank((v) => !v)}
+                    className="rounded-lg border border-gray-300 px-2 text-gray-600 hover:bg-gray-50"
+                    aria-label={showBank ? 'Hide' : 'Show'}
+                  >
+                    {showBank ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </Field>
+            </div>
+          </div>
+        )}
       </Section>
 
       <Section title="Discount code">

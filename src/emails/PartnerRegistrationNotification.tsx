@@ -13,6 +13,7 @@ interface PartnerRegistrationNotificationProps {
   businessAddress: string
   gstRegistered: boolean
   gstNumber?: string | null
+  paymentMethod: string
   partnerId: string
 }
 
@@ -35,6 +36,7 @@ export function PartnerRegistrationNotification({
   businessAddress,
   gstRegistered,
   gstNumber,
+  paymentMethod,
   partnerId,
 }: PartnerRegistrationNotificationProps) {
   return (
@@ -63,8 +65,13 @@ export function PartnerRegistrationNotification({
         {gstRegistered && <Row label="GST number" value={gstNumber || '-'} />}
       </Section>
 
+      <Section style={infoBox}>
+        <Text style={emailStyles.h2}>Payment</Text>
+        <Row label="Method" value={paymentMethod} />
+      </Section>
+
       <Text style={{ ...emailStyles.paragraph, color: '#6B7280', fontSize: '14px' }}>
-        Bank and Wise details are encrypted in the database. Partner ID: {partnerId}
+        Full payment details are encrypted in the database. View in Super Admin to see them. Partner ID: {partnerId}
       </Text>
 
       <Text style={emailStyles.paragraph}>

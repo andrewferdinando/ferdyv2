@@ -54,6 +54,7 @@ export interface PartnerRegistrationNotificationData {
   businessAddress: string
   gstRegistered: boolean
   gstNumber?: string | null
+  paymentMethod: string
   partnerId: string
 }
 
@@ -72,6 +73,7 @@ export async function sendPartnerRegistrationNotification(
       businessAddress: data.businessAddress,
       gstRegistered: data.gstRegistered,
       gstNumber: data.gstNumber,
+      paymentMethod: data.paymentMethod,
       partnerId: data.partnerId,
     }),
   )

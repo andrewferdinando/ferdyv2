@@ -22,8 +22,9 @@ const registrationSchema = z
     business_address: z.string().trim().min(1, 'Business address is required').max(1000),
     gst_registered: z.boolean(),
     gst_number: z.string().trim().max(50).optional().or(z.literal('')),
-    bank_account_name: z.string().trim().min(1, 'Bank account name is required').max(200),
-    bank_account_number: z.string().trim().min(1, 'Bank account number is required').max(100),
+    // Payment fields — required based on country (enforced in superRefine below).
+    bank_account_name: z.string().trim().max(200).optional().or(z.literal('')),
+    bank_account_number: z.string().trim().max(100).optional().or(z.literal('')),
     wise_email: z.string().trim().toLowerCase().email('Invalid Wise email').max(320).optional().or(z.literal('')),
     tcs_accepted: z.literal(true, { message: 'You must accept the terms' }),
   })
@@ -35,12 +36,29 @@ const registrationSchema = z
         message: 'GST number is required when GST-registered',
       })
     }
-    if (data.country !== 'NZ' && !data.wise_email?.trim()) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['wise_email'],
-        message: 'Wise email is required for non-NZ partners',
-      })
+    if (data.country === 'NZ') {
+      if (!data.bank_account_name?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['bank_account_name'],
+          message: 'Bank account name is required',
+        })
+      }
+      if (!data.bank_account_number?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['bank_account_number'],
+          message: 'Bank account number is required',
+        })
+      }
+    } else {
+      if (!data.wise_email?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['wise_email'],
+          message: 'Wise email is required for non-NZ partners',
+        })
+      }
     }
   })
 
@@ -106,13 +124,16 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Encrypt sensitive fields at rest.
-  let bankAccountEncrypted: string
+  // Encrypt sensitive fields at rest. Only the fields for the partner's
+  // country are populated — the others stay null.
+  const isNz = data.country === 'NZ'
+  let bankAccountEncrypted: string | null = null
   let wiseEmailEncrypted: string | null = null
   try {
-    bankAccountEncrypted = encryptToken(data.bank_account_number)
-    if (data.wise_email && data.wise_email.trim()) {
-      wiseEmailEncrypted = encryptToken(data.wise_email.trim())
+    if (isNz) {
+      bankAccountEncrypted = encryptToken(data.bank_account_number!.trim())
+    } else {
+      wiseEmailEncrypted = encryptToken(data.wise_email!.trim())
     }
   } catch (err) {
     console.error('[partners/register] encryption failed:', err)
@@ -134,7 +155,7 @@ export async function POST(request: NextRequest) {
     business_address: data.business_address,
     gst_registered: data.gst_registered,
     gst_number: data.gst_registered ? (data.gst_number?.trim() || null) : null,
-    bank_account_name: data.bank_account_name,
+    bank_account_name: isNz ? (data.bank_account_name?.trim() || null) : null,
     bank_account_number_encrypted: bankAccountEncrypted,
     wise_email_encrypted: wiseEmailEncrypted,
     tcs_accepted_at: new Date().toISOString(),
@@ -174,6 +195,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const paymentMethod = isNz
+      ? 'NZ bank transfer'
+      : `Wise to ${data.wise_email!.trim()}`
+
     await sendPartnerRegistrationNotification({
       fullName: data.full_name,
       email: data.email,
@@ -185,6 +210,7 @@ export async function POST(request: NextRequest) {
       businessAddress: data.business_address,
       gstRegistered: data.gst_registered,
       gstNumber: data.gst_registered ? (data.gst_number?.trim() || null) : null,
+      paymentMethod,
       partnerId: inserted.id,
     })
   } catch (err) {
