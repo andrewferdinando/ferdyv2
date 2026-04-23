@@ -341,8 +341,8 @@ export default function PartnerRegistrationForm() {
         ) : (
           <>
             <p className="text-xs text-gray-500 mb-4">
-              I&rsquo;ll pay your commission via Wise using this email address. If you don&rsquo;t have a Wise
-              account yet, you can create one for free at{' '}
+              As you&rsquo;re not based in New Zealand, I&rsquo;ll pay your commission via Wise using this email
+              address. If you don&rsquo;t have a Wise account yet, you can create one for free at{' '}
               <a
                 href="https://wise.com"
                 target="_blank"
