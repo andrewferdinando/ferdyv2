@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, ChevronDown, Loader2 } from 'lucide-react'
 
 type Country = 'NZ' | 'AU' | 'Other'
@@ -79,32 +79,23 @@ export default function PartnerRegistrationForm() {
     }
   }, [success])
 
+  // If the server returned a field-level error, scroll to that field so the
+  // user can see the inline message without hunting for it.
+  useEffect(() => {
+    if (fieldError) {
+      const el = document.getElementById(fieldError)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        if ('focus' in el && typeof (el as HTMLElement).focus === 'function') {
+          ;(el as HTMLElement).focus({ preventScroll: true })
+        }
+      }
+    }
+  }, [fieldError])
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
   }
-
-  const isFormValid = useMemo(() => {
-    const baseRequired: (keyof FormState)[] = [
-      'full_name',
-      'email',
-      'trading_name',
-      'business_address',
-    ]
-    for (const f of baseRequired) {
-      if (!String(values[f] || '').trim()) return false
-    }
-    if (!values.tcs_accepted) return false
-    if (values.gst_registered && !values.gst_number.trim()) return false
-
-    // Conditional payment fields.
-    if (values.country === 'NZ') {
-      if (!values.bank_account_name.trim()) return false
-      if (!values.bank_account_number.trim()) return false
-    } else {
-      if (!values.wise_email.trim()) return false
-    }
-    return true
-  }, [values])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -160,7 +151,6 @@ export default function PartnerRegistrationForm() {
     <form
       onSubmit={handleSubmit}
       className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 shadow-sm space-y-8"
-      noValidate
     >
       {/* About you */}
       <fieldset>
@@ -431,7 +421,7 @@ export default function PartnerRegistrationForm() {
         </div>
       </div>
 
-      {error && !fieldError && (
+      {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
@@ -439,7 +429,7 @@ export default function PartnerRegistrationForm() {
 
       <button
         type="submit"
-        disabled={!isFormValid || submitting}
+        disabled={submitting}
         className="w-full h-12 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white font-semibold shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {submitting ? (
