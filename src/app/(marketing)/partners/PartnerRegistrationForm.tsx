@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, ChevronDown, Loader2 } from 'lucide-react'
 
 type Country = 'NZ' | 'AU' | 'Other'
@@ -68,6 +68,16 @@ export default function PartnerRegistrationForm() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<string | null>(null)
+  const successRef = useRef<HTMLDivElement | null>(null)
+
+  // When the form is replaced with the success message, the browser preserves
+  // the scroll position from where the user hit submit — which leaves the
+  // (much shorter) confirmation off-screen above them. Scroll it into view.
+  useEffect(() => {
+    if (success && successRef.current) {
+      successRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [success])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -124,7 +134,10 @@ export default function PartnerRegistrationForm() {
 
   if (success) {
     return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
+      <div
+        ref={successRef}
+        className="scroll-mt-20 rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm"
+      >
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
           <CheckCircle2 className="h-8 w-8 text-green-600" />
         </div>
