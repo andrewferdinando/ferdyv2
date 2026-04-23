@@ -49,7 +49,7 @@ export function PartnerRegistrationNotification({
         <Text style={emailStyles.h2}>Contact</Text>
         <Row label="Name" value={fullName} />
         <Row label="Email" value={email} />
-        <Row label="Phone" value={phone?.trim() || '—'} />
+        <Row label="Phone" value={phone?.trim() || '-'} />
         <Row label="Country" value={country} />
       </Section>
 
@@ -57,10 +57,10 @@ export function PartnerRegistrationNotification({
         <Text style={emailStyles.h2}>Business</Text>
         <Row label="Trading name" value={tradingName} />
         <Row label="Entity type" value={entityType} />
-        <Row label="Company / NZBN" value={companyNumber?.trim() || '—'} />
+        <Row label="Company / NZBN" value={companyNumber?.trim() || '-'} />
         <Row label="Address" value={businessAddress} />
         <Row label="GST registered" value={gstRegistered ? 'Yes' : 'No'} />
-        {gstRegistered && <Row label="GST number" value={gstNumber || '—'} />}
+        {gstRegistered && <Row label="GST number" value={gstNumber || '-'} />}
       </Section>
 
       <Text style={{ ...emailStyles.paragraph, color: '#6B7280', fontSize: '14px' }}>

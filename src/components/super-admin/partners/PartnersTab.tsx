@@ -126,7 +126,7 @@ export default function PartnersTab() {
                 {p.unpaid_balance_cents > 0 ? (
                   <span className="font-medium text-gray-900">{formatCurrencyCents(p.unpaid_balance_cents)}</span>
                 ) : (
-                  <span className="text-gray-400">—</span>
+                  <span className="text-gray-400">-</span>
                 )}
               </td>
             </tr>

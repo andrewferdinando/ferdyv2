@@ -20,7 +20,7 @@ export function PartnerRegistrationConfirmation({
       <Text style={emailStyles.paragraph}>Hi {firstName},</Text>
 
       <Text style={emailStyles.paragraph}>
-        Thanks for registering {tradingName} for the Ferdy Partner Programme. You&rsquo;re all set &mdash; no further action
+        Thanks for registering {tradingName} for the Ferdy Partner Programme. You&rsquo;re all set - no further action
         needed from your end.
       </Text>
 
@@ -33,7 +33,7 @@ export function PartnerRegistrationConfirmation({
           <br />
           2. I&rsquo;ll reach out, run the demo, and handle the onboarding.
           <br />
-          3. When they sign up and start paying, you earn 20% of every invoice &mdash; every month, for as long as they stay
+          3. When they sign up and start paying, you earn 20% of every invoice - every month, for as long as they stay
           with Ferdy.
         </Text>
       </Section>

@@ -94,7 +94,7 @@ export default function PartnerCommissions({ partnerId }: { partnerId: string })
               {commissions.map((c) => (
                 <tr key={c.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{c.invoice_paid_at.slice(0, 10)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{c.groups?.name ?? <span className="text-gray-400">—</span>}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{c.groups?.name ?? <span className="text-gray-400">-</span>}</td>
                   <td className="px-4 py-3">
                     <a
                       href={`https://dashboard.stripe.com/${c.stripe_credit_note_id ? 'credit_notes/' + c.stripe_credit_note_id : 'invoices/' + c.stripe_invoice_id}`}

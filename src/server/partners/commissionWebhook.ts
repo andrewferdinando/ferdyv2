@@ -2,7 +2,7 @@
 //
 // IMPORTANT: These functions MUST NOT throw in a way that breaks the core
 // billing webhook. The caller in src/app/api/stripe/webhook/route.ts wraps
-// every call in try/catch and logs errors — do not rely on external retry
+// every call in try/catch and logs errors - do not rely on external retry
 // behaviour. Idempotency is enforced by DB unique constraints on
 // stripe_invoice_id and stripe_credit_note_id.
 
@@ -77,7 +77,7 @@ export async function handleInvoicePaidForPartner(invoice: Stripe.Invoice): Prom
 
   const supabase = getSupabase()
 
-  // Early exit: skip if no attribution. This is the hot path — 99% of
+  // Early exit: skip if no attribution. This is the hot path - 99% of
   // invoices have no partner_enquiry_id and should incur zero extra work.
   const groupId = await findGroupByCustomer(supabase, customerId)
   if (!groupId) return
@@ -116,7 +116,7 @@ export async function handleInvoicePaidForPartner(invoice: Stripe.Invoice): Prom
   if (error) {
     // 23505 = unique_violation → this invoice was already processed. Safe to ignore.
     if (error.code === '23505') {
-      console.log(`[partners] commission already exists for invoice ${invoice.id} — skipping`)
+      console.log(`[partners] commission already exists for invoice ${invoice.id} - skipping`)
       return
     }
     throw error
@@ -155,7 +155,7 @@ export async function handleCreditNoteForPartner(
     .maybeSingle()
 
   if (lookupErr || !original) {
-    // No partner commission on this invoice — nothing to offset.
+    // No partner commission on this invoice - nothing to offset.
     return
   }
 
@@ -184,13 +184,13 @@ export async function handleCreditNoteForPartner(
 
   if (insertErr) {
     if (insertErr.code === '23505') {
-      console.log(`[partners] credit note ${creditNote.id} already offset — skipping`)
+      console.log(`[partners] credit note ${creditNote.id} already offset - skipping`)
       return
     }
     throw insertErr
   }
 
-  // Void the original only if it hasn't been paid out — we can't rewrite history.
+  // Void the original only if it hasn't been paid out - we can't rewrite history.
   if (original.status === 'pending') {
     await supabase
       .from('partner_commissions')

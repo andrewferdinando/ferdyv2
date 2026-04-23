@@ -26,7 +26,7 @@ export function PartnerBCTI({
     }).format(cents / 100)
 
   return (
-    <EmailLayout preview={`Your Ferdy partner commission — ${periodLabel}`}>
+    <EmailLayout preview={`Your Ferdy partner commission - ${periodLabel}`}>
       <Text style={emailStyles.h1}>Your partner commission BCTI</Text>
 
       <Text style={emailStyles.paragraph}>Hi {firstName},</Text>

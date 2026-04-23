@@ -150,14 +150,14 @@ export default function EnquiriesTab() {
                       {e.prospect_email ? ` · ${e.prospect_email}` : ''}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{e.partners?.full_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{e.partners?.full_name ?? '-'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[e.status]}`}>
                       {e.status.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
-                    {e.groups?.name ?? <span className="text-gray-400">—</span>}
+                    {e.groups?.name ?? <span className="text-gray-400">-</span>}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{e.expires_at}</td>
                   <td className="px-4 py-3 text-right">
@@ -290,7 +290,7 @@ function AddEnquiryModal({
             <option value="">Select a partner…</option>
             {partners.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.full_name} — {p.trading_name}
+                {p.full_name} - {p.trading_name}
               </option>
             ))}
           </select>
@@ -442,7 +442,7 @@ function ConvertEnquiryModal({
             className={inputStyles}
             size={Math.min(groups.length + 1, 8)}
           >
-            <option value="">—</option>
+            <option value="">-</option>
             {groups.map((g) => {
               const alreadyAttributed = g.partner_enquiry_id && g.partner_enquiry_id !== enquiry.id
               return (

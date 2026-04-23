@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
   const data = parsed.data
   const supabase = getSupabaseAdmin()
 
-  // Duplicate email check — friendly message instead of DB error.
+  // Duplicate email check - friendly message instead of DB error.
   const { data: existing } = await supabase
     .from('partners')
     .select('id')
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Send both emails. Individual failures are logged but do not fail the
-  // request — the partner is already saved, and Andrew can follow up manually.
+  // request - the partner is already saved, and Andrew can follow up manually.
   try {
     await sendPartnerRegistrationConfirmation({
       to: data.email,

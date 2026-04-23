@@ -120,7 +120,7 @@ export default function PartnerPayouts({ partnerId }: { partnerId: string }) {
                     {p.sent_at.slice(0, 10)}
                     {p.sent_to_email && <div className="text-xs">{p.sent_to_email}</div>}
                   </>
-                ) : '—'}
+                ) : '-'}
               </td>
               <td className="px-4 py-3 text-sm text-gray-500">
                 {p.paid_at ? (
@@ -128,7 +128,7 @@ export default function PartnerPayouts({ partnerId }: { partnerId: string }) {
                     {p.paid_at.slice(0, 10)}
                     {p.payment_reference && <div className="text-xs">{p.payment_reference}</div>}
                   </>
-                ) : '—'}
+                ) : '-'}
               </td>
               <td className="px-4 py-3 text-right">
                 {p.pdf_storage_path && (

@@ -90,7 +90,7 @@ export default function PartnerEnquiries({ partnerId }: { partnerId: string }) {
                   {e.status.replace('_', ' ')}
                 </span>
               </td>
-              <td className="px-4 py-3 text-sm text-gray-700">{e.groups?.name ?? <span className="text-gray-400">—</span>}</td>
+              <td className="px-4 py-3 text-sm text-gray-700">{e.groups?.name ?? <span className="text-gray-400">-</span>}</td>
               <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{e.expires_at}</td>
             </tr>
           ))}

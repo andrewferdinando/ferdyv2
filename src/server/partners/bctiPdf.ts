@@ -222,7 +222,7 @@ export async function generateBctiPdf(input: BctiPdfInput): Promise<Uint8Array> 
     drawRightAligned(page, fmtCents(input.gstCents, input.currency), totalsAmountX, y - 10, 10, regular, black)
     y -= 18
   } else {
-    page.drawText('GST not applicable — supplier not GST-registered', {
+    page.drawText('GST not applicable - supplier not GST-registered', {
       x: totalsLabelX - 60,
       y: y - 10,
       size: 9,

@@ -24,7 +24,7 @@ const PORTRAIT_SRC = '/images/andrew-headshot.jpg'
 export default function PartnersPage() {
   return (
     <div className="bg-white">
-      {/* Hero — personal, portrait + invitation */}
+      {/* Hero - personal, portrait + invitation */}
       <section className="relative pt-28 md:pt-36 pb-20 bg-gradient-to-br from-indigo-50 via-white to-indigo-50/40 overflow-hidden">
         <div className="container max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
@@ -53,9 +53,9 @@ export default function PartnersPage() {
                 </span>
               </h1>
               <p className="text-base md:text-lg text-gray-600 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Hi &mdash; I&rsquo;m Andrew, the founder of Ferdy. If you know businesses or agencies anywhere in the
+                Hi - I&rsquo;m Andrew, the founder of Ferdy. If you know businesses or agencies anywhere in the
                 world who could benefit from Ferdy, I&rsquo;d love you to introduce us. When your introduction turns
-                into a customer, you earn <strong>20%</strong> of their subscription &mdash; every month, for as long
+                into a customer, you earn <strong>20%</strong> of their subscription - every month, for as long
                 as they stay with Ferdy.
               </p>
 
@@ -95,7 +95,7 @@ export default function PartnersPage() {
         </div>
       </section>
 
-      {/* How it works — timeline stepper */}
+      {/* How it works - timeline stepper */}
       <section id="how-it-works" className="py-20 scroll-mt-16">
         <div className="container max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 text-center">
@@ -158,7 +158,7 @@ export default function PartnersPage() {
             a fit for them.
           </p>
 
-          {/* Counts — lead card with example email */}
+          {/* Counts - lead card with example email */}
           <div className="bg-white rounded-2xl border-2 border-green-200 shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-6 py-4 bg-green-50 border-b border-green-100">
               <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center">
@@ -175,7 +175,7 @@ export default function PartnersPage() {
                 <span className="text-gray-500">Subject:</span> Intro: Sarah @ CaféCo &lt;&gt; Andrew @ Ferdy
                 <br />
                 <br />
-                Hi Andrew, meet Sarah &mdash; she runs CaféCo, three cafes in Auckland, and
+                Hi Andrew, meet Sarah - she runs CaféCo, three cafes in Auckland, and
                 is drowning in social media admin. I reckon Ferdy would be a great fit.
                 <br />
                 <br />
@@ -189,7 +189,7 @@ export default function PartnersPage() {
             </div>
           </div>
 
-          {/* Doesn't count — de-emphasised */}
+          {/* Doesn't count - de-emphasised */}
           <div className="mt-6 flex gap-3 items-start bg-white/60 rounded-xl border border-gray-200 p-5">
             <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
               <X className="w-5 h-5 text-gray-600" strokeWidth={3} />
@@ -197,7 +197,7 @@ export default function PartnersPage() {
             <div>
               <p className="font-semibold text-gray-900 text-sm mb-1">What doesn&rsquo;t count</p>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Suggesting a company name for me to cold-approach. Warm intros convert; cold leads don&rsquo;t &mdash;
+                Suggesting a company name for me to cold-approach. Warm intros convert; cold leads don&rsquo;t -
                 so the commission is tied to the intro you make yourself.
               </p>
             </div>
@@ -216,9 +216,9 @@ export default function PartnersPage() {
               <ul className="space-y-3">
                 {[
                   <><strong>20% of the customer&rsquo;s monthly subscription</strong>, for the lifetime of the customer</>,
-                  <>Ferdy is NZD $147 per brand per month &mdash; that&rsquo;s <strong>roughly $29.40 per brand, per month</strong> to you</>,
+                  <>Ferdy is NZD $147 per brand per month - that&rsquo;s <strong>roughly $29.40 per brand, per month</strong> to you</>,
                   <>If the customer adds more brands, your commission scales automatically</>,
-                  <><strong>Discount codes.</strong> I may give you a code to offer prospects as an incentive. If a discount applies &mdash; either one I&rsquo;ve given you to share, or one I&rsquo;ve offered the customer directly &mdash; your commission is 20% of the discounted amount they actually pay</>,
+                  <><strong>Discount codes.</strong> I may give you a code to offer prospects as an incentive. If a discount applies - either one I&rsquo;ve given you to share, or one I&rsquo;ve offered the customer directly - your commission is 20% of the discounted amount they actually pay</>,
                   <>Commission is exclusive of GST (see <em>How you get paid</em> below)</>,
                 ].map((item, i) => (
                   <li key={i} className="flex gap-3 text-gray-700 leading-relaxed">
@@ -249,7 +249,7 @@ export default function PartnersPage() {
                 How you get paid
               </h2>
               <p className="text-lg text-gray-600 mb-8">
-                I handle everything &mdash; no invoicing admin on your end.
+                I handle everything - no invoicing admin on your end.
               </p>
               <ul className="space-y-3">
                 {[
@@ -274,7 +274,7 @@ export default function PartnersPage() {
         </div>
       </section>
 
-      {/* Good to know — card grid */}
+      {/* Good to know - card grid */}
       <section className="py-20">
         <div className="container max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-12 text-center">
@@ -378,7 +378,7 @@ export default function PartnersPage() {
                     andrew@ferdy.io
                   </a>
                 </div>
-                <p className="mt-4 text-sm text-gray-500">&mdash; Andrew, Founder of Ferdy</p>
+                <p className="mt-4 text-sm text-gray-500">- Andrew, Founder of Ferdy</p>
               </div>
             </div>
           </div>
@@ -389,7 +389,7 @@ export default function PartnersPage() {
 }
 
 /**
- * Miniature BCTI preview card — visual mock of what a partner receives each
+ * Miniature BCTI preview card - visual mock of what a partner receives each
  * month. Purely decorative; numbers are illustrative.
  */
 function BctiPreviewCard() {

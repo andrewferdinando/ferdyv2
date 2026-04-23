@@ -273,7 +273,7 @@ export default function PendingPayoutsTab() {
                       {formatCurrencyCents(row.subtotal_cents)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 text-right">
-                      {row.gst_registered ? formatCurrencyCents(row.gst_cents) : <span className="text-gray-400">—</span>}
+                      {row.gst_registered ? formatCurrencyCents(row.gst_cents) : <span className="text-gray-400">-</span>}
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">
                       {formatCurrencyCents(row.total_cents)}

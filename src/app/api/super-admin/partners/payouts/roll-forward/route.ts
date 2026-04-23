@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
   const subtotal = (commissions ?? []).reduce((s, c) => s + c.commission_cents, 0)
 
-  // Short audit BCTI number — prefix with ROLL to distinguish from issued invoices.
+  // Short audit BCTI number - prefix with ROLL to distinguish from issued invoices.
   const stamp = period_end.replace(/-/g, '')
   const bctiNumber = `ROLL-${stamp}-${partner_id.slice(0, 8)}`
 

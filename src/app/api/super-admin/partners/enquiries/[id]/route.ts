@@ -49,7 +49,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     }
   }
 
-  // Explicitly block setting status=converted via this endpoint — use /convert instead.
+  // Explicitly block setting status=converted via this endpoint - use /convert instead.
   if (update.status === 'converted') {
     return NextResponse.json(
       { error: 'Use the convert endpoint to mark an enquiry as converted.' },
@@ -93,7 +93,7 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
 
   const { id } = await ctx.params
 
-  // Block delete if there are commissions attached — would orphan the audit trail.
+  // Block delete if there are commissions attached - would orphan the audit trail.
   const { count } = await supabaseAdmin
     .from('partner_commissions')
     .select('id', { count: 'exact', head: true })

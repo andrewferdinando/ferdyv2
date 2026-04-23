@@ -93,12 +93,12 @@ export default function PartnerSales({ partnerId }: { partnerId: string }) {
             return (
               <tr key={e.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{e.prospect_company}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">{e.groups?.name ?? <span className="text-gray-400">—</span>}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">{e.converted_at?.slice(0, 10) ?? '—'}</td>
+                <td className="px-4 py-3 text-sm text-gray-700">{e.groups?.name ?? <span className="text-gray-400">-</span>}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">{e.converted_at?.slice(0, 10) ?? '-'}</td>
                 <td className="px-4 py-3 text-sm text-right">
-                  {stats ? formatCurrencyCents(stats.total) : <span className="text-gray-400">—</span>}
+                  {stats ? formatCurrencyCents(stats.total) : <span className="text-gray-400">-</span>}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-500">{stats?.latest?.slice(0, 10) ?? '—'}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">{stats?.latest?.slice(0, 10) ?? '-'}</td>
               </tr>
             )
           })}
