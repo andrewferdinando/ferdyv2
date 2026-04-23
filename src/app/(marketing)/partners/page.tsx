@@ -365,7 +365,7 @@ export default function PartnersPage() {
               />
               <div>
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  Thanks for considering the Partner Programme. Ferdy is a small team (mostly just me!), and
+                  Thanks for considering the Partner Programme. Ferdy is a small team, and
                   warm intros from people my customers trust is how we grow. If you want to chat anything
                   through before signing up, I&rsquo;d love to hear from you.
                 </p>
