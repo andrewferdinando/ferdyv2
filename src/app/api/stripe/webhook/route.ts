@@ -3,6 +3,10 @@ import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { sendInvoicePaid, sendPaymentFailed, sendSubscriptionCancelled } from '@/lib/emails/send'
+import {
+  handleInvoicePaidForPartner,
+  handleCreditNoteForPartner,
+} from '@/server/partners/commissionWebhook'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,6 +42,14 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.paid':
         await handleInvoicePaid(event.data.object as Stripe.Invoice)
+        // Partner commission side-effect runs AFTER the core handler and is
+        // isolated: any failure is logged but never propagated. Billing flow
+        // is unaffected.
+        try {
+          await handleInvoicePaidForPartner(event.data.object as Stripe.Invoice)
+        } catch (partnerErr) {
+          console.error('[partners] invoice.paid side-effect failed (non-fatal):', partnerErr)
+        }
         break
 
       case 'invoice.payment_failed':
@@ -46,6 +58,16 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded':
         await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+        break
+
+      case 'credit_note.created':
+        // Partner-only event. Fully isolated try/catch — this event has no
+        // core billing handler and must not be allowed to break the webhook.
+        try {
+          await handleCreditNoteForPartner(event.data.object as Stripe.CreditNote)
+        } catch (partnerErr) {
+          console.error('[partners] credit_note.created handler failed (non-fatal):', partnerErr)
+        }
         break
 
       default:
