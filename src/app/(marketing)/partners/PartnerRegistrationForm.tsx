@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Loader2 } from 'lucide-react'
 
 type Country = 'NZ' | 'AU' | 'Other'
 type EntityType = 'Sole trader' | 'Company' | 'Partnership' | 'Trust' | 'Other'
@@ -43,7 +43,20 @@ const initialState: FormState = {
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 const inputClass =
   'w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:border-[#6366F1] focus:ring-4 focus:ring-[#EEF2FF] focus:outline-none transition'
-const selectClass = inputClass
+// Native <select> chevron sits flush against the border. We hide it with
+// appearance-none, add right padding, and render our own properly-spaced
+// ChevronDown via <SelectChevron/>.
+const selectClass =
+  'w-full h-10 pl-3 pr-10 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:border-[#6366F1] focus:ring-4 focus:ring-[#EEF2FF] focus:outline-none transition appearance-none cursor-pointer'
+
+function SelectChevron() {
+  return (
+    <ChevronDown
+      aria-hidden
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+    />
+  )
+}
 const textareaClass =
   'w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:border-[#6366F1] focus:ring-4 focus:ring-[#EEF2FF] focus:outline-none transition'
 const sectionTitle = 'text-base font-semibold text-gray-900 mb-4'
@@ -187,17 +200,20 @@ export default function PartnerRegistrationForm() {
             <label htmlFor="country" className={labelClass}>
               Country <span className="text-red-500">*</span>
             </label>
-            <select
-              id="country"
-              required
-              className={selectClass}
-              value={values.country}
-              onChange={(e) => update('country', e.target.value as Country)}
-            >
-              <option value="NZ">New Zealand</option>
-              <option value="AU">Australia</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="relative">
+              <select
+                id="country"
+                required
+                className={selectClass}
+                value={values.country}
+                onChange={(e) => update('country', e.target.value as Country)}
+              >
+                <option value="NZ">New Zealand</option>
+                <option value="AU">Australia</option>
+                <option value="Other">Other</option>
+              </select>
+              <SelectChevron />
+            </div>
           </div>
         </div>
       </fieldset>
@@ -224,19 +240,22 @@ export default function PartnerRegistrationForm() {
             <label htmlFor="entity_type" className={labelClass}>
               Entity type <span className="text-red-500">*</span>
             </label>
-            <select
-              id="entity_type"
-              required
-              className={selectClass}
-              value={values.entity_type}
-              onChange={(e) => update('entity_type', e.target.value as EntityType)}
-            >
-              <option value="Sole trader">Sole trader</option>
-              <option value="Company">Company</option>
-              <option value="Partnership">Partnership</option>
-              <option value="Trust">Trust</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="relative">
+              <select
+                id="entity_type"
+                required
+                className={selectClass}
+                value={values.entity_type}
+                onChange={(e) => update('entity_type', e.target.value as EntityType)}
+              >
+                <option value="Sole trader">Sole trader</option>
+                <option value="Company">Company</option>
+                <option value="Partnership">Partnership</option>
+                <option value="Trust">Trust</option>
+                <option value="Other">Other</option>
+              </select>
+              <SelectChevron />
+            </div>
           </div>
           <div className="md:col-span-2">
             <label htmlFor="company_number" className={labelClass}>

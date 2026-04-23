@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, ArrowRight, X, Loader2 } from 'lucide-react'
+import { Plus, ArrowRight, ChevronDown, X, Loader2 } from 'lucide-react'
 import { authFetch } from '@/lib/client/auth-fetch'
 
 type EnquiryStatus = 'new' | 'in_progress' | 'converted' | 'expired' | 'lost'
@@ -94,18 +94,21 @@ export default function EnquiriesTab() {
     <div className="space-y-4">
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none"
-        >
-          <option value="">All statuses</option>
-          <option value="new">New</option>
-          <option value="in_progress">In progress</option>
-          <option value="converted">Converted</option>
-          <option value="expired">Expired</option>
-          <option value="lost">Lost</option>
-        </select>
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 pl-3 pr-10 py-2 text-sm focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none appearance-none cursor-pointer bg-white"
+          >
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="in_progress">In progress</option>
+            <option value="converted">Converted</option>
+            <option value="expired">Expired</option>
+            <option value="lost">Lost</option>
+          </select>
+          <SelectChevron />
+        </div>
         <button
           onClick={() => setShowAdd(true)}
           className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#6366F1] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] px-3 py-2 text-sm font-semibold text-white transition-all"
@@ -281,19 +284,22 @@ function AddEnquiryModal({
     <ModalShell title="Add enquiry" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <Field label="Partner *">
-          <select
-            required
-            value={partnerId}
-            onChange={(e) => setPartnerId(e.target.value)}
-            className={inputStyles}
-          >
-            <option value="">Select a partner…</option>
-            {partners.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.full_name} - {p.trading_name}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              required
+              value={partnerId}
+              onChange={(e) => setPartnerId(e.target.value)}
+              className={`${inputStyles} pr-10 appearance-none cursor-pointer bg-white`}
+            >
+              <option value="">Select a partner…</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name} - {p.trading_name}
+                </option>
+              ))}
+            </select>
+            <SelectChevron />
+          </div>
         </Field>
         <Field label="Enquiry date *">
           <input
@@ -505,6 +511,15 @@ function ModalShell({
 
 const inputStyles =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none'
+
+function SelectChevron() {
+  return (
+    <ChevronDown
+      aria-hidden
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+    />
+  )
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

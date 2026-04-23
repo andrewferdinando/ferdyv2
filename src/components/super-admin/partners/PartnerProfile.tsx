@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
+import { ChevronDown, Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
 import { authFetch } from '@/lib/client/auth-fetch'
 import type { PartnerDetail } from '@/app/(dashboard)/super-admin/partners/[id]/page'
 
@@ -100,11 +100,14 @@ export default function PartnerProfile({ partner, onUpdated }: Props) {
       <Section title="Status">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Partner status">
-            <select value={form.status} onChange={(e) => update('status', e.target.value as any)} className={inputStyles}>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="terminated">Terminated</option>
-            </select>
+            <div className="relative">
+              <select value={form.status} onChange={(e) => update('status', e.target.value as any)} className={selectStyles}>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="terminated">Terminated</option>
+              </select>
+              <SelectChevron />
+            </div>
           </Field>
         </div>
       </Section>
@@ -115,11 +118,14 @@ export default function PartnerProfile({ partner, onUpdated }: Props) {
           <Field label="Email"><input className={inputStyles} type="email" value={form.email} onChange={(e) => update('email', e.target.value)} /></Field>
           <Field label="Phone"><input className={inputStyles} value={form.phone} onChange={(e) => update('phone', e.target.value)} /></Field>
           <Field label="Country">
-            <select className={inputStyles} value={form.country} onChange={(e) => update('country', e.target.value)}>
-              <option value="NZ">New Zealand</option>
-              <option value="AU">Australia</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="relative">
+              <select className={selectStyles} value={form.country} onChange={(e) => update('country', e.target.value)}>
+                <option value="NZ">New Zealand</option>
+                <option value="AU">Australia</option>
+                <option value="Other">Other</option>
+              </select>
+              <SelectChevron />
+            </div>
           </Field>
         </div>
       </Section>
@@ -128,13 +134,16 @@ export default function PartnerProfile({ partner, onUpdated }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Trading name"><input className={inputStyles} value={form.trading_name} onChange={(e) => update('trading_name', e.target.value)} /></Field>
           <Field label="Entity type">
-            <select className={inputStyles} value={form.entity_type} onChange={(e) => update('entity_type', e.target.value)}>
-              <option value="Sole trader">Sole trader</option>
-              <option value="Company">Company</option>
-              <option value="Partnership">Partnership</option>
-              <option value="Trust">Trust</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="relative">
+              <select className={selectStyles} value={form.entity_type} onChange={(e) => update('entity_type', e.target.value)}>
+                <option value="Sole trader">Sole trader</option>
+                <option value="Company">Company</option>
+                <option value="Partnership">Partnership</option>
+                <option value="Trust">Trust</option>
+                <option value="Other">Other</option>
+              </select>
+              <SelectChevron />
+            </div>
           </Field>
           <Field label="Company number / NZBN"><input className={inputStyles} value={form.company_number} onChange={(e) => update('company_number', e.target.value)} /></Field>
           <Field label="GST registered">
@@ -294,3 +303,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputStyles =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none'
+
+const selectStyles =
+  'w-full rounded-lg border border-gray-300 pl-3 pr-10 py-2 text-sm focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] focus:outline-none appearance-none cursor-pointer bg-white'
+
+function SelectChevron() {
+  return (
+    <ChevronDown
+      aria-hidden
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+    />
+  )
+}
