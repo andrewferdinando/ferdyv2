@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-const LAST_UPDATED = '23 April 2026'
+const LAST_UPDATED = '30 April 2026'
 
 const sectionHeadingClass =
   'text-xl md:text-2xl font-bold text-gray-900 mt-10 mb-3 scroll-mt-20'
@@ -117,7 +117,15 @@ export default function PartnerTermsPage() {
             Commission is payable for the lifetime of the customer&rsquo;s subscription, subject to these terms.
           </p>
 
-          <h2 className={sectionHeadingClass}>6. Adjustments, cancellations, and refunds</h2>
+          <h2 className={sectionHeadingClass}>6. No multi-tier commissions</h2>
+          <p className={paragraphClass}>
+            You earn commission only on customers you personally refer who subscribe to Ferdy. If someone you
+            introduce becomes a partner rather than a customer, you do not earn anything on the customers or partners
+            they go on to refer. Ferdy is not a multi-level marketing or pyramid scheme and we will never pay
+            commission across more than one tier.
+          </p>
+
+          <h2 className={sectionHeadingClass}>7. Adjustments, cancellations, and refunds</h2>
           <ul className={listClass}>
             <li>
               If a customer adds or removes brands, or changes plan, your commission adjusts to 20% of the new
@@ -135,7 +143,7 @@ export default function PartnerTermsPage() {
             <li>Chargebacks are treated the same way as refunds.</li>
           </ul>
 
-          <h2 className={sectionHeadingClass}>7. How you get paid (Buyer-Created Tax Invoices)</h2>
+          <h2 className={sectionHeadingClass}>8. How you get paid (Buyer-Created Tax Invoices)</h2>
           <p className={paragraphClass}>
             You agree that Ferdy will issue a Buyer-Created Tax Invoice (BCTI) to you each month for commissions
             earned in the previous month, and that you will not issue a separate tax invoice for the same supply.
@@ -166,14 +174,14 @@ export default function PartnerTermsPage() {
             <li>You must notify Ferdy promptly of any change to your bank account or Wise email</li>
           </ul>
 
-          <h2 className={sectionHeadingClass}>8. Tax</h2>
+          <h2 className={sectionHeadingClass}>9. Tax</h2>
           <p className={paragraphClass}>
             You are responsible for your own tax affairs, including income tax, GST, and any other taxes payable in
             your jurisdiction on commissions earned. Ferdy does not provide tax advice. You should consult your own
             tax advisor.
           </p>
 
-          <h2 className={sectionHeadingClass}>9. Promotion codes</h2>
+          <h2 className={sectionHeadingClass}>10. Promotion codes</h2>
           <p className={paragraphClass}>
             Ferdy may provide you with a promotion code to share with prospects. You may share this code only with
             prospects you have made or intend to make a qualifying introduction for. You must not publish the code
@@ -181,7 +189,7 @@ export default function PartnerTermsPage() {
             revoke or change any promotion code at any time.
           </p>
 
-          <h2 className={sectionHeadingClass}>10. How you may promote Ferdy</h2>
+          <h2 className={sectionHeadingClass}>11. How you may promote Ferdy</h2>
           <p className={paragraphClass}>
             You may describe Ferdy accurately and link to ferdy.io. You must not:
           </p>
@@ -200,14 +208,14 @@ export default function PartnerTermsPage() {
             <li>Impersonate Ferdy or any Ferdy employee</li>
           </ul>
 
-          <h2 className={sectionHeadingClass}>11. Confidentiality</h2>
+          <h2 className={sectionHeadingClass}>12. Confidentiality</h2>
           <p className={paragraphClass}>
             Any non-public information Ferdy shares with you - including customer lists, pricing, product roadmap,
             and commercial terms - is confidential. You must not disclose it to third parties or use it for any
             purpose other than participating in this programme.
           </p>
 
-          <h2 className={sectionHeadingClass}>12. Data and privacy</h2>
+          <h2 className={sectionHeadingClass}>13. Data and privacy</h2>
           <p className={paragraphClass}>
             You must handle any personal information you collect from prospects (including in the course of making
             introductions) in accordance with applicable privacy laws. Ferdy will handle your personal information
@@ -215,7 +223,7 @@ export default function PartnerTermsPage() {
             payment details with any third party except as required to process payment.
           </p>
 
-          <h2 className={sectionHeadingClass}>13. Termination</h2>
+          <h2 className={sectionHeadingClass}>14. Termination</h2>
           <p className={paragraphClass}>
             Either party may terminate participation in the programme at any time, for any reason, by written notice
             (email is sufficient).
@@ -230,12 +238,12 @@ export default function PartnerTermsPage() {
             <li>
               For customers introduced before termination, commissions will continue to accrue for the lifetime of
               each customer&rsquo;s subscription, subject to the adjustments, cancellation, and refund rules in
-              clause 6. This does not apply if Ferdy terminates for cause under clause 14, in which case all unpaid
+              clause 7. This does not apply if Ferdy terminates for cause under clause 15, in which case all unpaid
               commissions are forfeited.
             </li>
           </ul>
 
-          <h2 className={sectionHeadingClass}>14. Termination for cause</h2>
+          <h2 className={sectionHeadingClass}>15. Termination for cause</h2>
           <p className={paragraphClass}>
             Ferdy may terminate your participation immediately and forfeit any unpaid commission if you:
           </p>
@@ -247,21 +255,21 @@ export default function PartnerTermsPage() {
             <li>Fail to respond to reasonable Ferdy enquiries within 30 days</li>
           </ul>
 
-          <h2 className={sectionHeadingClass}>15. Changes to these terms</h2>
+          <h2 className={sectionHeadingClass}>16. Changes to these terms</h2>
           <p className={paragraphClass}>
             Ferdy may update these terms from time to time. Material changes will be notified to you by email at
             least 14 days before they take effect. Your continued participation after the effective date constitutes
-            acceptance. If you do not accept the changes, you may terminate under clause 13.
+            acceptance. If you do not accept the changes, you may terminate under clause 14.
           </p>
 
-          <h2 className={sectionHeadingClass}>16. Changes to commission rates</h2>
+          <h2 className={sectionHeadingClass}>17. Changes to commission rates</h2>
           <p className={paragraphClass}>
             Ferdy may change the commission rate or structure from time to time on 30 days&rsquo; written notice. Any
             change applies only to commissions accrued on or after the effective date. Commissions already accrued at
             the prior rate are not affected.
           </p>
 
-          <h2 className={sectionHeadingClass}>17. Liability</h2>
+          <h2 className={sectionHeadingClass}>18. Liability</h2>
           <p className={paragraphClass}>To the fullest extent permitted by law:</p>
           <ul className={listClass}>
             <li>
@@ -275,7 +283,7 @@ export default function PartnerTermsPage() {
             <li>Nothing in these terms limits liability that cannot be limited by law</li>
           </ul>
 
-          <h2 className={sectionHeadingClass}>18. General</h2>
+          <h2 className={sectionHeadingClass}>19. General</h2>
           <p className={paragraphClass}>
             These terms are governed by the laws of New Zealand. The courts of New Zealand have exclusive
             jurisdiction over any dispute. If any provision is held unenforceable, the remaining provisions continue
@@ -283,7 +291,7 @@ export default function PartnerTermsPage() {
             supersede any prior discussions or representations.
           </p>
 
-          <h2 className={sectionHeadingClass}>19. Contact</h2>
+          <h2 className={sectionHeadingClass}>20. Contact</h2>
           <p className={paragraphClass}>
             For any questions about these terms or the programme, email{' '}
             <a href="mailto:andrew@ferdy.io" className="text-indigo-600 hover:underline font-medium">
