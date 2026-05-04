@@ -134,8 +134,10 @@ function MockupImage({
   const overflowX = Math.max(0, (imageRatio * scale - frameWidth) / 2);
   const overflowY = Math.max(0, (1 * scale - frameHeight) / 2);
 
-  const translateXPercent = overflowX === 0 ? 0 : (clamp(cropX, -1, 1) * overflowX * 100) / frameWidth;
-  const translateYPercent = overflowY === 0 ? 0 : (clamp(cropY, -1, 1) * overflowY * 100) / frameHeight;
+  // CSS translate% is relative to the element's own size, so convert frame-units
+  // (overflowX / frameWidth) into image-units by dividing by image extent in frame units.
+  const translateXPercent = overflowX === 0 ? 0 : (clamp(cropX, -1, 1) * overflowX * 100) / (imageRatio * scale);
+  const translateYPercent = overflowY === 0 ? 0 : (clamp(cropY, -1, 1) * overflowY * 100) / scale;
 
   const widthPercent = (imageRatio * scale * 100) / frameWidth;
   const heightPercent = (scale * 100) / frameHeight;

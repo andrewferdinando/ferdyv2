@@ -1,43 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Asset } from '@/hooks/assets/useAssets'
-
-const CROP_FORMATS = {
-  '1:1': 1,
-  '4:5': 4 / 5,
-  '1.91:1': 1.91,
-  '9:16': 9 / 16,
-} as const
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
-
-const ensureCropWithinBounds = (
-  crop: { scale: number; x: number; y: number },
-  nextScale: number,
-  minScale: number,
-  imageWidth: number,
-  imageHeight: number,
-  frameWidth: number,
-  frameHeight: number,
-) => {
-  const safeScale = Math.max(nextScale, minScale)
-
-  const overflowX = Math.max(0, (imageWidth * safeScale - frameWidth) / 2)
-  const overflowY = Math.max(0, (imageHeight * safeScale - frameHeight) / 2)
-
-  const prevOverflowX = Math.max(0, (imageWidth * crop.scale - frameWidth) / 2)
-  const prevOverflowY = Math.max(0, (imageHeight * crop.scale - frameHeight) / 2)
-
-  const prevPxX = prevOverflowX === 0 ? 0 : crop.x * prevOverflowX
-  const prevPxY = prevOverflowY === 0 ? 0 : crop.y * prevOverflowY
-
-  return {
-    scale: safeScale,
-    x: overflowX === 0 ? 0 : clamp(prevPxX / overflowX, -1, 1),
-    y: overflowY === 0 ? 0 : clamp(prevPxY / overflowY, -1, 1),
-  }
-}
 
 interface AssetCardProps {
   asset: Asset
@@ -51,46 +15,6 @@ export default function AssetCard({ asset, onEdit, onDelete, onPreview }: AssetC
   const [generatedThumbnail, setGeneratedThumbnail] = useState<string | null>(null)
   const [mainImgLoaded, setMainImgLoaded] = useState(false)
   const [thumbFailed, setThumbFailed] = useState(false)
-
-  const formatKey: keyof typeof CROP_FORMATS = !isVideo && (Object.keys(CROP_FORMATS) as Array<keyof typeof CROP_FORMATS>).includes(
-    asset.aspect_ratio as keyof typeof CROP_FORMATS,
-  )
-    ? (asset.aspect_ratio as keyof typeof CROP_FORMATS)
-    : '1:1'
-
-  const frameRatio = isVideo ? 1 : CROP_FORMATS[formatKey]
-
-  const imageWidth = asset.width ?? 1080
-  const imageHeight = asset.height ?? 1080
-  const imageRatio = imageWidth / Math.max(imageHeight, 1)
-
-  const minScale = useMemo(() => {
-    if (isVideo) return 1
-    return Math.max(frameRatio / imageRatio, 1)
-  }, [frameRatio, imageRatio, isVideo])
-
-  const storedCrop = asset.image_crops?.[formatKey]
-  const adjustedCrop = useMemo(() => {
-    if (isVideo) {
-      return { scale: 1, x: 0, y: 0 }
-    }
-
-    const base = {
-      scale: storedCrop?.scale ?? minScale,
-      x: storedCrop?.x ?? 0,
-      y: storedCrop?.y ?? 0,
-    }
-    return ensureCropWithinBounds(base, base.scale, minScale, imageRatio, 1, frameRatio, 1)
-  }, [frameRatio, imageRatio, minScale, storedCrop?.scale, storedCrop?.x, storedCrop?.y, isVideo])
-
-  const overflowX = isVideo ? 0 : Math.max(0, (imageRatio * adjustedCrop.scale - frameRatio) / 2)
-  const overflowY = isVideo ? 0 : Math.max(0, (1 * adjustedCrop.scale - 1) / 2)
-
-  const translateXPercent = overflowX === 0 ? 0 : (adjustedCrop.x * overflowX * 100) / frameRatio
-  const translateYPercent = overflowY === 0 ? 0 : adjustedCrop.y * overflowY * 100
-
-  const widthPercent = (imageRatio * adjustedCrop.scale * 100) / frameRatio
-  const heightPercent = adjustedCrop.scale * 100
 
   const videoAspectRatio = asset.width && asset.height && asset.height !== 0 ? asset.width / asset.height : 9 / 16
 
