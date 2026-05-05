@@ -512,6 +512,16 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const { defaultPostTime, defaultCopyLength, isLoading: settingsLoading } = useBrandPostSettings(brandId)
+
+  // Reset scroll to top of page when navigating between wizard steps so users
+  // don't land partway down a long step (e.g. Step 3 with the auto-seeded
+  // event occurrence card expanded).
+  useEffect(() => {
+    if (mode !== 'create') return
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+  }, [currentStep, mode])
   
   // Initialize subcategory type from initialData in edit mode (but not for Schedules)
   const [subcategoryType, setSubcategoryType] = useState<SubcategoryType | null>(() => {
