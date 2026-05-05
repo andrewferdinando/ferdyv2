@@ -19,6 +19,7 @@ import TimezoneSelect from '@/components/forms/TimezoneSelect'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 import { HashtagInput } from '@/components/ui/HashtagInput'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -759,22 +760,6 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     return ''
   })
   
-  // Reset occurrences when switching occurrence type (but not in edit mode on mount)
-  useEffect(() => {
-    // Initialize eventScheduling for specific frequency (all types)
-    if (schedule.frequency === 'specific' && mode === 'create') {
-      setEventScheduling(prev => ({ ...prev, occurrences: [] }))
-      setEventErrors({})
-    }
-  }, [eventOccurrenceType, schedule.frequency, mode])
-
-  // Force specific frequency for Events as soon as the type is selected (create mode)
-  useEffect(() => {
-    if (mode === 'create' && subcategoryType === 'event_series' && schedule.frequency !== 'specific') {
-      setSchedule(prev => ({ ...prev, frequency: 'specific' }))
-    }
-  }, [mode, subcategoryType, schedule.frequency])
-
   const occurrenceRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   // Track which occurrence cards are expanded (by index). In edit mode, all start collapsed.
   const [expandedOccurrences, setExpandedOccurrences] = useState<Set<number>>(() => {
@@ -786,6 +771,64 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
     }
     return initial
   })
+
+  // Reset occurrences when switching occurrence type (but not in edit mode on mount).
+  // For event_series, also auto-seed an empty first occurrence so the form is visible
+  // immediately on Step 3 — users don't have to click "+ Add" to see the fields.
+  useEffect(() => {
+    if (schedule.frequency !== 'specific' || mode !== 'create') return
+    if (subcategoryType === 'event_series') {
+      const seed: EventOccurrenceInput = eventOccurrenceType === 'single'
+        ? { name: '', date: '', time: '', url: '', notes: '' }
+        : { name: '', start_date: '', end_date: '', url: '', notes: '' }
+      setEventScheduling(prev => ({ ...prev, occurrences: [seed] }))
+      setExpandedOccurrences(new Set([0]))
+    } else {
+      setEventScheduling(prev => ({ ...prev, occurrences: [] }))
+    }
+    setEventErrors({})
+  }, [eventOccurrenceType, schedule.frequency, mode, subcategoryType])
+
+  // Force specific frequency for Events as soon as the type is selected (create mode)
+  useEffect(() => {
+    if (mode === 'create' && subcategoryType === 'event_series' && schedule.frequency !== 'specific') {
+      setSchedule(prev => ({ ...prev, frequency: 'specific' }))
+    }
+  }, [mode, subcategoryType, schedule.frequency])
+
+  // First-time confirmation modal when adding an additional occurrence to an event series.
+  // Prevents users from misinterpreting "+ Add another date" as creating a separate event.
+  const [showAddOccurrenceModal, setShowAddOccurrenceModal] = useState(false)
+  const hasSeenAddOccurrenceModalRef = useRef(false)
+
+  const appendOccurrence = useCallback(() => {
+    const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
+      ? { name: '', date: '', time: '', url: '', notes: '' }
+      : { name: '', start_date: '', end_date: '', url: '', notes: '' }
+    let newIndex = 0
+    setEventScheduling(prev => {
+      newIndex = prev.occurrences.length
+      return { ...prev, occurrences: [...prev.occurrences, newOccurrence] }
+    })
+    setExpandedOccurrences(prev => new Set([...prev, newIndex]))
+    setEventErrors(prev => prev.occurrences ? { ...prev, occurrences: undefined } : prev)
+    setTimeout(() => {
+      const cardRef = occurrenceRefs.current.get(newIndex)
+      if (cardRef) {
+        cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
+        if (dateInput) dateInput.focus()
+      }
+    }, 100)
+  }, [eventOccurrenceType])
+
+  const handleAddOccurrenceClick = useCallback(() => {
+    if (subcategoryType === 'event_series' && !hasSeenAddOccurrenceModalRef.current) {
+      setShowAddOccurrenceModal(true)
+      return
+    }
+    appendOccurrence()
+  }, [subcategoryType, appendOccurrence])
 
   // Initialize daysBefore from leadTimesInput when component mounts or switching to specific frequency
   useEffect(() => {
@@ -3482,7 +3525,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           {/* Occurrences List */}
           <div>
             <p className="text-sm text-gray-600 mb-4">
-              Add each event with its own URL and details. For example, a sports team could add one entry per match day.
+              {eventOccurrenceType === 'single'
+                ? "Set the date and details below. If this event runs on multiple dates (e.g. an Auckland Networking Lunch each month), add the additional dates — they'll all share the description and images from Step 2."
+                : "Set the date range and details below. If this event has multiple separate runs (e.g. a workshop that repeats each quarter), add the additional date ranges — they'll all share the description and images from Step 2."
+              }
             </p>
 
             {(() => {
@@ -3558,7 +3604,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                           </span>
                         )}
                       </div>
-                      {!isPast && isExpanded && (
+                      {!isPast && isExpanded && eventScheduling.occurrences.length > 1 && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -3752,32 +3798,10 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
             <button
               type="button"
-              onClick={() => {
-                const newOccurrence: EventOccurrenceInput = eventOccurrenceType === 'single'
-                  ? { name: '', date: '', time: '', url: '', notes: '' }
-                  : { name: '', start_date: '', end_date: '', url: '', notes: '' }
-                const newIndex = eventScheduling.occurrences.length
-                setEventScheduling(prev => ({
-                  ...prev,
-                  occurrences: [...prev.occurrences, newOccurrence]
-                }))
-                // Auto-expand the new occurrence
-                setExpandedOccurrences(prev => new Set([...prev, newIndex]))
-                if (eventErrors.occurrences) {
-                  setEventErrors(prev => ({ ...prev, occurrences: undefined }))
-                }
-                setTimeout(() => {
-                  const cardRef = occurrenceRefs.current.get(newIndex)
-                  if (cardRef) {
-                    cardRef.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                    const dateInput = cardRef.querySelector<HTMLInputElement>('input[type="date"]')
-                    if (dateInput) dateInput.focus()
-                  }
-                }, 100)
-              }}
+              onClick={handleAddOccurrenceClick}
               className="mt-4 px-4 py-2 text-sm font-medium text-[#6366F1] bg-white border border-[#6366F1] rounded-lg hover:bg-blue-50 transition-colors"
             >
-              {eventOccurrenceType === 'single' ? '+ Add event' : '+ Add range'}
+              {eventOccurrenceType === 'single' ? '+ Add another date' : '+ Add another date range'}
             </button>
 
             {eventErrors.occurrences && (
@@ -4087,6 +4111,32 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         )}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showAddOccurrenceModal}
+        onClose={() => setShowAddOccurrenceModal(false)}
+        onConfirm={() => {
+          hasSeenAddOccurrenceModalRef.current = true
+          setShowAddOccurrenceModal(false)
+          appendOccurrence()
+        }}
+        title={eventOccurrenceType === 'single' ? 'Add another date for this event?' : 'Add another date range for this event?'}
+        confirmText={eventOccurrenceType === 'single' ? 'Add another date' : 'Add another date range'}
+        cancelText="Cancel"
+        message={
+          <>
+            <p>
+              You&apos;re adding {eventOccurrenceType === 'single' ? 'another occurrence' : 'another date range'} of the same event series — for example, the same Networking Lunch on a different date.
+            </p>
+            <p className="mt-3">
+              All occurrences share the <strong>description, hashtags, and images</strong> from Step 2. Each one can have its own date, time, URL, and notes.
+            </p>
+            <p className="mt-3">
+              If this is a different event entirely, cancel and create a separate category instead.
+            </p>
+          </>
+        }
+      />
     </>
   )
 
@@ -4767,7 +4817,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                     {renderAccordionSection('details', 'Details', detailsSummary, renderDetailsContent)}
                     {renderAccordionSection(
                       'schedule',
-                      schedule.frequency === 'specific' ? 'Event dates' : 'Schedule',
+                      schedule.frequency === 'specific' ? 'Event details' : 'Schedule',
                       scheduleSummary,
                       renderScheduleContent
                     )}
@@ -4873,7 +4923,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                 {currentStep === 3 && (
                   <div>
                     <h2 className="text-lg font-medium text-gray-900 mb-6">
-                      Step 3: {schedule.frequency === 'specific' ? 'Event dates' : 'Schedule'}
+                      Step 3: {schedule.frequency === 'specific' ? 'Event details' : 'Schedule'}
                     </h2>
                     {renderScheduleContent()}
                   </div>

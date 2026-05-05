@@ -1,6 +1,8 @@
 # Category / Subcategory Creation Flow — Ferdy
 
-> **Updated:** 2026-02-27 — Draft generation now happens on Finish (Step 4), not Step 3. Generator skips categories with `setup_complete=false`. Double-click guard added to wizard buttons.
+> **Updated:** 2026-05-05 — Step 3 UX refresh for event categories: heading is now "Event details" (not "Event dates"), the first occurrence card auto-seeds and is always expanded so users see the form immediately, the remove button is hidden when only one occurrence remains, and the add button reads "+ Add another date" / "+ Add another date range". A first-time confirmation modal explains that additional occurrences share Step 2 description/hashtags/images.
+>
+> 2026-02-27 — Draft generation now happens on Finish (Step 4), not Step 3. Generator skips categories with `setup_complete=false`. Double-click guard added to wizard buttons.
 
 ## TL;DR (for AI tools)
 
@@ -359,6 +361,14 @@ Category Creation interacts with several other documented processes:
 - **2025-12-05** — Category Creation flow documented based on `FrameworkItemWizard.tsx`, `subcategories` schema, and related Supabase functions.
 - **2026-02-09** — Edit mode refactored from stepped wizard to accordion layout. Create mode unchanged. Added `ensureSubcategoryUpdated()` documentation. Event dates description changed to "Input the detail for your event date(s)".
 - **2026-02-27** — Draft generation moved from Step 3 to Step 4 (`handleFinish()`). Generator now skips categories with `setup_complete=false`. Wizard "Finish" button renamed to "Finish and Generate Drafts". Double-click guard added to prevent concurrent `handleNext`/`handleFinish` execution.
+- **2026-05-05** — Step 3 UX refresh for event categories (`subcategory_type = 'event_series'`):
+  - Heading changed from "Event dates" → "Event details" in both create and edit modes (helper copy reframes the screen as filling out one event with optional additional dates).
+  - First occurrence card auto-seeds and is auto-expanded on entry to Step 3 (create mode only). The "No dates added yet" empty state no longer appears for event categories.
+  - Remove (×) button is hidden when only one occurrence exists, preventing accidental deletion of the required first card.
+  - Add button label changed from "+ Add event" / "+ Add range" → "+ Add another date" / "+ Add another date range".
+  - A first-time confirmation modal (`ConfirmDialog`) appears the first time an event-series user clicks the add button, explaining that additional occurrences share Step 2 description, hashtags, and images. Suppressed for the rest of the wizard session via a ref flag.
+  - Implementation only affects `event_series` type. Other types using `frequency = 'specific'` (`promo_or_offer`, `other`, `unspecified`) are unchanged except for the shared improvement of hiding the remove button when only one occurrence remains.
+  - No changes to data model, validation, save logic, `event_occurrences` writes, or draft generation.
 - Behaviour may change if:
   - `subcategory_type` values are standardised (`event`, `promotion`, etc.).
   - Scheduling frequency types are expanded.
