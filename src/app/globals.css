@@ -69,6 +69,16 @@ body {
   100% { transform: translateX(100%); }
 }
 
+/* /demo loading bar fill */
+@keyframes scopeFill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.scope-fill {
+  width: 0%;
+  animation: scopeFill linear forwards;
+}
+
 /* Asset grid shimmer skeleton */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
