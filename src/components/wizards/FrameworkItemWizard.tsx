@@ -3526,8 +3526,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
           <div>
             <p className="text-sm text-gray-600 mb-4">
               {eventOccurrenceType === 'single'
-                ? "Set the date and details below. If this event runs on multiple dates (e.g. an Auckland Networking Lunch each month), add the additional dates — they'll all share the description and images from Step 2."
-                : "Set the date range and details below. If this event has multiple separate runs (e.g. a workshop that repeats each quarter), add the additional date ranges — they'll all share the description and images from Step 2."
+                ? "Set the date and details below. If this event runs on multiple dates (e.g. an Auckland Networking Lunch each month), add the additional dates — they'll all share the description from Step 2 and the media from Step 4."
+                : "Set the date range and details below. If this event has multiple separate runs (e.g. a workshop that repeats each quarter), add the additional date ranges — they'll all share the description from Step 2 and the media from Step 4."
               }
             </p>
 
@@ -4129,7 +4129,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
               You&apos;re adding {eventOccurrenceType === 'single' ? 'another occurrence' : 'another date range'} of the same event series — for example, the same Networking Lunch on a different date.
             </p>
             <p className="mt-3">
-              All occurrences share the <strong>description, hashtags, and images</strong> from Step 2. Each one can have its own date, time, URL, and notes.
+              All occurrences share the <strong>description and hashtags</strong> from Step 2 and the <strong>media</strong> from Step 4. Each one can have its own date, time, URL, and notes.
             </p>
             <p className="mt-3">
               If this is a different event entirely, cancel and create a separate category instead.
