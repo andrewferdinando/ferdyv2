@@ -3773,7 +3773,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
                               updated[index] = { ...updated[index], notes: e.target.value }
                               setEventScheduling(prev => ({ ...prev, occurrences: updated }))
                             }}
-                            placeholder="Add event details here (opponent, venue, pricing, time, etc.) — especially important if the URL is a ticketing site where info can't be auto-extracted"
+                            placeholder="Add event details here — especially important if the URL is a ticketing site where info can't be auto-extracted"
                             rows={2}
                           />
                         </FormField>
