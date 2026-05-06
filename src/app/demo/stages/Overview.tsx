@@ -47,7 +47,7 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
                 >
                   <div className="flex items-start gap-4">
                     <CategoryIcon name={item.icon} color={item.iconColor} size="lg" />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-8">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded ${
                           item.type === 'event'
@@ -60,7 +60,8 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
                       <h3 className="text-lg font-bold text-gray-950 leading-tight mb-1">
                         {item.title}
                       </h3>
-                      <p className="text-sm text-gray-500 leading-snug">{item.subtitle}</p>
+                      <p className="text-sm text-gray-500 leading-snug mb-3">{item.subtitle}</p>
+                      <p className="text-sm text-gray-600 leading-relaxed">{item.formatBlurb}</p>
                     </div>
                   </div>
 

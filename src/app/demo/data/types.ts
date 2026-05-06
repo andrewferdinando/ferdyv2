@@ -21,7 +21,12 @@ export type ScopeItem = {
   subtitle: string
   icon: IconName
   iconColor: IconColor
-  description: string
+  // Short paragraph describing the post rhythm/format ("a fortnightly post for the
+  // three-step routine"). Surfaced on the Overview card.
+  formatBlurb: string
+  // The factual brief about the category — the actual content fed to the copy
+  // generator so it can write accurately. Surfaced as Row 3 in the wizard.
+  categoryInfo: string
   schedule: string
   postTime: string
   hashtags: string[]

@@ -114,9 +114,16 @@ export default function Wizard({
               </div>
             </Row>
 
-            {/* 3 — Category information */}
-            <Row n={3} label={item.type === 'event' ? 'Event information' : 'Category information'} stacked>
-              <p className="text-sm text-gray-500 leading-relaxed">{item.description}</p>
+            {/* 3 — Category information (the brief Ferdy uses to write the copy) */}
+            <Row
+              n={3}
+              label={item.type === 'event' ? 'Event details' : 'Category details'}
+              hint="What Ferdy uses to write each post"
+              stacked
+            >
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {item.categoryInfo}
+              </p>
             </Row>
 
             {/* 4 — Hashtags */}
@@ -238,11 +245,13 @@ export default function Wizard({
 function Row({
   n,
   label,
+  hint,
   children,
   stacked = false,
 }: {
   n: number
   label: string
+  hint?: string
   children: React.ReactNode
   stacked?: boolean
 }) {
@@ -255,7 +264,12 @@ function Row({
           <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 text-xs font-medium flex items-center justify-center shrink-0">
             {n}
           </span>
-          <span className="text-base font-semibold text-gray-950">{label}</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-base font-semibold text-gray-950">{label}</span>
+            {hint && (
+              <span className="text-xs text-gray-400 mt-0.5">{hint}</span>
+            )}
+          </div>
         </div>
         <div className={stacked ? 'pl-9' : ''}>{children}</div>
       </div>

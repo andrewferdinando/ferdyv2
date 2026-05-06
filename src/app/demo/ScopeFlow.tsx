@@ -7,9 +7,26 @@ import Overview from './stages/Overview'
 import Wizard from './stages/Wizard'
 import End from './stages/End'
 import { DEMOS } from './data/demos'
-import type { DemoKey, ScopeResult } from './data/types'
+import type { DemoKey, ScopeItem, ScopeResult } from './data/types'
 
 type Stage = 'landing' | 'loading' | 'overview' | 'wizard' | 'end'
+
+type ScrapeResponse = {
+  url: string
+  businessName: string
+  text: string
+  images: string[]
+  meta?: { title?: string; description?: string; ogImage?: string }
+  insufficient?: boolean
+  reason?: string
+  error?: string
+}
+
+type AnalyseResponse = {
+  items?: ScopeItem[]
+  error?: string
+  insufficient?: boolean
+}
 
 export default function ScopeFlow() {
   const [stage, setStage] = useState<Stage>('landing')
@@ -19,27 +36,104 @@ export default function ScopeFlow() {
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
 
-  const startDemo = useCallback((key: DemoKey) => {
-    const demo = DEMOS[key]
-    setResult(demo)
-    setKeptIds(new Set(demo.items.map((i) => i.id)))
-    const initialSelections: Record<string, number[]> = {}
-    for (const item of demo.items) {
-      initialSelections[item.id] = [...item.defaultImageIndices]
+  const initSelectionsAndKept = useCallback((res: ScopeResult) => {
+    setKeptIds(new Set(res.items.map((i) => i.id)))
+    const initial: Record<string, number[]> = {}
+    for (const item of res.items) {
+      initial[item.id] = [...item.defaultImageIndices]
     }
-    setSelections(initialSelections)
+    setSelections(initial)
     setWizardIndex(0)
-    setLandingError(null)
-    setStage('loading')
   }, [])
 
-  const handleSubmitUrl = useCallback((url: string) => {
-    // Live scraping isn't wired yet. Direct people to a demo until the API ships.
-    void url
-    setLandingError(
-      "Live scanning isn’t available yet — try one of our demo sites to see how it works."
-    )
-  }, [])
+  const startDemo = useCallback(
+    (key: DemoKey) => {
+      const demo = DEMOS[key]
+      setResult(demo)
+      initSelectionsAndKept(demo)
+      setLandingError(null)
+      setStage('loading')
+    },
+    [initSelectionsAndKept]
+  )
+
+  const handleSubmitUrl = useCallback(
+    async (url: string) => {
+      setLandingError(null)
+      setResult(null)
+      setStage('loading')
+
+      try {
+        const scrapeRes = await fetch('/api/scope/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        })
+
+        if (!scrapeRes.ok) {
+          const data = (await scrapeRes.json().catch(() => null)) as
+            | ScrapeResponse
+            | null
+          throw new Error(
+            data?.reason ||
+              data?.error ||
+              "We couldn't reach that site. Try a demo while we figure that out."
+          )
+        }
+
+        const scrape = (await scrapeRes.json()) as ScrapeResponse
+        if (scrape.insufficient) {
+          throw new Error(
+            scrape.reason || "Not enough on the homepage to scope. Try a demo."
+          )
+        }
+
+        const analyseRes = await fetch('/api/scope/analyse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessName: scrape.businessName,
+            homepageUrl: scrape.url,
+            text: scrape.text,
+            images: scrape.images,
+            meta: scrape.meta,
+          }),
+        })
+
+        if (!analyseRes.ok) {
+          const data = (await analyseRes.json().catch(() => null)) as
+            | AnalyseResponse
+            | null
+          throw new Error(
+            data?.error || "We couldn't read patterns from that site. Try a demo."
+          )
+        }
+
+        const analyse = (await analyseRes.json()) as AnalyseResponse
+        if (!analyse.items || analyse.items.length === 0) {
+          throw new Error("We couldn't find post-worthy patterns. Try a demo.")
+        }
+
+        const combined: ScopeResult = {
+          businessName: scrape.businessName,
+          homepageUrl: scrape.url,
+          images: scrape.images,
+          items: analyse.items,
+        }
+        setResult(combined)
+        initSelectionsAndKept(combined)
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Something went wrong. Try a demo while we sort it."
+        setLandingError(message)
+        setResult(null)
+        setStage('landing')
+      }
+    },
+    [initSelectionsAndKept]
+  )
 
   const handleToggleKept = useCallback((id: string) => {
     setKeptIds((prev) => {
@@ -69,12 +163,32 @@ export default function ScopeFlow() {
     setLandingError(null)
   }, [])
 
-  const handleSubmitLead = useCallback((lead: { name: string; email: string }) => {
-    // TODO: POST to /api/scope/lead once we wire it up.
-    if (typeof window !== 'undefined') {
-      console.log('[scope] lead captured', { ...lead, business: result?.businessName })
-    }
-  }, [result])
+  const handleSubmitLead = useCallback(
+    async (lead: { name: string; email: string }) => {
+      if (!result) return
+      const keptItemTitles = result.items
+        .filter((i) => keptIds.has(i.id))
+        .map((i) => i.title)
+      try {
+        await fetch('/api/scope/lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: lead.name,
+            email: lead.email,
+            businessName: result.businessName,
+            homepageUrl: result.homepageUrl,
+            source: '/demo',
+            keptItemTitles,
+          }),
+        })
+      } catch (err) {
+        // Still treat as captured from the user's perspective; logs will show the failure.
+        console.error('[scope] lead submit failed', err)
+      }
+    },
+    [result, keptIds]
+  )
 
   if (stage === 'landing') {
     return (
