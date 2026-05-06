@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LogoHeader from '../components/LogoHeader'
 import type { ScopeItem, ScopeResult } from '../data/types'
@@ -51,6 +51,14 @@ export default function Wizard({
 
   const selected = useMemo(() => selections[item.id] ?? [], [selections, item.id])
   const visibleThumbs = selected.slice(0, 4)
+
+  // Reset scroll when navigating between slides so we don't carry over the previous slide's
+  // scroll position (a long slide can leave the user mid-page on a short next slide).
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  }, [index])
 
   return (
     <div className="relative min-h-screen flex flex-col">

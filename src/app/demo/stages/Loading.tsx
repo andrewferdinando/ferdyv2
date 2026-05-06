@@ -9,16 +9,20 @@ const STEPS = [
   'Gathering visuals…',
   'Mapping rhythms…',
   'Drafting your categories…',
+  'Writing the briefs…',
+  'Almost there…',
 ]
 
 type Props = {
   // Total minimum duration in ms. The flow can wait longer if real work is still in flight.
+  // Set to roughly the typical real-API duration so the progress bar and step messages stay
+  // in sync with what's actually happening server-side.
   minDurationMs?: number
   onComplete: () => void
   ready: boolean
 }
 
-export default function Loading({ minDurationMs = 12000, onComplete, ready }: Props) {
+export default function Loading({ minDurationMs = 32000, onComplete, ready }: Props) {
   const [stepIdx, setStepIdx] = useState(0)
   const [minElapsed, setMinElapsed] = useState(false)
 
@@ -74,7 +78,7 @@ export default function Loading({ minDurationMs = 12000, onComplete, ready }: Pr
             />
           </div>
 
-          <p className="text-sm text-gray-400 mt-8">This usually takes about 15 seconds.</p>
+          <p className="text-sm text-gray-400 mt-8">This usually takes about 30 seconds.</p>
         </div>
       </div>
     </div>

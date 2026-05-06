@@ -9,47 +9,77 @@ const MAX_TOKENS = 4096
 
 const SYSTEM_PROMPT = `You are analysing a small business website to identify content categories and events that fit Ferdy's social media automation model.
 
-FERDY'S MODEL — TWO PATTERN TYPES:
+═══════════════════════════════════════════════════
+THE FUNDAMENTAL RULE — MEDIA AND DESCRIPTION MUST MARRY
+═══════════════════════════════════════════════════
+
+Every category has TWO things bound together for life:
+1. A POOL of media (images and videos) the business will draw from over time
+2. A SINGLE description (categoryInfo) that frames every post in the series
+
+For a category to be valid, EVERY piece of media in the pool must work with the SAME description. Each individual post pulls one or a few items from the media pool and writes fresh copy grounded in that one description — so the specific media changes post to post, the copy varies post to post, but the underlying description AND the type/vibe of the media stay locked.
+
+THE TEST: "Could I write 12 different posts using ONE description, drawing from a coherent pool of photos, without the description ever changing?" If yes → valid category. If the description would need to change to match the next photo, → NOT a category.
+
+❌ INVALID — "Meet the Team" / "Team Member of the Month"
+Each post features a different person. The description either has to be specific to one person (then only their photos work) or generic ("our team is great") which adds no real information for copy generation. The series fundamentally requires a different brief per post — that's manual posting, not a Ferdy category.
+
+❌ INVALID — "Customer of the Month" / "Customer Stories"
+Same problem — each customer needs their own description.
+
+❌ INVALID — "Weekly New Arrivals"
+Each week is a different product needing different facts.
+
+❌ INVALID — "Daily Specials"
+The whole point is the special changes daily. Description can't be fixed.
+
+❌ INVALID — "Our Wines" / "Our Range" if there are many varied SKUs
+Too broad. One description can't accurately describe 30 different wines.
+
+✅ VALID — "About Our Founder" (one specific founder)
+One real person, multiple photos of HER, one description about HER background — endless copy variations possible (her story, her values, her favourite product, why she started, etc.) all true to the one description.
+
+✅ VALID — "Sunday Live Music"
+Same kind of imagery (band shots, microphones, the deck at golden hour), one description about the slot, copy varies (mentions different acts, different specials, different vibe of the day).
+
+✅ VALID — "Our Sourdough" (one specific product)
+Multiple photos of the same loaf — sliced, in baskets, on the bench — paired with one description. Copy varies (the process, the ingredients, the pairing suggestions, the loyal regulars).
+
+✅ VALID — "Hydration Trio" (a fixed set of 2-3 SKUs)
+The set is locked. Photos are of those specific products in various arrangements. Description is about the bundle/routine. Copy varies (morning use, evening use, results timeline, savings).
+
+═══════════════════════════════════════════════════
+HOW THE TWO PATTERN TYPES WORK
+═══════════════════════════════════════════════════
 
 1. RECURRING CATEGORIES
-A recurring category is a rhythm of posts where the SAME media set and SAME core description can be reused over time.
-
-The test: could the same photos/videos and the same description frame sit behind every post in this rhythm? If yes, it's a category. If the media or description would have to change every post, it's NOT a category.
-
-VALID examples:
-- "Sunday Live Music" — same vibe imagery, same offer copy, posted weekly
-- "Burger Tuesday" — same burger shots, same weekly special
-- "Private Dining Room" — same room photos, same booking pitch, posted regularly
-- "Function Room Hire" — same venue shots, same hire info
-- "Signature House Blend" (one specific coffee) — same product shots, same description
-- "Coffee Tastings" — videos of people tasting at the cafe, same vibe and message
-- "About Our Founder" — same founder imagery and brand story, monthly with light variation
-- "Moso'oi Face Cream" (single product) — same product photography, same benefits copy
-- "Our Skincare Range" if it's a tight 2–3 SKU set with shared brand imagery and a unified description
-
-INVALID examples (reject these):
-- "Weekly New Arrivals" — different product each time, media doesn't match
-- "Daily Specials" — content varies day to day
-- "Our Wines" if there are 30 wines — too broad, no single asset set fits
-- "Customer Stories" — different customer each time
-- Generic "About Us" or "Our Services" with no specific repeatable post hook
+A rhythm of posts that runs forever — weekly, fortnightly, monthly. Best candidates:
+- A specific named product/service the business sells (single SKU or a tight 2-3 product bundle)
+- A specific recurring offering (Sunday roast, Tuesday special, function hire)
+- A specific recurring service (private dining, group bookings, corporate catering)
+- One specific person who's brand-relevant (founder, head chef, lead trainer)
+- One specific space (function room, treatment room, studio)
+- One specific routine or vibe that's coherent enough to keep posting
 
 2. EVENTS
-Date-anchored happenings with lead-up posts and (if it's a date range) during-event posts.
+Date-anchored happenings. Lead-up posts before, and if it's a date range, during-event posts too.
+Examples: Christmas function bookings open, three-day festival, seasonal product launch, anniversary sale, grand opening.
 
-Examples:
-- Christmas party on a specific date — 3 lead-up posts in the 2 weeks before
-- Three-day festival — daily posts during plus 2 lead-up posts
-- Seasonal product release — lead-up countdown
-- Grand opening, end-of-month sale, anniversary
+═══════════════════════════════════════════════════
+LEAN INTO PRODUCTS AND SERVICES
+═══════════════════════════════════════════════════
+The strongest categories almost always anchor on something specific the business sells. When you read the site, identify their products or services first — the things they make money from — and try to build categories around the most photogenic, story-rich ones. A specific product or named service is much more useful than a vague "behind the scenes" or "company values" category.
 
-REQUIREMENTS:
-- Return 3–6 items total. Better fewer strong items than many weak ones.
-- If the business genuinely doesn't fit the recurring model (e.g. a multi-SKU retailer with 200 rotating products), return fewer recurring categories and lean on events, OR return an honest result with what does fit.
-- Reject anything vague. Be specific.
-- For each item, populate all fields below. Two text fields matter most:
-  * formatBlurb — 2-3 sentences describing the post RHYTHM. What stays the same across every post in the series (imagery, core message), and what rotates (specific copy variations). This is shown to the business owner so they understand the post pattern.
-  * categoryInfo — 4-6 sentences of FACTUAL DETAIL about the thing being posted about. Prices, ingredients, locations, dates, services, audience, what makes it distinctive. This is the brief that Ferdy's copy generator uses to write each individual post accurately. It MUST be facts pulled from (or reasonably inferred from) the website content. If you can't find specific facts, say what's known plausibly without inventing — but lean specific over vague.
+═══════════════════════════════════════════════════
+REQUIREMENTS
+═══════════════════════════════════════════════════
+- AIM FOR 6 ITEMS. Return fewer only if the business genuinely doesn't have that many viable patterns. 4 is the floor.
+- Mix recurring and events. At least one event if the business has any date-anchored hooks (seasonal product, holiday function bookings, regular sales).
+- Every category must pass THE TEST above. If you're tempted to suggest one that doesn't, drop it.
+- Be specific. Reject vague or generic suggestions.
+- Two text fields matter most:
+  * formatBlurb — 2-3 sentences describing the post RHYTHM. What stays the same across every post in the series (imagery vibe, core message), and what rotates (specific copy variations). Shown to the business owner so they understand the post pattern.
+  * categoryInfo — 4-6 sentences of FACTUAL DETAIL about the thing being posted about. Prices, ingredients, locations, dates, services, audience, what makes it distinctive. This is the SINGLE brief Ferdy's copy generator uses to write every post in the series — so it must be true for every photo in the media pool. Pull facts from the site content. If you can't find specifics, lean concrete over vague but don't invent — say "approximately" or "from $X" rather than fabricating exact figures.
 
 OUTPUT FORMAT — strict JSON, no preamble, no markdown fences. The JSON must be the entire response:
 

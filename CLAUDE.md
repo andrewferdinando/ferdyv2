@@ -88,6 +88,7 @@ Cascade warning: changes to `schedule_rules` affect `rpc_framework_targets` → 
 ## Key Conventions
 
 - "Categories" in UI = `subcategories` table in DB.
+- **Category model — media and description must marry.** A category bundles ONE description and a POOL of media. Every piece of media in the pool must work with that single description; each individual post pulls media from the pool and writes fresh copy grounded in the same description. Categories like "Meet the team — different person each month" or "Customer of the month" do **not** fit (they need a different description per post).
 - **UI terminology: "Group", never "Account"** — customer-facing copy only.
 - One draft = one scheduled time. Channels live on `post_jobs` (one per channel). `drafts.channel` is legacy — do not use.
 - `post_jobs.schedule_rule_id` is always set for framework drafts.

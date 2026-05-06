@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Landing from './stages/Landing'
 import Loading from './stages/Loading'
 import Overview from './stages/Overview'
@@ -35,6 +35,13 @@ export default function ScopeFlow() {
   const [selections, setSelections] = useState<Record<string, number[]>>({})
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
+
+  // Reset scroll on every stage transition so users always land at the top of the next view.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  }, [stage])
 
   const initSelectionsAndKept = useCallback((res: ScopeResult) => {
     setKeptIds(new Set(res.items.map((i) => i.id)))
