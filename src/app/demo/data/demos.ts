@@ -1,26 +1,36 @@
-import type { DemoKey, ScopeResult } from './types'
+import type { DemoKey, ScopeResult, UnsplashImage } from './types'
 
 const u = (id: string) =>
   `https://images.unsplash.com/photo-${id}?w=1200&q=80&auto=format&fit=crop`
 
+const t = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?w=400&q=80&auto=format&fit=crop`
+
+// Helper for demo Unsplash images — names are placeholders that mimic the
+// shape of real Unsplash attribution. Real /demo runs use actual photographer
+// credit data returned by the Unsplash API.
+const stock = (
+  id: string,
+  photographerName: string
+): UnsplashImage => ({
+  url: u(id),
+  thumbUrl: t(id),
+  photographerName,
+  photographerUrl: 'https://unsplash.com',
+  unsplashUrl: `https://unsplash.com/photos/${id}`,
+})
+
 const hospitality: ScopeResult = {
   businessName: 'The Wharf Bistro & Bar',
   homepageUrl: 'thewharfbistro.co.nz',
+  // Six "scraped" images — what we'd realistically pull from a small business site.
   images: [
     u('1414235077428-338989a2e8c0'),
     u('1517248135467-4c7edcad34c4'),
     u('1592861956120-e524fc739696'),
-    u('1592861956120-e524fc739696'),
     u('1568901346375-23c9450c58cd'),
-    u('1571091718767-18b5b1457add'),
-    u('1550547660-d9450f859349'),
-    u('1493225457124-a3eb161ffa5f'),
-    u('1501386761578-eac5c94b800a'),
-    u('1459749411175-04bf5292ceea'),
-    u('1514525253161-7a46d19cd819'),
     u('1519671482749-fd09be7ccebf'),
     u('1464366400600-7168b8af9bc3'),
-    u('1505373877841-8d25f7d46678'),
   ],
   items: [
     {
@@ -39,7 +49,12 @@ const hospitality: ScopeResult = {
       hashtags: ['#livemusic', '#wellingtonlivemusic', '#sundaysessions', '#wellingtonbar'],
       postLength: 'Short',
       imageHints: ['live music', 'band', 'guitar', 'microphone'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1493225457124-a3eb161ffa5f', 'Sara Anderson'),
+        stock('1501386761578-eac5c94b800a', 'James Wright'),
+        stock('1459749411175-04bf5292ceea', 'Mike Chen'),
+        stock('1514525253161-7a46d19cd819', 'Emma Wilson'),
+      ],
     },
     {
       id: 'hosp-burger',
@@ -57,7 +72,11 @@ const hospitality: ScopeResult = {
       hashtags: ['#burgertuesday', '#wagyu', '#wellingtoneats', '#midweekspecial'],
       postLength: 'Short',
       imageHints: ['burger', 'wagyu', 'fries', 'pub food'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1571091718767-18b5b1457add', 'Lucas Mendes'),
+        stock('1550547660-d9450f859349', 'Anna Pierce'),
+        stock('1568901346375-23c9450c58cd', 'Tom Hayes'),
+      ],
     },
     {
       id: 'hosp-private',
@@ -75,7 +94,11 @@ const hospitality: ScopeResult = {
       hashtags: ['#privatedining', '#wellingtonfunctions', '#groupbookings'],
       postLength: 'Medium',
       imageHints: ['dining room', 'set table', 'restaurant interior', 'intimate'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1592861956120-e524fc739696', 'Olivia Rose'),
+        stock('1414235077428-338989a2e8c0', 'David Park'),
+        stock('1517248135467-4c7edcad34c4', 'Sophia Reed'),
+      ],
     },
     {
       id: 'hosp-function',
@@ -93,7 +116,11 @@ const hospitality: ScopeResult = {
       hashtags: ['#weddingvenue', '#corporateevents', '#wellingtonvenue', '#functionspace'],
       postLength: 'Medium',
       imageHints: ['event venue', 'wedding', 'banquet', 'function space'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1505373877841-8d25f7d46678', 'Hannah Liu'),
+        stock('1519671482749-fd09be7ccebf', 'Marcus Bell'),
+        stock('1464366400600-7168b8af9bc3', 'Ines Martin'),
+      ],
     },
     {
       id: 'hosp-xmas',
@@ -111,7 +138,10 @@ const hospitality: ScopeResult = {
       hashtags: ['#christmasfunctions', '#corporatechristmas', '#endofyear'],
       postLength: 'Long',
       imageHints: ['christmas', 'corporate dinner', 'function venue'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1519671482749-fd09be7ccebf', 'Marcus Bell'),
+        stock('1505373877841-8d25f7d46678', 'Hannah Liu'),
+      ],
     },
   ],
 }
@@ -121,17 +151,10 @@ const coffee: ScopeResult = {
   homepageUrl: 'mtedenroasters.co.nz',
   images: [
     u('1495474472287-4d71bcdd2085'),
-    u('1559496417-e7f25cb247f3'),
-    u('1497935586351-b67a49e012bf'),
     u('1442512595331-e89e73853f31'),
     u('1509042239860-f550ce710b93'),
     u('1517701550927-30cf4ba1dba5'),
     u('1485808191679-5f86510681a2'),
-    u('1521017432531-fbd92d768814'),
-    u('1559925393-8be0ec4767c8'),
-    u('1453614512568-c4024d13c247'),
-    u('1442550528053-c431ecb55509'),
-    u('1517256064527-09c73fc73e38'),
   ],
   items: [
     {
@@ -150,7 +173,12 @@ const coffee: ScopeResult = {
       hashtags: ['#mtedenroasters', '#houseblend', '#aucklandcoffee', '#specialtycoffee'],
       postLength: 'Medium',
       imageHints: ['coffee bag', 'espresso', 'product shot'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1495474472287-4d71bcdd2085', 'Anna Pierce'),
+        stock('1559496417-e7f25cb247f3', 'Liam Walsh'),
+        stock('1521017432531-fbd92d768814', 'Sara Anderson'),
+        stock('1517256064527-09c73fc73e38', 'James Wright'),
+      ],
     },
     {
       id: 'cof-tasting',
@@ -168,7 +196,11 @@ const coffee: ScopeResult = {
       hashtags: ['#coffeetasting', '#cupping', '#mtedenauckland'],
       postLength: 'Short',
       imageHints: ['tasting', 'cupping', 'pour over', 'cafe'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1559925393-8be0ec4767c8', 'Emma Wilson'),
+        stock('1497935586351-b67a49e012bf', 'Tom Hayes'),
+        stock('1517701550927-30cf4ba1dba5', 'Olivia Rose'),
+      ],
     },
     {
       id: 'cof-cafe',
@@ -186,7 +218,11 @@ const coffee: ScopeResult = {
       hashtags: ['#mtedencafe', '#aucklandcafe', '#fridayfeels'],
       postLength: 'Short',
       imageHints: ['cafe interior', 'barista', 'atmosphere'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1442512595331-e89e73853f31', 'David Park'),
+        stock('1509042239860-f550ce710b93', 'Sophia Reed'),
+        stock('1442550528053-c431ecb55509', 'Marcus Bell'),
+      ],
     },
     {
       id: 'cof-release',
@@ -204,7 +240,11 @@ const coffee: ScopeResult = {
       hashtags: ['#singleorigin', '#yirgacheffe', '#newrelease', '#specialtycoffee'],
       postLength: 'Long',
       imageHints: ['coffee beans', 'product launch', 'pour over'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1485808191679-5f86510681a2', 'Hannah Liu'),
+        stock('1453614512568-c4024d13c247', 'Ines Martin'),
+        stock('1497935586351-b67a49e012bf', 'Tom Hayes'),
+      ],
     },
   ],
 }
@@ -214,17 +254,10 @@ const skincare: ScopeResult = {
   homepageUrl: 'mosooibeauty.co.nz',
   images: [
     u('1556228720-195a672e8a03'),
-    u('1570194065650-d99fb4bedf0a'),
-    u('1612817288484-6f916006741a'),
     u('1571781926291-c477ebfd024b'),
     u('1607602132700-068258431c6c'),
     u('1573496359142-b8d87734a5a2'),
-    u('1522337360788-8b13dee7a37e'),
     u('1556228453-efd6c1ff04f6'),
-    u('1598440947619-2c35fc9aa908'),
-    u('1612817288484-6f916006741a'),
-    u('1631730486572-226d1f595b68'),
-    u('1620916566398-39f1143ab7be'),
   ],
   items: [
     {
@@ -243,7 +276,12 @@ const skincare: ScopeResult = {
       hashtags: ['#mosooibeauty', '#nzskincare', '#facecream', '#cleanbeauty'],
       postLength: 'Medium',
       imageHints: ['face cream', 'product shot', 'jar', 'skincare'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1556228453-efd6c1ff04f6', 'Lucas Mendes'),
+        stock('1612817288484-6f916006741a', 'Olivia Rose'),
+        stock('1522337360788-8b13dee7a37e', 'Sara Anderson'),
+        stock('1570194065650-d99fb4bedf0a', 'Hannah Liu'),
+      ],
     },
     {
       id: 'skin-founder',
@@ -261,7 +299,11 @@ const skincare: ScopeResult = {
       hashtags: ['#founderstory', '#nzbusiness', '#cleanbeauty', '#smallbatch'],
       postLength: 'Long',
       imageHints: ['founder', 'portrait', 'workspace', 'brand story'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1607602132700-068258431c6c', 'Emma Wilson'),
+        stock('1573496359142-b8d87734a5a2', 'Anna Pierce'),
+        stock('1598440947619-2c35fc9aa908', 'Marcus Bell'),
+      ],
     },
     {
       id: 'skin-range',
@@ -279,7 +321,11 @@ const skincare: ScopeResult = {
       hashtags: ['#skincareroutine', '#hydration', '#mosooi', '#cleanbeauty'],
       postLength: 'Medium',
       imageHints: ['flatlay', 'routine', 'product trio'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1571781926291-c477ebfd024b', 'Sophia Reed'),
+        stock('1556228720-195a672e8a03', 'Ines Martin'),
+        stock('1620916566398-39f1143ab7be', 'Tom Hayes'),
+      ],
     },
     {
       id: 'skin-launch',
@@ -297,7 +343,11 @@ const skincare: ScopeResult = {
       hashtags: ['#springlaunch', '#newproduct', '#mosooibeauty', '#nzbusiness'],
       postLength: 'Long',
       imageHints: ['product launch', 'botanicals', 'packaging'],
-      defaultImageIndices: [],
+      unsplashImages: [
+        stock('1631730486572-226d1f595b68', 'Liam Walsh'),
+        stock('1620916566398-39f1143ab7be', 'David Park'),
+        stock('1612817288484-6f916006741a', 'Olivia Rose'),
+      ],
     },
   ],
 }

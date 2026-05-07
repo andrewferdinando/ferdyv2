@@ -33,7 +33,9 @@ export default function ScopeFlow() {
   const [stage, setStage] = useState<Stage>('intro')
   const [result, setResult] = useState<ScopeResult | null>(null)
   const [keptIds, setKeptIds] = useState<Set<string>>(new Set())
-  const [selections, setSelections] = useState<Record<string, number[]>>({})
+  // Selections are keyed by item id and store image URLs (not indices) so we
+  // can mix scraped images and Unsplash photos in the same picker.
+  const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
 
@@ -56,10 +58,9 @@ export default function ScopeFlow() {
 
   const initSelectionsAndKept = useCallback((res: ScopeResult) => {
     setKeptIds(new Set(res.items.map((i) => i.id)))
-    const initial: Record<string, number[]> = {}
-    for (const item of res.items) {
-      initial[item.id] = [...item.defaultImageIndices]
-    }
+    // Empty selections by default — Andrew picks live with the prospect at the booth.
+    const initial: Record<string, string[]> = {}
+    for (const item of res.items) initial[item.id] = []
     setSelections(initial)
     setWizardIndex(0)
   }, [])
@@ -162,12 +163,12 @@ export default function ScopeFlow() {
     })
   }, [])
 
-  const handleToggleImage = useCallback((itemId: string, imgIdx: number) => {
+  const handleToggleImage = useCallback((itemId: string, url: string) => {
     setSelections((prev) => {
       const current = prev[itemId] ?? []
-      const next = current.includes(imgIdx)
-        ? current.filter((i) => i !== imgIdx)
-        : [...current, imgIdx]
+      const next = current.includes(url)
+        ? current.filter((u) => u !== url)
+        : [...current, url]
       return { ...prev, [itemId]: next }
     })
   }, [])

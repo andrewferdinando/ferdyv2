@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LogoHeader from '../components/LogoHeader'
-import type { ScopeItem, ScopeResult } from '../data/types'
+import type { ScopeItem, ScopeResult, UnsplashImage } from '../data/types'
 
 function FacebookMark({ className = '' }: { className?: string }) {
   return (
@@ -27,11 +27,11 @@ type Props = {
   result: ScopeResult
   items: ScopeItem[] // kept items only, in order
   index: number
-  selections: Record<string, number[]> // itemId → selected image indices
+  selections: Record<string, string[]> // itemId → selected image URLs
   onPrev: () => void
   onNext: () => void
   onJump: (idx: number) => void
-  onToggleImage: (itemId: string, imageIdx: number) => void
+  onToggleImage: (itemId: string, url: string) => void
   onFinish: () => void
 }
 
@@ -52,32 +52,33 @@ export default function Wizard({
   const selected = useMemo(() => selections[item.id] ?? [], [selections, item.id])
   const visibleThumbs = selected.slice(0, 4)
 
-  // Track which scraped images failed to load so we can hide them from the picker
-  // without faking server-side validation. Set is per-render-tree (resets if the
-  // user reloads, which is fine — same images, same outcome).
-  const [brokenImages, setBrokenImages] = useState<Set<number>>(new Set())
-  const markBroken = (i: number) =>
-    setBrokenImages((prev) => {
-      if (prev.has(i)) return prev
+  const [brokenUrls, setBrokenUrls] = useState<Set<string>>(new Set())
+  const markBroken = (url: string) =>
+    setBrokenUrls((prev) => {
+      if (prev.has(url)) return prev
       const next = new Set(prev)
-      next.add(i)
+      next.add(url)
       return next
     })
 
-  // Reset scroll when navigating between slides so we don't carry over the previous slide's
-  // scroll position (a long slide can leave the user mid-page on a short next slide).
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     }
   }, [index])
 
+  const scrapedImages = result.images.filter((u) => !brokenUrls.has(u))
+  const unsplashImages = (item.unsplashImages ?? []).filter(
+    (img) => !brokenUrls.has(img.url)
+  )
+  const totalImages = scrapedImages.length + unsplashImages.length
+
   return (
-    <div className="relative min-h-screen flex flex-col">
+    <div className="relative min-h-screen flex flex-col bg-gray-50">
       <LogoHeader />
 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-40">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-3xl">
           {/* Header */}
           <p className="text-indigo-500 text-xs sm:text-sm font-semibold tracking-[0.18em] uppercase mb-4">
             One {item.type === 'event' ? 'event' : 'category'}, zoomed in
@@ -94,45 +95,40 @@ export default function Wizard({
             )}
           </div>
 
-          <p className="text-lg sm:text-xl text-gray-500 mb-12">
+          <p className="text-lg sm:text-xl text-gray-500 mb-10">
             Here’s what the 7 inputs look like filled in.
           </p>
 
-          {/* 7-input grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
-            {/* 1 — Schedule */}
+          {/* Card 1 — When */}
+          <Card title="When">
             <Row n={1} label={item.type === 'event' ? 'When' : 'Schedule'}>
               <span className="text-sm text-gray-700 font-medium">{item.schedule}</span>
             </Row>
-
-            {/* 2 — Post time */}
             <Row n={2} label="Post time">
               <span className="text-sm text-gray-700 font-medium">{item.postTime}</span>
             </Row>
-
-            {/* 3 — Post length */}
-            <Row n={3} label="Post length">
+            <Row n={3} label="Post length" last>
               <span className="text-sm text-gray-700 font-medium">{item.postLength}</span>
             </Row>
+          </Card>
 
-            {/* spacer to keep Category details on its own full row beneath */}
-            <div className="hidden md:block" />
+          {/* Card 2 — What it's about */}
+          <Card title="What it’s about">
+            <Row
+              n={4}
+              label={item.type === 'event' ? 'Event details' : 'Category details'}
+              hint="What Ferdy uses to write each post"
+              stacked
+              last
+            >
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {item.categoryInfo}
+              </p>
+            </Row>
+          </Card>
 
-            {/* 4 — Category details (full width — needs the room) */}
-            <div className="md:col-span-2">
-              <Row
-                n={4}
-                label={item.type === 'event' ? 'Event details' : 'Category details'}
-                hint="What Ferdy uses to write each post"
-                stacked
-              >
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                  {item.categoryInfo}
-                </p>
-              </Row>
-            </div>
-
-            {/* 5 — Brand tone */}
+          {/* Card 3 — How it posts */}
+          <Card title="How it posts">
             <Row n={5} label="Brand tone">
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span>Connect to</span>
@@ -144,10 +140,8 @@ export default function Wizard({
                 </div>
               </div>
             </Row>
-
-            {/* 6 — Hashtags */}
-            <Row n={6} label="Hashtags">
-              <div className="flex flex-wrap gap-1.5 justify-end">
+            <Row n={6} label="Hashtags" stacked last>
+              <div className="flex flex-wrap gap-1.5">
                 {item.hashtags.map((h) => (
                   <span
                     key={h}
@@ -158,67 +152,82 @@ export default function Wizard({
                 ))}
               </div>
             </Row>
+          </Card>
 
-            {/* 7 — Select content (preview of currently-selected images) */}
-            <div className="md:col-span-2">
-              <Row n={7} label="Select content" hint="Pick from below">
-                <div className="flex items-center gap-1.5">
-                  {visibleThumbs.length === 0 && (
-                    <span className="text-sm text-gray-400">No images selected</span>
-                  )}
-                  {visibleThumbs.map((imgIdx) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={imgIdx}
-                      src={result.images[imgIdx]}
-                      alt=""
-                      className="w-16 h-16 rounded-lg object-cover border border-gray-200"
-                      onError={() => markBroken(imgIdx)}
-                    />
-                  ))}
-                  {selected.length > 4 && (
-                    <span className="text-xs text-gray-400 ml-1">+{selected.length - 4}</span>
-                  )}
-                </div>
-              </Row>
-            </div>
-          </div>
+          {/* Card 4 — Media */}
+          <Card title="Media">
+            <Row n={7} label="Select content" hint="Pick from below" stacked last>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {visibleThumbs.length === 0 && (
+                  <span className="text-sm text-gray-400">No images selected yet</span>
+                )}
+                {visibleThumbs.map((url) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={url}
+                    src={url}
+                    alt=""
+                    className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                    onError={() => markBroken(url)}
+                  />
+                ))}
+                {selected.length > 4 && (
+                  <span className="text-xs text-gray-400 ml-1">+{selected.length - 4}</span>
+                )}
+              </div>
+            </Row>
+          </Card>
 
-          {/* Image picker strip */}
-          <div className="mt-12">
-            <div className="flex items-baseline justify-between mb-3">
-              <p className="text-xs font-semibold tracking-wider uppercase text-gray-400">
-                From your site
-              </p>
-              <p className="text-xs text-gray-400">{selected.length} selected</p>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6">
-              {result.images.map((src, i) => {
-                if (brokenImages.has(i)) return null
-                const isSelected = selected.includes(i)
-                return (
-                  <button
-                    key={i}
-                    onClick={() => onToggleImage(item.id, i)}
-                    className={`shrink-0 relative w-32 h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden border-2 transition ${
-                      isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-300'
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      onError={() => markBroken(i)}
-                    />
-                    {isSelected && (
-                      <div className="absolute inset-0 bg-indigo-500/15" />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
+          {/* Picker — section 1: from the customer's website */}
+          <PickerSection
+            title="From your site"
+            count={scrapedImages.length}
+            selectedCount={selected.length}
+            tone="indigo"
+            empty={
+              scrapedImages.length === 0
+                ? "We couldn't pull usable photos from this site. Use stock photos below or add your own at setup."
+                : null
+            }
+          >
+            {scrapedImages.map((url) => (
+              <ScrapedThumb
+                key={url}
+                url={url}
+                isSelected={selected.includes(url)}
+                onClick={() => onToggleImage(item.id, url)}
+                onError={() => markBroken(url)}
+              />
+            ))}
+          </PickerSection>
+
+          {/* Picker — section 2: Unsplash supplementation */}
+          <PickerSection
+            title="Stock photos via Unsplash"
+            count={unsplashImages.length}
+            tone="amber"
+            empty={
+              unsplashImages.length === 0
+                ? 'No matching stock photos right now.'
+                : null
+            }
+          >
+            {unsplashImages.map((img) => (
+              <UnsplashThumb
+                key={img.url}
+                img={img}
+                isSelected={selected.includes(img.url)}
+                onClick={() => onToggleImage(item.id, img.url)}
+                onError={() => markBroken(img.url)}
+              />
+            ))}
+          </PickerSection>
+
+          {totalImages === 0 && (
+            <p className="mt-6 text-sm text-gray-400 text-center">
+              We’ll pick images live with you at setup if you’d rather.
+            </p>
+          )}
         </div>
       </div>
 
@@ -276,21 +285,35 @@ export default function Wizard({
   )
 }
 
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 mb-4 shadow-sm">
+      <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-400 mb-3">
+        {title}
+      </p>
+      <div className="divide-y divide-gray-100">{children}</div>
+    </div>
+  )
+}
+
 function Row({
   n,
   label,
   hint,
   children,
   stacked = false,
+  last = false,
 }: {
   n: number
   label: string
   hint?: string
   children: React.ReactNode
   stacked?: boolean
+  last?: boolean
 }) {
+  // Use uniform vertical padding (no first:pt-0) so paired rows always align.
   return (
-    <div className="border-b border-gray-200 py-5 first:pt-0">
+    <div className={`py-4 ${last ? 'last:pb-0' : ''} first:pt-0`}>
       <div
         className={`flex ${stacked ? 'flex-col gap-2' : 'items-center justify-between gap-4'}`}
       >
@@ -307,6 +330,122 @@ function Row({
         </div>
         <div className={stacked ? 'pl-9' : ''}>{children}</div>
       </div>
+    </div>
+  )
+}
+
+function PickerSection({
+  title,
+  count,
+  selectedCount,
+  tone,
+  empty,
+  children,
+}: {
+  title: string
+  count: number
+  selectedCount?: number
+  tone: 'indigo' | 'amber'
+  empty?: string | null
+  children: React.ReactNode
+}) {
+  const dotColor = tone === 'indigo' ? 'bg-indigo-500' : 'bg-amber-500'
+
+  return (
+    <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+      <div className="flex items-baseline justify-between mb-4">
+        <p className="text-xs font-semibold tracking-[0.18em] uppercase text-gray-500 flex items-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          {title}
+          <span className="font-normal normal-case tracking-normal text-gray-300">
+            ({count})
+          </span>
+        </p>
+        {selectedCount != null && (
+          <p className="text-xs text-gray-400">{selectedCount} selected</p>
+        )}
+      </div>
+      {empty ? (
+        <p className="text-sm text-gray-400 italic">{empty}</p>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 sm:-mx-6 sm:px-6">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ScrapedThumb({
+  url,
+  isSelected,
+  onClick,
+  onError,
+}: {
+  url: string
+  isSelected: boolean
+  onClick: () => void
+  onError: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`shrink-0 relative w-32 h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden border-2 transition ${
+        isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-300'
+      }`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt=""
+        className="w-full h-full object-cover"
+        onError={onError}
+      />
+      {isSelected && <div className="absolute inset-0 bg-indigo-500/15" />}
+    </button>
+  )
+}
+
+function UnsplashThumb({
+  img,
+  isSelected,
+  onClick,
+  onError,
+}: {
+  img: UnsplashImage
+  isSelected: boolean
+  onClick: () => void
+  onError: () => void
+}) {
+  return (
+    <div className="shrink-0 flex flex-col items-start gap-1.5 w-32 sm:w-40">
+      <button
+        onClick={onClick}
+        className={`relative w-32 h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden border-2 transition ${
+          isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-300'
+        }`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={img.thumbUrl || img.url}
+          alt={`Photo by ${img.photographerName}`}
+          className="w-full h-full object-cover"
+          onError={onError}
+        />
+        <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500 text-white shadow-sm">
+          Stock
+        </span>
+        {isSelected && <div className="absolute inset-0 bg-indigo-500/15" />}
+      </button>
+      <a
+        href={img.photographerUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="text-[10px] text-gray-400 hover:text-gray-600 truncate max-w-full px-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        by {img.photographerName}
+      </a>
     </div>
   )
 }

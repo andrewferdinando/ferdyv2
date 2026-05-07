@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { searchUnsplashForHints, type UnsplashImage } from '@/lib/unsplash'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -171,7 +172,10 @@ type CleanedItem = {
   hashtags: string[]
   postLength: string
   imageHints: string[]
-  defaultImageIndices: number[]
+}
+
+type CleanedItemWithUnsplash = CleanedItem & {
+  unsplashImages: UnsplashImage[]
 }
 
 function clean(items: unknown): CleanedItem[] | null {
@@ -219,10 +223,24 @@ function clean(items: unknown): CleanedItem[] | null {
         hashtags,
         postLength,
         imageHints,
-        defaultImageIndices: [],
       }
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
+}
+
+/**
+ * Fetch Unsplash images for every category in parallel. Each call is cached
+ * (in-memory, 1-hour TTL) and falls back to [] silently on rate limit. This
+ * runs after Claude returns; the extra latency is bounded by the slowest
+ * Unsplash search (typically ~1s) since they go in parallel.
+ */
+async function attachUnsplashImages(
+  items: CleanedItem[]
+): Promise<CleanedItemWithUnsplash[]> {
+  const lists = await Promise.all(
+    items.map((it) => searchUnsplashForHints(it.imageHints, 6))
+  )
+  return items.map((it, i) => ({ ...it, unsplashImages: lists[i] }))
 }
 
 export async function POST(req: NextRequest) {
@@ -300,12 +318,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // No pre-selection — booth visitors pick images live with us at the table,
-  // so the Select content slot starts empty by design.
-  const itemsWithDefaults = cleaned.map((it) => ({
-    ...it,
-    defaultImageIndices: [] as number[],
-  }))
+  // Top each category up with Unsplash photos (cached, falls back to [] on
+  // rate limit). No pre-selection — booth visitors pick images live with us
+  // at the table.
+  const enriched = await attachUnsplashImages(cleaned)
 
-  return NextResponse.json({ items: itemsWithDefaults })
+  return NextResponse.json({ items: enriched })
 }
