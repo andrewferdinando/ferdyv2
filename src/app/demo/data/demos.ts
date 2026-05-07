@@ -9,6 +9,10 @@ const t = (id: string) =>
 // Helper for demo Unsplash images — names are placeholders that mimic the
 // shape of real Unsplash attribution. Real /demo runs use actual photographer
 // credit data returned by the Unsplash API.
+//
+// IMPORTANT: scraped (`images`) and per-category (`unsplashImages`) pools
+// must be disjoint within the same brand so the picker doesn't show the
+// same photo twice across the two sections.
 const stock = (
   id: string,
   photographerName: string
@@ -23,14 +27,13 @@ const stock = (
 const hospitality: ScopeResult = {
   businessName: 'The Wharf Bistro & Bar',
   homepageUrl: 'thewharfbistro.co.nz',
-  // Six "scraped" images — what we'd realistically pull from a small business site.
+  // Generic restaurant/bar atmosphere — what we'd plausibly pull from a
+  // hospitality brand's website. Deliberately not category-specific.
   images: [
-    u('1414235077428-338989a2e8c0'),
-    u('1517248135467-4c7edcad34c4'),
-    u('1592861956120-e524fc739696'),
-    u('1568901346375-23c9450c58cd'),
-    u('1519671482749-fd09be7ccebf'),
-    u('1464366400600-7168b8af9bc3'),
+    u('1551218808-94e220e084d2'), // wine pour
+    u('1572116469696-31de0f17cc34'), // bartender
+    u('1559329007-40df8a9345d8'), // bar at night
+    u('1577219491135-ce391730fb2c'), // pasta plate
   ],
   items: [
     {
@@ -80,6 +83,7 @@ const hospitality: ScopeResult = {
         stock('1571091718767-18b5b1457add', 'Lucas Mendes'),
         stock('1550547660-d9450f859349', 'Anna Pierce'),
         stock('1568901346375-23c9450c58cd', 'Tom Hayes'),
+        stock('1586190848861-99aa4a171e90', 'Marcus Bell'),
       ],
       exampleCaptions: [
         "It's Tuesday. You know what to do. Wagyu burger, half price, all night. NZ Wakanui beef, smoked cheddar, the sauce. Fries extra, kitchen open till 10.",
@@ -103,9 +107,9 @@ const hospitality: ScopeResult = {
       postLength: 'Medium',
       imageHints: ['dining room', 'set table', 'restaurant interior', 'intimate'],
       unsplashImages: [
-        stock('1592861956120-e524fc739696', 'Olivia Rose'),
+        stock('1517248135467-4c7edcad34c4', 'Olivia Rose'),
         stock('1414235077428-338989a2e8c0', 'David Park'),
-        stock('1517248135467-4c7edcad34c4', 'Sophia Reed'),
+        stock('1592861956120-e524fc739696', 'Sophia Reed'),
       ],
       exampleCaptions: [
         "Got a birthday, work do, or hen's coming up? The upstairs room seats 8 to 20 at one long table, with the harbour right outside. Two-course set menu from $65pp, three-course from $85, and the room hire is on us once you hit the food/drink minimum.",
@@ -155,8 +159,9 @@ const hospitality: ScopeResult = {
       postLength: 'Long',
       imageHints: ['christmas', 'corporate dinner', 'function venue'],
       unsplashImages: [
-        stock('1519671482749-fd09be7ccebf', 'Marcus Bell'),
-        stock('1505373877841-8d25f7d46678', 'Hannah Liu'),
+        stock('1543589077-47d81606c1bf', 'Lucas Mendes'),
+        stock('1607435037-9deddebb14b5', 'Anna Pierce'),
+        stock('1606923829579-0cb981a83e2e', 'Tom Hayes'),
       ],
       exampleCaptions: [
         "Christmas function bookings open 15 November. Two packages — Bistro Buffet at $79pp and Wharf Plated at $120pp, both with venue, drinks, and the full festive treatment. Last year most weekend dates were locked in within 10 days. Don't be the team scrambling for a venue in December.",
@@ -169,12 +174,13 @@ const hospitality: ScopeResult = {
 const coffee: ScopeResult = {
   businessName: 'Mt Eden Roasters',
   homepageUrl: 'mtedenroasters.co.nz',
+  // Generic coffee brand vibe — barista hands, steam, latte. Distinct from
+  // every per-category set so the picker has no overlap.
   images: [
-    u('1495474472287-4d71bcdd2085'),
-    u('1442512595331-e89e73853f31'),
-    u('1509042239860-f550ce710b93'),
-    u('1517701550927-30cf4ba1dba5'),
-    u('1485808191679-5f86510681a2'),
+    u('1442550528053-c431ecb55509'), // steam off cup
+    u('1521017432531-fbd92d768814'), // hand holding cup
+    u('1500380804539-4e1e8c1e7118'), // coffee on table
+    u('1559056199-641a0ac8b55e'), // latte with milk
   ],
   items: [
     {
@@ -196,8 +202,8 @@ const coffee: ScopeResult = {
       unsplashImages: [
         stock('1495474472287-4d71bcdd2085', 'Anna Pierce'),
         stock('1559496417-e7f25cb247f3', 'Liam Walsh'),
-        stock('1521017432531-fbd92d768814', 'Sara Anderson'),
-        stock('1517256064527-09c73fc73e38', 'James Wright'),
+        stock('1517256064527-09c73fc73e38', 'Sara Anderson'),
+        stock('1547894137-99290ddc89df', 'James Wright'),
       ],
       exampleCaptions: [
         "The House Blend. 70% Cerrado, 30% Huila, medium roast. Dark chocolate, hazelnut, brown sugar with a clean citrus finish. Pulls a beautiful espresso, sings in milk, behaves itself in the plunger. Roasted weekly, in your hands within 48 hours.",
@@ -249,7 +255,7 @@ const coffee: ScopeResult = {
       unsplashImages: [
         stock('1442512595331-e89e73853f31', 'David Park'),
         stock('1509042239860-f550ce710b93', 'Sophia Reed'),
-        stock('1442550528053-c431ecb55509', 'Marcus Bell'),
+        stock('1453614512568-c4024d13c247', 'Marcus Bell'),
       ],
       exampleCaptions: [
         "Friday afternoon at the bench. Beans roasting through the glass, banana bread fresh out, the dog under the window seat. Open till 3.",
@@ -274,8 +280,8 @@ const coffee: ScopeResult = {
       imageHints: ['coffee beans', 'product launch', 'pour over'],
       unsplashImages: [
         stock('1485808191679-5f86510681a2', 'Hannah Liu'),
-        stock('1453614512568-c4024d13c247', 'Ines Martin'),
-        stock('1497935586351-b67a49e012bf', 'Tom Hayes'),
+        stock('1518032406996-3c5d5c79c7eb', 'Ines Martin'),
+        stock('1447933601403-0c6688de566e', 'Tom Hayes'),
       ],
       exampleCaptions: [
         "Two weeks out. The Yirgacheffe lands 20 June — washed process, light roast, grown by the Konga Cooperative in southern Ethiopia. Bergamot, jasmine, lemon zest, that thin tea-like body filter coffee people queue for. We've got 75 bags. They went in 12 days last year.",
@@ -288,12 +294,13 @@ const coffee: ScopeResult = {
 const skincare: ScopeResult = {
   businessName: "Moso'oi Beauty",
   homepageUrl: 'mosooibeauty.co.nz',
+  // Generic skincare brand vibe — packaging close-ups, brand flatlays. Not
+  // tied to any single category.
   images: [
-    u('1556228720-195a672e8a03'),
-    u('1571781926291-c477ebfd024b'),
-    u('1607602132700-068258431c6c'),
-    u('1573496359142-b8d87734a5a2'),
-    u('1556228453-efd6c1ff04f6'),
+    u('1556228720-195a672e8a03'), // skincare flatlay
+    u('1573496359142-b8d87734a5a2'), // workspace / studio
+    u('1611080541599-86b3ae1f3b3e'), // close product flatlay
+    u('1519415943484-9fa1873496d4'), // bottle on tile
   ],
   items: [
     {
@@ -341,8 +348,8 @@ const skincare: ScopeResult = {
       imageHints: ['founder', 'portrait', 'workspace', 'brand story'],
       unsplashImages: [
         stock('1607602132700-068258431c6c', 'Emma Wilson'),
-        stock('1573496359142-b8d87734a5a2', 'Anna Pierce'),
-        stock('1598440947619-2c35fc9aa908', 'Marcus Bell'),
+        stock('1494790108377-be9c29b29330', 'Anna Pierce'),
+        stock('1438761681033-6461ffad8d80', 'Marcus Bell'),
       ],
       exampleCaptions: [
         "Lani started Moso'oi from her Auckland apartment in 2022 after years of skincare that just didn't work for her dry, sensitive skin. The brand's named after her grandmother's favourite flower — frangipani in Samoan. She still flies to Apia twice a year to visit the family who press the oil. The lab moved out of the apartment last year. Some things scaled. The principles didn't.",
@@ -367,8 +374,8 @@ const skincare: ScopeResult = {
       imageHints: ['flatlay', 'routine', 'product trio'],
       unsplashImages: [
         stock('1571781926291-c477ebfd024b', 'Sophia Reed'),
-        stock('1556228720-195a672e8a03', 'Ines Martin'),
-        stock('1620916566398-39f1143ab7be', 'Tom Hayes'),
+        stock('1620916566398-39f1143ab7be', 'Ines Martin'),
+        stock('1631730486572-226d1f595b68', 'Tom Hayes'),
       ],
       exampleCaptions: [
         "Cleanse, serum, cream. Three products, twice a day. The Pacific Cleanser ($42) takes makeup off without stripping. The Hydration Serum ($68) preps the skin. The Moso'oi Face Cream ($84) does the overnight work. Bundled at $169 — saves you $25 vs buying them separately.",
@@ -392,9 +399,9 @@ const skincare: ScopeResult = {
       postLength: 'Long',
       imageHints: ['product launch', 'botanicals', 'packaging'],
       unsplashImages: [
-        stock('1631730486572-226d1f595b68', 'Liam Walsh'),
-        stock('1620916566398-39f1143ab7be', 'David Park'),
-        stock('1612817288484-6f916006741a', 'Olivia Rose'),
+        stock('1545239351-cefa43af60f3', 'Liam Walsh'),
+        stock('1517722014278-c256a91a6fba', 'David Park'),
+        stock('1462965326201-d02e4f455804', 'Olivia Rose'),
       ],
       exampleCaptions: [
         "Spring Collection drops 1 October. Three new pieces — a Lightweight Day Cream ($72), a stabilised Vitamin C Brightening Serum at 10% THD with niacinamide ($78), and a limited-edition Frangipani Body Oil ($56), single batch, 800 units. Pre-orders open 15 September with 15% off and free shipping launch week. Set your alarm.",

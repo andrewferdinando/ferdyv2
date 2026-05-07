@@ -78,7 +78,11 @@ export default function Loading({ minDurationMs = 50000, onComplete, ready }: Pr
             />
           </div>
 
-          <p className="text-sm text-gray-400 mt-8">This usually takes about 50 seconds.</p>
+          {minDurationMs >= 15000 && (
+            <p className="text-sm text-gray-400 mt-8">
+              This usually takes about 50 seconds.
+            </p>
+          )}
         </div>
       </div>
     </div>

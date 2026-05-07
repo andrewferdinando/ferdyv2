@@ -49,6 +49,9 @@ export default function ScopeFlow() {
   const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
+  // Demo flows get a much shorter loading screen since there's nothing to
+  // actually scrape or analyse — just a brief visual transition.
+  const [isDemo, setIsDemo] = useState(false)
 
   // Generated example posts: itemId -> array of captions.
   // Demo flows seed these from item.exampleCaptions; real flows fetch from
@@ -109,6 +112,7 @@ export default function ScopeFlow() {
       const demo = DEMOS[key]
       setResult(demo)
       initSelectionsAndKept(demo, { isDemo: true })
+      setIsDemo(true)
       setLandingError(null)
       setStage('loading')
     },
@@ -119,6 +123,7 @@ export default function ScopeFlow() {
     async (url: string) => {
       setLandingError(null)
       setResult(null)
+      setIsDemo(false)
       setStage('loading')
 
       try {
@@ -222,6 +227,7 @@ export default function ScopeFlow() {
     setCaptionsByItem({})
     setPostsError(null)
     setPostsLoading(false)
+    setIsDemo(false)
     postsFetchedFor.current = null
   }, [])
 
@@ -294,6 +300,7 @@ export default function ScopeFlow() {
       <Loading
         ready={result !== null}
         onComplete={() => setStage('overview')}
+        minDurationMs={isDemo ? 5000 : 50000}
       />
     )
   }
