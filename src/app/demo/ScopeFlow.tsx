@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Intro from './stages/Intro'
 import Landing from './stages/Landing'
 import Loading from './stages/Loading'
 import Overview from './stages/Overview'
@@ -9,7 +10,7 @@ import End from './stages/End'
 import { DEMOS } from './data/demos'
 import type { DemoKey, ScopeItem, ScopeResult } from './data/types'
 
-type Stage = 'landing' | 'loading' | 'overview' | 'wizard' | 'end'
+type Stage = 'intro' | 'landing' | 'loading' | 'overview' | 'wizard' | 'end'
 
 type ScrapeResponse = {
   url: string
@@ -29,12 +30,22 @@ type AnalyseResponse = {
 }
 
 export default function ScopeFlow() {
-  const [stage, setStage] = useState<Stage>('landing')
+  const [stage, setStage] = useState<Stage>('intro')
   const [result, setResult] = useState<ScopeResult | null>(null)
   const [keptIds, setKeptIds] = useState<Set<string>>(new Set())
   const [selections, setSelections] = useState<Record<string, number[]>>({})
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
+
+  // Skip the booth attractor when ?start=true is on the URL — useful for testing the URL flow
+  // without clicking through the intro every time.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('start') === 'true') {
+      setStage('landing')
+    }
+  }, [])
 
   // Reset scroll on every stage transition so users always land at the top of the next view.
   useEffect(() => {
@@ -162,7 +173,9 @@ export default function ScopeFlow() {
   }, [])
 
   const handleRestart = useCallback(() => {
-    setStage('landing')
+    // Restart sends users back to the booth attractor — between visitors at the
+    // booth, the page should reset to the headline rather than the URL prompt.
+    setStage('intro')
     setResult(null)
     setKeptIds(new Set())
     setSelections({})
@@ -196,6 +209,10 @@ export default function ScopeFlow() {
     },
     [result, keptIds]
   )
+
+  if (stage === 'intro') {
+    return <Intro onContinue={() => setStage('landing')} />
+  }
 
   if (stage === 'landing') {
     return (

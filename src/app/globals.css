@@ -79,6 +79,26 @@ body {
   animation: scopeFill linear forwards;
 }
 
+/* /demo intro CTA — gentle ambient pulse so the button is noticeable from a booth distance */
+@keyframes scopeAttractPulse {
+  0%, 100% {
+    box-shadow:
+      0 10px 15px -3px rgba(99, 102, 241, 0.30),
+      0 0 0 0 rgba(99, 102, 241, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 12px 22px -4px rgba(99, 102, 241, 0.45),
+      0 0 0 14px rgba(99, 102, 241, 0);
+  }
+}
+.scope-attract-pulse {
+  animation: scopeAttractPulse 2.4s ease-in-out infinite;
+}
+.scope-attract-pulse:hover {
+  animation-play-state: paused;
+}
+
 /* Asset grid shimmer skeleton */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }

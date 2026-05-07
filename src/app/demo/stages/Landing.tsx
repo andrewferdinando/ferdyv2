@@ -30,7 +30,7 @@ export default function Landing({ onSubmitUrl, onPickDemo, error }: Props) {
       <div className="flex-1 flex items-center justify-center px-6 pt-32 pb-16">
         <div className="w-full max-w-2xl">
           <p className="text-indigo-500 text-xs sm:text-sm font-semibold tracking-[0.18em] uppercase mb-6 text-center">
-            Could some of your posts be on autopilot?
+            Let’s start with your website
           </p>
 
           <h1 className="text-4xl sm:text-6xl font-bold text-gray-950 tracking-tight text-center leading-[1.1] mb-5">
