@@ -2,7 +2,7 @@
 
 > Social media automation for small businesses in Australia and New Zealand.
 
-Ferdy is a social media automation tool that creates and publishes repeatable social media posts to Instagram and Facebook. It is designed for product-focused small businesses including restaurants, cafes, venues, e-commerce stores, and service businesses.
+Ferdy is a social media automation tool that creates and publishes the recurring, predictable social media posts to Instagram and Facebook. It is designed for product-focused small businesses including restaurants, cafes, venues, e-commerce stores, and service businesses.
 
 ## How It Works
 

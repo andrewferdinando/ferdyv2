@@ -2,7 +2,7 @@
 
 > Social media automation for small businesses in Australia and New Zealand.
 
-Ferdy is a social media automation tool that creates and publishes repeatable social media posts to Instagram and Facebook. It is designed for product-focused small businesses including restaurants, cafes, venues, e-commerce stores, and service businesses.
+Ferdy is a social media automation tool that creates and publishes the recurring, predictable social media posts to Instagram and Facebook. It is designed for product-focused small businesses including restaurants, cafes, venues, e-commerce stores, and service businesses.
 
 ## How It Works
 
@@ -44,7 +44,7 @@ Ferdy is a social media automation tool that creates and publishes repeatable so
 ## Frequently Asked Questions
 
 ### What is Ferdy?
-Ferdy is a social media automation tool designed for small businesses. It automates the creation and publishing of repeatable social media posts to Instagram and Facebook, saving business owners hours of manual work each month.
+Ferdy is a social media automation tool designed for small businesses. It automates the creation and publishing of the recurring, predictable social media posts to Instagram and Facebook, saving business owners hours of manual work each month.
 
 ### What social media platforms does Ferdy support?
 Ferdy currently supports automatic publishing to Instagram (feed posts and stories) and Facebook (page posts). Posts are created from your brand assets, images, and website content.
@@ -56,7 +56,7 @@ Ferdy's Solo plan is NZ$147 per month (+GST) per brand, which includes up to 30 
 No. Ferdy gives you full editorial control. Every post is generated as a draft that you can review, edit, approve, or skip before it goes live. Nothing is published without your approval.
 
 ### Who is Ferdy designed for?
-Ferdy is built for product-focused small businesses in Australia and New Zealand, including restaurants, cafes, venues, e-commerce stores, and service businesses that have repeatable content to share on social media each month.
+Ferdy is built for product-focused small businesses in Australia and New Zealand, including restaurants, cafes, venues, e-commerce stores, and service businesses that have recurring, predictable content to share on social media each month.
 
 ### How does Ferdy create content?
 Ferdy generates posts from your actual brand assets — your images, website content, product information, and offers. It does not create random or generic content. You set up content categories (like weekly specials or product highlights) and Ferdy handles the scheduling and publishing.

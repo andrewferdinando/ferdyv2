@@ -12,7 +12,7 @@ import BottomCTA from '@/components/marketing/BottomCTA'
 export const metadata = {
   title: 'Social Media Automation for Small Businesses',
   description:
-    'Ferdy automates repeatable social media posts for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand. Auto-publish to Instagram and Facebook.',
+    'Ferdy automates the recurring, predictable social media posts for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand. Auto-publish to Instagram and Facebook.',
   alternates: { canonical: 'https://ferdy.io' },
 }
 
@@ -24,7 +24,7 @@ const softwareApplicationJsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'Social media automation tool that creates and publishes repeatable posts for small businesses. Auto-post to Instagram and Facebook.',
+    'Social media automation tool that creates and publishes the recurring, predictable posts for small businesses. Auto-post to Instagram and Facebook.',
   offers: {
     '@type': 'Offer',
     price: '147',
@@ -35,7 +35,7 @@ const softwareApplicationJsonLd = {
   },
   featureList: [
     'Automated social media posting',
-    'Repeatable post scheduling',
+    'Recurring post scheduling',
     'Instagram and Facebook auto-publishing',
     'AI-generated social media content',
     'Brand asset management',
@@ -53,7 +53,7 @@ const faqJsonLd = {
       name: 'What is Ferdy?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ferdy is a social media automation tool designed for small businesses. It automates the creation and publishing of repeatable social media posts to Instagram and Facebook, saving business owners hours of manual work each month.',
+        text: 'Ferdy is a social media automation tool designed for small businesses. It automates the creation and publishing of the recurring, predictable social media posts to Instagram and Facebook, saving business owners hours of manual work each month.',
       },
     },
     {
@@ -85,7 +85,7 @@ const faqJsonLd = {
       name: 'Who is Ferdy designed for?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ferdy is built for product-focused small businesses in Australia and New Zealand, including restaurants, cafes, venues, e-commerce stores, and service businesses that have repeatable content to share on social media each month.',
+        text: 'Ferdy is built for product-focused small businesses in Australia and New Zealand, including restaurants, cafes, venues, e-commerce stores, and service businesses that have recurring, predictable content to share on social media each month.',
       },
     },
     {

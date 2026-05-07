@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s | Ferdy",
   },
   description:
-    "Ferdy automates repeatable social media posts for small businesses. Create, schedule, and publish to Instagram and Facebook — automatically.",
+    "Ferdy automates the recurring, predictable social media posts for small businesses. Create, schedule, and publish to Instagram and Facebook — automatically.",
   openGraph: {
     type: "website",
     locale: "en_NZ",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     siteName: "Ferdy",
     title: "Ferdy — Social Media Automation for Small Businesses",
     description:
-      "Automate your repeatable social media posts. Ferdy creates and publishes the content you repeat every month — so you can focus on the creative work.",
+      "Automate your recurring, predictable social media posts. Ferdy creates and publishes the content you repeat every month — so you can focus on the creative work.",
     images: [
       {
         url: "/images/og-default.png",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Ferdy — Social Media Automation for Small Businesses",
     description:
-      "Automate your repeatable social media posts. Designed for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand.",
+      "Automate your recurring, predictable social media posts. Designed for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand.",
     images: ["/images/og-default.png"],
   },
 };
@@ -134,7 +134,7 @@ export default function RootLayout({
               url: "https://ferdy.io",
               logo: "https://ferdy.io/images/ferdy_logo_transparent.png",
               description:
-                "Ferdy automates repeatable social media posts for small businesses in Australia and New Zealand.",
+                "Ferdy automates the recurring, predictable social media posts for small businesses in Australia and New Zealand.",
               contactPoint: {
                 "@type": "ContactPoint",
                 email: "support@ferdy.io",
