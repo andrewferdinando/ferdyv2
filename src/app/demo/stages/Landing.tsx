@@ -34,7 +34,7 @@ export default function Landing({ onSubmitUrl, onPickDemo, error }: Props) {
           </p>
 
           <h1 className="text-4xl sm:text-6xl font-bold text-gray-950 tracking-tight text-center leading-[1.1] mb-5">
-            Drop in your URL and we’ll show you.
+            Drop in your URL.
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-500 text-center mb-12">
@@ -52,12 +52,12 @@ export default function Landing({ onSubmitUrl, onPickDemo, error }: Props) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="yourbusiness.co.nz"
-                className="flex-1 h-14 px-5 text-base sm:text-lg rounded-xl bg-white border border-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition placeholder:text-gray-400"
+                className="flex-1 h-16 sm:h-14 px-6 sm:px-5 text-lg rounded-xl bg-white border border-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition placeholder:text-gray-400"
               />
               <button
                 type="submit"
                 disabled={!url.trim()}
-                className="h-14 px-7 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px transition disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="h-16 sm:h-14 px-7 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px transition disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 Show me
                 <ArrowRight className="w-5 h-5" />

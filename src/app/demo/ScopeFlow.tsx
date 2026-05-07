@@ -183,33 +183,6 @@ export default function ScopeFlow() {
     setLandingError(null)
   }, [])
 
-  const handleSubmitLead = useCallback(
-    async (lead: { name: string; email: string }) => {
-      if (!result) return
-      const keptItemTitles = result.items
-        .filter((i) => keptIds.has(i.id))
-        .map((i) => i.title)
-      try {
-        await fetch('/api/scope/lead', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: lead.name,
-            email: lead.email,
-            businessName: result.businessName,
-            homepageUrl: result.homepageUrl,
-            source: '/demo',
-            keptItemTitles,
-          }),
-        })
-      } catch (err) {
-        // Still treat as captured from the user's perspective; logs will show the failure.
-        console.error('[scope] lead submit failed', err)
-      }
-    },
-    [result, keptIds]
-  )
-
   if (stage === 'intro') {
     return <Intro onContinue={() => setStage('landing')} />
   }
@@ -273,7 +246,6 @@ export default function ScopeFlow() {
     <End
       businessName={result.businessName}
       keptCount={keptIds.size}
-      onSubmit={handleSubmitLead}
       onRestart={handleRestart}
     />
   )
