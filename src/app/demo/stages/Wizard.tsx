@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LogoHeader from '../components/LogoHeader'
 import type { ScopeItem, ScopeResult } from '../data/types'
@@ -52,6 +52,18 @@ export default function Wizard({
   const selected = useMemo(() => selections[item.id] ?? [], [selections, item.id])
   const visibleThumbs = selected.slice(0, 4)
 
+  // Track which scraped images failed to load so we can hide them from the picker
+  // without faking server-side validation. Set is per-render-tree (resets if the
+  // user reloads, which is fine — same images, same outcome).
+  const [brokenImages, setBrokenImages] = useState<Set<number>>(new Set())
+  const markBroken = (i: number) =>
+    setBrokenImages((prev) => {
+      if (prev.has(i)) return prev
+      const next = new Set(prev)
+      next.add(i)
+      return next
+    })
+
   // Reset scroll when navigating between slides so we don't carry over the previous slide's
   // scroll position (a long slide can leave the user mid-page on a short next slide).
   useEffect(() => {
@@ -88,29 +100,40 @@ export default function Wizard({
 
           {/* 7-input grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
-            {/* 1 — Content */}
-            <Row n={1} label="Content">
-              <div className="flex items-center gap-1.5">
-                {visibleThumbs.length === 0 && (
-                  <span className="text-sm text-gray-400">No images selected</span>
-                )}
-                {visibleThumbs.map((imgIdx) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={imgIdx}
-                    src={result.images[imgIdx]}
-                    alt=""
-                    className="w-12 h-12 rounded-lg object-cover border border-gray-200"
-                  />
-                ))}
-                {selected.length > 4 && (
-                  <span className="text-xs text-gray-400 ml-1">+{selected.length - 4}</span>
-                )}
-              </div>
+            {/* 1 — Schedule */}
+            <Row n={1} label={item.type === 'event' ? 'When' : 'Schedule'}>
+              <span className="text-sm text-gray-700 font-medium">{item.schedule}</span>
             </Row>
 
-            {/* 2 — Brand tone */}
-            <Row n={2} label="Brand tone">
+            {/* 2 — Post time */}
+            <Row n={2} label="Post time">
+              <span className="text-sm text-gray-700 font-medium">{item.postTime}</span>
+            </Row>
+
+            {/* 3 — Post length */}
+            <Row n={3} label="Post length">
+              <span className="text-sm text-gray-700 font-medium">{item.postLength}</span>
+            </Row>
+
+            {/* spacer to keep Category details on its own full row beneath */}
+            <div className="hidden md:block" />
+
+            {/* 4 — Category details (full width — needs the room) */}
+            <div className="md:col-span-2">
+              <Row
+                n={4}
+                label={item.type === 'event' ? 'Event details' : 'Category details'}
+                hint="What Ferdy uses to write each post"
+                stacked
+              >
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                  {item.categoryInfo}
+                </p>
+              </Row>
+            </div>
+
+            {/* 5 — Brand tone */}
+            <Row n={5} label="Brand tone">
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span>Connect to</span>
                 <div className="w-7 h-7 rounded-md bg-[#1877F2] flex items-center justify-center text-white">
@@ -122,21 +145,9 @@ export default function Wizard({
               </div>
             </Row>
 
-            {/* 3 — Category information (the brief Ferdy uses to write the copy) */}
-            <Row
-              n={3}
-              label={item.type === 'event' ? 'Event details' : 'Category details'}
-              hint="What Ferdy uses to write each post"
-              stacked
-            >
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                {item.categoryInfo}
-              </p>
-            </Row>
-
-            {/* 4 — Hashtags */}
-            <Row n={4} label="Hashtags" stacked>
-              <div className="flex flex-wrap gap-1.5 justify-end md:justify-start md:flex-row">
+            {/* 6 — Hashtags */}
+            <Row n={6} label="Hashtags">
+              <div className="flex flex-wrap gap-1.5 justify-end">
                 {item.hashtags.map((h) => (
                   <span
                     key={h}
@@ -148,43 +159,58 @@ export default function Wizard({
               </div>
             </Row>
 
-            {/* 5 — Schedule */}
-            <Row n={5} label={item.type === 'event' ? 'When' : 'Schedule'}>
-              <span className="text-sm text-gray-700 font-medium">{item.schedule}</span>
-            </Row>
-
-            {/* 6 — Post time */}
-            <Row n={6} label="Post time">
-              <span className="text-sm text-gray-700 font-medium">{item.postTime}</span>
-            </Row>
-
-            {/* 7 — Post length */}
-            <Row n={7} label="Post length">
-              <span className="text-sm text-gray-700 font-medium">{item.postLength}</span>
-            </Row>
+            {/* 7 — Select content (preview of currently-selected images) */}
+            <div className="md:col-span-2">
+              <Row n={7} label="Select content" hint="Pick from below">
+                <div className="flex items-center gap-1.5">
+                  {visibleThumbs.length === 0 && (
+                    <span className="text-sm text-gray-400">No images selected</span>
+                  )}
+                  {visibleThumbs.map((imgIdx) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={imgIdx}
+                      src={result.images[imgIdx]}
+                      alt=""
+                      className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                      onError={() => markBroken(imgIdx)}
+                    />
+                  ))}
+                  {selected.length > 4 && (
+                    <span className="text-xs text-gray-400 ml-1">+{selected.length - 4}</span>
+                  )}
+                </div>
+              </Row>
+            </div>
           </div>
 
           {/* Image picker strip */}
           <div className="mt-12">
             <div className="flex items-baseline justify-between mb-3">
               <p className="text-xs font-semibold tracking-wider uppercase text-gray-400">
-                Pick from your site
+                From your site
               </p>
               <p className="text-xs text-gray-400">{selected.length} selected</p>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6">
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6">
               {result.images.map((src, i) => {
+                if (brokenImages.has(i)) return null
                 const isSelected = selected.includes(i)
                 return (
                   <button
                     key={i}
                     onClick={() => onToggleImage(item.id, i)}
-                    className={`shrink-0 relative w-20 h-20 rounded-lg overflow-hidden border-2 transition ${
+                    className={`shrink-0 relative w-32 h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden border-2 transition ${
                       isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-300'
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={() => markBroken(i)}
+                    />
                     {isSelected && (
                       <div className="absolute inset-0 bg-indigo-500/15" />
                     )}

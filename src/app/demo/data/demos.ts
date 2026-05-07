@@ -39,7 +39,7 @@ const hospitality: ScopeResult = {
       hashtags: ['#livemusic', '#wellingtonlivemusic', '#sundaysessions', '#wellingtonbar'],
       postLength: 'Short',
       imageHints: ['live music', 'band', 'guitar', 'microphone'],
-      defaultImageIndices: [7, 8, 9, 10],
+      defaultImageIndices: [],
     },
     {
       id: 'hosp-burger',
@@ -57,7 +57,7 @@ const hospitality: ScopeResult = {
       hashtags: ['#burgertuesday', '#wagyu', '#wellingtoneats', '#midweekspecial'],
       postLength: 'Short',
       imageHints: ['burger', 'wagyu', 'fries', 'pub food'],
-      defaultImageIndices: [4, 5, 6],
+      defaultImageIndices: [],
     },
     {
       id: 'hosp-private',
@@ -75,7 +75,7 @@ const hospitality: ScopeResult = {
       hashtags: ['#privatedining', '#wellingtonfunctions', '#groupbookings'],
       postLength: 'Medium',
       imageHints: ['dining room', 'set table', 'restaurant interior', 'intimate'],
-      defaultImageIndices: [0, 1, 2],
+      defaultImageIndices: [],
     },
     {
       id: 'hosp-function',
@@ -93,7 +93,7 @@ const hospitality: ScopeResult = {
       hashtags: ['#weddingvenue', '#corporateevents', '#wellingtonvenue', '#functionspace'],
       postLength: 'Medium',
       imageHints: ['event venue', 'wedding', 'banquet', 'function space'],
-      defaultImageIndices: [11, 12, 13],
+      defaultImageIndices: [],
     },
     {
       id: 'hosp-xmas',
@@ -111,7 +111,7 @@ const hospitality: ScopeResult = {
       hashtags: ['#christmasfunctions', '#corporatechristmas', '#endofyear'],
       postLength: 'Long',
       imageHints: ['christmas', 'corporate dinner', 'function venue'],
-      defaultImageIndices: [11, 13, 0],
+      defaultImageIndices: [],
     },
   ],
 }
@@ -150,7 +150,7 @@ const coffee: ScopeResult = {
       hashtags: ['#mtedenroasters', '#houseblend', '#aucklandcoffee', '#specialtycoffee'],
       postLength: 'Medium',
       imageHints: ['coffee bag', 'espresso', 'product shot'],
-      defaultImageIndices: [0, 1, 11, 7],
+      defaultImageIndices: [],
     },
     {
       id: 'cof-tasting',
@@ -168,7 +168,7 @@ const coffee: ScopeResult = {
       hashtags: ['#coffeetasting', '#cupping', '#mtedenauckland'],
       postLength: 'Short',
       imageHints: ['tasting', 'cupping', 'pour over', 'cafe'],
-      defaultImageIndices: [8, 2, 5],
+      defaultImageIndices: [],
     },
     {
       id: 'cof-cafe',
@@ -186,7 +186,7 @@ const coffee: ScopeResult = {
       hashtags: ['#mtedencafe', '#aucklandcafe', '#fridayfeels'],
       postLength: 'Short',
       imageHints: ['cafe interior', 'barista', 'atmosphere'],
-      defaultImageIndices: [3, 4, 10],
+      defaultImageIndices: [],
     },
     {
       id: 'cof-release',
@@ -204,7 +204,7 @@ const coffee: ScopeResult = {
       hashtags: ['#singleorigin', '#yirgacheffe', '#newrelease', '#specialtycoffee'],
       postLength: 'Long',
       imageHints: ['coffee beans', 'product launch', 'pour over'],
-      defaultImageIndices: [6, 9, 0, 2],
+      defaultImageIndices: [],
     },
   ],
 }
@@ -243,7 +243,7 @@ const skincare: ScopeResult = {
       hashtags: ['#mosooibeauty', '#nzskincare', '#facecream', '#cleanbeauty'],
       postLength: 'Medium',
       imageHints: ['face cream', 'product shot', 'jar', 'skincare'],
-      defaultImageIndices: [7, 0, 6, 2],
+      defaultImageIndices: [],
     },
     {
       id: 'skin-founder',
@@ -261,7 +261,7 @@ const skincare: ScopeResult = {
       hashtags: ['#founderstory', '#nzbusiness', '#cleanbeauty', '#smallbatch'],
       postLength: 'Long',
       imageHints: ['founder', 'portrait', 'workspace', 'brand story'],
-      defaultImageIndices: [4, 5, 8],
+      defaultImageIndices: [],
     },
     {
       id: 'skin-range',
@@ -279,7 +279,7 @@ const skincare: ScopeResult = {
       hashtags: ['#skincareroutine', '#hydration', '#mosooi', '#cleanbeauty'],
       postLength: 'Medium',
       imageHints: ['flatlay', 'routine', 'product trio'],
-      defaultImageIndices: [0, 3, 11],
+      defaultImageIndices: [],
     },
     {
       id: 'skin-launch',
@@ -297,7 +297,7 @@ const skincare: ScopeResult = {
       hashtags: ['#springlaunch', '#newproduct', '#mosooibeauty', '#nzbusiness'],
       postLength: 'Long',
       imageHints: ['product launch', 'botanicals', 'packaging'],
-      defaultImageIndices: [11, 6, 2, 7],
+      defaultImageIndices: [],
     },
   ],
 }

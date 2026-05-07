@@ -300,15 +300,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Pre-select first 4 images per item so the wizard isn't empty.
-  const imageCount = body.images?.length ?? 0
-  const defaultIndices = Array.from(
-    { length: Math.min(4, imageCount) },
-    (_, i) => i
-  )
+  // No pre-selection — booth visitors pick images live with us at the table,
+  // so the Select content slot starts empty by design.
   const itemsWithDefaults = cleaned.map((it) => ({
     ...it,
-    defaultImageIndices: [...defaultIndices],
+    defaultImageIndices: [] as number[],
   }))
 
   return NextResponse.json({ items: itemsWithDefaults })
