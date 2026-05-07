@@ -14,7 +14,7 @@ export default function Hero() {
         <div className="container relative z-10">
           <div className="max-w-4xl mx-auto text-center mb-16">
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-gray-900 leading-[1.1]">
-              Automate your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">repeatable</span> social media posts.
+              Automate your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">recurring, predictable</span> social media posts.
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
               Ferdy creates and publishes the posts you repeat every month - so you can spend more time on the creative ones.
