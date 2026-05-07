@@ -36,10 +36,10 @@ export default function End({ businessName, keptCount, onRestart }: Props) {
               {keptCount} {keptCount === 1 ? 'category' : 'categories'} ready to roll
             </p>
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight mb-4">
-              Want us to set this up?
+              Worth a 30 min strategy chat?
             </h1>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
-              Book a quick chat and we’ll walk you through getting {businessName} live on autopilot using Ferdy.
+              Book below and we’ll walk through getting {businessName} live on autopilot.
             </p>
           </div>
 
