@@ -1,16 +1,24 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Intro from './stages/Intro'
 import Landing from './stages/Landing'
 import Loading from './stages/Loading'
 import Overview from './stages/Overview'
 import Wizard from './stages/Wizard'
+import Examples from './stages/Examples'
 import End from './stages/End'
 import { DEMOS } from './data/demos'
-import type { DemoKey, ScopeItem, ScopeResult } from './data/types'
+import type { DemoKey, ExamplePost, ScopeItem, ScopeResult } from './data/types'
 
-type Stage = 'intro' | 'landing' | 'loading' | 'overview' | 'wizard' | 'end'
+type Stage =
+  | 'intro'
+  | 'landing'
+  | 'loading'
+  | 'overview'
+  | 'wizard'
+  | 'examples'
+  | 'end'
 
 type ScrapeResponse = {
   url: string
@@ -29,18 +37,28 @@ type AnalyseResponse = {
   insufficient?: boolean
 }
 
+type GeneratePostsResponse = {
+  posts?: ExamplePost[]
+  error?: string
+}
+
 export default function ScopeFlow() {
   const [stage, setStage] = useState<Stage>('intro')
   const [result, setResult] = useState<ScopeResult | null>(null)
   const [keptIds, setKeptIds] = useState<Set<string>>(new Set())
-  // Selections are keyed by item id and store image URLs (not indices) so we
-  // can mix scraped images and Unsplash photos in the same picker.
   const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
 
-  // Skip the booth attractor when ?start=true is on the URL — useful for testing the URL flow
-  // without clicking through the intro every time.
+  // Generated example posts: itemId -> array of captions.
+  // Demo flows seed these from item.exampleCaptions; real flows fetch from
+  // /api/scope/generate-posts as soon as the user enters the wizard.
+  const [captionsByItem, setCaptionsByItem] = useState<Record<string, string[]>>({})
+  const [postsLoading, setPostsLoading] = useState(false)
+  const [postsError, setPostsError] = useState<string | null>(null)
+  const postsFetchedFor = useRef<string | null>(null) // id of result that's been fetched
+
+  // Skip the booth attractor when ?start=true is on the URL.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
@@ -49,27 +67,48 @@ export default function ScopeFlow() {
     }
   }, [])
 
-  // Reset scroll on every stage transition so users always land at the top of the next view.
+  // Reset scroll on every stage transition.
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     }
   }, [stage])
 
-  const initSelectionsAndKept = useCallback((res: ScopeResult) => {
-    setKeptIds(new Set(res.items.map((i) => i.id)))
-    // Empty selections by default — Andrew picks live with the prospect at the booth.
-    const initial: Record<string, string[]> = {}
-    for (const item of res.items) initial[item.id] = []
-    setSelections(initial)
-    setWizardIndex(0)
-  }, [])
+  const initSelectionsAndKept = useCallback(
+    (res: ScopeResult, opts: { isDemo: boolean }) => {
+      setKeptIds(new Set(res.items.map((i) => i.id)))
+      const initial: Record<string, string[]> = {}
+      for (const item of res.items) initial[item.id] = []
+      setSelections(initial)
+      setWizardIndex(0)
+
+      // Demo flows ship with pre-baked captions — seed them so we don't burn
+      // an Anthropic call on demo runs.
+      if (opts.isDemo) {
+        const seeded: Record<string, string[]> = {}
+        for (const item of res.items) {
+          if (item.exampleCaptions && item.exampleCaptions.length > 0) {
+            seeded[item.id] = [...item.exampleCaptions]
+          }
+        }
+        setCaptionsByItem(seeded)
+        // Mark "fetched" so the eager-fetch effect doesn't fire on a demo result.
+        postsFetchedFor.current = res.businessName + '|demo'
+      } else {
+        setCaptionsByItem({})
+        postsFetchedFor.current = null
+      }
+      setPostsError(null)
+      setPostsLoading(false)
+    },
+    []
+  )
 
   const startDemo = useCallback(
     (key: DemoKey) => {
       const demo = DEMOS[key]
       setResult(demo)
-      initSelectionsAndKept(demo)
+      initSelectionsAndKept(demo, { isDemo: true })
       setLandingError(null)
       setStage('loading')
     },
@@ -140,7 +179,7 @@ export default function ScopeFlow() {
           items: analyse.items,
         }
         setResult(combined)
-        initSelectionsAndKept(combined)
+        initSelectionsAndKept(combined, { isDemo: false })
       } catch (err) {
         const message =
           err instanceof Error
@@ -174,15 +213,67 @@ export default function ScopeFlow() {
   }, [])
 
   const handleRestart = useCallback(() => {
-    // Restart sends users back to the booth attractor — between visitors at the
-    // booth, the page should reset to the headline rather than the URL prompt.
     setStage('intro')
     setResult(null)
     setKeptIds(new Set())
     setSelections({})
     setWizardIndex(0)
     setLandingError(null)
+    setCaptionsByItem({})
+    setPostsError(null)
+    setPostsLoading(false)
+    postsFetchedFor.current = null
   }, [])
+
+  // Eager pre-fetch: when the user enters the wizard for a real (non-demo)
+  // result, kick off the post-generation call so by the time they hit Done,
+  // the captions are usually already in. Runs once per result.
+  useEffect(() => {
+    if (stage !== 'wizard') return
+    if (!result) return
+    const key = result.businessName + '|' + result.homepageUrl
+    if (postsFetchedFor.current === key) return
+    postsFetchedFor.current = key
+
+    setPostsLoading(true)
+    setPostsError(null)
+
+    const itemsForGen = result.items.map((it) => ({
+      id: it.id,
+      title: it.title,
+      categoryInfo: it.categoryInfo,
+      postLength: it.postLength,
+      hashtags: it.hashtags,
+    }))
+
+    fetch('/api/scope/generate-posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessName: result.businessName,
+        items: itemsForGen,
+      }),
+    })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => null)) as
+          | GeneratePostsResponse
+          | null
+        if (!res.ok) {
+          throw new Error(data?.error || 'Couldn’t draft posts for this category set.')
+        }
+        const grouped: Record<string, string[]> = {}
+        for (const p of data?.posts ?? []) {
+          if (!grouped[p.categoryId]) grouped[p.categoryId] = []
+          grouped[p.categoryId].push(p.caption)
+        }
+        setCaptionsByItem(grouped)
+        setPostsLoading(false)
+      })
+      .catch((err) => {
+        setPostsError(err instanceof Error ? err.message : 'Generation failed')
+        setPostsLoading(false)
+      })
+  }, [stage, result])
 
   if (stage === 'intro') {
     return <Intro onContinue={() => setStage('landing')} />
@@ -237,7 +328,22 @@ export default function ScopeFlow() {
         onNext={() => setWizardIndex(Math.min(keptItems.length - 1, safeIndex + 1))}
         onJump={(i) => setWizardIndex(i)}
         onToggleImage={handleToggleImage}
-        onFinish={() => setStage('end')}
+        onFinish={() => setStage('examples')}
+      />
+    )
+  }
+
+  if (stage === 'examples') {
+    const keptItems = result.items.filter((i) => keptIds.has(i.id))
+    return (
+      <Examples
+        result={result}
+        keptItems={keptItems}
+        selections={selections}
+        captionsByItem={captionsByItem}
+        loading={postsLoading}
+        error={postsError}
+        onContinue={() => setStage('end')}
       />
     )
   }

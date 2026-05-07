@@ -55,6 +55,10 @@ const hospitality: ScopeResult = {
         stock('1459749411175-04bf5292ceea', 'Mike Chen'),
         stock('1514525253161-7a46d19cd819', 'Emma Wilson'),
       ],
+      exampleCaptions: [
+        "Sunday on the deck hits different. Local act spinning acoustic sets from 3, Sunday roast on the menu, harbour out the window. Slide in for a pint, bring the family — kids welcome till 8.",
+        "Rain's holding off, the band's loading in. Live music from 3pm today on the deck, roast lamb on special. Group of 6+? Worth a quick booking.",
+      ],
     },
     {
       id: 'hosp-burger',
@@ -76,6 +80,10 @@ const hospitality: ScopeResult = {
         stock('1571091718767-18b5b1457add', 'Lucas Mendes'),
         stock('1550547660-d9450f859349', 'Anna Pierce'),
         stock('1568901346375-23c9450c58cd', 'Tom Hayes'),
+      ],
+      exampleCaptions: [
+        "It's Tuesday. You know what to do. Wagyu burger, half price, all night. NZ Wakanui beef, smoked cheddar, the sauce. Fries extra, kitchen open till 10.",
+        "Half-price wagyu burger night. $14 instead of $28. No bookings, just turn up. Veggie option same price for the herbivores. See you Tuesday.",
       ],
     },
     {
@@ -99,6 +107,10 @@ const hospitality: ScopeResult = {
         stock('1414235077428-338989a2e8c0', 'David Park'),
         stock('1517248135467-4c7edcad34c4', 'Sophia Reed'),
       ],
+      exampleCaptions: [
+        "Got a birthday, work do, or hen's coming up? The upstairs room seats 8 to 20 at one long table, with the harbour right outside. Two-course set menu from $65pp, three-course from $85, and the room hire is on us once you hit the food/drink minimum.",
+        "Planning a milestone meal? Our private dining room is built for it — one big table, harbour view, your own space. Book at least two weeks out and we'll handle the rest.",
+      ],
     },
     {
       id: 'hosp-function',
@@ -121,6 +133,10 @@ const hospitality: ScopeResult = {
         stock('1519671482749-fd09be7ccebf', 'Marcus Bell'),
         stock('1464366400600-7168b8af9bc3', 'Ines Martin'),
       ],
+      exampleCaptions: [
+        "Looking for a venue with character? The whole ground floor's yours — 60 seated, 120 standing, full AV, our kitchen on the food. Canapés from $45pp, plated dinners from $95. Weekends book out 8 weeks ahead, so worth a chat sooner rather than later.",
+        "Wedding, work do, or birthday the size of a small army — we've done all three this month alone. Reach out and we'll send through the menus and floor plans.",
+      ],
     },
     {
       id: 'hosp-xmas',
@@ -141,6 +157,10 @@ const hospitality: ScopeResult = {
       unsplashImages: [
         stock('1519671482749-fd09be7ccebf', 'Marcus Bell'),
         stock('1505373877841-8d25f7d46678', 'Hannah Liu'),
+      ],
+      exampleCaptions: [
+        "Christmas function bookings open 15 November. Two packages — Bistro Buffet at $79pp and Wharf Plated at $120pp, both with venue, drinks, and the full festive treatment. Last year most weekend dates were locked in within 10 days. Don't be the team scrambling for a venue in December.",
+        "Heads up — Christmas function slots open in two weeks. If you've got a 20-strong team and a December deadline, get the date in your calendar before everyone else does the same.",
       ],
     },
   ],
@@ -179,6 +199,10 @@ const coffee: ScopeResult = {
         stock('1521017432531-fbd92d768814', 'Sara Anderson'),
         stock('1517256064527-09c73fc73e38', 'James Wright'),
       ],
+      exampleCaptions: [
+        "The House Blend. 70% Cerrado, 30% Huila, medium roast. Dark chocolate, hazelnut, brown sugar with a clean citrus finish. Pulls a beautiful espresso, sings in milk, behaves itself in the plunger. Roasted weekly, in your hands within 48 hours.",
+        "If you're new to us, start here. House Blend's the one — 250g for $22, subscription saves you 10%. Whole bean or ground, your call.",
+      ],
     },
     {
       id: 'cof-tasting',
@@ -200,6 +224,10 @@ const coffee: ScopeResult = {
         stock('1559925393-8be0ec4767c8', 'Emma Wilson'),
         stock('1497935586351-b67a49e012bf', 'Tom Hayes'),
         stock('1517701550927-30cf4ba1dba5', 'Olivia Rose'),
+      ],
+      exampleCaptions: [
+        "Saturday morning cupping. Four single origins side by side, hosted by Tom. $15pp, brings you a brew guide and a 250g bag of your favourite to take home. Eight spots a week — book in.",
+        "Best $15 you'll spend on a Saturday. Cupping starts 10am, gift vouchers if you know someone who'd love it.",
       ],
     },
     {
@@ -223,6 +251,10 @@ const coffee: ScopeResult = {
         stock('1509042239860-f550ce710b93', 'Sophia Reed'),
         stock('1442550528053-c431ecb55509', 'Marcus Bell'),
       ],
+      exampleCaptions: [
+        "Friday afternoon at the bench. Beans roasting through the glass, banana bread fresh out, the dog under the window seat. Open till 3.",
+        "Slow morning kind of day. Pour-over, toastie, sit a while. We're here.",
+      ],
     },
     {
       id: 'cof-release',
@@ -244,6 +276,10 @@ const coffee: ScopeResult = {
         stock('1485808191679-5f86510681a2', 'Hannah Liu'),
         stock('1453614512568-c4024d13c247', 'Ines Martin'),
         stock('1497935586351-b67a49e012bf', 'Tom Hayes'),
+      ],
+      exampleCaptions: [
+        "Two weeks out. The Yirgacheffe lands 20 June — washed process, light roast, grown by the Konga Cooperative in southern Ethiopia. Bergamot, jasmine, lemon zest, that thin tea-like body filter coffee people queue for. We've got 75 bags. They went in 12 days last year.",
+        "Counting down. The new single origin drops next week — $32 a bag, online and in the cafe. If you want one, set yourself a reminder. Last year they sold out fast.",
       ],
     },
   ],
@@ -282,6 +318,10 @@ const skincare: ScopeResult = {
         stock('1522337360788-8b13dee7a37e', 'Sara Anderson'),
         stock('1570194065650-d99fb4bedf0a', 'Hannah Liu'),
       ],
+      exampleCaptions: [
+        "Cold-pressed moso'oi oil, niacinamide, ceramides, squalane. That's it — no synthetic fragrance, no sulphates, no parabens. Built for dry to combination skin that's tired of being stripped. 50ml goes about three months. $84.",
+        "What it does: locks in moisture overnight without feeling heavy. What it doesn't do: smell like a perfume counter. Frangipani oil from a family press in Apia.",
+      ],
     },
     {
       id: 'skin-founder',
@@ -303,6 +343,10 @@ const skincare: ScopeResult = {
         stock('1607602132700-068258431c6c', 'Emma Wilson'),
         stock('1573496359142-b8d87734a5a2', 'Anna Pierce'),
         stock('1598440947619-2c35fc9aa908', 'Marcus Bell'),
+      ],
+      exampleCaptions: [
+        "Lani started Moso'oi from her Auckland apartment in 2022 after years of skincare that just didn't work for her dry, sensitive skin. The brand's named after her grandmother's favourite flower — frangipani in Samoan. She still flies to Apia twice a year to visit the family who press the oil. The lab moved out of the apartment last year. Some things scaled. The principles didn't.",
+        "Founder Friday. Lani's a chemist by training, an obsessive formulator by nature, and the only person who's allowed to sign off on a new product. That's why we move slow — and why our customers stick around.",
       ],
     },
     {
@@ -326,6 +370,10 @@ const skincare: ScopeResult = {
         stock('1556228720-195a672e8a03', 'Ines Martin'),
         stock('1620916566398-39f1143ab7be', 'Tom Hayes'),
       ],
+      exampleCaptions: [
+        "Cleanse, serum, cream. Three products, twice a day. The Pacific Cleanser ($42) takes makeup off without stripping. The Hydration Serum ($68) preps the skin. The Moso'oi Face Cream ($84) does the overnight work. Bundled at $169 — saves you $25 vs buying them separately.",
+        "Looking for a routine that doesn't require a degree? This one. First results around day 14, full results at six weeks. Bundle saves $25.",
+      ],
     },
     {
       id: 'skin-launch',
@@ -347,6 +395,10 @@ const skincare: ScopeResult = {
         stock('1631730486572-226d1f595b68', 'Liam Walsh'),
         stock('1620916566398-39f1143ab7be', 'David Park'),
         stock('1612817288484-6f916006741a', 'Olivia Rose'),
+      ],
+      exampleCaptions: [
+        "Spring Collection drops 1 October. Three new pieces — a Lightweight Day Cream ($72), a stabilised Vitamin C Brightening Serum at 10% THD with niacinamide ($78), and a limited-edition Frangipani Body Oil ($56), single batch, 800 units. Pre-orders open 15 September with 15% off and free shipping launch week. Set your alarm.",
+        "Two weeks until pre-orders open. The body oil is the one that's making us nervous — only 800 made. Get on the list.",
       ],
     },
   ],
