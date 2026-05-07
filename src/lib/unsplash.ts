@@ -49,6 +49,9 @@ type UnsplashSearchResponse = {
 /**
  * Search Unsplash for photos matching `query`. Cached per query+perPage.
  * Returns at most `perPage` images. Returns [] on rate limit / failure.
+ *
+ * IMPORTANT: empty results are NOT cached, so a transient Unsplash hiccup
+ * doesn't lock us into "no photos for this query" for the next hour.
  */
 export async function searchUnsplash(
   query: string,
@@ -82,7 +85,12 @@ export async function searchUnsplash(
   }
 
   // 429 = rate-limited. 401/403 = misconfigured key. Either way, fall back silently.
-  if (!res.ok) return []
+  if (!res.ok) {
+    console.warn(
+      `[unsplash] non-OK response for "${trimmed}": status=${res.status}`
+    )
+    return []
+  }
 
   let data: UnsplashSearchResponse
   try {
@@ -103,22 +111,49 @@ export async function searchUnsplash(
     })
     .filter((img) => img.url.length > 0)
 
-  cache.set(cacheKey, { images, expiresAt: Date.now() + TTL_MS })
+  // Only cache when we actually have images — empty responses might be
+  // transient (rate limit headers, glitch, etc.) and we want to retry next time.
+  if (images.length > 0) {
+    cache.set(cacheKey, { images, expiresAt: Date.now() + TTL_MS })
+  }
   return images
 }
 
 /**
- * Convenience: take a list of imageHints from a category and return Unsplash
- * photos that visually match. We join the first few hints into a single query
- * so Unsplash's relevance scoring picks the best matches.
+ * Take a list of imageHints from a category and return Unsplash photos.
+ *
+ * Strategy: try the joined query first (best relevance when it works). If that
+ * comes back empty — common when Claude returns hints like
+ * "infinity pool ocean view luxury" that are too narrow when AND-ed — fall
+ * back to each individual hint until we find one with results. This keeps
+ * popular/visual categories (pool, spa, restaurant) reliable while still
+ * trying the precise query first.
  */
 export async function searchUnsplashForHints(
   hints: string[],
-  perPage = 6
+  perPage = 8
 ): Promise<UnsplashImage[]> {
-  const query = hints
+  const cleanHints = hints
     .filter((h) => typeof h === 'string' && h.trim().length > 0)
-    .slice(0, 3)
-    .join(' ')
-  return searchUnsplash(query, perPage)
+    .map((h) => h.trim())
+
+  if (cleanHints.length === 0) return []
+
+  // Attempt 1: joined query for best relevance (only if we have multiple hints).
+  if (cleanHints.length > 1) {
+    const joined = cleanHints.slice(0, 3).join(' ')
+    const fromJoined = await searchUnsplash(joined, perPage)
+    if (fromJoined.length > 0) return fromJoined
+  }
+
+  // Attempts 2-N: try each hint individually until one returns results.
+  for (const hint of cleanHints) {
+    const fromSingle = await searchUnsplash(hint, perPage)
+    if (fromSingle.length > 0) return fromSingle
+  }
+
+  console.warn(
+    `[unsplash] no images for any hint variation: ${JSON.stringify(cleanHints)}`
+  )
+  return []
 }

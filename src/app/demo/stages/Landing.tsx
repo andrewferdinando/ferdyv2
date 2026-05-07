@@ -52,15 +52,15 @@ export default function Landing({ onSubmitUrl, onPickDemo, error }: Props) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="yourbusiness.co.nz"
-                className="flex-1 h-16 sm:h-14 px-6 sm:px-5 text-lg rounded-xl bg-white border border-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition placeholder:text-gray-400"
+                className="flex-1 h-20 sm:h-14 px-6 sm:px-5 text-2xl sm:text-lg rounded-2xl sm:rounded-xl bg-white border-2 sm:border border-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition placeholder:text-gray-400"
               />
               <button
                 type="submit"
                 disabled={!url.trim()}
-                className="h-16 sm:h-14 px-7 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px transition disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="h-20 sm:h-14 px-7 rounded-2xl sm:rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-xl sm:text-base shadow-sm hover:shadow-md hover:-translate-y-px transition disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 Show me
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-6 h-6 sm:w-5 sm:h-5" />
               </button>
             </div>
 

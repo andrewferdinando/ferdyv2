@@ -22,7 +22,7 @@ type Props = {
   ready: boolean
 }
 
-export default function Loading({ minDurationMs = 40000, onComplete, ready }: Props) {
+export default function Loading({ minDurationMs = 50000, onComplete, ready }: Props) {
   const [stepIdx, setStepIdx] = useState(0)
   const [minElapsed, setMinElapsed] = useState(false)
 
@@ -78,7 +78,7 @@ export default function Loading({ minDurationMs = 40000, onComplete, ready }: Pr
             />
           </div>
 
-          <p className="text-sm text-gray-400 mt-8">This usually takes about 40 seconds.</p>
+          <p className="text-sm text-gray-400 mt-8">This usually takes about 50 seconds.</p>
         </div>
       </div>
     </div>

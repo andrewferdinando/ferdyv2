@@ -106,11 +106,11 @@ OUTPUT FORMAT — strict JSON, no preamble, no markdown fences. The JSON must be
 Rules for fields:
 - icon: pick the closest match from the listed options
 - iconColor: pick a colour that suits the category vibe; use variety across items
-- schedule: use natural language like "Weekly — Thursdays", "Monthly — first Sunday", or for events "3 posts in 2 weeks before [specific date]" / "Daily during [specific dates]"
+- schedule: natural language. **Default to MONTHLY** for recurring categories (e.g. "Monthly — first Wednesday"). Only use weekly/fortnightly when the category genuinely warrants it — repeat pub specials, weekly live music, weekly classes. Most product, service, brand-story, and venue categories should be monthly. For events use "3 posts in 2 weeks before [date]" or "Daily during [dates]".
 - postTime: short string like "7pm", "8am", "12pm"
 - hashtags: 3-5 relevant tags, lowercase, with the # prefix
 - postLength: Short (1-2 sentences), Medium (3-5 sentences), or Long (full caption)
-- imageHints: 2-4 keywords describing what good imagery for this category would show
+- imageHints: 2-4 SHORT, GENERIC, SEARCHABLE single-word or two-word terms that describe what good photos for this category would show. Think Unsplash search terms — common nouns photographers use. Good: ["pool", "spa", "burger", "coffee", "founder portrait"]. Bad: ["luxury infinity pool with ocean view at sunset"], ["bespoke handcrafted artisanal sourdough"]. Lead with the most generic hint first, more specific ones after.
 - For events, set type to "event" and use the event-style schedule format`
 
 type AnalyseInput = {
