@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import LogoHeader from '../components/LogoHeader'
 import PostCard from '../components/PostCard'
+import { formatDateEyebrow, nextDatesFor } from '../lib/scheduleDates'
 import type { ScopeItem, ScopeResult } from '../data/types'
 
 type Props = {
@@ -16,6 +17,14 @@ type Props = {
   loading: boolean
   error: string | null
   onContinue: () => void
+}
+
+type FeedCard = {
+  key: string
+  item: ScopeItem
+  caption: string
+  imageUrl?: string
+  date: Date
 }
 
 export default function Examples({
@@ -36,31 +45,39 @@ export default function Examples({
       return next
     })
 
-  // Reset scroll on mount
+  // Reset scroll on mount.
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     }
   }, [])
 
-  // Build the flat list of post cards. Two per item; pair captions with
-  // selected images by index. If an image slot is empty, fall back to the
-  // other selected one — placeholder if neither.
-  const cards = keptItems.flatMap((item) => {
-    const captions = captionsByItem[item.id] ?? []
-    const selectedUrls = (selections[item.id] ?? []).filter(
-      (u) => !brokenUrls.has(u)
-    )
-    return captions.slice(0, 2).map((caption, i) => {
-      const imageUrl = selectedUrls[i] ?? selectedUrls[0] ?? undefined
-      return {
-        key: `${item.id}-${i}`,
-        item,
-        caption,
-        imageUrl,
-      }
-    })
-  })
+  // Build chronologically-sorted feed: 2 posts per kept item, each paired with
+  // its computed publish date, then sorted ascending so the prospect sees the
+  // calendar starting from today.
+  const cards = useMemo<FeedCard[]>(() => {
+    const today = new Date()
+    const flat: FeedCard[] = []
+    for (const item of keptItems) {
+      const captions = captionsByItem[item.id] ?? []
+      const selectedUrls = (selections[item.id] ?? []).filter(
+        (u) => !brokenUrls.has(u)
+      )
+      const dates = nextDatesFor(item.schedule, captions.length || 2, today)
+      captions.slice(0, 2).forEach((caption, i) => {
+        const imageUrl = selectedUrls[i] ?? selectedUrls[0] ?? undefined
+        flat.push({
+          key: `${item.id}-${i}`,
+          item,
+          caption,
+          imageUrl,
+          date: dates[i] ?? dates[0] ?? today,
+        })
+      })
+    }
+    flat.sort((a, b) => a.date.getTime() - b.date.getTime())
+    return flat
+  }, [keptItems, captionsByItem, selections, brokenUrls])
 
   return (
     <div className="relative min-h-screen flex flex-col bg-gray-50">
@@ -75,14 +92,14 @@ export default function Examples({
             Here’s what Ferdy would post.
           </h1>
           <p className="text-base sm:text-lg text-gray-500 text-center max-w-xl mx-auto mb-12">
-            Two example Instagram posts per category, written from the briefs you
-            saw. Same brief, different angle each time — that’s the rhythm.
+            Two example Instagram posts per category, in the order they’d
+            publish. Same brief, different angle each time — that’s the rhythm.
           </p>
 
           {loading && cards.length === 0 && (
             <div className="text-center py-16">
-              <div className="mx-auto mb-6 w-12 h-12 flex items-center justify-center">
-                <span className="absolute w-12 h-12 rounded-full bg-indigo-500 opacity-20 animate-ping" />
+              <div className="relative mx-auto mb-6 w-12 h-12 flex items-center justify-center">
+                <span className="absolute inset-0 rounded-full bg-indigo-500 opacity-20 animate-ping" />
                 <span className="relative w-3 h-3 rounded-full bg-indigo-500" />
               </div>
               <p className="text-sm text-gray-500">Drafting your posts…</p>
@@ -104,19 +121,31 @@ export default function Examples({
           )}
 
           {cards.length > 0 && (
-            <div className="space-y-8">
+            <div className="space-y-10">
               {cards.map((c) => (
-                <PostCard
-                  key={c.key}
-                  businessName={result.businessName}
-                  homepageUrl={result.homepageUrl}
-                  categoryIcon={c.item.icon}
-                  categoryIconColor={c.item.iconColor}
-                  imageUrl={c.imageUrl}
-                  caption={c.caption}
-                  hashtags={c.item.hashtags}
-                  onImageError={() => c.imageUrl && markBroken(c.imageUrl)}
-                />
+                <div key={c.key}>
+                  <div className="text-center mb-3">
+                    <p className="text-indigo-500 text-xs sm:text-sm font-semibold tracking-[0.18em] uppercase">
+                      {formatDateEyebrow(c.date)} · {c.item.postTime}
+                    </p>
+                    <p className="text-sm font-semibold text-gray-700 mt-1">
+                      {c.item.title}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {c.item.schedule}
+                    </p>
+                  </div>
+                  <PostCard
+                    businessName={result.businessName}
+                    homepageUrl={result.homepageUrl}
+                    categoryIcon={c.item.icon}
+                    categoryIconColor={c.item.iconColor}
+                    imageUrl={c.imageUrl}
+                    caption={c.caption}
+                    hashtags={c.item.hashtags}
+                    onImageError={() => c.imageUrl && markBroken(c.imageUrl)}
+                  />
+                </div>
               ))}
             </div>
           )}
