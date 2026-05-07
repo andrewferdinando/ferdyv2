@@ -39,7 +39,7 @@ export default function End({ businessName, keptCount, onRestart }: Props) {
               Want us to set this up?
             </h1>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
-              Book a quick chat and we’ll walk you through getting {businessName} live on autopilot.
+              Book a quick chat and we’ll walk you through getting {businessName} live on autopilot using Ferdy.
             </p>
           </div>
 

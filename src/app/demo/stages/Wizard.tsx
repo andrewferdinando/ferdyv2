@@ -50,7 +50,6 @@ export default function Wizard({
   const isLast = index === items.length - 1
 
   const selected = useMemo(() => selections[item.id] ?? [], [selections, item.id])
-  const visibleThumbs = selected.slice(0, 4)
 
   const [brokenUrls, setBrokenUrls] = useState<Set<string>>(new Set())
   const markBroken = (url: string) =>
@@ -158,10 +157,10 @@ export default function Wizard({
           <Card title="Media">
             <Row n={7} label="Select content" hint="Pick from below" stacked last>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {visibleThumbs.length === 0 && (
+                {selected.length === 0 && (
                   <span className="text-sm text-gray-400">No images selected yet</span>
                 )}
-                {visibleThumbs.map((url) => (
+                {selected.map((url) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={url}
@@ -171,9 +170,6 @@ export default function Wizard({
                     onError={() => markBroken(url)}
                   />
                 ))}
-                {selected.length > 4 && (
-                  <span className="text-xs text-gray-400 ml-1">+{selected.length - 4}</span>
-                )}
               </div>
             </Row>
           </Card>
