@@ -89,7 +89,8 @@ export default function Examples({
             Your posts, written
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight text-center leading-[1.05] mb-4">
-            Here’s what Ferdy would post.
+            Here’s what Ferdy would post{' '}
+            <span className="text-gray-400 font-normal">(once approved)</span>.
           </h1>
           <p className="text-base sm:text-lg text-gray-500 text-center max-w-xl mx-auto mb-12">
             Two example Instagram posts per category, in the order they’d
@@ -154,14 +155,11 @@ export default function Examples({
 
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-gray-200 px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-          <p className="text-sm text-gray-500 hidden sm:block">
-            Like what you see?
-          </p>
+        <div className="max-w-3xl mx-auto flex items-center justify-end gap-4">
           <button
             type="button"
             onClick={onContinue}
-            className="ml-auto h-12 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-sm shadow-sm hover:shadow-md hover:-translate-y-px transition flex items-center gap-2"
+            className="h-12 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-sm shadow-sm hover:shadow-md hover:-translate-y-px transition flex items-center gap-2"
           >
             Worth a chat?
             <ArrowRight className="w-4 h-4" />

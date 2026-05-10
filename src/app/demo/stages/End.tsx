@@ -31,15 +31,27 @@ export default function End({ businessName, keptCount, onRestart }: Props) {
 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-16">
         <div className="w-full max-w-3xl">
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <p className="text-indigo-500 text-xs sm:text-sm font-semibold tracking-[0.18em] uppercase mb-4">
               {keptCount} {keptCount === 1 ? 'category' : 'categories'} ready to roll
             </p>
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight mb-4">
-              Worth a 30 min strategy chat?
+              Worth a 30 min free strategy chat?
             </h1>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
               Book below and we’ll walk through getting {businessName} live on autopilot.
+            </p>
+          </div>
+
+          {/* Launch offer banner */}
+          <div className="mb-8 mx-auto max-w-md bg-gradient-to-r from-indigo-50 to-indigo-100/70 border border-indigo-200 rounded-2xl px-6 py-4 text-center">
+            <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-indigo-600 mb-1">
+              Launch offer · 20% off
+            </p>
+            <p className="text-base text-gray-700">
+              <span className="text-gray-400 line-through mr-2">$147</span>
+              <span className="font-semibold text-gray-950">$117.60</span>
+              <span className="text-gray-500"> /month + GST</span>
             </p>
           </div>
 

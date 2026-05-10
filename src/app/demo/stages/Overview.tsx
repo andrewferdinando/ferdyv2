@@ -23,10 +23,10 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-32">
         <div className="w-full max-w-4xl">
           <p className="text-indigo-500 text-xs sm:text-sm font-semibold tracking-[0.18em] uppercase mb-4 text-center">
-            Here’s what we found
+            {result.businessName}
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight text-center leading-[1.1] mb-4">
-            {result.businessName}
+            Here are the post categories we would suggest.
           </h1>
           <p className="text-base sm:text-lg text-gray-500 text-center mb-12 max-w-xl mx-auto">
             Tap a card to keep or remove it. We’ll set up the ones you keep.
