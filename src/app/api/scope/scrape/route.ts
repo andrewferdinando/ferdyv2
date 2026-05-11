@@ -9,8 +9,9 @@ const USER_AGENT =
 
 const PER_REQUEST_TIMEOUT_MS = 10_000
 const TOTAL_TIMEOUT_MS = 25_000
-const MAX_INTERNAL_LINKS = 6
+const MAX_INTERNAL_LINKS = 8
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024 // 2 MB
+const SITEMAP_MAX_URLS = 200 // hard cap on sitemap URL parsing for sanity
 const MIN_IMAGE_DIMENSION = 320 // real photos are usually larger
 const MAX_FINAL_IMAGES = 30
 const SCORE_THRESHOLD = -5 // lenient — only drop the obvious junk
@@ -347,54 +348,135 @@ function extractFromHtml(html: string, pageUrl: string): ScrapedPage {
   }
 }
 
-function findInternalLinks(html: string, baseUrl: string): string[] {
-  const $ = cheerio.load(html)
+/**
+ * Fetch and parse a site's sitemap.xml. Most modern CMSes (Shopify, WordPress,
+ * Squarespace, Webflow, Wix) generate one. Returns the raw URLs found, capped
+ * at SITEMAP_MAX_URLS for sanity. Returns [] silently on any failure — sitemap
+ * is best-effort, not required.
+ *
+ * Sitemaps can also contain links to other sitemap files (sitemap_index.xml).
+ * We follow up to one level of nesting so Shopify's sitemap_pages_*.xml /
+ * sitemap_products_*.xml tree gets unwrapped.
+ */
+async function fetchSitemap(baseUrl: string, deadline: number): Promise<string[]> {
+  const candidates = [
+    new URL('/sitemap.xml', baseUrl).toString(),
+    new URL('/sitemap_index.xml', baseUrl).toString(),
+  ]
+
+  const all = new Set<string>()
+  const subSitemaps: string[] = []
+
+  for (const url of candidates) {
+    if (Date.now() > deadline || all.size >= SITEMAP_MAX_URLS) break
+    const xml = await fetchHtml(url)
+    if (!xml) continue
+    if (!xml.includes('<urlset') && !xml.includes('<sitemapindex')) continue
+
+    const $ = cheerio.load(xml, { xmlMode: true })
+
+    // <urlset> = page URLs; <sitemapindex> = pointers to other sitemaps
+    $('url loc').each((_, el) => {
+      const u = $(el).text().trim()
+      if (u && all.size < SITEMAP_MAX_URLS) all.add(u)
+    })
+    $('sitemap loc').each((_, el) => {
+      const u = $(el).text().trim()
+      if (u) subSitemaps.push(u)
+    })
+    if (all.size > 0) break // first candidate that produced URLs wins
+  }
+
+  // Follow nested sitemaps (e.g. Shopify's sitemap_pages_1.xml)
+  for (const sub of subSitemaps.slice(0, 5)) {
+    if (Date.now() > deadline || all.size >= SITEMAP_MAX_URLS) break
+    const xml = await fetchHtml(sub)
+    if (!xml) continue
+    const $ = cheerio.load(xml, { xmlMode: true })
+    $('url loc').each((_, el) => {
+      const u = $(el).text().trim()
+      if (u && all.size < SITEMAP_MAX_URLS) all.add(u)
+    })
+  }
+
+  return [...all]
+}
+
+/**
+ * Score and categorise a single internal URL. Returns null for URLs we should
+ * skip outright (external host, root, asset extensions, uncategorised).
+ */
+function scoreInternalUrl(
+  resolved: string,
+  baseUrl: string
+): { priority: number; category: string } | null {
   const base = new URL(baseUrl)
-  // Map of url → { priority, category } so we can round-robin diversify.
+  let u: URL
+  try {
+    u = new URL(resolved)
+  } catch {
+    return null
+  }
+  if (u.hostname !== base.hostname) return null
+  if (u.pathname === '/' || u.pathname === base.pathname) return null
+  if (/\.(pdf|jpg|jpeg|png|gif|webp|mp4|zip|xml)$/i.test(u.pathname)) return null
+
+  let priority = 0
+  let category = ''
+  for (const [re, cat] of INTERNAL_LINK_PATTERNS) {
+    if (re.test(u.pathname)) {
+      priority = 10
+      category = cat
+      break
+    }
+  }
+  if (priority === 0) return null
+
+  // Penalise deep paths (prefer top-level section pages over sub-products)
+  priority -= (u.pathname.split('/').length - 2) * 0.5
+  return { priority, category }
+}
+
+/**
+ * Combine link-discovery sources (homepage HTML + sitemap.xml when available)
+ * into a single deduplicated pool, then round-robin across categories so a
+ * Shopify site's many product collections don't crowd out Stay / Visit /
+ * About sections.
+ */
+function selectInternalLinks(
+  html: string,
+  sitemapUrls: string[],
+  baseUrl: string
+): string[] {
+  // Map of url → { priority, category } from any source.
   const found = new Map<string, { priority: number; category: string }>()
 
+  const consider = (rawUrl: string) => {
+    const resolved = resolveUrl(baseUrl, rawUrl)
+    if (!resolved) return
+    const scored = scoreInternalUrl(resolved, baseUrl)
+    if (!scored) return
+    const key = resolved.replace(/#.*$/, '').replace(/\?.*$/, '')
+    const existing = found.get(key)
+    if (!existing || existing.priority < scored.priority) {
+      found.set(key, scored)
+    }
+  }
+
+  // Source 1: links from the homepage HTML
+  const $ = cheerio.load(html)
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href') || ''
     if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) {
       return
     }
-    const resolved = resolveUrl(baseUrl, href)
-    if (!resolved) return
-    let u: URL
-    try {
-      u = new URL(resolved)
-    } catch {
-      return
-    }
-    if (u.hostname !== base.hostname) return
-    if (u.pathname === '/' || u.pathname === base.pathname) return
-    if (/\.(pdf|jpg|jpeg|png|gif|webp|mp4|zip)$/i.test(u.pathname)) return
-
-    // Score by labelled pattern match — track which category matched so we
-    // can diversify across sections rather than crowding one section.
-    let priority = 0
-    let category = ''
-    for (const [re, cat] of INTERNAL_LINK_PATTERNS) {
-      if (re.test(u.pathname)) {
-        priority = 10
-        category = cat
-        break
-      }
-    }
-    if (priority === 0) return // skip uncategorised links entirely
-
-    // Penalise long deep paths (prefer top-level section pages)
-    priority -= (u.pathname.split('/').length - 2) * 0.5
-
-    const key = u.toString().replace(/#.*$/, '').replace(/\?.*$/, '')
-    const existing = found.get(key)
-    if (!existing || existing.priority < priority) {
-      found.set(key, { priority, category })
-    }
+    consider(href)
   })
 
-  // Group by category, then round-robin pick from each group so a Shopify
-  // site with 8 product collections doesn't crowd out Stay / Visit / About.
+  // Source 2: URLs from sitemap.xml (when the site provided one)
+  for (const url of sitemapUrls) consider(url)
+
+  // Group by category for round-robin diversity
   const byCategory = new Map<string, Array<{ url: string; priority: number }>>()
   for (const [url, { priority, category }] of found) {
     if (!byCategory.has(category)) byCategory.set(category, [])
@@ -471,8 +553,15 @@ export async function POST(req: NextRequest) {
 
   const homepage = extractFromHtml(homepageHtml, url)
 
-  // Discover internal links
-  const internalLinks = findInternalLinks(homepageHtml, url)
+  // Try to fetch sitemap.xml in the background while we plan internal links.
+  // It's best-effort — many sites have one, but we don't depend on it.
+  // Budget about 5s for sitemap (well within total deadline).
+  const sitemapDeadline = Math.min(Date.now() + 5000, totalDeadline)
+  const sitemapUrls = await fetchSitemap(url, sitemapDeadline).catch(() => [])
+
+  // Discover internal links by combining homepage HTML + sitemap URLs,
+  // then round-robining across sections for diversity.
+  const internalLinks = selectInternalLinks(homepageHtml, sitemapUrls, url)
 
   // Fetch internal pages in parallel, respecting total timeout
   const remaining = totalDeadline - Date.now()
