@@ -48,8 +48,11 @@ export default function End({ businessName, keptCount, onRestart }: Props) {
           </div>
 
           {/* Launch offer banner */}
-          <div className="mb-8 mx-auto max-w-md bg-gradient-to-r from-indigo-50 to-indigo-100/70 border border-indigo-200 rounded-2xl px-6 py-4 text-center">
-            <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-indigo-600 mb-1">
+          <div className="mb-8 mx-auto max-w-md bg-gradient-to-r from-indigo-50 to-indigo-100/70 border border-indigo-200 rounded-2xl px-6 py-5 text-center">
+            <p className="text-base font-semibold text-gray-950 mb-2">
+              In case you’re wondering
+            </p>
+            <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-indigo-600 mb-2">
               Launch offer · 20% off
             </p>
             <p className="text-base text-gray-700">
