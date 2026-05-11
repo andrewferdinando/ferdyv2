@@ -35,8 +35,12 @@ export default function End({ businessName, keptCount, onRestart }: Props) {
             <p className="text-indigo-500 text-xs sm:text-sm font-semibold tracking-[0.18em] uppercase mb-4">
               {keptCount} {keptCount === 1 ? 'category' : 'categories'} ready to roll
             </p>
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight mb-4">
-              Worth a 30 min free strategy chat?
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight leading-[1.1] mb-4">
+              Worth a 30 min free
+              <br />
+              <span className="bg-gradient-to-r from-indigo-500 to-indigo-700 bg-clip-text text-transparent">
+                strategy chat?
+              </span>
             </h1>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
               Book below and we’ll walk through getting {businessName} live on autopilot.
