@@ -212,15 +212,17 @@ function addImage(
   set.add(resolved)
 }
 
-// All the data-* attributes lazy-loading libraries use to stash the real
-// image URL (the visible src often points to a 1x1 placeholder until JS runs).
-// Order matters loosely — earlier attributes are slightly more common.
+// All the attributes lazy-loading libraries use to stash the real image URL
+// (the visible src often points to a 1x1 placeholder or base64 SVG until JS
+// runs). Note: NitroPack uses unprefixed `nitro-lazy-src` — NOT `data-nitro-
+// lazy-src` as the docs sometimes suggest.
 const LAZY_SRC_ATTRS = [
   'src',
   'data-src',
   'data-lazy-src',
   'data-original',
-  'data-nitro-lazy-src', // NitroPack (nextgenclubs.com.au and many WP sites use this)
+  'nitro-lazy-src', // NitroPack (verified on nextgenclubs.com.au)
+  'data-nitro-lazy-src', // belt-and-braces — some Nitro versions use the prefix
   'data-cmplz-src', // Complianz cookie-consent lazy load
   'data-bg', // some background-image lazy loaders
   'data-image-src',
@@ -230,6 +232,7 @@ const LAZY_SRCSET_ATTRS = [
   'srcset',
   'data-srcset',
   'data-lazy-srcset',
+  'nitro-lazy-srcset', // NitroPack
   'data-nitro-lazy-srcset',
   'data-cmplz-srcset',
 ]
