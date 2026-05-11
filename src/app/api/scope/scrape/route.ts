@@ -587,35 +587,43 @@ export async function POST(req: NextRequest) {
   // Merge text
   const allText = allPages.map((p) => p.text).join('\n\n').slice(0, 18000)
 
-  // Merge & dedupe images across all pages
-  const allImagesRaw: string[] = []
-  const seen = new Set<string>()
-  for (const p of allPages) {
-    for (const img of p.images) {
-      if (seen.has(img)) continue
-      seen.add(img)
-      allImagesRaw.push(img)
-    }
-  }
+  // Build per-page image queues, each sorted by score so the strongest
+  // photo from each page is at the head. We then round-robin across pages
+  // so a Shop collection with 40 product shots can't crowd out Stay's 5
+  // accommodation photos.
+  const perPageQueues: Array<Array<{ url: string; score: number }>> = allPages.map((p) =>
+    [...new Set(p.images)]
+      .map((url) => ({ url, score: scoreImage(url) }))
+      .filter((x) => x.score >= SCORE_THRESHOLD)
+      .sort((a, b) => b.score - a.score)
+  )
 
-  // Score every image, drop the ones that look like graphics/chrome, and
-  // sort the survivors so the picker surfaces real photographs first.
-  const scored = allImagesRaw
-    .map((url) => ({ url, score: scoreImage(url) }))
-    .filter((x) => x.score >= SCORE_THRESHOLD)
-    .sort((a, b) => b.score - a.score)
-
-  // Always include og:image first if we have one and it survived scoring —
-  // it's usually the brand's best photographic asset.
-  const ogImageUrl = homepage.ogImage
   const allImages: string[] = []
+  const seen = new Set<string>()
+
+  // og:image goes first when present — usually the brand's curated hero shot.
+  const ogImageUrl = homepage.ogImage
   if (ogImageUrl && !HARD_EXCLUDE.some((re) => re.test(ogImageUrl))) {
     allImages.push(ogImageUrl)
+    seen.add(ogImageUrl)
   }
-  for (const { url } of scored) {
-    if (allImages.includes(url)) continue
-    allImages.push(url)
-    if (allImages.length >= MAX_FINAL_IMAGES) break
+
+  // Round-robin: best image from each page, then 2nd best from each, etc.
+  let progress = true
+  while (allImages.length < MAX_FINAL_IMAGES && progress) {
+    progress = false
+    for (const queue of perPageQueues) {
+      if (allImages.length >= MAX_FINAL_IMAGES) break
+      // Drain this page until we find an unseen URL or run out
+      while (queue.length > 0) {
+        const next = queue.shift()!
+        if (seen.has(next.url)) continue
+        seen.add(next.url)
+        allImages.push(next.url)
+        progress = true
+        break
+      }
+    }
   }
 
   const wordCount = allText.split(/\s+/).filter(Boolean).length
