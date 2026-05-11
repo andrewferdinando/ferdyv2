@@ -212,13 +212,64 @@ function addImage(
   set.add(resolved)
 }
 
+// All the data-* attributes lazy-loading libraries use to stash the real
+// image URL (the visible src often points to a 1x1 placeholder until JS runs).
+// Order matters loosely — earlier attributes are slightly more common.
+const LAZY_SRC_ATTRS = [
+  'src',
+  'data-src',
+  'data-lazy-src',
+  'data-original',
+  'data-nitro-lazy-src', // NitroPack (nextgenclubs.com.au and many WP sites use this)
+  'data-cmplz-src', // Complianz cookie-consent lazy load
+  'data-bg', // some background-image lazy loaders
+  'data-image-src',
+]
+
+const LAZY_SRCSET_ATTRS = [
+  'srcset',
+  'data-srcset',
+  'data-lazy-srcset',
+  'data-nitro-lazy-srcset',
+  'data-cmplz-srcset',
+]
+
+function extractImagesFromImgTag(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $el: cheerio.Cheerio<any>,
+  pageUrl: string,
+  set: Set<string>
+) {
+  const width = parseInt($el.attr('width') || '0', 10)
+  const height = parseInt($el.attr('height') || '0', 10)
+  // Skip when explicitly small (but allow when width/height aren't set)
+  if (width > 0 && width < MIN_IMAGE_DIMENSION) return
+  if (height > 0 && height < MIN_IMAGE_DIMENSION) return
+
+  // Try every srcset variant first — sites with lazy loading typically put
+  // a tiny placeholder in `src` and the real photo in srcset/data-srcset.
+  for (const attr of LAZY_SRCSET_ATTRS) {
+    const ss = $el.attr(attr)
+    const largest = pickLargestFromSrcset(ss || '')
+    if (largest) {
+      addImage(set, pageUrl, largest)
+      return
+    }
+  }
+  // Then fall back to single-URL attributes.
+  for (const attr of LAZY_SRC_ATTRS) {
+    const src = $el.attr(attr)
+    if (src && !src.startsWith('data:')) {
+      addImage(set, pageUrl, src)
+      return
+    }
+  }
+}
+
 function extractFromHtml(html: string, pageUrl: string): ScrapedPage {
   const $ = cheerio.load(html)
 
-  // Strip noise
-  $('script, style, noscript, svg, iframe, link, meta[name="viewport"]').remove()
-
-  // Text
+  // Pull text BEFORE stripping noscript, so SEO fallback content counts too.
   const text = $('body')
     .text()
     .replace(/\s+/g, ' ')
@@ -227,44 +278,50 @@ function extractFromHtml(html: string, pageUrl: string): ScrapedPage {
 
   const imgUrls = new Set<string>()
 
-  // <img> tags — handle src, srcset, data-src, data-srcset (lazy loading)
+  // 1) Look inside <noscript> blocks first — WordPress + lazy-load plugins
+  //    typically write the original <img> tag inside a noscript fallback for
+  //    SEO crawlers. NitroPack does this too. These are the cleanest source
+  //    of actual image URLs since they aren't placeholders.
+  $('noscript').each((_, el) => {
+    const inner = $(el).html()
+    if (!inner) return
+    const $inner = cheerio.load(`<div>${inner}</div>`)
+    $inner('img').each((_, imgEl) => {
+      extractImagesFromImgTag($inner(imgEl), pageUrl, imgUrls)
+    })
+    $inner('source').each((_, sourceEl) => {
+      const ss = $inner(sourceEl).attr('srcset') || ''
+      const largest = pickLargestFromSrcset(ss)
+      addImage(imgUrls, pageUrl, largest)
+    })
+  })
+
+  // Strip noise after we've harvested noscript images.
+  $('script, style, noscript, svg, iframe, link, meta[name="viewport"]').remove()
+
+  // 2) Live <img> tags — handle every common lazy-load attribute
   $('img').each((_, el) => {
-    const $el = $(el)
-    const width = parseInt($el.attr('width') || '0', 10)
-    const height = parseInt($el.attr('height') || '0', 10)
-
-    // Skip when explicitly small
-    if (width > 0 && width < MIN_IMAGE_DIMENSION) return
-    if (height > 0 && height < MIN_IMAGE_DIMENSION) return
-
-    // Try every common attribute that holds an image URL
-    const src =
-      $el.attr('src') ||
-      $el.attr('data-src') ||
-      $el.attr('data-lazy-src') ||
-      $el.attr('data-original') ||
-      ''
-    const srcset = $el.attr('srcset') || $el.attr('data-srcset') || ''
-
-    // Prefer the largest srcset entry over the small src — many sites use a
-    // tiny placeholder in src and the real photo in srcset.
-    const fromSrcset = pickLargestFromSrcset(srcset)
-    addImage(imgUrls, pageUrl, fromSrcset || src)
+    extractImagesFromImgTag($(el), pageUrl, imgUrls)
   })
 
-  // <picture> / <source srcset> — modern responsive photos
+  // 3) <picture> / <source srcset> — modern responsive photos
   $('picture source').each((_, el) => {
-    const srcset = $(el).attr('srcset') || $(el).attr('data-srcset') || ''
-    const largest = pickLargestFromSrcset(srcset)
-    addImage(imgUrls, pageUrl, largest)
+    for (const attr of LAZY_SRCSET_ATTRS) {
+      const ss = $(el).attr(attr) || ''
+      const largest = pickLargestFromSrcset(ss)
+      if (largest) {
+        addImage(imgUrls, pageUrl, largest)
+        break
+      }
+    }
   })
 
-  // Video posters — often a great hero shot
+  // 4) Video posters — often a great hero shot
   $('video[poster]').each((_, el) => {
     addImage(imgUrls, pageUrl, $(el).attr('poster'))
   })
 
-  // Open Graph / Twitter image — usually the brand's best photographic asset
+  // 5) Open Graph / Twitter image — the brand's curated representative photo
   const ogImage =
     $('meta[property="og:image"]').attr('content') ||
     $('meta[name="og:image"]').attr('content') ||
