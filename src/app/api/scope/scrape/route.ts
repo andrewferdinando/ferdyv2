@@ -11,9 +11,9 @@ const PER_REQUEST_TIMEOUT_MS = 10_000
 const TOTAL_TIMEOUT_MS = 25_000
 const MAX_INTERNAL_LINKS = 5
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024 // 2 MB
-const MIN_IMAGE_DIMENSION = 320 // bumped from 200; real photos are usually larger
-const MAX_FINAL_IMAGES = 25
-const SCORE_THRESHOLD = -3 // anything below this is dropped as likely-graphic
+const MIN_IMAGE_DIMENSION = 320 // real photos are usually larger
+const MAX_FINAL_IMAGES = 30
+const SCORE_THRESHOLD = -5 // lenient — only drop the obvious junk
 
 const INTERNAL_LINK_PATTERNS = [
   /\/about/i,
@@ -26,41 +26,59 @@ const INTERNAL_LINK_PATTERNS = [
   /\/our-(story|team)/i,
 ]
 
-// Scoring patterns — applied to the resolved image URL. Used to rank scraped
-// images so we surface real photographs and bury graphic-design / logo /
-// illustration assets that look bad in social posts.
+// Scoring patterns — applied to the resolved image URL. Used to RANK scraped
+// images so real photographs surface first; the score threshold only drops
+// the obvious junk (icons, sprites, SVG illustrations).
+//
+// Negative patterns require path delimiters or filename-word boundaries so
+// they don't accidentally hit legit photos (e.g. "/photos/team-icon-
+// presentation.jpg" should not be killed for containing the word "icon").
 const POSITIVE_PATTERNS: Array<[RegExp, number]> = [
-  [/wp-content\/uploads/i, 5],
-  [/cdn\/shop\/(products|files)/i, 5],
-  [/squarespace-cdn|squarespace\.com\/static/i, 4],
-  [/\/uploads?\//i, 4],
+  [/wp-content\/uploads/i, 6],
+  [/cdn\/shop\/(products|files)/i, 6],
+  [/squarespace-cdn|squarespace\.com\/static/i, 5],
+  [/wixstatic|website-files/i, 5],
+  [/\/uploads?\//i, 5],
   [/\/products?\//i, 4],
   [/\/galler(y|ies)\//i, 4],
   [/\/photos?\//i, 4],
   [/\/portfolio\//i, 3],
   [/\/media\//i, 3],
-  [/_large|_xl|_xxl|_full|_orig/i, 2],
+  [/\/content\//i, 3],
+  [/\/(images?|img)\//i, 2],
+  [/[-_]large|[-_]xl|[-_]xxl|[-_]full|[-_]orig|[-_]hero(\.|$)/i, 2],
   [/\.(jpe?g|webp)(\?|$)/i, 2],
 ]
 
+// Negative patterns — only fire on path delimiters or clear filename word
+// boundaries. Single-substring matches were dropping too many real photos.
 const NEGATIVE_PATTERNS: Array<[RegExp, number]> = [
-  [/icon|logo|sprite|favicon|tracking|pixel/i, -10],
-  [/\.svg(\?|$)/i, -10],
-  [/illustration|graphic|infographic|diagram|chart|emblem/i, -6],
-  [/\/badges?\/|\/awards?\//i, -5],
-  [/-pattern|-bg(\.|-)|-background\.|placeholder/i, -4],
+  [/favicon/i, -15],
+  [/\.svg(\?|$)/i, -15],
+  [/\/icons?\//i, -10], // images in /icon/ or /icons/ directory
+  [/\/logos?\//i, -10],
+  [/\/sprites?[-_/]/i, -10],
+  [/[-_/]sprite[-_.]/i, -10],
+  [/(?:^|[-_/])favicon[-_.]/i, -10],
+  [/(?:^|[-_/])logo[-_.](?!.*photo)/i, -6], // "logo." or "logo-" as filename word
+  [/(?:^|[-_/])icon[-_.](?!.*photo)/i, -6],
+  [/[-_]illustration[-_.]|[-_]infographic[-_.]|[-_]diagram[-_.]|[-_]chart[-_.]/i, -5],
+  [/(?:^|[-_/])emblem[-_.]/i, -4],
+  [/\/badges?\/|\/awards?\//i, -4],
+  [/(?:^|[-_/])placeholder[-_.]/i, -5],
+  [/(?:^|[-_/])tracking[-_.]|tracking-pixel|1x1\./i, -10],
+  [/(?:^|[-_/])bg[-_.]|background-pattern|[-_]pattern[-_.]/i, -4],
   [/social-(share|icon)|share-icon/i, -4],
-  [/avatar|profile-pic/i, -3],
-  [/\/(theme|assets-static|build|dist)\/(?!.*\b(uploads|content|product)\b)/i, -3],
-  [/_thumb|_thumbnail|_xs|_tiny|_small/i, -2],
-  [/banner(?!\.)|hero-?bg/i, -1],
+  [/(?:^|[-_/])avatar[-_.]|profile-pic/i, -3],
+  [/\/(theme|themes|build|dist)\/(?!.*\b(uploads|content|product|gallery|photo|media)\b)/i, -3],
+  [/[-_]thumb[-_.]|[-_]thumbnail[-_.]|[-_]xs[-_.]|[-_]tiny[-_.]/i, -2],
 ]
 
 const HARD_EXCLUDE = [
   /favicon/i,
   /pixel\.gif/i,
   /1x1\.(gif|png)/i,
-  /tracking/i,
+  /\/tracking[-_.]/i,
 ]
 
 function scoreImage(url: string): number {
