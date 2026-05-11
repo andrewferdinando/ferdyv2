@@ -55,6 +55,13 @@ export default function Examples({
   // Build chronologically-sorted feed: 2 posts per kept item, each paired with
   // its computed publish date, then sorted ascending so the prospect sees the
   // calendar starting from today.
+  //
+  // Image-fallback chain (ensures every category has at least 2 distinct
+  // images at the booth, even if Andrew only picked 0 or 1 in the wizard):
+  //   1. user's selections for this category
+  //   2. category's Unsplash photos
+  //   3. site-wide scraped photos
+  //   → take first 2 unique URLs
   const cards = useMemo<FeedCard[]>(() => {
     const today = new Date()
     const flat: FeedCard[] = []
@@ -63,9 +70,26 @@ export default function Examples({
       const selectedUrls = (selections[item.id] ?? []).filter(
         (u) => !brokenUrls.has(u)
       )
+      const unsplashUrls = (item.unsplashImages ?? [])
+        .map((img) => img.url)
+        .filter((u) => !brokenUrls.has(u))
+      const scrapedUrls = result.images.filter((u) => !brokenUrls.has(u))
+
+      // Build candidate pool with priority + dedup.
+      const pool: string[] = []
+      const seen = new Set<string>()
+      for (const url of [...selectedUrls, ...unsplashUrls, ...scrapedUrls]) {
+        if (seen.has(url)) continue
+        seen.add(url)
+        pool.push(url)
+        if (pool.length >= 2) break
+      }
+
       const dates = nextDatesFor(item.schedule, captions.length || 2, today)
       captions.slice(0, 2).forEach((caption, i) => {
-        const imageUrl = selectedUrls[i] ?? selectedUrls[0] ?? undefined
+        // Prefer pool[i], fall back to pool[0] if pool has only 1 image,
+        // undefined → PostCard renders the "Image to come" placeholder.
+        const imageUrl = pool[i] ?? pool[0] ?? undefined
         flat.push({
           key: `${item.id}-${i}`,
           item,
@@ -77,7 +101,7 @@ export default function Examples({
     }
     flat.sort((a, b) => a.date.getTime() - b.date.getTime())
     return flat
-  }, [keptItems, captionsByItem, selections, brokenUrls])
+  }, [keptItems, captionsByItem, selections, brokenUrls, result.images])
 
   return (
     <div className="relative min-h-screen flex flex-col bg-gray-50">
