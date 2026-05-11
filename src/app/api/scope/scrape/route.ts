@@ -9,21 +9,28 @@ const USER_AGENT =
 
 const PER_REQUEST_TIMEOUT_MS = 10_000
 const TOTAL_TIMEOUT_MS = 25_000
-const MAX_INTERNAL_LINKS = 5
+const MAX_INTERNAL_LINKS = 6
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024 // 2 MB
 const MIN_IMAGE_DIMENSION = 320 // real photos are usually larger
 const MAX_FINAL_IMAGES = 30
 const SCORE_THRESHOLD = -5 // lenient — only drop the obvious junk
 
-const INTERNAL_LINK_PATTERNS = [
-  /\/about/i,
-  /\/services/i,
-  /\/products/i,
-  /\/shop/i,
-  /\/menu/i,
-  /\/events/i,
-  /\/whats-?on/i,
-  /\/our-(story|team)/i,
+// Internal-link patterns labelled by category. We round-robin across
+// categories when picking which pages to crawl, so a Shopify site with 8
+// product collections doesn't crowd out the Stay / Visit / About sections.
+//
+// Categories chosen to mirror the kinds of business sections we care about
+// for social-post categories: where to eat, where to stay, what to buy,
+// who you are, what's on.
+const INTERNAL_LINK_PATTERNS: Array<[RegExp, string]> = [
+  [/\/(products?|shop|store|collections?)\b/i, 'shop'],
+  [/\/(menu|bistro|dining|eat|food|drinks?|cafe)\b/i, 'food'],
+  [/\/(stay|accommodation|rooms?|booking|long-stays?|lodge|villas?)\b/i, 'stay'],
+  [/\/(events?|functions?|private-events|away-days|corporate|whats-?on|weddings?)\b/i, 'events'],
+  [/\/(visit|location|find-us|directions?)\b/i, 'visit'],
+  [/\/(galler(y|ies)|photos?|lookbook)\b/i, 'gallery'],
+  [/\/(services?|treatments?|classes?|programs?|sessions?)\b/i, 'services'],
+  [/\/(about|our-(story|team|island|history|people|founders?)|the-team|founders?)\b/i, 'about'],
 ]
 
 // Scoring patterns — applied to the resolved image URL. Used to RANK scraped
@@ -343,7 +350,8 @@ function extractFromHtml(html: string, pageUrl: string): ScrapedPage {
 function findInternalLinks(html: string, baseUrl: string): string[] {
   const $ = cheerio.load(html)
   const base = new URL(baseUrl)
-  const found = new Map<string, number>() // url → priority
+  // Map of url → { priority, category } so we can round-robin diversify.
+  const found = new Map<string, { priority: number; category: string }>()
 
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href') || ''
@@ -362,28 +370,50 @@ function findInternalLinks(html: string, baseUrl: string): string[] {
     if (u.pathname === '/' || u.pathname === base.pathname) return
     if (/\.(pdf|jpg|jpeg|png|gif|webp|mp4|zip)$/i.test(u.pathname)) return
 
-    // Score by pattern match
+    // Score by labelled pattern match — track which category matched so we
+    // can diversify across sections rather than crowding one section.
     let priority = 0
-    for (const re of INTERNAL_LINK_PATTERNS) {
+    let category = ''
+    for (const [re, cat] of INTERNAL_LINK_PATTERNS) {
       if (re.test(u.pathname)) {
-        priority += 10
+        priority = 10
+        category = cat
         break
       }
     }
-    // Penalise long deep paths
+    if (priority === 0) return // skip uncategorised links entirely
+
+    // Penalise long deep paths (prefer top-level section pages)
     priority -= (u.pathname.split('/').length - 2) * 0.5
 
     const key = u.toString().replace(/#.*$/, '').replace(/\?.*$/, '')
-    if (!found.has(key) || (found.get(key) ?? 0) < priority) {
-      found.set(key, priority)
+    const existing = found.get(key)
+    if (!existing || existing.priority < priority) {
+      found.set(key, { priority, category })
     }
   })
 
-  return [...found.entries()]
-    .filter(([, p]) => p > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_INTERNAL_LINKS)
-    .map(([url]) => url)
+  // Group by category, then round-robin pick from each group so a Shopify
+  // site with 8 product collections doesn't crowd out Stay / Visit / About.
+  const byCategory = new Map<string, Array<{ url: string; priority: number }>>()
+  for (const [url, { priority, category }] of found) {
+    if (!byCategory.has(category)) byCategory.set(category, [])
+    byCategory.get(category)!.push({ url, priority })
+  }
+  for (const arr of byCategory.values()) {
+    arr.sort((a, b) => b.priority - a.priority)
+  }
+
+  const picked: string[] = []
+  while (picked.length < MAX_INTERNAL_LINKS && byCategory.size > 0) {
+    for (const [cat, arr] of byCategory) {
+      if (picked.length >= MAX_INTERNAL_LINKS) break
+      const next = arr.shift()
+      if (next) picked.push(next.url)
+      if (arr.length === 0) byCategory.delete(cat)
+    }
+  }
+  return picked
 }
 
 function getBusinessName(html: string, fallbackUrl: string): string {
