@@ -11,7 +11,9 @@ const PER_REQUEST_TIMEOUT_MS = 10_000
 const TOTAL_TIMEOUT_MS = 25_000
 const MAX_INTERNAL_LINKS = 5
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024 // 2 MB
-const MIN_IMAGE_DIMENSION = 200
+const MIN_IMAGE_DIMENSION = 320 // bumped from 200; real photos are usually larger
+const MAX_FINAL_IMAGES = 25
+const SCORE_THRESHOLD = -3 // anything below this is dropped as likely-graphic
 
 const INTERNAL_LINK_PATTERNS = [
   /\/about/i,
@@ -24,18 +26,80 @@ const INTERNAL_LINK_PATTERNS = [
   /\/our-(story|team)/i,
 ]
 
-const ICON_PATH_HINTS = [
-  /favicon/i,
-  /sprite/i,
-  /icon-/i,
-  /\/icons?\//i,
-  /logo\.svg$/i,
-  /logo-mark/i,
-  /\.svg(\?|$)/i, // skip raw SVGs (likely icons/illustrations, not photographs)
-  /tracking/i,
-  /pixel\.gif/i,
-  /1x1\./i,
+// Scoring patterns — applied to the resolved image URL. Used to rank scraped
+// images so we surface real photographs and bury graphic-design / logo /
+// illustration assets that look bad in social posts.
+const POSITIVE_PATTERNS: Array<[RegExp, number]> = [
+  [/wp-content\/uploads/i, 5],
+  [/cdn\/shop\/(products|files)/i, 5],
+  [/squarespace-cdn|squarespace\.com\/static/i, 4],
+  [/\/uploads?\//i, 4],
+  [/\/products?\//i, 4],
+  [/\/galler(y|ies)\//i, 4],
+  [/\/photos?\//i, 4],
+  [/\/portfolio\//i, 3],
+  [/\/media\//i, 3],
+  [/_large|_xl|_xxl|_full|_orig/i, 2],
+  [/\.(jpe?g|webp)(\?|$)/i, 2],
 ]
+
+const NEGATIVE_PATTERNS: Array<[RegExp, number]> = [
+  [/icon|logo|sprite|favicon|tracking|pixel/i, -10],
+  [/\.svg(\?|$)/i, -10],
+  [/illustration|graphic|infographic|diagram|chart|emblem/i, -6],
+  [/\/badges?\/|\/awards?\//i, -5],
+  [/-pattern|-bg(\.|-)|-background\.|placeholder/i, -4],
+  [/social-(share|icon)|share-icon/i, -4],
+  [/avatar|profile-pic/i, -3],
+  [/\/(theme|assets-static|build|dist)\/(?!.*\b(uploads|content|product)\b)/i, -3],
+  [/_thumb|_thumbnail|_xs|_tiny|_small/i, -2],
+  [/banner(?!\.)|hero-?bg/i, -1],
+]
+
+const HARD_EXCLUDE = [
+  /favicon/i,
+  /pixel\.gif/i,
+  /1x1\.(gif|png)/i,
+  /tracking/i,
+]
+
+function scoreImage(url: string): number {
+  let score = 0
+  for (const [pattern, weight] of POSITIVE_PATTERNS) {
+    if (pattern.test(url)) score += weight
+  }
+  for (const [pattern, weight] of NEGATIVE_PATTERNS) {
+    if (pattern.test(url)) score += weight
+  }
+  return score
+}
+
+/**
+ * Parse a srcset string and return the URL with the largest W descriptor.
+ * Falls back to the last entry (which by convention is usually largest).
+ */
+function pickLargestFromSrcset(srcset: string): string | null {
+  if (!srcset) return null
+  const entries = srcset
+    .split(',')
+    .map((s) => s.trim())
+    .map((s) => {
+      const parts = s.split(/\s+/)
+      const url = parts[0]
+      const w = parts[1]
+      const width = w && w.endsWith('w') ? parseInt(w, 10) : 0
+      return { url, width }
+    })
+    .filter((e) => e.url)
+  if (entries.length === 0) return null
+  // If any entries have width descriptors, use the largest. Otherwise take the last.
+  const withWidth = entries.filter((e) => e.width > 0)
+  if (withWidth.length > 0) {
+    withWidth.sort((a, b) => b.width - a.width)
+    return withWidth[0].url
+  }
+  return entries[entries.length - 1].url
+}
 
 type ScrapedPage = {
   url: string
@@ -116,6 +180,20 @@ function resolveUrl(base: string, relative: string): string | null {
   }
 }
 
+function addImage(
+  set: Set<string>,
+  pageUrl: string,
+  raw: string | null | undefined
+) {
+  if (!raw) return
+  // Skip data: URIs (often inline SVG illustrations or placeholders).
+  if (raw.startsWith('data:')) return
+  const resolved = resolveUrl(pageUrl, raw)
+  if (!resolved) return
+  if (HARD_EXCLUDE.some((re) => re.test(resolved))) return
+  set.add(resolved)
+}
+
 function extractFromHtml(html: string, pageUrl: string): ScrapedPage {
   const $ = cheerio.load(html)
 
@@ -129,58 +207,52 @@ function extractFromHtml(html: string, pageUrl: string): ScrapedPage {
     .trim()
     .slice(0, 8000)
 
-  // Images
   const imgUrls = new Set<string>()
+
+  // <img> tags — handle src, srcset, data-src, data-srcset (lazy loading)
   $('img').each((_, el) => {
     const $el = $(el)
-    let src = $el.attr('src') || ''
-    const srcset = $el.attr('srcset') || ''
-    const dataSrc = $el.attr('data-src') || ''
     const width = parseInt($el.attr('width') || '0', 10)
     const height = parseInt($el.attr('height') || '0', 10)
 
-    // Skip tiny images
+    // Skip when explicitly small
     if (width > 0 && width < MIN_IMAGE_DIMENSION) return
     if (height > 0 && height < MIN_IMAGE_DIMENSION) return
 
-    if (!src && dataSrc) src = dataSrc
-    if (!src && srcset) {
-      // Pick largest from srcset
-      const candidates = srcset.split(',').map((s) => s.trim().split(' ')[0])
-      src = candidates[candidates.length - 1] || ''
-    }
-    if (!src) return
+    // Try every common attribute that holds an image URL
+    const src =
+      $el.attr('src') ||
+      $el.attr('data-src') ||
+      $el.attr('data-lazy-src') ||
+      $el.attr('data-original') ||
+      ''
+    const srcset = $el.attr('srcset') || $el.attr('data-srcset') || ''
 
-    const resolved = resolveUrl(pageUrl, src)
-    if (!resolved) return
-
-    // Skip icons/sprites/tracking
-    if (ICON_PATH_HINTS.some((re) => re.test(resolved))) return
-
-    imgUrls.add(resolved)
+    // Prefer the largest srcset entry over the small src — many sites use a
+    // tiny placeholder in src and the real photo in srcset.
+    const fromSrcset = pickLargestFromSrcset(srcset)
+    addImage(imgUrls, pageUrl, fromSrcset || src)
   })
 
-  // Video posters
+  // <picture> / <source srcset> — modern responsive photos
+  $('picture source').each((_, el) => {
+    const srcset = $(el).attr('srcset') || $(el).attr('data-srcset') || ''
+    const largest = pickLargestFromSrcset(srcset)
+    addImage(imgUrls, pageUrl, largest)
+  })
+
+  // Video posters — often a great hero shot
   $('video[poster]').each((_, el) => {
-    const poster = $(el).attr('poster')
-    if (poster) {
-      const resolved = resolveUrl(pageUrl, poster)
-      if (resolved) imgUrls.add(resolved)
-    }
+    addImage(imgUrls, pageUrl, $(el).attr('poster'))
   })
 
-  // Open Graph image
+  // Open Graph / Twitter image — usually the brand's best photographic asset
   const ogImage =
     $('meta[property="og:image"]').attr('content') ||
     $('meta[name="og:image"]').attr('content') ||
-    $('meta[name="twitter:image"]').attr('content')
-
-  if (ogImage) {
-    const resolved = resolveUrl(pageUrl, ogImage)
-    if (resolved && !ICON_PATH_HINTS.some((re) => re.test(resolved))) {
-      imgUrls.add(resolved)
-    }
-  }
+    $('meta[name="twitter:image"]').attr('content') ||
+    $('meta[name="twitter:image:src"]').attr('content')
+  addImage(imgUrls, pageUrl, ogImage)
 
   return {
     url: pageUrl,
@@ -318,17 +390,35 @@ export async function POST(req: NextRequest) {
   // Merge text
   const allText = allPages.map((p) => p.text).join('\n\n').slice(0, 18000)
 
-  // Merge & dedupe images, cap to 30
-  const allImages: string[] = []
+  // Merge & dedupe images across all pages
+  const allImagesRaw: string[] = []
   const seen = new Set<string>()
   for (const p of allPages) {
     for (const img of p.images) {
       if (seen.has(img)) continue
       seen.add(img)
-      allImages.push(img)
-      if (allImages.length >= 30) break
+      allImagesRaw.push(img)
     }
-    if (allImages.length >= 30) break
+  }
+
+  // Score every image, drop the ones that look like graphics/chrome, and
+  // sort the survivors so the picker surfaces real photographs first.
+  const scored = allImagesRaw
+    .map((url) => ({ url, score: scoreImage(url) }))
+    .filter((x) => x.score >= SCORE_THRESHOLD)
+    .sort((a, b) => b.score - a.score)
+
+  // Always include og:image first if we have one and it survived scoring —
+  // it's usually the brand's best photographic asset.
+  const ogImageUrl = homepage.ogImage
+  const allImages: string[] = []
+  if (ogImageUrl && !HARD_EXCLUDE.some((re) => re.test(ogImageUrl))) {
+    allImages.push(ogImageUrl)
+  }
+  for (const { url } of scored) {
+    if (allImages.includes(url)) continue
+    allImages.push(url)
+    if (allImages.length >= MAX_FINAL_IMAGES) break
   }
 
   const wordCount = allText.split(/\s+/).filter(Boolean).length
