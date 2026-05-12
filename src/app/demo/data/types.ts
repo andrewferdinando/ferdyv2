@@ -44,9 +44,6 @@ export type ScopeItem = {
   // business has thin imagery. Empty (or omitted) when Unsplash is
   // unavailable or the rate limit was hit.
   unsplashImages?: UnsplashImage[]
-  // Pre-baked Instagram captions for demo flows. Real /demo runs fetch these
-  // from /api/scope/generate-posts and merge them into ScopeFlow state.
-  exampleCaptions?: string[]
 }
 
 export type ExamplePost = {

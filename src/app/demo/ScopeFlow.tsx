@@ -8,8 +8,8 @@ import Overview from './stages/Overview'
 import Wizard from './stages/Wizard'
 import Examples from './stages/Examples'
 import End from './stages/End'
-import { DEMOS } from './data/demos'
-import type { DemoKey, ExamplePost, ScopeItem, ScopeResult } from './data/types'
+import { DEMO_URLS } from './data/demos'
+import type { ExamplePost, ScopeItem, ScopeResult } from './data/types'
 
 type Stage =
   | 'intro'
@@ -49,13 +49,10 @@ export default function ScopeFlow() {
   const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [wizardIndex, setWizardIndex] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
-  // Demo flows get a much shorter loading screen since there's nothing to
-  // actually scrape or analyse — just a brief visual transition.
-  const [isDemo, setIsDemo] = useState(false)
 
-  // Generated example posts: itemId -> array of captions.
-  // Demo flows seed these from item.exampleCaptions; real flows fetch from
-  // /api/scope/generate-posts as soon as the user enters the wizard.
+  // Generated example posts: itemId -> array of captions. Populated by
+  // /api/scope/generate-posts when the user enters the wizard. Both real
+  // URL submissions and demo-picker presses go through the same pipeline.
   const [captionsByItem, setCaptionsByItem] = useState<Record<string, string[]>>({})
   const [postsLoading, setPostsLoading] = useState(false)
   const [postsError, setPostsError] = useState<string | null>(null)
@@ -77,53 +74,22 @@ export default function ScopeFlow() {
     }
   }, [stage])
 
-  const initSelectionsAndKept = useCallback(
-    (res: ScopeResult, opts: { isDemo: boolean }) => {
-      setKeptIds(new Set(res.items.map((i) => i.id)))
-      const initial: Record<string, string[]> = {}
-      for (const item of res.items) initial[item.id] = []
-      setSelections(initial)
-      setWizardIndex(0)
-
-      // Demo flows ship with pre-baked captions — seed them so we don't burn
-      // an Anthropic call on demo runs.
-      if (opts.isDemo) {
-        const seeded: Record<string, string[]> = {}
-        for (const item of res.items) {
-          if (item.exampleCaptions && item.exampleCaptions.length > 0) {
-            seeded[item.id] = [...item.exampleCaptions]
-          }
-        }
-        setCaptionsByItem(seeded)
-        // Mark "fetched" so the eager-fetch effect doesn't fire on a demo result.
-        postsFetchedFor.current = res.businessName + '|demo'
-      } else {
-        setCaptionsByItem({})
-        postsFetchedFor.current = null
-      }
-      setPostsError(null)
-      setPostsLoading(false)
-    },
-    []
-  )
-
-  const startDemo = useCallback(
-    (key: DemoKey) => {
-      const demo = DEMOS[key]
-      setResult(demo)
-      initSelectionsAndKept(demo, { isDemo: true })
-      setIsDemo(true)
-      setLandingError(null)
-      setStage('loading')
-    },
-    [initSelectionsAndKept]
-  )
+  const initSelectionsAndKept = useCallback((res: ScopeResult) => {
+    setKeptIds(new Set(res.items.map((i) => i.id)))
+    const initial: Record<string, string[]> = {}
+    for (const item of res.items) initial[item.id] = []
+    setSelections(initial)
+    setWizardIndex(0)
+    setCaptionsByItem({})
+    postsFetchedFor.current = null
+    setPostsError(null)
+    setPostsLoading(false)
+  }, [])
 
   const handleSubmitUrl = useCallback(
     async (url: string) => {
       setLandingError(null)
       setResult(null)
-      setIsDemo(false)
       setStage('loading')
 
       try {
@@ -184,7 +150,7 @@ export default function ScopeFlow() {
           items: analyse.items,
         }
         setResult(combined)
-        initSelectionsAndKept(combined, { isDemo: false })
+        initSelectionsAndKept(combined)
       } catch (err) {
         const message =
           err instanceof Error
@@ -227,7 +193,6 @@ export default function ScopeFlow() {
     setCaptionsByItem({})
     setPostsError(null)
     setPostsLoading(false)
-    setIsDemo(false)
     postsFetchedFor.current = null
   }, [])
 
@@ -289,7 +254,7 @@ export default function ScopeFlow() {
     return (
       <Landing
         onSubmitUrl={handleSubmitUrl}
-        onPickDemo={startDemo}
+        onPickDemo={(key) => handleSubmitUrl(DEMO_URLS[key])}
         error={landingError}
       />
     )
@@ -300,7 +265,6 @@ export default function ScopeFlow() {
       <Loading
         ready={result !== null}
         onComplete={() => setStage('overview')}
-        minDurationMs={isDemo ? 5000 : 50000}
       />
     )
   }
