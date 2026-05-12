@@ -62,4 +62,4 @@ export type ScopeResult = {
   items: ScopeItem[]
 }
 
-export type DemoKey = 'hospitality' | 'coffee' | 'skincare'
+export type DemoKey = 'snowplanet' | 'nextgen' | 'wyld'
