@@ -111,6 +111,14 @@ Documents the internal analytics dashboard for super admins, including the Posts
 
 ---
 
+## 🗄 Database & Migrations
+
+### **Database Migrations**
+`database_migrations.md`
+Conventions for writing SQL migrations in `supabase/`, including the mandatory grants checklist for new tables. Required reading before adding any table — from Oct 30, 2026, Supabase no longer auto-exposes `public` tables to the Data API, so every new table needs explicit `GRANT` statements or `supabase-js` can't read it.
+
+---
+
 ## 🏗 Future Additions (Reserved)
 
 - `copy_generation.md` (Deep dive into AI copy generation)

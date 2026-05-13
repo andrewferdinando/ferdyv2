@@ -62,6 +62,7 @@ Before modifying any non-trivial feature, read the matching process doc. Update 
 - [groups-and-billing.md](docs/processes/groups-and-billing.md), [roles-and-permissions.md](docs/processes/roles-and-permissions.md)
 - [email-notifications.md](docs/processes/email-notifications.md), [newsletter-contacts.md](docs/processes/newsletter-contacts.md)
 - [social_api_connections.md](docs/processes/social_api_connections.md), [image_processing.md](docs/processes/image_processing.md)
+- [database_migrations.md](docs/processes/database_migrations.md) — migration conventions + mandatory Data API grants for new tables
 
 ---
 
@@ -140,6 +141,7 @@ Cascade warning: changes to `schedule_rules` affect `rpc_framework_targets` → 
 5. **Don't use `drafts.channel`** — it's legacy. Publishing is driven by `post_jobs`.
 6. **Update docs with behaviour changes** — the process doc in `docs/processes/` is canonical.
 7. **No backwards-compat shims for unreleased features** — this is a pre-scale product; change the code cleanly.
+8. **New Supabase tables need explicit grants** — every `CREATE TABLE public.x` migration must also `GRANT` to `authenticated` + `service_role` (and `anon` only if needed), enable RLS, and add policies. See [database_migrations.md](docs/processes/database_migrations.md). Required from Oct 30, 2026; adopt the pattern now so it isn't missed.
 
 ---
 
