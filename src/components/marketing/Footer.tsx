@@ -12,7 +12,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-base text-gray-600 max-w-xs leading-relaxed">
-              Automate the repeatable, reliable posts that every brand needs week after week.
+              Automate your recurring, predictable social media posts.
             </p>
           </div>
           
