@@ -10,11 +10,7 @@ export async function POST(request: NextRequest) {
 
     // Determine the subject based on form type
     let subject = 'New Contact Form Submission'
-    if (formType === 'loom') {
-      subject = 'New Personalised Loom Request'
-    } else if (formType === 'training') {
-      subject = 'New Training/Onboarding Request'
-    } else if (formType === 'demo') {
+    if (formType === 'demo') {
       subject = 'New Demo Request'
     } else if (formType === 'book-call') {
       subject = 'New Multi-Brand Call Request'

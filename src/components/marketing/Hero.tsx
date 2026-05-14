@@ -6,7 +6,7 @@ import FerdyPublishedPostDesktop from './FerdyPublishedPostDesktop';
 
 export default function Hero() {
   const [videoOpen, setVideoOpen] = useState(false);
-  const [loomFormOpen, setLoomFormOpen] = useState(false);
+  const [demoFormOpen, setDemoFormOpen] = useState(false);
 
   return (
     <>
@@ -30,11 +30,11 @@ export default function Hero() {
                 Watch demo
               </button>
 
-              <button 
-                onClick={() => setLoomFormOpen(true)}
+              <button
+                onClick={() => setDemoFormOpen(true)}
                 className="h-14 px-8 text-lg rounded-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition-all flex items-center font-medium"
               >
-                Request personalised Loom
+                Request demo
               </button>
             </div>
           </div>
@@ -91,12 +91,12 @@ export default function Hero() {
         )}
       </section>
 
-      {loomFormOpen && (
-        <ContactForm 
-          title="Request Personalised Loom"
-          description="Fill out the form below and we'll create a personalized walkthrough for your brand."
-          formType="loom"
-          onClose={() => setLoomFormOpen(false)}
+      {demoFormOpen && (
+        <ContactForm
+          title="Request a Demo"
+          description="Tell us a bit about your brand and we'll show you exactly how Ferdy can work for you."
+          formType="demo"
+          onClose={() => setDemoFormOpen(false)}
         />
       )}
     </>
