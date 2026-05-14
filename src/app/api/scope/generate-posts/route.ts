@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
 export const runtime = 'nodejs'
-export const maxDuration = 45
+// 90s headroom — booth observed 504 timeouts on category-heavy sites
+// (6 categories × 2 long posts = ~3000+ output tokens, can run 50-80s).
+export const maxDuration = 90
 
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 4096
