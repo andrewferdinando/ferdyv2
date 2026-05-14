@@ -198,7 +198,9 @@ export default function ScopeFlow() {
 
   // Eager pre-fetch: when the user enters the wizard for a real (non-demo)
   // result, kick off the post-generation call so by the time they hit Done,
-  // the captions are usually already in. Runs once per result.
+  // the captions are usually already in. Runs once per result. Only generates
+  // captions for the categories the user kept on the Overview — sending all
+  // items would double or triple the Anthropic call time for nothing.
   useEffect(() => {
     if (stage !== 'wizard') return
     if (!result) return
@@ -206,10 +208,13 @@ export default function ScopeFlow() {
     if (postsFetchedFor.current === key) return
     postsFetchedFor.current = key
 
+    const keptItems = result.items.filter((i) => keptIds.has(i.id))
+    if (keptItems.length === 0) return
+
     setPostsLoading(true)
     setPostsError(null)
 
-    const itemsForGen = result.items.map((it) => ({
+    const itemsForGen = keptItems.map((it) => ({
       id: it.id,
       title: it.title,
       categoryInfo: it.categoryInfo,
@@ -244,7 +249,7 @@ export default function ScopeFlow() {
         setPostsError(err instanceof Error ? err.message : 'Generation failed')
         setPostsLoading(false)
       })
-  }, [stage, result])
+  }, [stage, result, keptIds])
 
   if (stage === 'intro') {
     return <Intro onContinue={() => setStage('landing')} />
