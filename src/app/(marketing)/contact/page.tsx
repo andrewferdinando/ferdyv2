@@ -27,15 +27,15 @@ export default function Contact() {
             </div>
 
             <div className="pt-8 border-t">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900">Book a Demo</h2>
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">Book a Call</h2>
               <p className="text-gray-600 mb-4">
-                Want to see Ferdy in action? Schedule a personalized demo with our team.
+                Want to see Ferdy in action? We&apos;ll book a live walkthrough for your brand.
               </p>
-              <button 
+              <button
                 onClick={() => setShowDemoForm(true)}
                 className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
               >
-                Get Started
+                Book a call
               </button>
             </div>
           </div>
@@ -43,9 +43,9 @@ export default function Contact() {
       </div>
 
       {showDemoForm && (
-        <ContactForm 
-          title="Book a Demo"
-          description="Fill out the form below and we'll get back to you shortly to schedule your personalized demo."
+        <ContactForm
+          title="Book a Call"
+          description="Drop your details and we'll book a live walkthrough for your brand."
           formType="demo"
           onClose={() => setShowDemoForm(false)}
         />

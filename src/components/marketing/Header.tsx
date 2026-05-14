@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import ContactForm from './ContactForm'
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [videoOpen, setVideoOpen] = useState(false)
+  const [demoFormOpen, setDemoFormOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,13 +17,6 @@ export default function Header() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }
 
   return (
     <header 
@@ -54,10 +49,10 @@ export default function Header() {
             Log in
           </Link>
           <button
-            onClick={() => scrollToSection('take-action')}
+            onClick={() => setDemoFormOpen(true)}
             className="inline-flex items-center justify-center px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg shadow-blue-600/20 transition-all hover:scale-105"
           >
-            Get Started
+            Book a call
           </button>
         </div>
       </div>
@@ -88,6 +83,14 @@ export default function Header() {
             </div>
           </div>
         </div>
+      )}
+      {demoFormOpen && (
+        <ContactForm
+          title="Book a Call"
+          description="Drop your details and we'll book a live walkthrough for your brand."
+          formType="demo"
+          onClose={() => setDemoFormOpen(false)}
+        />
       )}
     </header>
   )

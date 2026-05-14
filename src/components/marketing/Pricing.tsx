@@ -24,14 +24,7 @@ const multiFeatures = [
 ]
 
 export default function Pricing() {
-  const [showBookCallForm, setShowBookCallForm] = useState(false)
-
-  const scrollToTakeAction = () => {
-    const element = document.getElementById('take-action')
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }
+  const [demoFormOpen, setDemoFormOpen] = useState(false)
 
   return (
     <>
@@ -46,7 +39,7 @@ export default function Pricing() {
             {/* Solo Plan */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-200 flex flex-col">
               <div className="h-2 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-              
+
               <div className="p-8 text-center border-b min-h-[220px] flex flex-col justify-center">
                 <h3 className="text-3xl font-bold mb-2 text-gray-900">Solo</h3>
                 <p className="text-gray-600 mb-6 min-h-[48px] flex items-center justify-center">Perfect for single brands.</p>
@@ -87,10 +80,10 @@ export default function Pricing() {
 
               <div className="p-6 border-t bg-white">
                 <button
-                  onClick={scrollToTakeAction}
+                  onClick={() => setDemoFormOpen(true)}
                   className="block w-full text-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full transition-colors"
                 >
-                  Get Started
+                  Book a call
                 </button>
               </div>
             </div>
@@ -98,12 +91,12 @@ export default function Pricing() {
             {/* Multi Plan */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-200 flex flex-col">
               <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500"></div>
-              
+
               <div className="p-8 text-center border-b min-h-[220px] flex flex-col justify-center">
                 <h3 className="text-3xl font-bold mb-2 text-gray-900">Multi</h3>
                 <p className="text-gray-600 mb-6 min-h-[48px] flex items-center justify-center">Perfect for agencies and companies with multiple brands</p>
                 <div className="mb-2">
-                  <span className="text-5xl font-bold text-gray-900">Book call</span>
+                  <span className="text-5xl font-bold text-gray-900">Book a call</span>
                 </div>
                 <p className="text-xs text-gray-500 invisible">Placeholder</p>
               </div>
@@ -138,10 +131,10 @@ export default function Pricing() {
 
               <div className="p-6 border-t bg-white">
                 <button
-                  onClick={() => setShowBookCallForm(true)}
+                  onClick={() => setDemoFormOpen(true)}
                   className="block w-full text-center px-6 py-3 bg-pink-100 hover:bg-pink-200 text-pink-900 font-semibold rounded-full transition-colors"
                 >
-                  Book call
+                  Book a call
                 </button>
               </div>
             </div>
@@ -149,12 +142,12 @@ export default function Pricing() {
         </div>
       </section>
 
-      {showBookCallForm && (
-        <ContactForm 
+      {demoFormOpen && (
+        <ContactForm
           title="Book a Call"
-          description="Fill out the form below and we'll schedule a call to discuss your multi-brand needs."
-          formType="book-call"
-          onClose={() => setShowBookCallForm(false)}
+          description="Drop your details and we'll book a live walkthrough for your brand."
+          formType="demo"
+          onClose={() => setDemoFormOpen(false)}
         />
       )}
     </>

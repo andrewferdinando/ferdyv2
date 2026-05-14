@@ -34,7 +34,7 @@ export default function Hero() {
                 onClick={() => setDemoFormOpen(true)}
                 className="h-14 px-8 text-lg rounded-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition-all flex items-center font-medium"
               >
-                Request demo
+                Book a call
               </button>
             </div>
           </div>
@@ -93,8 +93,8 @@ export default function Hero() {
 
       {demoFormOpen && (
         <ContactForm
-          title="Request a Demo"
-          description="Tell us a bit about your brand and we'll show you exactly how Ferdy can work for you."
+          title="Book a Call"
+          description="Drop your details and we'll book a live walkthrough for your brand."
           formType="demo"
           onClose={() => setDemoFormOpen(false)}
         />

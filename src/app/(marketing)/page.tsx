@@ -7,7 +7,6 @@ import RecurringPosts from '@/components/marketing/RecurringPosts'
 import Events from '@/components/marketing/Events'
 import TimeSaved from '@/components/marketing/TimeSaved'
 import Pricing from '@/components/marketing/Pricing'
-import BottomCTA from '@/components/marketing/BottomCTA'
 
 export const metadata = {
   title: 'Social Media Automation for Small Businesses',
@@ -121,7 +120,6 @@ export default function Home() {
       <Events />
       <TimeSaved />
       <Pricing />
-      <BottomCTA />
     </>
   )
 }

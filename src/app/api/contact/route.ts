@@ -8,13 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, email, brandUrl, message, formType } = body
 
-    // Determine the subject based on form type
-    let subject = 'New Contact Form Submission'
-    if (formType === 'demo') {
-      subject = 'New Demo Request'
-    } else if (formType === 'book-call') {
-      subject = 'New Multi-Brand Call Request'
-    }
+    const subject = formType === 'demo' ? 'New Book a Call Request' : 'New Contact Form Submission'
 
     await resend.emails.send({
       from: 'Ferdy <support@ferdy.io>',
