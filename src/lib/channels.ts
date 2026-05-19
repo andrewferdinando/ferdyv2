@@ -55,3 +55,20 @@ export function getProviderForChannel(channel: string): string | null {
   return CHANNEL_PROVIDER_MAP[channel] ?? null
 }
 
+// Canonicalise + dedupe a channels array for persistence.
+// Single source of truth for any write to subcategories.channels or schedule_rules.channels.
+// Drops unrecognised values rather than persisting junk.
+export function canonicalizeChannelList(channels: readonly string[] | null | undefined): string[] {
+  if (!channels || channels.length === 0) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const ch of channels) {
+    const canonical = canonicalizeChannel(ch)
+    if (canonical && !seen.has(canonical)) {
+      seen.add(canonical)
+      out.push(canonical)
+    }
+  }
+  return out
+}
+

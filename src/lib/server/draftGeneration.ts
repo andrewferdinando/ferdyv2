@@ -41,6 +41,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { processBatchCopyGeneration, type DraftCopyInput } from "@/lib/generateCopyBatch";
+import { canonicalizeChannelList } from "@/lib/channels";
 
 /**
  * Type for rows returned by rpc_framework_targets.
@@ -268,16 +269,11 @@ export async function generateDraftsForBrand(brandId: string): Promise<DraftGene
   const brandTimezone = brand.timezone || 'Pacific/Auckland';
   console.log(`[draftGeneration] Using brand timezone for ${brandId}:`, brandTimezone);
 
-  // Helper function to normalize channels (NO DEFAULTS - returns empty array if invalid)
+  // Helper function to normalize channels (NO DEFAULTS - returns empty array if invalid).
+  // Delegates to canonicalizeChannelList, which canonicalises legacy aliases and dedupes,
+  // so N canonical channels in a rule always yield exactly N post_jobs.
   function normalizeChannels(channels: string[] | null | undefined): string[] {
-    if (!channels || !Array.isArray(channels) || channels.length === 0) {
-      return []; // Return empty array - caller must handle this
-    }
-    return channels.map((ch: string) => {
-      if (ch === 'instagram') return 'instagram_feed';
-      if (ch === 'linkedin') return 'linkedin_profile';
-      return ch;
-    });
+    return canonicalizeChannelList(channels);
   }
 
   let draftsCreated = 0;

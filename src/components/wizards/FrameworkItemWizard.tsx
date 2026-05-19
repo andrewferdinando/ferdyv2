@@ -20,6 +20,7 @@ import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 import { HashtagInput } from '@/components/ui/HashtagInput'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { canonicalizeChannel, canonicalizeChannelList } from '@/lib/channels'
 
 // Helper function to get default timezone (saved > brand > browser)
 function getDefaultTimezone(savedTimezone?: string | null, brandTimezone?: string | null): string {
@@ -1633,6 +1634,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // Use form values for copy_length and post_time (mirroring copy_length pattern)
       // These values come from the form state which was initialized from brand defaults via useBrandPostSettings hook
+      const canonicalChannelsForInsert = canonicalizeChannelList(details.channels)
       const insertData = {
         brand_id: brandId,
         category_id: null,
@@ -1640,7 +1642,7 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
         detail: details.detail.trim(),
         url: details.url.trim() || null,
         default_hashtags: normalizedHashtags,
-        channels: details.channels.length > 0 ? details.channels : null,
+        channels: canonicalChannelsForInsert.length > 0 ? canonicalChannelsForInsert : null,
         subcategory_type: subcategoryType || 'other',
         default_copy_length: details.default_copy_length || 'medium',
         // Convert post_time from form format (HH:MM) to database format (HH:MM:SS)
@@ -1682,16 +1684,11 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
 
       // Handle Events: Create one schedule_rules row PER occurrence + event_occurrences rows
       if (subcategoryType === 'event_series') {
-        // Normalize channels before saving to schedule_rules
-        // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
-        const normalizeChannelForSave = (ch: string): string => {
-          if (ch === 'instagram') return 'instagram_feed';
-          if (ch === 'linkedin') return 'linkedin_profile';
-          return ch;
-        };
-        const normalizedChannels = details.channels.length > 0
-          ? details.channels.map(normalizeChannelForSave)
-          : null;
+        // schedule_rule.channels is the single source of truth for draft generation.
+        // canonicalizeChannelList normalises legacy aliases and dedupes, so a single
+        // post_job is created per channel even if the form state has duplicates.
+        const canonicalChannels = canonicalizeChannelList(details.channels)
+        const normalizedChannels = canonicalChannels.length > 0 ? canonicalChannels : null
 
         // Deactivate any existing rules for this subcategory (clean slate for create mode)
         // Use soft-delete in case post_jobs reference them via FK
@@ -1836,16 +1833,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       const shouldCreateRule = subcategoryType !== 'event_series' && !!schedule.frequency
 
       if (shouldCreateRule && schedule.frequency) {
-        // Normalize channels before saving to schedule_rules
-        // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
-        const normalizeChannelForSave = (ch: string): string => {
-          if (ch === 'instagram') return 'instagram_feed';
-          if (ch === 'linkedin') return 'linkedin_profile';
-          return ch;
-        };
-        const normalizedChannels = details.channels.length > 0
-          ? details.channels.map(normalizeChannelForSave)
-          : null;
+        const canonicalChannels = canonicalizeChannelList(details.channels)
+        const normalizedChannels = canonicalChannels.length > 0 ? canonicalChannels : null
 
         // Build schedule rule payload
         const baseRuleData: Record<string, unknown> = {
@@ -2160,15 +2149,8 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       // Normalize hashtags (already an array)
       const normalizedHashtags = normalizeHashtags(details.defaultHashtags)
 
-      // Normalize channels for consistent storage
-      const normalizeChannelForSave = (ch: string): string => {
-        if (ch === 'instagram') return 'instagram_feed'
-        if (ch === 'linkedin') return 'linkedin_profile'
-        return ch
-      }
-      const normalizedChannels = details.channels.length > 0
-        ? details.channels.map(normalizeChannelForSave)
-        : null
+      const canonicalChannels = canonicalizeChannelList(details.channels)
+      const normalizedChannels = canonicalChannels.length > 0 ? canonicalChannels : null
 
       // Fetch existing settings first to preserve them
       const { data: existingSubcategory, error: fetchError } = await supabase
@@ -3436,25 +3418,36 @@ export default function FrameworkItemWizard(props: WizardProps = {}) {
       {/* Channels */}
       <FormField label="Channels" required>
         <div className="flex flex-wrap gap-4">
-          {CHANNELS.map((channel) => (
-            <label key={channel.value} className="flex items-center">
-              <input
-                type="checkbox"
-                checked={details.channels.includes(channel.value)}
-                onChange={(e) => {
-                  const newChannels = e.target.checked
-                    ? [...details.channels, channel.value]
-                    : details.channels.filter(c => c !== channel.value)
-                  setDetails(prev => ({ ...prev, channels: newChannels }))
-                  if (detailsErrors.channels) {
-                    setDetailsErrors(prev => ({ ...prev, channels: undefined }))
-                  }
-                }}
-                className="mr-2 w-4 h-4 text-[#6366F1] border-gray-300 rounded focus:ring-[#6366F1]"
-              />
-              <span className="text-sm text-gray-700">{channel.label}</span>
-            </label>
-          ))}
+          {CHANNELS.map((channel) => {
+            // Compare canonically so a previously-saved 'instagram_feed' still
+            // reads as checked when the option value is the legacy 'instagram'.
+            const optionCanonical = canonicalizeChannel(channel.value)
+            const isChecked = details.channels.some(
+              c => canonicalizeChannel(c) === optionCanonical,
+            )
+            return (
+              <label key={channel.value} className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => {
+                    const filtered = details.channels.filter(
+                      c => canonicalizeChannel(c) !== optionCanonical,
+                    )
+                    const newChannels = e.target.checked
+                      ? [...filtered, channel.value]
+                      : filtered
+                    setDetails(prev => ({ ...prev, channels: newChannels }))
+                    if (detailsErrors.channels) {
+                      setDetailsErrors(prev => ({ ...prev, channels: undefined }))
+                    }
+                  }}
+                  className="mr-2 w-4 h-4 text-[#6366F1] border-gray-300 rounded focus:ring-[#6366F1]"
+                />
+                <span className="text-sm text-gray-700">{channel.label}</span>
+              </label>
+            )
+          })}
         </div>
         {detailsErrors.channels && (
           <p className="text-red-500 text-sm mt-1">{detailsErrors.channels}</p>

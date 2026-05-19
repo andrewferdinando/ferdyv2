@@ -130,9 +130,12 @@ Fields:
 - **Description*** → `subcategories.detail`
 - **URL (optional)** → `subcategories.url`
 - **Default hashtags (optional)** → `subcategories.default_hashtags` (text[])
-- **Channels*** → `subcategories.channels` (text[]: e.g. `instagram`, `instagram_story`, `facebook`, `linkedin`)
-  - Channels are normalized when saved to `schedule_rules.channels`: `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`
-  - Normalized channels are used by draft generation as the single source of truth
+- **Channels*** → `subcategories.channels` and `schedule_rules.channels` (text[])
+  - Both columns are written using `canonicalizeChannelList()` from [src/lib/channels.ts](../../src/lib/channels.ts), which:
+    1. **canonicalises legacy aliases** — `instagram` → `instagram_feed`, `linkedin` → `linkedin_profile`, etc.
+    2. **dedupes** — every canonical channel appears at most once.
+  - This is the invariant the publishing pipeline relies on: **N canonical channels in `schedule_rules.channels` ⇒ exactly N `post_jobs` per draft.** Duplicate entries would cause duplicate publishes to the same external account.
+  - Wizard checkbox state is compared via `canonicalizeChannel()` so a previously-saved canonical value (`instagram_feed`) still reads as checked when the form's option value is the legacy alias (`instagram`). Without this, re-toggling the checkbox would silently append a duplicate.
 - **Post length (default for this category)*** → `subcategories.default_copy_length` (`short` | `medium` | `long`)
 
 These fields are all part of the **subcategory** itself and are saved via Supabase client calls in the wizard.

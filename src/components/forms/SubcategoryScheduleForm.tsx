@@ -13,6 +13,7 @@ import TimezoneSelect from './TimezoneSelect'
 import { useToast } from '@/components/ui/ToastProvider'
 import { useBrandPostSettings } from '@/hooks/useBrandPostSettings'
 import { HashtagInput } from '@/components/ui/HashtagInput'
+import { canonicalizeChannel, canonicalizeChannelList } from '@/lib/channels'
 
 interface SubcategoryData {
   name: string
@@ -728,6 +729,12 @@ export function SubcategoryScheduleForm({
       // Save subcategory
       let subcategoryId: string
 
+      // Canonicalise the channels once and reuse across every write so the
+      // subcategory and its schedule_rules never disagree, and duplicates can't
+      // sneak in (legacy 'instagram' + canonical 'instagram_feed' both selected).
+      const canonicalChannels = canonicalizeChannelList(subcategoryData.channels)
+      const subcategoryChannelsForSave = canonicalChannels.length > 0 ? canonicalChannels : null
+
       if (editingSubcategory) {
         // Normalize hashtags before saving
         const normalizedHashtags = normalizeHashtags(subcategoryData.hashtags || []);
@@ -755,7 +762,7 @@ export function SubcategoryScheduleForm({
             detail: subcategoryData.detail.trim(),
             url: subcategoryData.url || null,
             default_hashtags: normalizedHashtags,
-            channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+            channels: subcategoryChannelsForSave,
             subcategory_type: subcategoryData.subcategory_type || 'other',
             settings: settings || {}
             // NOTE: category_id is NOT included in update - it must be preserved
@@ -866,7 +873,7 @@ export function SubcategoryScheduleForm({
           detail: subcategoryData.detail.trim(),
           url: subcategoryData.url || null,
           default_hashtags: normalizedHashtags,
-          channels: subcategoryData.channels.length > 0 ? subcategoryData.channels : null,
+          channels: subcategoryChannelsForSave,
           subcategory_type: subcategoryData.subcategory_type || 'other',
           settings: settings || {},
           copy_length: copyLengthToSet,
@@ -920,17 +927,9 @@ export function SubcategoryScheduleForm({
           .eq('is_active', true)
           .limit(1)
 
-      // Normalize channels before saving to schedule_rules
-      // This ensures consistency: 'instagram' -> 'instagram_feed', 'linkedin' -> 'linkedin_profile'
-      // CRITICAL: schedule_rule.channels is the single source of truth for draft generation
-      const normalizeChannelForSave = (ch: string): string => {
-        if (ch === 'instagram') return 'instagram_feed';
-        if (ch === 'linkedin') return 'linkedin_profile';
-        return ch;
-      };
-      const normalizedChannels = subcategoryData.channels.length > 0
-        ? subcategoryData.channels.map(normalizeChannelForSave)
-        : null;
+      // schedule_rule.channels is the single source of truth for draft generation;
+      // reuse the canonicalised list from the subcategory write above.
+      const normalizedChannels = subcategoryChannelsForSave
 
       // Prepare base schedule rule data
       const baseRuleData = {
@@ -1555,26 +1554,36 @@ export function SubcategoryScheduleForm({
 
               <FormField label="Channels" required>
                 <div className="flex flex-wrap gap-2">
-                  {CHANNELS.map((channel) => (
-                    <label key={channel.value} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={subcategoryData.channels.includes(channel.value)}
-                        onChange={(e) => {
-                          const newChannels = e.target.checked
-                            ? [...subcategoryData.channels, channel.value]
-                            : subcategoryData.channels.filter(c => c !== channel.value)
-                          setSubcategoryData(prev => ({ ...prev, channels: newChannels }))
-                          // Also update schedule rule channels if they're empty or match the old subcategory channels
-                          if (scheduleData.channels.length === 0 || scheduleData.channels.every(c => subcategoryData.channels.includes(c))) {
-                            setScheduleData(prev => ({ ...prev, channels: newChannels }))
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      {channel.label}
-                    </label>
-                  ))}
+                  {CHANNELS.map((channel) => {
+                    // Compare canonically: an already-saved 'instagram_feed' must
+                    // read as checked when the option value is the legacy 'instagram'.
+                    const optionCanonical = canonicalizeChannel(channel.value)
+                    const isChecked = subcategoryData.channels.some(
+                      c => canonicalizeChannel(c) === optionCanonical,
+                    )
+                    return (
+                      <label key={channel.value} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const filtered = subcategoryData.channels.filter(
+                              c => canonicalizeChannel(c) !== optionCanonical,
+                            )
+                            const newChannels = e.target.checked
+                              ? [...filtered, channel.value]
+                              : filtered
+                            setSubcategoryData(prev => ({ ...prev, channels: newChannels }))
+                            if (scheduleData.channels.length === 0 || scheduleData.channels.every(c => subcategoryData.channels.includes(c))) {
+                              setScheduleData(prev => ({ ...prev, channels: newChannels }))
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        {channel.label}
+                      </label>
+                    )
+                  })}
                 </div>
                 {errors.channels && <p className="text-red-500 text-sm mt-1">{errors.channels}</p>}
               </FormField>
