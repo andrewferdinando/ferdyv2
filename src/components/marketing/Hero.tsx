@@ -4,16 +4,15 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import ContactForm from './ContactForm'
-import FerdyPublishedPostDesktop from './FerdyPublishedPostDesktop'
 
 export default function Hero() {
   const [demoFormOpen, setDemoFormOpen] = useState(false)
 
   return (
     <>
-      <section className="relative pt-32 pb-32 overflow-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 overflow-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
         <div className="container relative z-10">
-          <div className="max-w-4xl mx-auto text-center mb-16">
+          <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-gray-900 leading-[1.1]">
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Social media automation
@@ -39,10 +38,6 @@ export default function Hero() {
                 <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
               </Link>
             </div>
-          </div>
-
-          <div className="relative mx-auto max-w-6xl">
-            <FerdyPublishedPostDesktop />
           </div>
         </div>
       </section>

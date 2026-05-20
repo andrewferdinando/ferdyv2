@@ -15,102 +15,16 @@ function Check() {
   )
 }
 
-/* ── VenuePhoto (CSS-only placeholder for Riverside Pavilion) ── */
+/* ── VenuePhoto (Unsplash riverside venue at golden hour) ── */
 function VenuePhoto() {
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: '300px' }}>
-      {/* Sky gradient (sunset over the river) */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(to bottom, #FCA770 0%, #F87171 35%, #C084FC 65%, #4F46E5 100%)',
-        }}
-      />
-      {/* Sun */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: '120px',
-          height: '120px',
-          left: '60%',
-          top: '24%',
-          transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, #FEF3C7 0%, #FBBF24 60%, transparent 75%)',
-          opacity: 0.95,
-        }}
-      />
-      {/* Distant hills */}
-      <div
-        className="absolute left-0 right-0"
-        style={{
-          bottom: '46%',
-          height: '60px',
-          background: 'linear-gradient(to bottom, #4338CA 0%, #312E81 100%)',
-          clipPath:
-            'polygon(0% 100%, 0% 60%, 12% 30%, 22% 55%, 32% 25%, 45% 50%, 58% 20%, 70% 45%, 82% 30%, 100% 55%, 100% 100%)',
-          opacity: 0.7,
-        }}
-      />
-      {/* Pavilion silhouette */}
-      <div
-        className="absolute"
-        style={{
-          left: '50%',
-          bottom: '40%',
-          transform: 'translateX(-50%)',
-          width: '180px',
-          height: '70px',
-        }}
-      >
-        <svg viewBox="0 0 180 70" className="w-full h-full">
-          {/* Roof */}
-          <polygon points="0,30 90,0 180,30 175,30 175,35 5,35 5,30" fill="#1E1B4B" />
-          {/* Body */}
-          <rect x="15" y="35" width="150" height="35" fill="#1E1B4B" />
-          {/* Warm window glow */}
-          <rect x="35" y="45" width="14" height="20" fill="#FBBF24" opacity="0.85" />
-          <rect x="60" y="45" width="14" height="20" fill="#FBBF24" opacity="0.85" />
-          <rect x="85" y="45" width="14" height="20" fill="#FBBF24" opacity="0.85" />
-          <rect x="110" y="45" width="14" height="20" fill="#FBBF24" opacity="0.85" />
-          <rect x="135" y="45" width="14" height="20" fill="#FBBF24" opacity="0.85" />
-        </svg>
-      </div>
-      {/* River */}
-      <div
-        className="absolute left-0 right-0 bottom-0"
-        style={{
-          height: '40%',
-          background:
-            'linear-gradient(to bottom, rgba(79,70,229,0.85) 0%, rgba(30,27,75,0.95) 100%)',
-        }}
-      />
-      {/* Sun reflection on water */}
-      <div
-        className="absolute"
-        style={{
-          left: '60%',
-          bottom: '0',
-          width: '60px',
-          height: '40%',
-          transform: 'translateX(-50%)',
-          background:
-            'linear-gradient(to bottom, rgba(251,191,36,0.55) 0%, rgba(251,191,36,0) 100%)',
-          filter: 'blur(2px)',
-        }}
-      />
-      {/* Water shimmer lines */}
-      <div className="absolute left-0 right-0 bottom-0" style={{ height: '40%' }}>
-        <svg viewBox="0 0 400 120" className="w-full h-full" preserveAspectRatio="none">
-          <g stroke="#FCD34D" strokeWidth="1" opacity="0.35">
-            <line x1="220" y1="30" x2="260" y2="30" />
-            <line x1="210" y1="55" x2="280" y2="55" />
-            <line x1="225" y1="80" x2="270" y2="80" />
-            <line x1="215" y1="105" x2="285" y2="105" />
-          </g>
-        </svg>
-      </div>
-    </div>
+    <img
+      src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+      alt="Outdoor riverside dining at golden hour — Riverside Pavilion"
+      className="w-full object-cover"
+      style={{ height: '300px' }}
+      loading="lazy"
+    />
   )
 }
 

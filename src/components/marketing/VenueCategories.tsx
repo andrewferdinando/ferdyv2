@@ -14,6 +14,9 @@ interface Category {
   icon: LucideIcon
   title: string
   examples: string
+  iconBg: string
+  iconColor: string
+  hoverBorder: string
 }
 
 const categories: Category[] = [
@@ -22,48 +25,72 @@ const categories: Category[] = [
     title: 'Hospitality & Dining',
     examples:
       'Restaurants, cafés, bars, pubs, breweries, distilleries, wineries, cellar doors.',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-700',
+    hoverBorder: 'hover:border-amber-300',
   },
   {
     icon: BedDouble,
     title: 'Accommodation',
     examples:
       'Hotels, motels, lodges, holiday parks, B&Bs, resorts, retreats.',
+    iconBg: 'bg-sky-100',
+    iconColor: 'text-sky-700',
+    hoverBorder: 'hover:border-sky-300',
   },
   {
     icon: PartyPopper,
     title: 'Events & Functions',
     examples:
       'Wedding venues, function centres, conference, convention & exhibition halls.',
+    iconBg: 'bg-pink-100',
+    iconColor: 'text-pink-700',
+    hoverBorder: 'hover:border-pink-300',
   },
   {
     icon: Building2,
     title: 'Workspace & Business',
     examples:
       'Co-working spaces, serviced offices, meeting & training rooms.',
+    iconBg: 'bg-slate-100',
+    iconColor: 'text-slate-700',
+    hoverBorder: 'hover:border-slate-300',
   },
   {
     icon: Gamepad2,
     title: 'Family Entertainment Centres',
     examples:
       'Mini golf, escape rooms, bowling, climbing, go karts, arcades.',
+    iconBg: 'bg-violet-100',
+    iconColor: 'text-violet-700',
+    hoverBorder: 'hover:border-violet-300',
   },
   {
     icon: Trees,
     title: 'Attractions & Experiences',
     examples:
       'Zoos, aquariums, botanic gardens, theme parks, heritage sites, zip wires, bungee.',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-700',
+    hoverBorder: 'hover:border-emerald-300',
   },
   {
     icon: Drama,
     title: 'Arts & Culture',
     examples:
       'Theatres, performing arts centres, cinemas, museums, galleries.',
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-700',
+    hoverBorder: 'hover:border-rose-300',
   },
   {
     icon: Dumbbell,
     title: 'Fitness & Wellness',
     examples:
       'Gyms, health clubs, pilates & yoga studios, day spas.',
+    iconBg: 'bg-teal-100',
+    iconColor: 'text-teal-700',
+    hoverBorder: 'hover:border-teal-300',
   },
 ]
 
@@ -86,10 +113,10 @@ export default function VenueCategories() {
             return (
               <div
                 key={category.title}
-                className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all"
+                className={`group bg-white border border-gray-200 ${category.hoverBorder} rounded-2xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-200`}
               >
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center mb-5">
-                  <Icon className="w-5 h-5 text-blue-600" strokeWidth={2} />
+                <div className={`w-12 h-12 rounded-xl ${category.iconBg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-200`}>
+                  <Icon className={`w-6 h-6 ${category.iconColor}`} strokeWidth={2} />
                 </div>
                 <h3 className="text-base font-semibold text-gray-900 mb-2 leading-tight">
                   {category.title}
