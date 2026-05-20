@@ -85,7 +85,7 @@ export default function Media({
           </h1>
 
           <p className="text-base sm:text-lg text-gray-500 mb-2">
-            Pulled from your site, with Unsplash stock to top up.
+            Pulled from your site, with stock photos to top up.
           </p>
 
           <p className="text-sm text-gray-400 mb-10">
