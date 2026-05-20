@@ -1,7 +1,6 @@
 'use client'
 
 import { ArrowRight } from 'lucide-react'
-import LogoHeader from '../components/LogoHeader'
 
 type Props = {
   onContinue: () => void
@@ -10,7 +9,6 @@ type Props = {
 export default function Intro({ onContinue }: Props) {
   return (
     <div className="relative min-h-screen flex flex-col bg-gradient-to-br from-indigo-100 via-white to-indigo-50 overflow-hidden">
-      <LogoHeader />
 
       {/* Soft ambient indigo glow behind the headline */}
       <div

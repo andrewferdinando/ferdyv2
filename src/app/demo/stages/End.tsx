@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import LogoHeader from '../components/LogoHeader'
 
 const CALENDLY_URL =
   'https://calendly.com/ferdy-app/meeting-with-andrew-60?utm_source=ferdy-demo&utm_campaign=marketers-day&hide_gdpr_banner=1'
@@ -27,7 +26,6 @@ export default function End({ businessName, keptCount, onRestart }: Props) {
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      <LogoHeader />
 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-16">
         <div className="w-full max-w-3xl">
