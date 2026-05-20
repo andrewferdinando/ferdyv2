@@ -11,33 +11,33 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://ferdy.io"),
   title: {
-    default: "Ferdy — Social Media Automation for Small Businesses",
+    default: "Ferdy — Social media automation for venues",
     template: "%s | Ferdy",
   },
   description:
-    "Ferdy automates the recurring, predictable social media posts for small businesses. Create, schedule, and publish to Instagram and Facebook — automatically.",
+    "Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. Built for venues across hospitality, accommodation, events, attractions, wellness and more.",
   openGraph: {
     type: "website",
     locale: "en_NZ",
     url: "https://ferdy.io",
     siteName: "Ferdy",
-    title: "Ferdy — Social Media Automation for Small Businesses",
+    title: "Ferdy — Social media automation for venues",
     description:
-      "Automate your recurring, predictable social media posts. Ferdy creates and publishes the content you repeat every month — so you can focus on the creative work.",
+      "Save hours by automating the recurring, predictable posts your venue repeats every month. Auto-publishes to Facebook and Instagram.",
     images: [
       {
         url: "/images/og-default.png",
         width: 1200,
         height: 630,
-        alt: "Ferdy — Social Media Automation for Small Businesses",
+        alt: "Ferdy — Social media automation for venues",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ferdy — Social Media Automation for Small Businesses",
+    title: "Ferdy — Social media automation for venues",
     description:
-      "Automate your recurring, predictable social media posts. Designed for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand.",
+      "Save hours by automating the recurring, predictable posts your venue repeats every month. Auto-publishes to Facebook and Instagram.",
     images: ["/images/og-default.png"],
   },
 };

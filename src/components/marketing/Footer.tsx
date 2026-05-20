@@ -12,7 +12,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-base text-gray-600 max-w-xs leading-relaxed">
-              Automate your recurring, predictable social media posts.
+              Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram.
             </p>
           </div>
           

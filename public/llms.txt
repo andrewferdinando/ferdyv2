@@ -1,42 +1,52 @@
 # Ferdy
 
-> Social media automation for small businesses in Australia and New Zealand.
+> Social media automation for venues in Australia and New Zealand.
 
-Ferdy is a social media automation tool that creates and publishes the recurring, predictable social media posts to Instagram and Facebook. It is designed for product-focused small businesses including restaurants, cafes, venues, e-commerce stores, and service businesses.
+Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. It is built for venues — hospitality, accommodation, events, workspaces, family entertainment, attractions, arts and culture, and fitness and wellness.
 
 ## How It Works
 
-1. You set up content categories (e.g. weekly specials, product highlights, seasonal promotions) and upload your brand assets (images, logos, product photos).
-2. Ferdy automatically generates social media posts from your brand assets, website content, and offers on the schedule you define.
-3. You review, edit, approve, or skip each post before it goes live. Nothing is published without your approval.
+1. A free Strategy & Setup session with a Ferdy strategist defines your post categories (weekly programme, monthly themes, upcoming events) and loads in your approved media library.
+2. Ferdy generates posts from your venue details and rotates through your approved media on the cadence you choose — weekly, monthly, or as event countdowns.
+3. You review, edit, approve, or skip each draft before it goes live. Nothing publishes without your sign-off.
 
-## Who It's For
+## Who It Is For
 
-- Restaurants and cafes
-- Hospitality venues and entertainment businesses
-- E-commerce stores
-- Service businesses
-- Marketing agencies managing multiple brands
-- Small businesses in Australia and New Zealand
+Ferdy is built for venues with a regular programme, including:
+
+- Hospitality & Dining — restaurants, cafés, bars, pubs, breweries, distilleries, wineries, cellar doors
+- Accommodation — hotels, motels, lodges, holiday parks, B&Bs, resorts, retreats
+- Events & Functions — wedding venues, function centres, conference, convention & exhibition halls
+- Workspace & Business — co-working spaces, serviced offices, meeting & training rooms
+- Family Entertainment Centres — mini golf, escape rooms, bowling, climbing, go karts, arcades
+- Attractions & Experiences — zoos, aquariums, botanic gardens, theme parks, heritage sites, zip wires, bungee
+- Arts & Culture — theatres, performing arts centres, cinemas, museums, galleries
+- Fitness & Wellness — gyms, health clubs, pilates & yoga studios, day spas
 
 ## Pricing
 
 - Solo plan: NZ$147 per month (+GST) per brand, includes up to 30 automated posts per month
-- Multi plan: Custom pricing for businesses managing multiple brands (book a call)
+- Multi plan: Custom pricing for groups or agencies managing multiple venues (book a call)
 
 ## Key Features
 
-- Automated post creation from brand assets, images, and website content
-- Scheduled publishing to Instagram (feed and stories) and Facebook
+- Automated post creation from venue details and approved media library
+- AI-generated copy matched to your venue's tone of voice
+- Scheduled publishing to Facebook (Page posts) and Instagram (Feed and Stories)
+- Weekly recurring posts, monthly themed posts, and event countdown posts
+- Auto-rotation through your media library so posts always look fresh
 - Full editorial control: review, edit, approve, or skip every post
-- AI-generated social media copy tailored to your brand voice
-- Round-robin asset selection for visual variety
-- Multi-brand management from a single dashboard
-- Team collaboration with role-based access (admin, editor)
+- Multi-brand management for groups and agencies
+- Team collaboration with role-based access
+
+## Interactive Demo
+
+Visit https://ferdy.io/demo to drop in your URL and see what Ferdy would post for your venue. Takes about 2 minutes.
 
 ## Links
 
 - Website: https://ferdy.io
+- Interactive demo: https://ferdy.io/demo
 - Contact: https://ferdy.io/contact
 - Email: support@ferdy.io
 - Privacy Policy: https://ferdy.io/privacy

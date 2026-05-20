@@ -6,10 +6,10 @@ export default function TimeSaved() {
           {/* Heading */}
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
-              Ferdy saves you time every month
+              Ferdy saves your team hours every month
             </h2>
             <p className="text-xl text-gray-600">
-              Most businesses spend 8+ hours a month creating social content. Here&apos;s all Ferdy takes.
+              Most venues spend 8+ hours a month on recurring social content. Here&apos;s all Ferdy takes.
             </p>
           </div>
 
