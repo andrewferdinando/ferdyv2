@@ -6,6 +6,7 @@ import Landing from './stages/Landing'
 import Loading from './stages/Loading'
 import Overview from './stages/Overview'
 import Wizard from './stages/Wizard'
+import Media from './stages/Media'
 import Examples from './stages/Examples'
 import End from './stages/End'
 import { DEMO_URLS } from './data/demos'
@@ -47,7 +48,10 @@ export default function ScopeFlow() {
   const [result, setResult] = useState<ScopeResult | null>(null)
   const [keptIds, setKeptIds] = useState<Set<string>>(new Set())
   const [selections, setSelections] = useState<Record<string, string[]>>({})
-  const [wizardIndex, setWizardIndex] = useState(0)
+  // Wizard step is 0-indexed across review + media for all kept categories.
+  // For 3 kept items, totalSteps = 6: [0:cat1 review, 1:cat1 media,
+  // 2:cat2 review, 3:cat2 media, 4:cat3 review, 5:cat3 media].
+  const [wizardStep, setWizardStep] = useState(0)
   const [landingError, setLandingError] = useState<string | null>(null)
 
   // Generated example posts: itemId -> array of captions. Populated by
@@ -75,11 +79,14 @@ export default function ScopeFlow() {
   }, [stage])
 
   const initSelectionsAndKept = useCallback((res: ScopeResult) => {
-    setKeptIds(new Set(res.items.map((i) => i.id)))
+    // Default keptIds is EMPTY — the Overview stage requires the user to
+    // actively pick 3 categories. Starting with all selected wasted the
+    // active-engagement moment that builds investment in the demo.
+    setKeptIds(new Set())
     const initial: Record<string, string[]> = {}
     for (const item of res.items) initial[item.id] = []
     setSelections(initial)
-    setWizardIndex(0)
+    setWizardStep(0)
     setCaptionsByItem({})
     postsFetchedFor.current = null
     setPostsError(null)
@@ -188,7 +195,7 @@ export default function ScopeFlow() {
     setResult(null)
     setKeptIds(new Set())
     setSelections({})
-    setWizardIndex(0)
+    setWizardStep(0)
     setLandingError(null)
     setCaptionsByItem({})
     setPostsError(null)
@@ -283,7 +290,7 @@ export default function ScopeFlow() {
         onBack={handleRestart}
         onNext={() => {
           if (keptIds.size > 0) {
-            setWizardIndex(0)
+            setWizardStep(0)
             setStage('wizard')
           }
         }}
@@ -292,19 +299,53 @@ export default function ScopeFlow() {
   }
 
   if (stage === 'wizard') {
+    // The "wizard" stage now alternates between Review and Media per
+    // category. Step layout for N kept categories (N * 2 total steps):
+    //   step 0 = cat 1 review,  step 1 = cat 1 media,
+    //   step 2 = cat 2 review,  step 3 = cat 2 media, ...
     const keptItems = result.items.filter((i) => keptIds.has(i.id))
-    const safeIndex = Math.min(wizardIndex, keptItems.length - 1)
+    if (keptItems.length === 0) {
+      // Edge case: someone navigated here with nothing kept. Bounce them back.
+      setStage('overview')
+      return null
+    }
+    const totalSteps = keptItems.length * 2
+    const safeStep = Math.min(Math.max(0, wizardStep), totalSteps - 1)
+    const categoryIndex = Math.floor(safeStep / 2)
+    const subStep: 'review' | 'media' = safeStep % 2 === 0 ? 'review' : 'media'
+
+    const goPrev = () => setWizardStep(Math.max(0, safeStep - 1))
+    const goNext = () => {
+      if (safeStep + 1 >= totalSteps) {
+        setStage('examples')
+      } else {
+        setWizardStep(safeStep + 1)
+      }
+    }
+
+    if (subStep === 'review') {
+      return (
+        <Wizard
+          items={keptItems}
+          categoryIndex={categoryIndex}
+          step={safeStep}
+          totalSteps={totalSteps}
+          onPrev={goPrev}
+          onNext={goNext}
+        />
+      )
+    }
     return (
-      <Wizard
+      <Media
         result={result}
         items={keptItems}
-        index={safeIndex}
+        categoryIndex={categoryIndex}
+        step={safeStep}
+        totalSteps={totalSteps}
         selections={selections}
-        onPrev={() => setWizardIndex(Math.max(0, safeIndex - 1))}
-        onNext={() => setWizardIndex(Math.min(keptItems.length - 1, safeIndex + 1))}
-        onJump={(i) => setWizardIndex(i)}
         onToggleImage={handleToggleImage}
-        onFinish={() => setStage('examples')}
+        onPrev={goPrev}
+        onNext={goNext}
       />
     )
   }

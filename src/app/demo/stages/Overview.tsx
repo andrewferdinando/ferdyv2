@@ -5,6 +5,8 @@ import LogoHeader from '../components/LogoHeader'
 import CategoryIcon from '../components/CategoryIcon'
 import type { ScopeResult } from '../data/types'
 
+const MAX_KEPT = 3
+
 type Props = {
   result: ScopeResult
   keptIds: Set<string>
@@ -15,6 +17,21 @@ type Props = {
 
 export default function Overview({ result, keptIds, onToggle, onNext, onBack }: Props) {
   const keptCount = keptIds.size
+  const target = Math.min(MAX_KEPT, result.items.length)
+  const meetsTarget = keptCount >= target
+
+  const handleToggle = (id: string) => {
+    const alreadyKept = keptIds.has(id)
+    if (!alreadyKept && keptCount >= MAX_KEPT) return // hard cap — extra taps ignored
+    onToggle(id)
+  }
+
+  const helper =
+    keptCount === 0
+      ? `Pick ${target} categories to continue`
+      : keptCount < target
+      ? `Pick ${target - keptCount} more to continue`
+      : `${keptCount} of ${target} picked`
 
   return (
     <div className="relative min-h-screen flex flex-col">
@@ -26,23 +43,29 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
             {result.businessName}
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-950 tracking-tight text-center leading-[1.1] mb-4">
-            Here are the post categories we would suggest.
+            Pick 3 categories to explore.
           </h1>
           <p className="text-base sm:text-lg text-gray-500 text-center mb-12 max-w-xl mx-auto">
-            Tap a card to keep or remove it. We’ll set up the ones you keep.
+            Here are the post categories we&rsquo;d suggest from your site. We&rsquo;ll write
+            example posts for the 3 you pick.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {result.items.map((item) => {
               const kept = keptIds.has(item.id)
+              const disabled = !kept && keptCount >= MAX_KEPT
               return (
                 <button
                   key={item.id}
-                  onClick={() => onToggle(item.id)}
+                  onClick={() => handleToggle(item.id)}
+                  disabled={disabled}
+                  aria-pressed={kept}
                   className={`group relative text-left bg-white border rounded-2xl p-6 transition-all ${
                     kept
                       ? 'border-indigo-300 shadow-md'
-                      : 'border-gray-200 opacity-60 hover:opacity-90'
+                      : disabled
+                      ? 'border-gray-200 opacity-40 cursor-not-allowed'
+                      : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-start gap-4">
@@ -85,9 +108,7 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
       {/* Sticky bottom action bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-gray-200 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-950">{keptCount}</span> of {result.items.length} kept
-          </div>
+          <div className="text-sm text-gray-500">{helper}</div>
           <div className="flex items-center gap-2">
             <button
               onClick={onBack}
@@ -97,7 +118,7 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
             </button>
             <button
               onClick={onNext}
-              disabled={keptCount === 0}
+              disabled={!meetsTarget}
               className="h-12 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-semibold text-sm shadow-sm hover:shadow-md hover:-translate-y-px transition disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex items-center gap-2"
             >
               Next

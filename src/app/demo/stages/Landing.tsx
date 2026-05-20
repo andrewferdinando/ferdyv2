@@ -38,7 +38,7 @@ export default function Landing({ onSubmitUrl, onPickDemo, error }: Props) {
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-500 text-center mb-12">
-            We’ll read your site and map out the posts Ferdy could write and publish for you, on repeat.
+            We’ll read your site and suggest 6 post categories Ferdy could automate. Takes about 50 seconds.
           </p>
 
           <form onSubmit={handleSubmit} className="w-full">

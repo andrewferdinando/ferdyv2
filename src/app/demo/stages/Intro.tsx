@@ -27,8 +27,11 @@ export default function Intro({ onContinue }: Props) {
             </span>
           </h1>
 
-          <p className="text-xl sm:text-2xl text-gray-500 mb-14">
+          <p className="text-xl sm:text-2xl text-gray-500 mb-3">
             Take the 2-minute test
+          </p>
+          <p className="text-sm sm:text-base text-gray-400 mb-14 max-w-md mx-auto">
+            We scan your site, suggest 6 post categories, and write example posts.
           </p>
 
           <button
