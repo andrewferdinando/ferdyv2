@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import LogoHeader from '../components/LogoHeader'
 import PostCard from '../components/PostCard'
 import { formatDateEyebrow, nextDatesFor } from '../lib/scheduleDates'
 import type { ScopeItem, ScopeResult } from '../data/types'
@@ -105,7 +104,6 @@ export default function Examples({
 
   return (
     <div className="relative min-h-screen flex flex-col bg-gray-50">
-      <LogoHeader />
 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-32">
         <div className="w-full max-w-3xl">

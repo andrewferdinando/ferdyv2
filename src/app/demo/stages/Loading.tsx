@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import LogoHeader from '../components/LogoHeader'
 
 const STEPS = [
   'Reading your site…',
@@ -46,7 +45,6 @@ export default function Loading({ minDurationMs = 50000, onComplete, ready }: Pr
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      <LogoHeader />
 
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-xl text-center">

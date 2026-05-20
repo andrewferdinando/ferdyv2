@@ -1,7 +1,6 @@
 'use client'
 
 import { ArrowRight, Check } from 'lucide-react'
-import LogoHeader from '../components/LogoHeader'
 import CategoryIcon from '../components/CategoryIcon'
 import type { ScopeResult } from '../data/types'
 
@@ -35,7 +34,6 @@ export default function Overview({ result, keptIds, onToggle, onNext, onBack }: 
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      <LogoHeader />
 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-32">
         <div className="w-full max-w-4xl">

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import LogoHeader from '../components/LogoHeader'
 import { DEMO_LIST } from '../data/demos'
 import type { DemoKey } from '../data/types'
 
@@ -25,7 +24,6 @@ export default function Landing({ onSubmitUrl, onPickDemo, error }: Props) {
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      <LogoHeader />
 
       <div className="flex-1 flex items-center justify-center px-6 pt-32 pb-16">
         <div className="w-full max-w-2xl">

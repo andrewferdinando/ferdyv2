@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import LogoHeader from '../components/LogoHeader'
 import WizardPagination from '../components/WizardPagination'
 import type { ScopeItem, ScopeResult, UnsplashImage } from '../data/types'
 
@@ -71,7 +70,6 @@ export default function Media({
 
   return (
     <div className="relative min-h-screen flex flex-col bg-gray-50">
-      <LogoHeader />
 
       <div className="flex-1 flex flex-col items-center px-6 pt-32 pb-44">
         <div className="w-full max-w-3xl">
