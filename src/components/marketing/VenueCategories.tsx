@@ -103,7 +103,7 @@ export default function VenueCategories() {
             Built for venues like yours
           </h2>
           <p className="text-xl text-gray-600">
-            If your venue runs a regular programme, Ferdy keeps it visible — without the weekly scramble.
+            If your venue runs a regular programme, Ferdy keeps it visible - without the weekly scramble.
           </p>
         </div>
 

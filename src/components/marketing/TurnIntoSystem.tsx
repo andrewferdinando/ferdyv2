@@ -38,7 +38,7 @@ const features: Feature[] = [
     icon: Send,
     title: 'Auto-published',
     description:
-      'Publishes to Facebook, Instagram Feed and Stories — all at once.',
+      'Publishes to Facebook, Instagram Feed and Stories - all at once.',
     accentBg: 'bg-emerald-50',
     accentText: 'text-emerald-600',
   },
@@ -95,7 +95,7 @@ export default function TurnIntoSystem() {
           </div>
         </div>
 
-        {/* Post mock as the proof — framed below the features */}
+        {/* Post mock as the proof - framed below the features */}
         <div className="max-w-5xl mx-auto">
           <div className="relative rounded-[2rem] bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border border-blue-100 p-8 md:p-14 overflow-hidden">
             <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-blue-200 to-purple-200 rounded-full blur-3xl -mr-20 -mt-20 opacity-40" />

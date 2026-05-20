@@ -51,7 +51,7 @@ const postTypes: PostType[] = [
     badgeColor: 'bg-pink-50 text-pink-700 border-pink-200',
     title: 'Event countdown posts',
     description:
-      'For one-off events. Tell Ferdy when it starts and ends — it schedules the lead-up posts automatically.',
+      'For one-off events. Tell Ferdy when it starts and ends - it schedules the lead-up posts automatically.',
     examples: [
       { label: 'Save the date', cadence: '7 days before' },
       { label: 'Building up', cadence: '3 days before' },

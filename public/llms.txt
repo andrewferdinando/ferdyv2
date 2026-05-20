@@ -2,26 +2,26 @@
 
 > Social media automation for venues in Australia and New Zealand.
 
-Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. It is built for venues — hospitality, accommodation, events, workspaces, family entertainment, attractions, arts and culture, and fitness and wellness.
+Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. It is built for venues - hospitality, accommodation, events, workspaces, family entertainment, attractions, arts and culture, and fitness and wellness.
 
 ## How It Works
 
 1. A free Strategy & Setup session with a Ferdy strategist defines your post categories (weekly programme, monthly themes, upcoming events) and loads in your approved media library.
-2. Ferdy generates posts from your venue details and rotates through your approved media on the cadence you choose — weekly, monthly, or as event countdowns.
+2. Ferdy generates posts from your venue details and rotates through your approved media on the cadence you choose - weekly, monthly, or as event countdowns.
 3. You review, edit, approve, or skip each draft before it goes live. Nothing publishes without your sign-off.
 
 ## Who It Is For
 
 Ferdy is built for venues with a regular programme, including:
 
-- Hospitality & Dining — restaurants, cafés, bars, pubs, breweries, distilleries, wineries, cellar doors
-- Accommodation — hotels, motels, lodges, holiday parks, B&Bs, resorts, retreats
-- Events & Functions — wedding venues, function centres, conference, convention & exhibition halls
-- Workspace & Business — co-working spaces, serviced offices, meeting & training rooms
-- Family Entertainment Centres — mini golf, escape rooms, bowling, climbing, go karts, arcades
-- Attractions & Experiences — zoos, aquariums, botanic gardens, theme parks, heritage sites, zip wires, bungee
-- Arts & Culture — theatres, performing arts centres, cinemas, museums, galleries
-- Fitness & Wellness — gyms, health clubs, pilates & yoga studios, day spas
+- Hospitality & Dining - restaurants, cafés, bars, pubs, breweries, distilleries, wineries, cellar doors
+- Accommodation - hotels, motels, lodges, holiday parks, B&Bs, resorts, retreats
+- Events & Functions - wedding venues, function centres, conference, convention & exhibition halls
+- Workspace & Business - co-working spaces, serviced offices, meeting & training rooms
+- Family Entertainment Centres - mini golf, escape rooms, bowling, climbing, go karts, arcades
+- Attractions & Experiences - zoos, aquariums, botanic gardens, theme parks, heritage sites, zip wires, bungee
+- Arts & Culture - theatres, performing arts centres, cinemas, museums, galleries
+- Fitness & Wellness - gyms, health clubs, pilates & yoga studios, day spas
 
 ## Pricing
 

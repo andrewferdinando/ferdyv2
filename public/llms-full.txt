@@ -1,27 +1,27 @@
-# Ferdy — Full Reference
+# Ferdy - Full Reference
 
 > Social media automation for venues in Australia and New Zealand.
 
-Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. It is built specifically for venues — physical places that run a regular programme of weekly, monthly and event-driven content.
+Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. It is built specifically for venues - physical places that run a regular programme of weekly, monthly and event-driven content.
 
 ## How It Works
 
-1. Strategy & Setup session — A free one-on-one with a Ferdy strategist plans your posting structure (categories, cadence, channels) and loads in your approved media library.
-2. Ferdy creates and schedules — Posts are generated from your venue details and rotated across your approved media on a daily, weekly or monthly rhythm, with event countdowns layered in.
-3. You approve what goes live — Review, edit, or skip any post before it publishes. Nothing goes out without your sign-off.
+1. Strategy & Setup session - A free one-on-one with a Ferdy strategist plans your posting structure (categories, cadence, channels) and loads in your approved media library.
+2. Ferdy creates and schedules - Posts are generated from your venue details and rotated across your approved media on a daily, weekly or monthly rhythm, with event countdowns layered in.
+3. You approve what goes live - Review, edit, or skip any post before it publishes. Nothing goes out without your sign-off.
 
 ## Who It Is For
 
 Ferdy is built for venues that run a regular programme:
 
-- Hospitality & Dining — restaurants, cafés, bars, pubs, breweries, distilleries, wineries, cellar doors
-- Accommodation — hotels, motels, lodges, holiday parks, B&Bs, resorts, retreats
-- Events & Functions — wedding venues, function centres, conference, convention & exhibition halls
-- Workspace & Business — co-working spaces, serviced offices, meeting & training rooms
-- Family Entertainment Centres — mini golf, escape rooms, bowling, climbing, go karts, arcades
-- Attractions & Experiences — zoos, aquariums, botanic gardens, theme parks, heritage sites, zip wires, bungee
-- Arts & Culture — theatres, performing arts centres, cinemas, museums, galleries
-- Fitness & Wellness — gyms, health clubs, pilates & yoga studios, day spas
+- Hospitality & Dining - restaurants, cafés, bars, pubs, breweries, distilleries, wineries, cellar doors
+- Accommodation - hotels, motels, lodges, holiday parks, B&Bs, resorts, retreats
+- Events & Functions - wedding venues, function centres, conference, convention & exhibition halls
+- Workspace & Business - co-working spaces, serviced offices, meeting & training rooms
+- Family Entertainment Centres - mini golf, escape rooms, bowling, climbing, go karts, arcades
+- Attractions & Experiences - zoos, aquariums, botanic gardens, theme parks, heritage sites, zip wires, bungee
+- Arts & Culture - theatres, performing arts centres, cinemas, museums, galleries
+- Fitness & Wellness - gyms, health clubs, pilates & yoga studios, day spas
 
 ## Pricing
 
@@ -45,7 +45,7 @@ Ferdy is built for venues that run a regular programme:
 - Ferdy is not for big creative hero campaigns
 - Ferdy is not for thought leadership or opinion pieces
 - Ferdy is not for reactive, in-the-moment posts
-- Ferdy does not replace your team's creative thinking — it handles the repeatable 80% so your team can focus on the more creative 20%
+- Ferdy does not replace your team's creative thinking - it handles the repeatable 80% so your team can focus on the more creative 20%
 - Ferdy does not post without your approval
 
 ## Interactive Demo

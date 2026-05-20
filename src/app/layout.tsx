@@ -11,7 +11,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://ferdy.io"),
   title: {
-    default: "Ferdy — Social media automation for venues",
+    default: "Ferdy - Social media automation for venues",
     template: "%s | Ferdy",
   },
   description:
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     locale: "en_NZ",
     url: "https://ferdy.io",
     siteName: "Ferdy",
-    title: "Ferdy — Social media automation for venues",
+    title: "Ferdy - Social media automation for venues",
     description:
       "Save hours by automating the recurring, predictable posts your venue repeats every month. Auto-publishes to Facebook and Instagram.",
     images: [
@@ -29,13 +29,13 @@ export const metadata: Metadata = {
         url: "/images/og-default.png",
         width: 1200,
         height: 630,
-        alt: "Ferdy — Social media automation for venues",
+        alt: "Ferdy - Social media automation for venues",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ferdy — Social media automation for venues",
+    title: "Ferdy - Social media automation for venues",
     description:
       "Save hours by automating the recurring, predictable posts your venue repeats every month. Auto-publishes to Facebook and Instagram.",
     images: ["/images/og-default.png"],

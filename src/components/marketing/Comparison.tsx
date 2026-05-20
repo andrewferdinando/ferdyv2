@@ -4,7 +4,7 @@ export default function Comparison() {
       <div className="container">
         <div className="text-center mb-16 max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            What Ferdy is — and isn&apos;t
+            What Ferdy is - and isn&apos;t
           </h2>
           <p className="text-xl text-gray-600">
             Built for the repeatable 80%, so your team can focus on more creative posts.

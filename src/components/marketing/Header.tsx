@@ -40,7 +40,7 @@ export default function Header() {
             href="/demo"
             className="hidden sm:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
           >
-            See it on your venue
+            Try it on your venue
           </Link>
           <Link
             href="/auth/sign-in"

@@ -16,7 +16,7 @@ export default function DemoMidCTA() {
                   2-minute interactive demo
                 </div>
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-                  Not sure yet? See it on your venue.
+                  Not sure yet? Try it on your venue.
                 </h2>
                 <p className="text-base md:text-lg text-gray-700 leading-relaxed">
                   Pop in your URL and see what Ferdy would post for your venue. No sign-up.
@@ -27,7 +27,7 @@ export default function DemoMidCTA() {
                 href="/demo"
                 className="shrink-0 inline-flex items-center gap-2 h-12 px-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-600/20 transition-all hover:scale-105"
               >
-                See it on your venue
+                Try it on your venue
                 <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
               </Link>
             </div>

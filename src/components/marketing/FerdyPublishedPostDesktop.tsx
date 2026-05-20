@@ -20,7 +20,7 @@ function VenuePhoto() {
   return (
     <img
       src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
-      alt="Outdoor riverside dining at golden hour — Riverside Pavilion"
+      alt="Outdoor riverside dining at golden hour - Riverside Pavilion"
       className="w-full object-cover"
       style={{ height: '300px' }}
       loading="lazy"
@@ -62,7 +62,7 @@ function FacebookPost() {
       <div className="px-4 pb-3">
         <p className="text-[14px] text-gray-900 leading-[1.4]">
           Friday Sessions are back this week. 🌅 Live acoustic from 6pm, riverside seating
-          open until late, and a sunset platter built for sharing. Bookings recommended —
+          open until late, and a sunset platter built for sharing. Bookings recommended -
           link in bio.
         </p>
       </div>

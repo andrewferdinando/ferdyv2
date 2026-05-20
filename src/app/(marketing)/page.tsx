@@ -12,7 +12,7 @@ import FinalCTA from '@/components/marketing/FinalCTA'
 export const metadata = {
   title: 'Social media automation for venues',
   description:
-    'Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. Built for venues in Australia and New Zealand — hospitality, accommodation, events, attractions, wellness and more.',
+    'Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. Built for venues in Australia and New Zealand - hospitality, accommodation, events, attractions, wellness and more.',
   alternates: { canonical: 'https://ferdy.io' },
 }
 
@@ -31,7 +31,7 @@ const softwareApplicationJsonLd = {
     priceCurrency: 'NZD',
     priceValidUntil: '2026-12-31',
     url: 'https://ferdy.io/#pricing',
-    description: 'Solo plan — 1 brand, up to 30 posts per month',
+    description: 'Solo plan - 1 brand, up to 30 posts per month',
   },
   featureList: [
     'Automated venue social media posting',

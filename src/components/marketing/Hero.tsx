@@ -34,7 +34,7 @@ export default function Hero() {
                 href="/demo"
                 className="h-14 px-8 text-lg rounded-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition-all flex items-center gap-2 font-medium"
               >
-                See it on your venue
+                Try it on your venue
                 <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
               </Link>
             </div>
