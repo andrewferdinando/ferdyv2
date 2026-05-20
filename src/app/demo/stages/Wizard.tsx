@@ -77,18 +77,27 @@ export default function Wizard({
           </div>
 
           <p className="text-lg sm:text-xl text-gray-500 mb-10">
-            Here’s how Ferdy would handle this category.
+            Here are our suggestions for setting up this category. Review then pick photos.
           </p>
 
           {/* Card 1 — When */}
           <Card title="When">
-            <Row n={1} label={item.type === 'event' ? 'When' : 'Schedule'}>
+            <Row
+              n={1}
+              label={item.type === 'event' ? 'When' : 'Schedule'}
+              hint="How often we'll post"
+            >
               <span className="text-sm text-gray-700 font-medium">{item.schedule}</span>
             </Row>
-            <Row n={2} label="Post time">
+            <Row n={2} label="Post time" hint="What time of day">
               <span className="text-sm text-gray-700 font-medium">{item.postTime}</span>
             </Row>
-            <Row n={3} label="Post length" last>
+            <Row
+              n={3}
+              label="Post length"
+              hint="Short, medium, or long caption"
+              last
+            >
               <span className="text-sm text-gray-700 font-medium">{item.postLength}</span>
             </Row>
           </Card>
@@ -98,7 +107,7 @@ export default function Wizard({
             <Row
               n={4}
               label={item.type === 'event' ? 'Event details' : 'Category details'}
-              hint="What Ferdy uses to write each post"
+              hint="The brief we use to write each post"
               stacked
               last
             >
@@ -110,9 +119,9 @@ export default function Wizard({
 
           {/* Card 3 — How it posts */}
           <Card title="How it posts">
-            <Row n={5} label="Brand tone">
+            <Row n={5} label="Brand tone" hint="Matched to your existing posts">
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>Connect to</span>
+                <span>Matched to</span>
                 <div className="w-7 h-7 rounded-md bg-[#1877F2] flex items-center justify-center text-white">
                   <FacebookMark className="w-4 h-4" />
                 </div>
@@ -121,7 +130,13 @@ export default function Wizard({
                 </div>
               </div>
             </Row>
-            <Row n={6} label="Hashtags" stacked last>
+            <Row
+              n={6}
+              label="Hashtags"
+              hint="Added to every post in this category"
+              stacked
+              last
+            >
               <div className="flex flex-wrap gap-1.5">
                 {item.hashtags.map((h) => (
                   <span
