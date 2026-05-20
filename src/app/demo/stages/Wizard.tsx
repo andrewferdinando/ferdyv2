@@ -98,7 +98,23 @@ export default function Wizard({
               hint="Short, medium, or long caption"
               last
             >
-              <span className="text-sm text-gray-700 font-medium">{item.postLength}</span>
+              <div className="flex items-center gap-1">
+                {(['Short', 'Medium', 'Long'] as const).map((len) => {
+                  const active = item.postLength === len
+                  return (
+                    <span
+                      key={len}
+                      className={`text-xs px-2.5 py-1 rounded-md ${
+                        active
+                          ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                          : 'bg-gray-100 text-gray-400 font-medium'
+                      }`}
+                    >
+                      {len}
+                    </span>
+                  )
+                })}
+              </div>
             </Row>
           </Card>
 
