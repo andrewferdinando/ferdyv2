@@ -6,7 +6,6 @@ import ContactForm from './ContactForm'
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
-  const [videoOpen, setVideoOpen] = useState(false)
   const [demoFormOpen, setDemoFormOpen] = useState(false)
 
   useEffect(() => {
@@ -19,10 +18,10 @@ export default function Header() {
   }, [])
 
   return (
-    <header 
+    <header
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 border-b ${
-        scrolled 
-          ? 'bg-white/80 backdrop-blur-md border-slate-200 shadow-sm py-2' 
+        scrolled
+          ? 'bg-white/80 backdrop-blur-md border-slate-200 shadow-sm py-2'
           : 'bg-transparent border-transparent py-4'
       }`}
     >
@@ -32,16 +31,17 @@ export default function Header() {
             Ferdy
           </span>
         </Link>
-        
+
         <div className="flex items-center gap-6">
+          <a href="#venues" className="hidden md:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Venues</a>
           <a href="#how-it-works" className="hidden md:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">How it works</a>
           <a href="#pricing" className="hidden md:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Pricing</a>
-          <button
-            onClick={() => setVideoOpen(true)}
+          <Link
+            href="/demo"
             className="hidden sm:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
           >
-            Watch demo
-          </button>
+            Try it on your venue
+          </Link>
           <Link
             href="/auth/sign-in"
             className="hidden sm:flex text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
@@ -56,38 +56,10 @@ export default function Header() {
           </button>
         </div>
       </div>
-      {videoOpen && (
-        <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setVideoOpen(false)}
-        >
-          <div className="w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
-            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
-              <button
-                onClick={() => setVideoOpen(false)}
-                className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <iframe
-                style={{ border: 0 }}
-                width="100%"
-                height="100%"
-                src="https://www.tella.tv/video/vid_cmlplu08d00md04k37y8y0zq9/embed?b=0&title=0&a=1&loop=0&t=0&muted=0&wt=0"
-                title="Ferdy Demo Video"
-                allowFullScreen
-                allowTransparency
-              ></iframe>
-            </div>
-          </div>
-        </div>
-      )}
       {demoFormOpen && (
         <ContactForm
           title="Book a Call"
-          description="Drop your details and we'll book a live walkthrough for your brand."
+          description="Drop your details and we'll book a live walkthrough for your venue."
           formType="demo"
           onClose={() => setDemoFormOpen(false)}
         />

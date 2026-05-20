@@ -1,186 +1,3 @@
-"use client";
-
-import { useState, useEffect } from 'react';
-
-/* ── Callout data ─────────────────────────────────────────── */
-const CALLOUTS = [
-  {
-    icon: '\u270D\uFE0F',
-    label: 'AI-Generated Copy',
-    description:
-      "Ferdy writes fresh copy every time using your product info, matched to your brand's tone of voice.",
-    color: '#7c3aed',
-  },
-  {
-    icon: '\uD83D\uDDBC\uFE0F',
-    label: 'Auto-Selected Media',
-    description:
-      'Rotates through your media library — images or videos — so content always looks fresh.',
-    color: '#0ea5e9',
-  },
-  {
-    icon: '\uD83D\uDCC5',
-    label: 'Auto-Scheduled',
-    description:
-      'Posts go out weekly, monthly, or on specific dates — set it and forget it.',
-    color: '#f97316',
-  },
-  {
-    icon: '\uD83D\uDE80',
-    label: 'Auto-Published',
-    description:
-      'Ferdy publishes to Facebook, Instagram Feed & Stories — all at once.',
-    color: '#22c55e',
-  },
-];
-
-const CATEGORY_CALLOUT = {
-  icon: '\uD83D\uDCC2',
-  label: 'Category-Based',
-  description:
-    'Each category is a repeating content template — with its own media, schedule, and product info. Set it up once, Ferdy handles the rest.',
-  color: '#8b5cf6',
-};
-
-/* ── CalloutCard (desktop side callouts) ──────────────────── */
-function CalloutCard({
-  icon,
-  label,
-  description,
-  color,
-  visible,
-  align = 'left',
-}: {
-  icon: string;
-  label: string;
-  description: string;
-  color: string;
-  visible: boolean;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <div
-      className={`flex flex-col transition-all duration-700 ease-out ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-      } ${align === 'right' ? 'items-end' : 'items-start'}`}
-    >
-      <div
-        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white text-[11px] font-semibold mb-1.5 whitespace-nowrap"
-        style={{ backgroundColor: color }}
-      >
-        <span>{icon}</span>
-        {label}
-      </div>
-      <div
-        className={`bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 px-3 py-2 max-w-[210px] ${
-          align === 'right' ? 'text-right' : ''
-        }`}
-      >
-        <p className="text-[11px] text-gray-500 leading-relaxed">
-          {description}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ── ConnectorLine (desktop horizontal) ───────────────────── */
-function ConnectorLine({
-  color,
-  dotSide,
-  visible,
-}: {
-  color: string;
-  dotSide: 'left' | 'right';
-  visible: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center min-w-[28px] flex-1 transition-opacity duration-500 delay-200 ${
-        visible ? 'opacity-100' : 'opacity-0'
-      }`}
-    >
-      {dotSide === 'left' && (
-        <div
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: color }}
-        />
-      )}
-      <div
-        className="flex-1 h-0 border-t-2 border-dashed"
-        style={{ borderColor: color, opacity: 0.35 }}
-      />
-      {dotSide === 'right' && (
-        <div
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: color }}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ── VerticalConnectorLine (desktop bottom) ───────────────── */
-function VerticalConnectorLine({
-  color,
-  visible,
-}: {
-  color: string;
-  visible: boolean;
-}) {
-  return (
-    <div
-      className={`flex flex-col items-center min-h-[24px] h-8 transition-opacity duration-500 delay-200 ${
-        visible ? 'opacity-100' : 'opacity-0'
-      }`}
-    >
-      <div
-        className="w-2 h-2 rounded-full flex-shrink-0"
-        style={{ backgroundColor: color }}
-      />
-      <div
-        className="flex-1 w-0 border-l-2 border-dashed"
-        style={{ borderColor: color, opacity: 0.35 }}
-      />
-    </div>
-  );
-}
-
-/* ── CompactCallout (mobile) ──────────────────────────────── */
-function CompactCallout({
-  icon,
-  label,
-  description,
-  color,
-  visible,
-}: {
-  icon: string;
-  label: string;
-  description: string;
-  color: string;
-  visible: boolean;
-}) {
-  return (
-    <div
-      className={`pl-3 py-2 transition-all duration-700 ease-out ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-      }`}
-      style={{ borderLeft: `2px dashed ${color}` }}
-    >
-      <span
-        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-white text-[10px] font-semibold whitespace-nowrap"
-        style={{ backgroundColor: color }}
-      >
-        <span>{icon}</span>
-        {label}
-      </span>
-      <p className="text-[11px] text-gray-500 leading-relaxed mt-1.5">
-        {description}
-      </p>
-    </div>
-  );
-}
-
 /* ── Checkmark icon ───────────────────────────────────────── */
 function Check() {
   return (
@@ -195,7 +12,20 @@ function Check() {
         clipRule="evenodd"
       />
     </svg>
-  );
+  )
+}
+
+/* ── VenuePhoto (Unsplash riverside venue at golden hour) ── */
+function VenuePhoto() {
+  return (
+    <img
+      src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+      alt="Outdoor riverside dining at golden hour - Riverside Pavilion"
+      className="w-full object-cover"
+      style={{ height: '300px' }}
+      loading="lazy"
+    />
+  )
 }
 
 /* ── FacebookPost ─────────────────────────────────────────── */
@@ -204,12 +34,12 @@ function FacebookPost() {
     <div className="bg-white rounded-xl shadow-xl border border-gray-200/80 overflow-hidden">
       {/* Header */}
       <div className="px-4 pt-3 pb-2 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-sm">
-          <span className="text-white font-bold text-sm leading-none">BB</span>
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+          <span className="text-white font-bold text-sm leading-none">RP</span>
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-[14px] text-gray-900 leading-tight">
-            Biggie&apos;s Burger Bar
+            Riverside Pavilion
           </p>
           <div className="flex items-center gap-1 text-[12px] text-gray-500 mt-0.5">
             <span>2h</span>
@@ -231,19 +61,14 @@ function FacebookPost() {
       {/* Post copy */}
       <div className="px-4 pb-3">
         <p className="text-[14px] text-gray-900 leading-[1.4]">
-          Two-for-one Tuesday is BACK! 🍔🍔 Bring your bestie and grab two of
-          our famous smashed burgers for just $18. Available every Tuesday,
-          dine-in only. See you there!
+          Friday Sessions are back this week. 🌅 Live acoustic from 6pm, riverside seating
+          open until late, and a sunset platter built for sharing. Bookings recommended -
+          link in bio.
         </p>
       </div>
 
-      {/* Post image */}
-      <img
-        src="/images/burger-tuesday.jpg"
-        alt="Two delicious smashed burgers on a wooden board"
-        className="w-full object-cover"
-        style={{ maxHeight: '300px' }}
-      />
+      {/* Post image (CSS-only venue photo) */}
+      <VenuePhoto />
 
       {/* Engagement row */}
       <div className="px-4 py-2 flex items-center justify-between text-[13px] text-gray-500">
@@ -256,9 +81,9 @@ function FacebookPost() {
               ❤️
             </span>
           </div>
-          <span>47</span>
+          <span>128</span>
         </div>
-        <span>12 comments &middot; 3 shares</span>
+        <span>24 comments &middot; 11 shares</span>
       </div>
 
       {/* Divider */}
@@ -356,169 +181,14 @@ function FacebookPost() {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ── CategoryCard (merged category callout + summary bar) ─── */
-function CategoryCard({
-  callout,
-  visible,
-}: {
-  callout: { icon: string; label: string; description: string; color: string };
-  visible: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl px-4 py-3.5 transition-all duration-700 ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-      }`}
-      style={{
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: callout.color + '30',
-        backgroundColor: callout.color + '08',
-      }}
-    >
-      <div className="flex items-start gap-2.5">
-        <span
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
-          style={{ backgroundColor: callout.color }}
-        >
-          <span>{callout.icon}</span>
-          {callout.label}
-        </span>
-        <p className="text-[11px] text-gray-500 leading-relaxed pt-0.5">
-          {callout.description}
-        </p>
-      </div>
-      <div
-        className="flex items-center gap-1.5 sm:gap-2 mt-3 pt-3 whitespace-nowrap"
-        style={{
-          borderTopWidth: '1px',
-          borderTopStyle: 'dashed',
-          borderTopColor: callout.color + '25',
-        }}
-      >
-        <span className="font-semibold text-amber-800 bg-amber-100 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-[12px]">
-          Burger Tuesday
-        </span>
-        <span className="text-gray-300">&middot;</span>
-        <span className="font-semibold text-amber-800 bg-amber-100 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-[12px]">
-          Weekly
-        </span>
-        <span className="text-gray-300">&middot;</span>
-        <span className="font-semibold text-amber-800 bg-amber-100 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-[12px]">
-          Mondays at 7pm
-        </span>
-      </div>
-    </div>
-  );
+  )
 }
 
 /* ── Main component ───────────────────────────────────────── */
 export default function FerdyPublishedPostDesktop() {
-  const [vis, setVis] = useState([false, false, false, false, false]);
-
-  useEffect(() => {
-    const timers = [0, 1, 2, 3, 4].map((i) =>
-      setTimeout(
-        () =>
-          setVis((prev) => {
-            const next = [...prev];
-            next[i] = true;
-            return next;
-          }),
-        300 + i * 200,
-      ),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  const [aiCopy, autoMedia, autoScheduled, autoPublished] = CALLOUTS;
-
   return (
-    <div className="w-full">
-      {/* ── Desktop: 3-column grid with side callouts ────── */}
-      <div className="hidden lg:grid lg:grid-cols-[1fr_420px_1fr] items-start max-w-6xl mx-auto">
-        {/* Left callouts */}
-        <div className="flex flex-col gap-0 pt-[80px]">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <CalloutCard {...aiCopy} visible={vis[0]} align="right" />
-            </div>
-            <ConnectorLine
-              color={aiCopy.color}
-              dotSide="right"
-              visible={vis[0]}
-            />
-          </div>
-          <div className="flex items-center mt-[80px]">
-            <div className="flex-shrink-0">
-              <CalloutCard {...autoMedia} visible={vis[1]} align="right" />
-            </div>
-            <ConnectorLine
-              color={autoMedia.color}
-              dotSide="right"
-              visible={vis[1]}
-            />
-          </div>
-        </div>
-
-        {/* Center: post + category card */}
-        <div>
-          <FacebookPost />
-          <div className="flex flex-col items-center mt-1">
-            <VerticalConnectorLine
-              color={CATEGORY_CALLOUT.color}
-              visible={vis[4]}
-            />
-          </div>
-          <CategoryCard callout={CATEGORY_CALLOUT} visible={vis[4]} />
-        </div>
-
-        {/* Right callouts */}
-        <div className="flex flex-col pt-[16px]">
-          <div className="flex items-center">
-            <ConnectorLine
-              color={autoScheduled.color}
-              dotSide="left"
-              visible={vis[2]}
-            />
-            <div className="flex-shrink-0">
-              <CalloutCard {...autoScheduled} visible={vis[2]} />
-            </div>
-          </div>
-          <div className="flex items-center mt-[310px]">
-            <ConnectorLine
-              color={autoPublished.color}
-              dotSide="left"
-              visible={vis[3]}
-            />
-            <div className="flex-shrink-0">
-              <CalloutCard {...autoPublished} visible={vis[3]} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Mobile/Tablet: post + grouped callouts below ─── */}
-      <div className="lg:hidden max-w-[480px] mx-auto">
-        <FacebookPost />
-
-        <div className="grid grid-cols-2 gap-3 mt-5">
-          {CALLOUTS.map((callout, i) => (
-            <CompactCallout
-              key={callout.label}
-              {...callout}
-              visible={vis[i]}
-            />
-          ))}
-        </div>
-
-        <div className="mt-3">
-          <CategoryCard callout={CATEGORY_CALLOUT} visible={vis[4]} />
-        </div>
-      </div>
+    <div className="w-full max-w-[480px] mx-auto">
+      <FacebookPost />
     </div>
-  );
+  )
 }

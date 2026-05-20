@@ -1,17 +1,18 @@
 import Hero from '@/components/marketing/Hero'
-import Features from '@/components/marketing/Features'
+import TurnIntoSystem from '@/components/marketing/TurnIntoSystem'
+import VenueCategories from '@/components/marketing/VenueCategories'
 import HowItWorks from '@/components/marketing/HowItWorks'
-import Examples from '@/components/marketing/Examples'
+import DemoMidCTA from '@/components/marketing/DemoMidCTA'
+import PostTypes from '@/components/marketing/PostTypes'
 import Comparison from '@/components/marketing/Comparison'
-import RecurringPosts from '@/components/marketing/RecurringPosts'
-import Events from '@/components/marketing/Events'
 import TimeSaved from '@/components/marketing/TimeSaved'
 import Pricing from '@/components/marketing/Pricing'
+import FinalCTA from '@/components/marketing/FinalCTA'
 
 export const metadata = {
-  title: 'Social Media Automation for Small Businesses',
+  title: 'Social media automation for venues',
   description:
-    'Ferdy automates the recurring, predictable social media posts for restaurants, cafes, e-commerce, and service businesses in Australia and New Zealand. Auto-publish to Instagram and Facebook.',
+    'Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. Built for venues in Australia and New Zealand - hospitality, accommodation, events, attractions, wellness and more.',
   alternates: { canonical: 'https://ferdy.io' },
 }
 
@@ -23,24 +24,39 @@ const softwareApplicationJsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'Social media automation tool that creates and publishes the recurring, predictable posts for small businesses. Auto-post to Instagram and Facebook.',
+    'Ferdy automates the creation and publishing of your repeatable, predictable posts on Facebook and Instagram. Built for venues across hospitality, accommodation, events, workspaces, family entertainment, attractions, arts and wellness.',
   offers: {
     '@type': 'Offer',
     price: '147',
     priceCurrency: 'NZD',
     priceValidUntil: '2026-12-31',
     url: 'https://ferdy.io/#pricing',
-    description: 'Solo plan — 1 brand, up to 30 posts per month',
+    description: 'Solo plan - 1 brand, up to 30 posts per month',
   },
   featureList: [
-    'Automated social media posting',
-    'Recurring post scheduling',
+    'Automated venue social media posting',
+    'Recurring weekly and monthly post scheduling',
+    'Event countdown post automation',
     'Instagram and Facebook auto-publishing',
-    'AI-generated social media content',
-    'Brand asset management',
+    'AI-generated copy in your venue’s tone of voice',
+    'Brand asset library with auto-rotation',
     'Post approval workflow',
   ],
-  screenshot: 'https://ferdy.io/images/published_post_screenshot.png',
+  screenshot: 'https://ferdy.io/images/og-default.png',
+}
+
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Ferdy AI Limited',
+  url: 'https://ferdy.io',
+  logo: 'https://ferdy.io/images/ferdy_logo_icon.png',
+  email: 'support@ferdy.io',
+  areaServed: ['NZ', 'AU'],
+  address: {
+    '@type': 'PostalAddress',
+    addressCountry: 'NZ',
+  },
 }
 
 const faqJsonLd = {
@@ -52,7 +68,15 @@ const faqJsonLd = {
       name: 'What is Ferdy?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ferdy is a social media automation tool designed for small businesses. It automates the creation and publishing of the recurring, predictable social media posts to Instagram and Facebook, saving business owners hours of manual work each month.',
+        text: 'Ferdy is a social media automation tool built for venues. It automates the creation and publishing of the recurring, predictable posts your venue repeats every month on Facebook and Instagram, saving your team hours of manual work.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What kinds of venues is Ferdy for?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Ferdy is built for venues that run a regular programme: restaurants, cafés, bars, hotels and accommodation, wedding and function venues, co-working spaces, family entertainment centres, attractions, theatres, cinemas, museums, galleries, gyms, studios and day spas.',
       },
     },
     {
@@ -60,7 +84,7 @@ const faqJsonLd = {
       name: 'What social media platforms does Ferdy support?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ferdy currently supports automatic publishing to Instagram (feed posts and stories) and Facebook (page posts). Posts are created from your brand assets, images, and website content.',
+        text: 'Ferdy publishes automatically to Facebook (Page posts) and Instagram (Feed posts and Stories). Posts are created from your venue details, brand assets and approved media library.',
       },
     },
     {
@@ -68,7 +92,7 @@ const faqJsonLd = {
       name: 'How much does Ferdy cost?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ferdy\u2019s Solo plan is NZ$147 per month (+GST) per brand, which includes up to 30 automated posts per month. For businesses managing multiple brands, custom Multi pricing is available by booking a call with the Ferdy team.',
+        text: 'Ferdy’s Solo plan is NZ$147 per month (+GST) per brand, which includes up to 30 automated posts per month. For groups or agencies managing multiple venues, custom Multi pricing is available by booking a call.',
       },
     },
     {
@@ -76,31 +100,21 @@ const faqJsonLd = {
       name: 'Do I lose control over what gets posted?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'No. Ferdy gives you full editorial control. Every post is generated as a draft that you can review, edit, approve, or skip before it goes live. Nothing is published without your approval.',
+        text: 'No. Every post is generated as a draft that you can review, edit, approve, or skip before it goes live. Nothing is published without your sign-off.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Who is Ferdy designed for?',
+      name: 'How does Ferdy create posts?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ferdy is built for product-focused small businesses in Australia and New Zealand, including restaurants, cafes, venues, e-commerce stores, and service businesses that have recurring, predictable content to share on social media each month.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How does Ferdy create content?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Ferdy generates posts from your actual brand assets \u2014 your images, website content, product information, and offers. It doesn\u2019t create random or generic content. You set up content categories (like weekly specials or product highlights) and Ferdy handles the scheduling and publishing.',
+        text: 'You set up post categories (like weekly trivia, function spaces, or an upcoming event). Ferdy writes fresh copy each time from your venue details, rotates through your approved media library, and schedules everything on the cadence you choose.',
       },
     },
   ],
 }
 
 export default function Home() {
-  const showTestimonials = process.env.NEXT_PUBLIC_SHOW_TESTIMONIALS === 'true'
-
   return (
     <>
       <script
@@ -109,17 +123,22 @@ export default function Home() {
       />
       <script
         type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <Hero />
-      <Features />
+      <TurnIntoSystem />
+      <VenueCategories />
       <HowItWorks />
-      {showTestimonials && <Examples />}
+      <DemoMidCTA />
+      <PostTypes />
       <Comparison />
-      <RecurringPosts />
-      <Events />
       <TimeSaved />
       <Pricing />
+      <FinalCTA />
     </>
   )
 }
